@@ -1,115 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <title>RIGO AI</title>
+<title>RIGO AI</title>
 
-  <style>
+<style>
 
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
-      font-family:Arial,sans-serif;
-    }
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:Arial,sans-serif;
+}
 
-    body{
-      background:#0f172a;
-      color:white;
-      height:100vh;
-      display:flex;
-      flex-direction:column;
-    }
+body{
+  background:#0b1430;
+  color:white;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+}
 
-    .header{
-      padding:20px;
-      text-align:center;
-      border-bottom:1px solid #1e293b;
-      font-size:22px;
-      font-weight:bold;
-    }
+header{
+  padding:20px;
+  text-align:center;
+  font-size:32px;
+  font-weight:bold;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+}
 
-    .chat{
-      flex:1;
-      padding:20px;
-      overflow-y:auto;
-    }
+.chat{
+  flex:1;
+  overflow-y:auto;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
 
-    .message{
-      max-width:80%;
-      padding:14px;
-      border-radius:16px;
-      margin-bottom:14px;
-      line-height:1.5;
-    }
+.message{
+  max-width:80%;
+  padding:16px;
+  border-radius:18px;
+  line-height:1.6;
+  font-size:18px;
+  word-wrap:break-word;
+}
 
-    .ai{
-      background:#1e293b;
-    }
+.ai{
+  background:#1a2547;
+  align-self:flex-start;
+}
 
-    .user{
-      background:#22c55e;
-      margin-left:auto;
-    }
+.user{
+  background:#22c55e;
+  color:white;
+  align-self:flex-end;
+}
 
-    .input-area{
-      display:flex;
-      padding:15px;
-      border-top:1px solid #1e293b;
-      gap:10px;
-    }
+.input-area{
+  display:flex;
+  gap:10px;
+  padding:16px;
+  border-top:1px solid rgba(255,255,255,0.1);
+  background:#0b1430;
+}
 
-    input{
-      flex:1;
-      padding:14px;
-      border:none;
-      border-radius:14px;
-      background:#1e293b;
-      color:white;
-      font-size:16px;
-    }
+input{
+  flex:1;
+  padding:16px;
+  border:none;
+  border-radius:16px;
+  font-size:18px;
+  outline:none;
+  background:#18223f;
+  color:white;
+}
 
-    button{
-      padding:14px 20px;
-      border:none;
-      border-radius:14px;
-      background:#22c55e;
-      color:white;
-      font-size:16px;
-      cursor:pointer;
-    }
+input::placeholder{
+  color:#aaa;
+}
 
-  </style>
+button{
+  padding:16px 24px;
+  border:none;
+  border-radius:16px;
+  background:#22c55e;
+  color:white;
+  font-size:18px;
+  cursor:pointer;
+  font-weight:bold;
+}
 
+button:hover{
+  opacity:0.9;
+}
+
+</style>
 </head>
 
 <body>
 
-  <div class="header">
-    RIGO AI
+<header>
+RIGO AI
+</header>
+
+<div class="chat">
+
+  <div class="message ai">
+    مرحباً 👋<br><br>
+    أنا مساعدك الذكي الشخصي.
   </div>
 
-  <div class="chat">
+</div>
 
-    <div class="message ai">
-      Hello 👋<br><br>
-      I'm your personal AI assistant.
-    </div>
+<div class="input-area">
 
-    <div class="message user">
-      Help me organize my day.
-    </div>
+  <input
+    type="text"
+    placeholder="اكتب رسالتك هنا..."
+  />
 
-  </div>
+  <button>
+    إرسال
+  </button>
 
-  <div class="input-area">
-    <input type="text" placeholder="Message RIGO AI..." />
-    <button>Send</button>
-  </div>
+</div>
+
+<script>
+
+const input = document.querySelector("input");
+const button = document.querySelector("button");
+const chat = document.querySelector(".chat");
+
+function addMessage(text, type){
+
+  const msg = document.createElement("div");
+
+  msg.className = "message " + type;
+
+  msg.innerText = text;
+
+  chat.appendChild(msg);
+
+  chat.scrollTop = chat.scrollHeight;
+
+}
+
+function aiReply(userText){
+
+  let reply = "";
+
+  const text = userText.toLowerCase();
+
+  if(text.includes("مرحبا") || text.includes("هلا")){
+    reply = "أهلاً 👋 شلونك؟";
+  }
+
+  else if(text.includes("اسمك")){
+    reply = "أنا RIGO AI مساعدك الذكي.";
+  }
+
+  else if(text.includes("تنظيم")){
+    reply = "أكيد 👍 خليني أساعدك بتنظيم يومك.";
+  }
+
+  else{
+    reply = "فهمت عليك 👍 كتبت: " + userText;
+  }
+
+  setTimeout(() => {
+
+    addMessage(reply,"ai");
+
+  },700);
+
+}
+
+function sendMessage(){
+
+  const text = input.value.trim();
+
+  if(text === "") return;
+
+  addMessage(text,"user");
+
+  input.value = "";
+
+  aiReply(text);
+
+}
+
+button.addEventListener("click", sendMessage);
+
+input.addEventListener("keypress", function(e){
+
+  if(e.key === "Enter"){
+    sendMessage();
+  }
+
+});
+
+</script>
 
 </body>
-
 </html>
