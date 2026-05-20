@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>RIGO</title>
+
+  <title>RIGO AI</title>
 
   <style>
+
     *{
       margin:0;
       padding:0;
       box-sizing:border-box;
-      font-family:Arial, sans-serif;
+      font-family:Arial,sans-serif;
     }
 
     body{
@@ -18,74 +21,95 @@
       color:white;
       height:100vh;
       display:flex;
-      justify-content:center;
-      align-items:center;
+      flex-direction:column;
     }
 
-    .container{
+    .header{
+      padding:20px;
       text-align:center;
-      width:90%;
-      max-width:400px;
+      border-bottom:1px solid #1e293b;
+      font-size:22px;
+      font-weight:bold;
     }
 
-    .logo{
-      font-size:60px;
-      margin-bottom:20px;
+    .chat{
+      flex:1;
+      padding:20px;
+      overflow-y:auto;
     }
 
-    h1{
-      font-size:38px;
-      margin-bottom:10px;
-    }
-
-    p{
-      color:#94a3b8;
-      margin-bottom:40px;
+    .message{
+      max-width:80%;
+      padding:14px;
+      border-radius:16px;
+      margin-bottom:14px;
       line-height:1.5;
     }
 
-    .btn{
-      display:block;
-      width:100%;
-      padding:16px;
+    .ai{
+      background:#1e293b;
+    }
+
+    .user{
+      background:#22c55e;
+      margin-left:auto;
+    }
+
+    .input-area{
+      display:flex;
+      padding:15px;
+      border-top:1px solid #1e293b;
+      gap:10px;
+    }
+
+    input{
+      flex:1;
+      padding:14px;
       border:none;
       border-radius:14px;
-      font-size:18px;
-      cursor:pointer;
-      margin-bottom:15px;
-    }
-
-    .start{
-      background:#22c55e;
-      color:white;
-    }
-
-    .login{
       background:#1e293b;
       color:white;
-      border:1px solid #334155;
+      font-size:16px;
     }
+
+    button{
+      padding:14px 20px;
+      border:none;
+      border-radius:14px;
+      background:#22c55e;
+      color:white;
+      font-size:16px;
+      cursor:pointer;
+    }
+
   </style>
+
 </head>
 
 <body>
 
-  <div class="container">
+  <div class="header">
+    RIGO AI
+  </div>
 
-    <div class="logo">🛣️</div>
+  <div class="chat">
 
-    <h1>RIGO</h1>
+    <div class="message ai">
+      Hello 👋<br><br>
+      I'm your personal AI assistant.
+    </div>
 
-    <p>
-      Smart road services app for drivers, towing,
-      fuel delivery and emergency help.
-    </p>
-
-    <button class="btn start">Start</button>
-
-    <button class="btn login">Login</button>
+    <div class="message user">
+      Help me organize my day.
+    </div>
 
   </div>
 
+  <div class="input-area">
+    <input type="text" placeholder="Message RIGO AI..." />
+    <button>Send</button>
+  </div>
+
 </body>
+
 </html>
