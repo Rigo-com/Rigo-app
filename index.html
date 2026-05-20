@@ -1,9 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>RIGO</title>
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:Arial, sans-serif;
+    }
+
+    body{
+      background:#0f172a;
+      color:white;
+      height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .container{
+      text-align:center;
+      width:90%;
+      max-width:400px;
+    }
+
+    .logo{
+      font-size:60px;
+      margin-bottom:20px;
+    }
+
+    h1{
+      font-size:38px;
+      margin-bottom:10px;
+    }
+
+    p{
+      color:#94a3b8;
+      margin-bottom:40px;
+      line-height:1.5;
+    }
+
+    .btn{
+      display:block;
+      width:100%;
+      padding:16px;
+      border:none;
+      border-radius:14px;
+      font-size:18px;
+      cursor:pointer;
+      margin-bottom:15px;
+    }
+
+    .start{
+      background:#22c55e;
+      color:white;
+    }
+
+    .login{
+      background:#1e293b;
+      color:white;
+      border:1px solid #334155;
+    }
+  </style>
 </head>
+
 <body>
-  <h1>Welcome to RIGO</h1>
+
+  <div class="container">
+
+    <div class="logo">🛣️</div>
+
+    <h1>RIGO</h1>
+
+    <p>
+      Smart road services app for drivers, towing,
+      fuel delivery and emergency help.
+    </p>
+
+    <button class="btn start">Start</button>
+
+    <button class="btn login">Login</button>
+
+  </div>
+
 </body>
 </html>
