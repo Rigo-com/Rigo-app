@@ -3,9 +3,9 @@
 
 <head>
 
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <title>RIGO AI</title>
 
@@ -20,14 +20,14 @@
 
 body{
 
-  background:
-  radial-gradient(circle at top,#102038 0%,#07111f 45%,#040b14 100%);
-
-  color:white;
-
   height:100vh;
 
   overflow:hidden;
+
+  background:
+  radial-gradient(circle at top,#10243f 0%,#071321 45%,#020812 100%);
+
+  color:white;
 
   display:flex;
 
@@ -39,31 +39,32 @@ body{
 
 header{
 
-  padding:24px 20px;
+  position:relative;
+
+  padding:28px 20px 20px;
 
   text-align:center;
 
   border-bottom:1px solid rgba(255,255,255,0.05);
 
-  backdrop-filter:blur(12px);
+  background:rgba(5,15,28,0.75);
 
-  background:rgba(7,17,31,0.7);
-
-  position:relative;
+  backdrop-filter:blur(6px);
 
 }
 
-header h1{
+.logo{
 
-  font-size:42px;
+  font-size:58px;
 
   font-weight:900;
 
-  letter-spacing:2px;
+  color:#41e4aa;
 
-  color:#35e0a1;
+  letter-spacing:3px;
 
-  text-shadow:0 0 25px rgba(53,224,161,0.25);
+  text-shadow:
+  0 0 18px rgba(65,228,170,0.35);
 
 }
 
@@ -71,11 +72,11 @@ header h1{
 
   margin-top:8px;
 
-  color:#7d92a8;
+  color:#7f93ac;
+
+  letter-spacing:2px;
 
   font-size:14px;
-
-  letter-spacing:1px;
 
 }
 
@@ -83,25 +84,31 @@ header h1{
 
   position:absolute;
 
-  top:22px;
+  top:20px;
 
-  left:18px;
+  left:20px;
+
+  width:58px;
+
+  height:58px;
 
   border:none;
 
-  background:rgba(53,224,161,0.12);
+  border-radius:18px;
 
-  border:1px solid rgba(53,224,161,0.35);
+  background:
+  linear-gradient(135deg,#41e4aa,#27c98a);
 
-  color:#35e0a1;
+  color:#071321;
+
+  font-size:18px;
 
   font-weight:bold;
 
-  padding:10px 16px;
-
-  border-radius:14px;
-
   cursor:pointer;
+
+  box-shadow:
+  0 0 18px rgba(65,228,170,0.3);
 
   transition:0.2s;
 
@@ -109,11 +116,11 @@ header h1{
 
 .lang-btn:hover{
 
-  transform:scale(1.05);
+  transform:scale(1.06);
 
 }
 
-/* CHAT */
+/* CHAT AREA */
 
 .chat{
 
@@ -121,15 +128,13 @@ header h1{
 
   overflow-y:auto;
 
-  padding:22px;
+  padding:24px 18px 120px;
 
   display:flex;
 
   flex-direction:column;
 
-  gap:18px;
-
-  padding-bottom:130px;
+  gap:16px;
 
 }
 
@@ -141,27 +146,29 @@ header h1{
 
 .chat::-webkit-scrollbar-thumb{
 
-  background:#35e0a1;
+  background:#41e4aa;
 
   border-radius:20px;
 
 }
 
+/* MESSAGES */
+
 .message{
 
-  max-width:78%;
+  max-width:82%;
 
   padding:18px 20px;
 
   border-radius:24px;
 
-  line-height:1.9;
+  font-size:20px;
 
-  font-size:18px;
+  line-height:1.8;
 
   animation:fade .25s ease;
 
-  word-wrap:break-word;
+  word-break:break-word;
 
 }
 
@@ -169,18 +176,23 @@ header h1{
 
   align-self:flex-start;
 
-  background:rgba(255,255,255,0.05);
+  background:
+  linear-gradient(
+    145deg,
+    rgba(255,255,255,0.06),
+    rgba(255,255,255,0.03)
+  );
 
   border:1px solid rgba(255,255,255,0.06);
 
-  backdrop-filter:blur(10px);
+  backdrop-filter:blur(12px);
 
   color:white;
 
   border-top-right-radius:8px;
 
   box-shadow:
-  0 0 15px rgba(0,0,0,0.2);
+  0 8px 30px rgba(0,0,0,0.2);
 
 }
 
@@ -188,22 +200,27 @@ header h1{
 
   align-self:flex-end;
 
-  background:#35e0a1;
+  background:
+  linear-gradient(
+    135deg,
+    #41e4aa,
+    #29c989
+  );
 
-  color:#07111f;
+  color:#04101d;
 
   font-weight:bold;
 
   border-top-left-radius:8px;
 
   box-shadow:
-  0 0 20px rgba(53,224,161,0.25);
+  0 0 20px rgba(65,228,170,0.25);
 
 }
 
 .typing{
 
-  opacity:.7;
+  opacity:.65;
 
   font-style:italic;
 
@@ -227,11 +244,12 @@ header h1{
 
   padding:16px;
 
-  background:rgba(4,11,20,0.92);
-
-  backdrop-filter:blur(12px);
+  background:
+  rgba(3,10,20,0.95);
 
   border-top:1px solid rgba(255,255,255,0.05);
+
+  backdrop-filter:blur(12px);
 
 }
 
@@ -243,61 +261,61 @@ input{
 
   outline:none;
 
-  background:#101c2d;
+  background:#0d1a2b;
 
   color:white;
 
   padding:18px;
 
-  border-radius:18px;
+  border-radius:22px;
 
-  font-size:17px;
+  font-size:18px;
 
   border:1px solid rgba(255,255,255,0.05);
 
 }
 
-input:focus{
-
-  border:1px solid rgba(53,224,161,0.4);
-
-  box-shadow:0 0 15px rgba(53,224,161,0.12);
-
-}
-
 input::placeholder{
 
-  color:#71839a;
+  color:#6f8299;
 
 }
 
-button.send{
+input:focus{
+
+  border:1px solid rgba(65,228,170,0.35);
+
+  box-shadow:
+  0 0 18px rgba(65,228,170,0.15);
+
+}
+
+.send-btn{
 
   border:none;
 
-  background:#35e0a1;
+  min-width:110px;
 
-  color:#07111f;
+  border-radius:22px;
+
+  background:
+  linear-gradient(135deg,#41e4aa,#28c688);
+
+  color:#04101d;
+
+  font-size:22px;
 
   font-weight:900;
 
-  padding:0 24px;
-
-  border-radius:18px;
-
   cursor:pointer;
-
-  font-size:16px;
 
   transition:0.2s;
 
 }
 
-button.send:hover{
+.send-btn:hover{
 
   transform:scale(1.05);
-
-  box-shadow:0 0 20px rgba(53,224,161,0.35);
 
 }
 
@@ -333,9 +351,9 @@ button.send:hover{
 EN
 </button>
 
-<h1>
+<div class="logo">
 RIGO AI
-</h1>
+</div>
 
 <div class="subtitle" id="subtitle">
 SMART PERSONAL ASSISTANT
@@ -345,13 +363,13 @@ SMART PERSONAL ASSISTANT
 
 <div class="chat" id="chat">
 
-<div class="message ai" id="welcomeMessage">
+<div class="message ai" id="welcome">
 
 مرحباً 👋
 
 <br><br>
 
-أنا مساعدك الذكي الشخصي.
+أنا مساعدك الذكي الشخصي.  
 كيف أقدر أساعدك اليوم؟
 
 </div>
@@ -366,7 +384,10 @@ id="input"
 placeholder="اكتب رسالتك هنا..."
 >
 
-<button class="send" id="sendBtn">
+<button
+class="send-btn"
+id="sendBtn"
+>
 
 إرسال
 
@@ -378,17 +399,22 @@ placeholder="اكتب رسالتك هنا..."
 
 let currentLanguage = "ar";
 
-const input = document.getElementById("input");
-
-const button = document.getElementById("sendBtn");
-
 const chat = document.getElementById("chat");
 
-const welcomeMessage = document.getElementById("welcomeMessage");
+const input = document.getElementById("input");
+
+const sendBtn = document.getElementById("sendBtn");
 
 const subtitle = document.getElementById("subtitle");
 
+const welcome = document.getElementById("welcome");
+
+/* LANGUAGE */
+
 function toggleLanguage(){
+
+  const langBtn =
+  document.querySelector(".lang-btn");
 
   if(currentLanguage === "ar"){
 
@@ -398,16 +424,18 @@ function toggleLanguage(){
 
     document.documentElement.dir = "ltr";
 
-    input.placeholder = "Type your message...";
+    langBtn.innerText = "AR";
 
-    button.innerText = "Send";
+    subtitle.innerText =
+    "SMART PERSONAL ASSISTANT";
 
-    subtitle.innerText = "SMART PERSONAL ASSISTANT";
+    input.placeholder =
+    "Type your message here...";
 
-    welcomeMessage.innerHTML =
+    sendBtn.innerText = "Send";
+
+    welcome.innerHTML =
     "Hello 👋 <br><br> I'm your personal AI assistant. How can I help you today?";
-
-    document.querySelector(".lang-btn").innerText = "AR";
 
   }
 
@@ -419,40 +447,51 @@ function toggleLanguage(){
 
     document.documentElement.dir = "rtl";
 
-    input.placeholder = "اكتب رسالتك هنا...";
+    langBtn.innerText = "EN";
 
-    button.innerText = "إرسال";
+    subtitle.innerText =
+    "مساعد ذكي شخصي";
 
-    subtitle.innerText = "مساعد ذكي شخصي";
+    input.placeholder =
+    "اكتب رسالتك هنا...";
 
-    welcomeMessage.innerHTML =
+    sendBtn.innerText = "إرسال";
+
+    welcome.innerHTML =
     "مرحباً 👋 <br><br> أنا مساعدك الذكي الشخصي. كيف أقدر أساعدك اليوم؟";
-
-    document.querySelector(".lang-btn").innerText = "EN";
 
   }
 
 }
 
+/* ADD MESSAGE */
+
 function addMessage(text,type){
 
-  const msg = document.createElement("div");
+  const msg =
+  document.createElement("div");
 
-  msg.className = "message " + type;
+  msg.className =
+  "message " + type;
 
   msg.innerText = text;
 
   chat.appendChild(msg);
 
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop =
+  chat.scrollHeight;
 
 }
 
+/* TYPING */
+
 function showTyping(){
 
-  const typing = document.createElement("div");
+  const typing =
+  document.createElement("div");
 
-  typing.className = "message ai typing";
+  typing.className =
+  "message ai typing";
 
   typing.id = "typing";
 
@@ -463,13 +502,15 @@ function showTyping(){
 
   chat.appendChild(typing);
 
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop =
+  chat.scrollHeight;
 
 }
 
 function removeTyping(){
 
-  const typing = document.getElementById("typing");
+  const typing =
+  document.getElementById("typing");
 
   if(typing){
 
@@ -479,9 +520,12 @@ function removeTyping(){
 
 }
 
+/* AI RESPONSE */
+
 function aiReply(userText){
 
-  const text = userText.toLowerCase();
+  const text =
+  userText.toLowerCase();
 
   let reply = "";
 
@@ -491,6 +535,8 @@ function aiReply(userText){
 
     removeTyping();
 
+    /* ARABIC */
+
     if(currentLanguage === "ar"){
 
       if(
@@ -498,7 +544,8 @@ function aiReply(userText){
         text.includes("هلا")
       ){
 
-        reply = "أهلاً 👋 شلونك؟";
+        reply =
+        "أهلاً 👋 شلونك؟";
 
       }
 
@@ -506,7 +553,8 @@ function aiReply(userText){
         text.includes("شلونك")
       ){
 
-        reply = "تمام 😄 وانت؟";
+        reply =
+        "تمام 😄 وانت؟";
 
       }
 
@@ -514,17 +562,40 @@ function aiReply(userText){
         text.includes("اسمك")
       ){
 
-        reply = "أنا RIGO AI 🤖";
+        reply =
+        "أنا RIGO AI 🤖";
+
+      }
+
+      else if(
+        text.includes("طقس")
+      ){
+
+        reply =
+        "حالياً ما عندي اتصال مباشر بالطقس 🌤️";
+
+      }
+
+      else if(
+        text.includes("ساعدني")
+      ){
+
+        reply =
+        "أكيد 👍 احكيلي شو تحتاج بالضبط.";
 
       }
 
       else{
 
-        reply = "فهمت عليك 👍\n\nكتبت:\n" + userText;
+        reply =
+        "فهمت عليك 👍\n\nأنت كتبت:\n" +
+        userText;
 
       }
 
     }
+
+    /* ENGLISH */
 
     else{
 
@@ -533,7 +604,8 @@ function aiReply(userText){
         text.includes("hi")
       ){
 
-        reply = "Hello 👋 How are you?";
+        reply =
+        "Hello 👋 How are you?";
 
       }
 
@@ -541,13 +613,25 @@ function aiReply(userText){
         text.includes("your name")
       ){
 
-        reply = "I'm RIGO AI 🤖";
+        reply =
+        "I'm RIGO AI 🤖";
+
+      }
+
+      else if(
+        text.includes("weather")
+      ){
+
+        reply =
+        "I don't have live weather connection yet 🌤️";
 
       }
 
       else{
 
-        reply = "I understand 👍\n\nYou wrote:\n" + userText;
+        reply =
+        "I understand 👍\n\nYou wrote:\n" +
+        userText;
 
       }
 
@@ -555,13 +639,16 @@ function aiReply(userText){
 
     addMessage(reply,"ai");
 
-  },900);
+  },700);
 
 }
 
+/* SEND */
+
 function sendMessage(){
 
-  const text = input.value.trim();
+  const text =
+  input.value.trim();
 
   if(text === "") return;
 
@@ -573,17 +660,23 @@ function sendMessage(){
 
 }
 
-button.addEventListener("click",sendMessage);
+sendBtn.addEventListener(
+  "click",
+  sendMessage
+);
 
-input.addEventListener("keypress",function(e){
+input.addEventListener(
+  "keypress",
+  function(e){
 
-  if(e.key === "Enter"){
+    if(e.key === "Enter"){
 
-    sendMessage();
+      sendMessage();
+
+    }
 
   }
-
-});
+);
 
 </script>
 
