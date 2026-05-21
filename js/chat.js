@@ -6,22 +6,40 @@
 
 
 // =====================================
-// CONFIG
+// DOM SAFETY
 // =====================================
 
-const CHAT_CONFIG =
-Object.freeze({
+if(
 
-  TITLE_LIMIT:30,
+  typeof messageInput ===
+  "undefined" ||
 
-  AI_DELAY:1200,
+  !messageInput
 
-  VALID_ROLES:[
-    "user",
-    "assistant"
-  ]
+){
 
-});
+  console.error(
+    "messageInput not found"
+  );
+
+}
+
+
+
+if(
+
+  typeof chatContainer ===
+  "undefined" ||
+
+  !chatContainer
+
+){
+
+  console.error(
+    "chatContainer not found"
+  );
+
+}
 
 
 
@@ -31,8 +49,19 @@ Object.freeze({
 
 let isGenerating = false;
 
+let activeRequestId = 0;
+
+let saveTimeout = null;
+
+let saveVersion = 0;
+
+let pendingMessages = [];
+
 let currentChat =
 createNewChatObject();
+
+let typingIndicatorElement =
+null;
 
 
 
@@ -50,6 +79,8 @@ function createNewChatObject(){
 
     createdAt:Date.now(),
 
+    updatedAt:Date.now(),
+
     messages:[]
 
   };
@@ -62,11 +93,18 @@ function createNewChatObject(){
 // SEND MESSAGE
 // =====================================
 
-function sendMessage(){
+async function sendMessage(){
 
-  if(isGenerating){
+  if(
 
-    return;
+    typeof messageInput ===
+    "undefined" ||
+
+    !messageInput
+
+  ){
+
+    return false;
 
   }
 
@@ -75,7 +113,37 @@ function sendMessage(){
 
   if(!text){
 
-    return;
+    return false;
+
+  }
+
+  if(
+    text.length >
+    APP_CONFIG
+    .CHAT
+    .MAX_MESSAGE_LENGTH
+  ){
+
+    console.error(
+      "MESSAGE TOO LONG"
+    );
+
+    return false;
+
+  }
+
+  if(
+    pendingMessages.length >=
+    APP_CONFIG
+    .CHAT
+    .MAX_PENDING_MESSAGES
+  ){
+
+    console.error(
+      "QUEUE LIMIT REACHED"
+    );
+
+    return false;
 
   }
 
@@ -102,17 +170,57 @@ function sendMessage(){
 
   };
 
+  const added =
   addMessage(
     userMessage
   );
+
+  if(!added){
+
+    return false;
+
+  }
 
   messageInput.value = "";
 
   messageInput.focus();
 
-  scrollToBottom();
+  pendingMessages.push(
+    userMessage.id
+  );
 
-  generateAIResponse();
+  processAIQueue()
+  .catch(console.error);
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PROCESS AI QUEUE
+// =====================================
+
+async function processAIQueue(){
+
+  if(isGenerating){
+
+    return false;
+
+  }
+
+  if(
+    pendingMessages.length <= 0
+  ){
+
+    return false;
+
+  }
+
+  pendingMessages.shift();
+
+  return generateAIResponse();
 
 }
 
@@ -125,29 +233,75 @@ function sendMessage(){
 function addMessage(messageData){
 
   if(
+
+    typeof chatContainer ===
+    "undefined" ||
+
+    !chatContainer
+
+  ){
+
+    return false;
+
+  }
+
+  if(
     !validateMessage(
       messageData
     )
   ){
 
-    return;
+    return false;
 
   }
 
-  currentChat.messages.push(
-    messageData
-  );
+  try{
 
-  const messageElement =
-  createMessageElement(
-    messageData
-  );
+    const safeMessage =
+    deepClone(
+      messageData
+    );
 
-  chatContainer.appendChild(
-    messageElement
-  );
+    if(!safeMessage){
 
-  scrollToBottom();
+      return false;
+
+    }
+
+    const messageElement =
+    createMessageElement(
+      safeMessage
+    );
+
+    chatContainer.appendChild(
+      messageElement
+    );
+
+    currentChat.messages.push(
+      safeMessage
+    );
+
+    currentChat.updatedAt =
+    Date.now();
+
+    debouncedSaveCurrentChat();
+
+    scrollToBottom();
+
+    return true;
+
+  }
+
+  catch(error){
+
+    console.error(
+      "ADD MESSAGE ERROR:",
+      error
+    );
+
+    return false;
+
+  }
 
 }
 
@@ -161,8 +315,15 @@ function validateMessage(
   messageData
 ){
 
+  if(!messageData){
+
+    return false;
+
+  }
+
   if(
-    !messageData
+    typeof messageData.id !==
+    "string"
   ){
 
     return false;
@@ -170,7 +331,8 @@ function validateMessage(
   }
 
   if(
-    !messageData.role
+    typeof messageData.content ===
+    "undefined"
   ){
 
     return false;
@@ -178,7 +340,8 @@ function validateMessage(
   }
 
   if(
-    !CHAT_CONFIG
+    !APP_CONFIG
+    .CHAT
     .VALID_ROLES
     .includes(
       messageData.role
@@ -189,8 +352,13 @@ function validateMessage(
 
   }
 
+  const content =
+  String(
+    messageData.content
+  );
+
   if(
-    !messageData.content
+    !content.trim()
   ){
 
     return false;
@@ -198,8 +366,20 @@ function validateMessage(
   }
 
   if(
-    !messageData.content
-    .trim()
+    content.length >
+    APP_CONFIG
+    .CHAT
+    .MAX_MESSAGE_LENGTH
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !Number.isFinite(
+      messageData.timestamp
+    )
   ){
 
     return false;
@@ -229,8 +409,20 @@ function createMessageElement(
     "message"
   );
 
+  message.dataset.id =
+  messageData.id;
+
+  message.dataset.role =
+  messageData.role;
+
+  message.setAttribute(
+    "aria-label",
+    messageData.role + " message"
+  );
+
   if(
-    messageData.role === "user"
+    messageData.role ===
+    "user"
   ){
 
     message.classList.add(
@@ -248,7 +440,9 @@ function createMessageElement(
   }
 
   message.textContent =
-  messageData.content;
+  String(
+    messageData.content
+  );
 
   return message;
 
@@ -264,22 +458,46 @@ async function generateAIResponse(){
 
   if(isGenerating){
 
-    return;
+    return false;
 
   }
 
   isGenerating = true;
 
+  const requestId =
+  ++activeRequestId;
+
   clearTypingIndicator();
 
+  const typingShown =
   showTypingIndicator();
+
+  if(!typingShown){
+
+    removeTypingIndicator();
+
+    isGenerating = false;
+
+    return false;
+
+  }
 
   try{
 
     await wait(
-      CHAT_CONFIG
+      APP_CONFIG
+      .CHAT
       .AI_DELAY
     );
+
+    if(
+      requestId !==
+      activeRequestId
+    ){
+
+      return false;
+
+    }
 
     removeTypingIndicator();
 
@@ -296,7 +514,7 @@ async function generateAIResponse(){
 
     };
 
-    addMessage(
+    return addMessage(
       aiMessage
     );
 
@@ -309,13 +527,18 @@ async function generateAIResponse(){
       error
     );
 
-    removeTypingIndicator();
+    return false;
 
   }
 
   finally{
 
+    removeTypingIndicator();
+
     isGenerating = false;
+
+    processAIQueue()
+    .catch(console.error);
 
   }
 
@@ -330,7 +553,8 @@ async function generateAIResponse(){
 function getMockAIResponse(){
 
   if(
-    document.body.dir === "rtl"
+    document.body.dir ===
+    "rtl"
   ){
 
     return "أنا جاهز لمساعدتك 🚀";
@@ -356,7 +580,8 @@ function generateChatTitle(
 
   if(
     cleanText.length <=
-    CHAT_CONFIG
+    APP_CONFIG
+    .CHAT
     .TITLE_LIMIT
   ){
 
@@ -367,7 +592,8 @@ function generateChatTitle(
   return (
     cleanText.substring(
       0,
-      CHAT_CONFIG
+      APP_CONFIG
+      .CHAT
       .TITLE_LIMIT
     ) + "..."
   );
@@ -377,12 +603,10 @@ function generateChatTitle(
 
 
 // =====================================
-// TYPING INDICATOR
+// TYPING ELEMENT
 // =====================================
 
-function showTypingIndicator(){
-
-  removeTypingIndicator();
+function createTypingIndicatorElement(){
 
   const typing =
   document.createElement(
@@ -390,41 +614,70 @@ function showTypingIndicator(){
   );
 
   typing.classList.add(
-    "message"
-  );
-
-  typing.classList.add(
-    "ai-message"
-  );
-
-  typing.classList.add(
+    "message",
+    "ai-message",
     "typing-indicator"
   );
 
   typing.id =
   "typingIndicator";
 
+  typing.setAttribute(
+    "aria-label",
+    "AI typing indicator"
+  );
+
+  return typing;
+
+}
+
+
+
+// =====================================
+// SHOW TYPING
+// =====================================
+
+function showTypingIndicator(){
+
   if(
-    document.body.dir === "rtl"
+
+    typeof chatContainer ===
+    "undefined" ||
+
+    !chatContainer
+
   ){
 
-    typing.textContent =
-    "RIGO AI يكتب...";
+    return false;
 
   }
 
-  else{
+  removeTypingIndicator();
 
-    typing.textContent =
-    "RIGO AI is typing...";
+  if(!typingIndicatorElement){
+
+    typingIndicatorElement =
+    createTypingIndicatorElement();
 
   }
+
+  typingIndicatorElement
+  .textContent =
+
+  document.body.dir ===
+  "rtl"
+
+  ? "RIGO AI يكتب..."
+
+  : "RIGO AI is typing...";
 
   chatContainer.appendChild(
-    typing
+    typingIndicatorElement
   );
 
   scrollToBottom();
+
+  return true;
 
 }
 
@@ -436,14 +689,12 @@ function showTypingIndicator(){
 
 function removeTypingIndicator(){
 
-  const typing =
-  document.getElementById(
-    "typingIndicator"
-  );
+  if(
+    typingIndicatorElement &&
+    typingIndicatorElement.parentNode
+  ){
 
-  if(typing){
-
-    typing.remove();
+    typingIndicatorElement.remove();
 
   }
 
@@ -469,10 +720,42 @@ function clearTypingIndicator(){
 
 function resetCurrentChat(){
 
+  activeRequestId++;
+
+  isGenerating = false;
+
+  pendingMessages = [];
+
+  clearTimeout(
+    saveTimeout
+  );
+
+  saveTimeout = null;
+
+  saveVersion++;
+
   clearTypingIndicator();
+
+  if(
+
+    typeof chatContainer !==
+    "undefined" &&
+
+    chatContainer
+
+  ){
+
+    chatContainer.innerHTML =
+    "";
+
+  }
 
   currentChat =
   createNewChatObject();
+
+  scrollToBottom();
+
+  return true;
 
 }
 
@@ -484,6 +767,19 @@ function resetCurrentChat(){
 
 function scrollToBottom(){
 
+  if(
+
+    typeof chatContainer ===
+    "undefined" ||
+
+    !chatContainer
+
+  ){
+
+    return false;
+
+  }
+
   requestAnimationFrame(() => {
 
     chatContainer.scrollTop =
@@ -491,73 +787,59 @@ function scrollToBottom(){
 
   });
 
+  return true;
+
 }
 
 
 
 // =====================================
-// WAIT
+// SAVE DEBOUNCE
 // =====================================
 
-function wait(ms){
+function debouncedSaveCurrentChat(){
 
-  return new Promise(
-    (resolve) => {
+  if(
+    typeof saveCurrentChat !==
+    "function"
+  ){
 
-      setTimeout(
-        resolve,
-        ms
+    return;
+
+  }
+
+  clearTimeout(
+    saveTimeout
+  );
+
+  const currentVersion =
+  ++saveVersion;
+
+  saveTimeout =
+  setTimeout(() => {
+
+    if(
+      currentVersion !==
+      saveVersion
+    ){
+
+      return;
+
+    }
+
+    const saveResult =
+    saveCurrentChat();
+
+    saveTimeout = null;
+
+    if(!saveResult){
+
+      console.error(
+        "CHAT SAVE FAILED"
       );
 
     }
-  );
 
-}
-
-
-
-// =====================================
-// MESSAGE ID
-// =====================================
-
-function createMessageId(){
-
-  return (
-
-    "msg_" +
-
-    Date.now() +
-
-    "_" +
-
-    Math.random()
-    .toString(36)
-    .substring(2,9)
-
-  );
-
-}
-
-
-
-// =====================================
-// CHAT ID
-// =====================================
-
-function createChatId(){
-
-  return (
-
-    "chat_" +
-
-    Date.now() +
-
-    "_" +
-
-    Math.random()
-    .toString(36)
-    .substring(2,9)
-
-  );
+  },300);
 
 }
