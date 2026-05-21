@@ -1,3 +1,7 @@
+// =====================================
+// DEEP FREEZE
+// =====================================
+
 function deepFreezeSecurity(
   object,
   visited = new WeakMap()
@@ -15,6 +19,16 @@ function deepFreezeSecurity(
 
   if(
     isHostObject(object)
+  ){
+
+    return object;
+
+  }
+
+  if(
+    Object.isFrozen(
+      object
+    )
   ){
 
     return object;
@@ -90,10 +104,38 @@ function deepFreezeSecurity(
           return;
         }
 
+
+
+        // ============================
+        // BLOCK ACCESSORS
+        // ============================
+
         if(
           descriptor.get ||
           descriptor.set
         ){
+
+          logSecurityEvent(
+
+            "FREEZE_ACCESSOR_SKIPPED",
+
+            {
+
+              key:
+              typeof key ===
+              "symbol"
+
+              ?
+
+              "[SYMBOL_KEY]"
+
+              :
+
+              String(key)
+
+            }
+
+          );
 
           return;
         }
@@ -129,7 +171,23 @@ function deepFreezeSecurity(
 
         logSecurityEvent(
 
-          "FREEZE_PROPERTY_FAILED"
+          "FREEZE_PROPERTY_FAILED",
+
+          {
+
+            key:
+            typeof key ===
+            "symbol"
+
+            ?
+
+            "[SYMBOL_KEY]"
+
+            :
+
+            String(key)
+
+          }
 
         );
 
@@ -137,9 +195,24 @@ function deepFreezeSecurity(
 
     });
 
-    return Object.freeze(
+    const frozen =
+    Object.freeze(
       clone
     );
+
+    visited.set(object,{
+
+      value:frozen,
+
+      state:
+      FREEZE_STATES.FROZEN
+
+    });
+
+    freezeSucceeded =
+    true;
+
+    return frozen;
 
   }
 
