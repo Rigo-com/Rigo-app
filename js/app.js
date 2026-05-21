@@ -1,67 +1,50 @@
 // =====================================
-// RIGO AI
-// APP SYSTEM
-// ULTIMATE STABLE FINAL
+// SAFE LOGGER
 // =====================================
 
+function safeLogInfo(
+  ...args
+){
 
+  try{
 
-// =====================================
-// VALID APP STATUSES
-// =====================================
+    console.log(
+      "[RIGO AI]:",
+      ...args
+    );
 
-const VALID_APP_STATUSES =
-new Set([
+  }
 
-  "idle",
+  catch(error){
 
-  "starting",
+    console.log(error);
 
-  "ready",
+  }
 
-  "error"
-
-]);
-
-
-
-// =====================================
-// APP STATE
-// =====================================
-
-const appState =
-Object.seal({
-
-  started:false,
-
-  starting:false,
-
-  status:"idle",
-
-  initializedAt:null
-
-});
+}
 
 
 
-// =====================================
-// MESSAGE STATE
-// =====================================
+function safeLogError(
+  ...args
+){
 
-let sendingMessage =
-false;
+  try{
 
+    console.error(
+      "[RIGO AI]:",
+      ...args
+    );
 
+  }
 
-// =====================================
-// DOM ELEMENTS
-// =====================================
+  catch(error){
 
-let messageInput = null;
+    console.error(error);
 
-let sendButton = null;
+  }
 
-let chatContainer = null;
+}
 
 
 
@@ -71,8 +54,7 @@ let chatContainer = null;
 
 function logInfo(message){
 
-  console.log(
-    "[RIGO AI]:",
+  safeLogInfo(
     message
   );
 
@@ -82,126 +64,9 @@ function logInfo(message){
 
 function logError(message){
 
-  console.error(
-    "[RIGO AI]:",
+  safeLogError(
     message
   );
-
-}
-
-
-
-// =====================================
-// SAFE ERROR MESSAGE
-// =====================================
-
-function getSafeErrorMessage(
-  error
-){
-
-  return String(
-
-    error?.message ||
-
-    error ||
-
-    "Unknown Error"
-
-  );
-
-}
-
-
-
-// =====================================
-// UPDATE APP STATUS
-// =====================================
-
-function updateAppStatus(
-  status
-){
-
-  const normalizedStatus =
-  String(
-    status || ""
-  )
-  .trim()
-  .toLowerCase();
-
-  const isValidStatus =
-
-    VALID_APP_STATUSES
-    .has(
-      normalizedStatus
-    );
-
-  if(!isValidStatus){
-
-    return false;
-
-  }
-
-  appState.status =
-  normalizedStatus;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// HIDE LOADING SCREEN
-// =====================================
-
-function hideLoadingScreen(){
-
-  const loadingScreen =
-  document.getElementById(
-    "loadingScreen"
-  );
-
-  if(!loadingScreen){
-
-    return false;
-
-  }
-
-  loadingScreen
-  .classList
-  ?.add(
-    "hidden"
-  );
-
-  const configuredDuration =
-    APP_CONFIG?.UI
-    ?.LOADING_FADE_DURATION;
-
-  const fadeDuration =
-
-    Number.isFinite(
-      configuredDuration
-    )
-
-    ? configuredDuration
-
-    : 300;
-
-  setTimeout(() => {
-
-    if(
-      loadingScreen
-      .isConnected
-    ){
-
-      loadingScreen
-      .remove();
-
-    }
-
-  },fadeDuration);
-
-  return true;
 
 }
 
@@ -212,6 +77,15 @@ function hideLoadingScreen(){
 // =====================================
 
 function initializeDOMElements(){
+
+  if(
+    typeof document ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
 
   messageInput =
   document.getElementById(
@@ -228,188 +102,15 @@ function initializeDOMElements(){
     "chatContainer"
   );
 
-  return true;
+  return (
 
-}
+    Boolean(messageInput) &&
 
+    Boolean(sendButton) &&
 
+    Boolean(chatContainer)
 
-// =====================================
-// DOM VALIDATION
-// =====================================
-
-function validateDOMElements(){
-
-  const requiredElements = [
-
-    {
-
-      key:"messageInput",
-
-      value:messageInput
-
-    },
-
-    {
-
-      key:"sendButton",
-
-      value:sendButton
-
-    },
-
-    {
-
-      key:"chatContainer",
-
-      value:chatContainer
-
-    }
-
-  ];
-
-  for(
-    const element of
-    requiredElements
-  ){
-
-    if(!element.value){
-
-      logError(
-
-        element.key +
-        " missing"
-
-      );
-
-      return false;
-
-    }
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// VALIDATE DEPENDENCIES
-// =====================================
-
-function validateDependencies(){
-
-  const requiredDependencies = [
-
-    {
-
-      name:"sendMessage",
-
-      valid:
-
-      typeof sendMessage ===
-      "function"
-
-    },
-
-    {
-
-      name:"APP_CONFIG",
-
-      valid:
-
-      APP_CONFIG &&
-
-      typeof APP_CONFIG ===
-      "object"
-
-    },
-
-    {
-
-      name:"APP_CONFIG.APP",
-
-      valid:
-
-      APP_CONFIG?.APP &&
-
-      typeof APP_CONFIG.APP ===
-      "object"
-
-    }
-
-  ];
-
-  for(
-    const dependency of
-    requiredDependencies
-  ){
-
-    if(!dependency.valid){
-
-      logError(
-
-        dependency.name +
-        " missing"
-
-      );
-
-      return false;
-
-    }
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UPDATE MESSAGE UI STATE
-// =====================================
-
-function updateMessageUIState(
-  disabled
-){
-
-  const safeDisabled =
-  Boolean(disabled);
-
-  if(sendButton){
-
-    sendButton.disabled =
-    safeDisabled;
-
-  }
-
-  if(messageInput){
-
-    messageInput.disabled =
-    safeDisabled;
-
-    if(!safeDisabled){
-
-      requestAnimationFrame(() => {
-
-        if(
-          messageInput &&
-          typeof messageInput
-          .focus ===
-          "function"
-        ){
-
-          messageInput.focus();
-
-        }
-
-      });
-
-    }
-
-  }
+  );
 
 }
 
@@ -428,9 +129,14 @@ function createMessageTimeout(){
 
     ?? 30000;
 
-  return new Promise(
+  let timeoutId =
+  null;
+
+  const promise =
+  new Promise(
     (_,reject) => {
 
+      timeoutId =
       setTimeout(() => {
 
         reject(
@@ -445,6 +151,24 @@ function createMessageTimeout(){
 
     }
   );
+
+  return {
+
+    promise,
+
+    clear(){
+
+      if(timeoutId){
+
+        clearTimeout(
+          timeoutId
+        );
+
+      }
+
+    }
+
+  };
 
 }
 
@@ -469,7 +193,7 @@ async function handleSendMessage(){
     "function"
   ){
 
-    logError(
+    safeLogError(
       "sendMessage unavailable"
     );
 
@@ -484,13 +208,17 @@ async function handleSendMessage(){
     true
   );
 
+  const timeoutController =
+  createMessageTimeout();
+
   try{
 
     await Promise.race([
 
       sendMessage(),
 
-      createMessageTimeout()
+      timeoutController
+      .promise
 
     ]);
 
@@ -500,7 +228,7 @@ async function handleSendMessage(){
 
   catch(error){
 
-    logError(
+    safeLogError(
       getSafeErrorMessage(
         error
       )
@@ -511,6 +239,9 @@ async function handleSendMessage(){
   }
 
   finally{
+
+    timeoutController
+    .clear();
 
     sendingMessage =
     false;
@@ -526,122 +257,31 @@ async function handleSendMessage(){
 
 
 // =====================================
-// SEND BUTTON EVENT
+// CLEANUP APP
 // =====================================
 
-function setupSendButton(){
+function cleanupApp(){
 
-  if(!sendButton){
+  sendingMessage =
+  false;
 
-    return false;
+  if(sendButton){
 
+    sendButton.disabled =
+    false;
   }
 
-  if(
-    sendButton.dataset
-    .listenerAttached ===
-    "true"
-  ){
+  if(messageInput){
 
-    return true;
-
+    messageInput.disabled =
+    false;
   }
 
-  sendButton.addEventListener(
-    "click",
-    () => {
-
-      handleSendMessage()
-      .catch(logError);
-
-    }
+  updateAppStatus(
+    "idle"
   );
-
-  sendButton.dataset
-  .listenerAttached =
-  "true";
 
   return true;
-
-}
-
-
-
-// =====================================
-// INPUT EVENTS
-// =====================================
-
-function setupMessageInput(){
-
-  if(!messageInput){
-
-    return false;
-
-  }
-
-  if(
-    messageInput.dataset
-    .listenerAttached ===
-    "true"
-  ){
-
-    return true;
-
-  }
-
-  messageInput.addEventListener(
-    "keydown",
-    (event) => {
-
-      if(
-        event.isComposing
-      ){
-
-        return;
-
-      }
-
-      if(
-        event.key === "Enter" &&
-        !event.shiftKey
-      ){
-
-        event.preventDefault();
-
-        handleSendMessage()
-        .catch(logError);
-
-      }
-
-    }
-  );
-
-  messageInput.dataset
-  .listenerAttached =
-  "true";
-
-  return true;
-
-}
-
-
-
-// =====================================
-// APP EVENTS
-// =====================================
-
-function setupAppEvents(){
-
-  const sendReady =
-  setupSendButton();
-
-  const inputReady =
-  setupMessageInput();
-
-  return (
-    sendReady &&
-    inputReady
-  );
 
 }
 
@@ -653,7 +293,16 @@ function setupAppEvents(){
 
 async function initializeApp(){
 
+  const initializedDOM =
   initializeDOMElements();
+
+  if(!initializedDOM){
+
+    throw new Error(
+      "DOM INITIALIZATION FAILED"
+    );
+
+  }
 
   const validDOM =
   validateDOMElements();
@@ -732,7 +381,7 @@ async function startApp(){
 
     hideLoadingScreen();
 
-    logInfo(
+    safeLogInfo(
 
       APP_CONFIG.APP.NAME +
 
@@ -750,7 +399,14 @@ async function startApp(){
       "error"
     );
 
-    if(document.body){
+    cleanupApp();
+
+    if(
+      typeof document !==
+      "undefined" &&
+
+      document.body
+    ){
 
       document.body.classList.add(
         "app-error"
@@ -760,7 +416,7 @@ async function startApp(){
 
     hideLoadingScreen();
 
-    logError(
+    safeLogError(
 
       getSafeErrorMessage(
         error
@@ -788,30 +444,45 @@ async function startApp(){
 // =====================================
 
 if(
-  document.readyState ===
-  "loading"
+  typeof document !==
+  "undefined"
 ){
 
-  document.addEventListener(
+  if(
+    document.readyState ===
+    "loading"
+  ){
 
-    "DOMContentLoaded",
+    document.addEventListener(
 
-    () => {
+      "DOMContentLoaded",
 
-      startApp()
-      .catch(logError);
+      () => {
 
-    },
+        startApp()
+        .catch((error) => {
 
-    { once:true }
+          safeLogError(error);
 
-  );
+        });
 
-}
+      },
 
-else{
+      { once:true }
 
-  startApp()
-  .catch(logError);
+    );
+
+  }
+
+  else{
+
+    startApp()
+    .catch((error) => {
+
+      safeLogError(error);
+
+    });
+
+  }
 
 }
