@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // CHAT SYSTEM
-// ULTIMATE PRODUCTION FINAL
+// ENTERPRISE OMEGA FINAL
 // =====================================
 
 
@@ -10,20 +10,22 @@
 // CHAT STATE
 // =====================================
 
-let isGenerating = false;
+let saveTimeout =
+null;
 
-let activeRequestId = 0;
+let saveVersion =
+0;
 
-let saveTimeout = null;
-
-let saveVersion = 0;
-
-const pendingMessages = [];
+const pendingMessages =
+[];
 
 let currentChat =
 createNewChatObject();
 
 let typingIndicatorElement =
+null;
+
+let scrollAnimationFrame =
 null;
 
 
@@ -84,10 +86,13 @@ async function sendMessage(){
   }
 
   if(
+
     text.length >
+
     APP_CONFIG
     .CHAT
     .MAX_MESSAGE_LENGTH
+
   ){
 
     console.error(
@@ -99,10 +104,13 @@ async function sendMessage(){
   }
 
   if(
+
     pendingMessages.length >=
+
     APP_CONFIG
     .CHAT
     .MAX_PENDING_MESSAGES
+
   ){
 
     console.error(
@@ -150,11 +158,34 @@ async function sendMessage(){
   messageInput.value =
   "";
 
-  messageInput.focus();
+  try{
 
-  pendingMessages.push(
-    userMessage.id
-  );
+    messageInput.focus();
+
+  }
+
+  catch(error){
+
+    console.error(
+      "INPUT FOCUS ERROR:",
+      error
+    );
+
+  }
+
+  if(
+
+    !pendingMessages.includes(
+      userMessage.id
+    )
+
+  ){
+
+    pendingMessages.push(
+      userMessage.id
+    );
+
+  }
 
   processAIQueue()
   .catch(console.error);
@@ -171,7 +202,31 @@ async function sendMessage(){
 
 async function processAIQueue(){
 
-  if(isGenerating){
+  if(
+
+    typeof generateAIResponse !==
+    "function"
+
+  ){
+
+    console.error(
+      "AI SERVICE NOT AVAILABLE"
+    );
+
+    return false;
+
+  }
+
+  if(
+
+    typeof isAIResponseGenerating ===
+    "function"
+
+    &&
+
+    isAIResponseGenerating()
+
+  ){
 
     return false;
 
@@ -188,13 +243,37 @@ async function processAIQueue(){
   const nextMessageId =
   pendingMessages[0];
 
-  const generated =
-  await generateAIResponse();
+  let generated =
+  false;
+
+  try{
+
+    generated =
+    await generateAIResponse(
+      nextMessageId
+    );
+
+  }
+
+  catch(error){
+
+    console.error(
+
+      "QUEUE PROCESS ERROR:",
+
+      error
+
+    );
+
+  }
 
   if(
+
     generated &&
+
     pendingMessages[0] ===
     nextMessageId
+
   ){
 
     pendingMessages.shift();
@@ -211,7 +290,9 @@ async function processAIQueue(){
 // ADD MESSAGE
 // =====================================
 
-function addMessage(messageData){
+function addMessage(
+  messageData
+){
 
   if(!chatContainer){
 
@@ -276,8 +357,11 @@ function addMessage(messageData){
   catch(error){
 
     console.error(
+
       "ADD MESSAGE ERROR:",
+
       error
+
     );
 
     return false;
@@ -297,9 +381,12 @@ function validateMessage(
 ){
 
   if(
+
     !messageData ||
+
     typeof messageData !==
     "object"
+
   ){
 
     return false;
@@ -325,12 +412,14 @@ function validateMessage(
   }
 
   if(
+
     !APP_CONFIG
     .CHAT
     .VALID_ROLES
     .includes(
       messageData.role
     )
+
   ){
 
     return false;
@@ -351,10 +440,13 @@ function validateMessage(
   }
 
   if(
+
     content.length >
+
     APP_CONFIG
     .CHAT
     .MAX_MESSAGE_LENGTH
+
   ){
 
     return false;
@@ -362,9 +454,39 @@ function validateMessage(
   }
 
   if(
+
     !Number.isFinite(
       messageData.timestamp
     )
+
+  ){
+
+    return false;
+
+  }
+
+  const currentTime =
+  Date.now();
+
+  const minimumTimestamp =
+  0;
+
+  const maximumTimestamp =
+
+    currentTime +
+
+    1000 * 60 * 60 * 24;
+
+  if(
+
+    messageData.timestamp <
+    minimumTimestamp
+
+    ||
+
+    messageData.timestamp >
+    maximumTimestamp
+
   ){
 
     return false;
@@ -392,6 +514,12 @@ function createMessageElement(
   .trim()
   .toLowerCase();
 
+  const normalizedId =
+  String(
+    messageData.id
+  )
+  .trim();
+
   const message =
   document.createElement(
     "div"
@@ -402,15 +530,18 @@ function createMessageElement(
   );
 
   message.dataset.id =
-  messageData.id;
+  normalizedId;
 
   message.dataset.role =
   normalizedRole;
 
   message.setAttribute(
+
     "aria-label",
+
     normalizedRole +
     " message"
+
   );
 
   if(
@@ -444,121 +575,6 @@ function createMessageElement(
 
 
 // =====================================
-// AI RESPONSE
-// =====================================
-
-async function generateAIResponse(){
-
-  if(isGenerating){
-
-    return false;
-
-  }
-
-  isGenerating = true;
-
-  const requestId =
-  ++activeRequestId;
-
-  const typingShown =
-  showTypingIndicator();
-
-  if(!typingShown){
-
-    isGenerating = false;
-
-    return false;
-
-  }
-
-  try{
-
-    await wait(
-
-      APP_CONFIG
-      .CHAT
-      .AI_DELAY
-
-    );
-
-    if(
-      requestId !==
-      activeRequestId
-    ){
-
-      return false;
-
-    }
-
-    const aiMessage = {
-
-      id:createMessageId(),
-
-      role:"assistant",
-
-      content:
-      getMockAIResponse(),
-
-      timestamp:Date.now()
-
-    };
-
-    removeTypingIndicator();
-
-    return addMessage(
-      aiMessage
-    );
-
-  }
-
-  catch(error){
-
-    console.error(
-      "AI RESPONSE ERROR:",
-      error
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    removeTypingIndicator();
-
-    isGenerating = false;
-
-    processAIQueue()
-    .catch(console.error);
-
-  }
-
-}
-
-
-
-// =====================================
-// MOCK RESPONSE
-// =====================================
-
-function getMockAIResponse(){
-
-  if(
-    document.body?.dir ===
-    "rtl"
-  ){
-
-    return "أنا جاهز لمساعدتك 🚀";
-
-  }
-
-  return "I am ready to help you 🚀";
-
-}
-
-
-
-// =====================================
 // CHAT TITLE
 // =====================================
 
@@ -574,10 +590,13 @@ function generateChatTitle(
   .trim();
 
   if(
+
     cleanText.length <=
+
     APP_CONFIG
     .CHAT
     .TITLE_LIMIT
+
   ){
 
     return cleanText;
@@ -654,14 +673,16 @@ function showTypingIndicator(){
 
   }
 
-  removeTypingIndicator();
-
   if(!typingIndicatorElement){
 
     typingIndicatorElement =
     createTypingIndicatorElement();
 
   }
+
+  removeTypingIndicator(
+    false
+  );
 
   typingIndicatorElement
   .textContent =
@@ -689,7 +710,9 @@ function showTypingIndicator(){
 // REMOVE TYPING
 // =====================================
 
-function removeTypingIndicator(){
+function removeTypingIndicator(
+  resetReference = true
+){
 
   if(
 
@@ -705,6 +728,13 @@ function removeTypingIndicator(){
 
   }
 
+  if(resetReference){
+
+    typingIndicatorElement =
+    null;
+
+  }
+
 }
 
 
@@ -715,10 +745,6 @@ function removeTypingIndicator(){
 
 function resetCurrentChat(){
 
-  activeRequestId++;
-
-  isGenerating = false;
-
   pendingMessages.length =
   0;
 
@@ -726,9 +752,23 @@ function resetCurrentChat(){
     saveTimeout
   );
 
-  saveTimeout = null;
+  saveTimeout =
+  null;
 
-  saveVersion++;
+  if(
+    saveVersion >=
+    Number.MAX_SAFE_INTEGER
+  ){
+
+    saveVersion = 0;
+
+  }
+
+  else{
+
+    saveVersion++;
+
+  }
 
   removeTypingIndicator();
 
@@ -736,6 +776,17 @@ function resetCurrentChat(){
 
     chatContainer
     .replaceChildren();
+
+  }
+
+  if(
+
+    typeof resetAIService ===
+    "function"
+
+  ){
+
+    resetAIService();
 
   }
 
@@ -762,7 +813,19 @@ function scrollToBottom(){
 
   }
 
+  if(scrollAnimationFrame){
+
+    cancelAnimationFrame(
+      scrollAnimationFrame
+    );
+
+  }
+
+  scrollAnimationFrame =
   requestAnimationFrame(() => {
+
+    scrollAnimationFrame =
+    null;
 
     if(!chatContainer){
 
@@ -788,8 +851,10 @@ function scrollToBottom(){
 function debouncedSaveCurrentChat(){
 
   if(
+
     typeof saveCurrentChat !==
     "function"
+
   ){
 
     return;
@@ -798,6 +863,15 @@ function debouncedSaveCurrentChat(){
   clearTimeout(
     saveTimeout
   );
+
+  if(
+    saveVersion >=
+    Number.MAX_SAFE_INTEGER
+  ){
+
+    saveVersion = 0;
+
+  }
 
   const currentVersion =
   ++saveVersion;
@@ -814,10 +888,15 @@ function debouncedSaveCurrentChat(){
 
     }
 
+    let settled =
+    false;
+
     Promise.resolve(
       saveCurrentChat()
     )
     .then((saveResult) => {
+
+      settled = true;
 
       if(!saveResult){
 
@@ -830,15 +909,25 @@ function debouncedSaveCurrentChat(){
     })
     .catch((error) => {
 
+      settled = true;
+
       console.error(
+
         "CHAT SAVE ERROR:",
+
         error
+
       );
 
     })
     .finally(() => {
 
-      saveTimeout = null;
+      if(settled){
+
+        saveTimeout =
+        null;
+
+      }
 
     });
 
