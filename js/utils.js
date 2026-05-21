@@ -1,12 +1,4 @@
 // =====================================
-// RIGO AI
-// UTILS
-// PRODUCTION FINAL
-// =====================================
-
-
-
-// =====================================
 // WAIT
 // =====================================
 
@@ -20,21 +12,74 @@ function wait(ms){
 
   }
 
+  const safeTimeout =
+
+    Math.min(
+
+      60000,
+
+      Math.max(
+        0,
+        Math.trunc(ms)
+      )
+
+    );
+
   return new Promise(
     (resolve) => {
 
       setTimeout(
-
         resolve,
-
-        Math.max(
-          0,
-          Math.trunc(ms)
-        )
-
+        safeTimeout
       );
 
     }
+  );
+
+}
+
+
+
+// =====================================
+// NOOP
+// =====================================
+
+function noop(){}
+
+
+
+// =====================================
+// IS PLAIN OBJECT
+// =====================================
+
+function isPlainObject(
+  value
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype
+
+    ||
+
+    prototype === null
+
   );
 
 }
@@ -64,6 +109,16 @@ function deepFreeze(
 
     )
 
+  ){
+
+    return object;
+
+  }
+
+  if(
+    Object.isFrozen(
+      object
+    )
   ){
 
     return object;
@@ -157,10 +212,20 @@ function deepClone(data){
 
     catch(cloneError){
 
-      console.error(
-        "DEEP CLONE ERROR:",
-        cloneError
-      );
+      if(
+        typeof safeLogError ===
+        "function"
+      ){
+
+        safeLogError(
+
+          "DEEP CLONE ERROR:",
+
+          cloneError
+
+        );
+
+      }
 
       return null;
 
@@ -180,10 +245,17 @@ function createUniqueId(
   prefix = "id"
 ){
 
-  const safePrefix =
+  const normalizedPrefix =
   String(
     prefix || "id"
-  ).trim();
+  )
+  .trim();
+
+  const safePrefix =
+
+    normalizedPrefix ||
+
+    "id";
 
   if(
     typeof crypto !==
@@ -220,34 +292,6 @@ function createUniqueId(
     .toString(36)
     .substring(2,9)
 
-  );
-
-}
-
-
-
-// =====================================
-// MESSAGE ID
-// =====================================
-
-function createMessageId(){
-
-  return createUniqueId(
-    "msg"
-  );
-
-}
-
-
-
-// =====================================
-// CHAT ID
-// =====================================
-
-function createChatId(){
-
-  return createUniqueId(
-    "chat"
   );
 
 }
