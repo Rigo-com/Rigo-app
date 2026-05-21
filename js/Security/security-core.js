@@ -1,3 +1,7 @@
+// =====================================
+// SECURITY CONFIG
+// =====================================
+
 const SECURITY_CONFIG =
 Object.freeze({
 
@@ -12,6 +16,12 @@ Object.freeze({
   MAX_URL_LENGTH:2048,
 
   MAX_TRACKED_KEYS:500,
+
+  MAX_OBJECT_KEYS:1000,
+
+  MAX_ARRAY_LENGTH:5000,
+
+  MAX_PROMPT_SCORE:100,
 
   ENABLE_XSS_PROTECTION:true,
 
@@ -29,11 +39,18 @@ Object.freeze({
 
 
 
+// =====================================
+// INTERNAL SECURITY STATE
+// =====================================
+
 function createSecurityState(){
 
   return {
 
     initialized:false,
+
+    createdAt:
+    Date.now(),
 
     blockedRequests:0,
 
@@ -47,14 +64,28 @@ function createSecurityState(){
 
     rateLimitHits:0,
 
-    requestTracker:new Map(),
+    requestTracker:
+    new Map(),
 
-    blockedPatterns:new Set(),
+    blockedPatterns:
+    new Set(),
 
-    trustedOrigins:new Set(
+    trustedOrigins:
+    new Set(
 
       typeof window !==
       "undefined"
+
+      &&
+
+      window.location
+
+      &&
+
+      typeof window
+      .location
+      .origin ===
+      "string"
 
       ?
 
@@ -72,10 +103,18 @@ function createSecurityState(){
 
 }
 
+
+
 const securityState =
-createSecurityState();
+Object.seal(
+  createSecurityState()
+);
 
 
+
+// =====================================
+// FREEZE STATES
+// =====================================
 
 const FREEZE_STATES =
 Object.freeze({
@@ -88,10 +127,16 @@ Object.freeze({
 
 
 
+// =====================================
+// SYMBOL MARKERS
+// =====================================
+
 const ACCESSOR_BLOCKED_SYMBOL =
 Symbol(
   "ACCESSOR_BLOCKED"
 );
+
+
 
 const CIRCULAR_REFERENCE_SYMBOL =
 Symbol(
@@ -100,6 +145,10 @@ Symbol(
 
 
 
+// =====================================
+// INTERNAL MARKERS
+// =====================================
+
 const ACCESSOR_BLOCKED_MARKER =
 Object.freeze({
 
@@ -107,6 +156,8 @@ Object.freeze({
   true
 
 });
+
+
 
 const CIRCULAR_REFERENCE_MARKER =
 Object.freeze({
@@ -118,6 +169,10 @@ Object.freeze({
 
 
 
+// =====================================
+// INITIALIZE SECURITY
+// =====================================
+
 function initializeSecuritySystem(){
 
   if(
@@ -128,17 +183,43 @@ function initializeSecuritySystem(){
 
   }
 
-  registerSecurityPatterns();
+  try{
 
-  freezeCriticalObjects();
+    registerSecurityPatterns();
 
-  securityState.initialized =
-  true;
+    freezeCriticalObjects();
 
-  logSecurityEvent(
-    "SECURITY SYSTEM READY"
-  );
+    securityState.initialized =
+    true;
 
-  return true;
+    logSecurityEvent(
+      "SECURITY SYSTEM READY"
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    logSecurityEvent(
+
+      "SECURITY INIT FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    securityState.initialized =
+    false;
+
+    return false;
+
+  }
 
 }
