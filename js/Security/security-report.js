@@ -1,10 +1,39 @@
+// =====================================
+// SECURITY REPORT
+// =====================================
+
 function generateSecurityReport(){
+
+  const now =
+  Date.now();
+
+  const createdAt =
+
+    Number.isFinite(
+      securityState.createdAt
+    )
+
+    ?
+
+    securityState.createdAt
+
+    :
+
+    now;
 
   return deepFreezeSecurity({
 
+    generatedAt:
+    now,
+
     initialized:
-    securityState
-    .initialized,
+    Boolean(
+      securityState
+      .initialized
+    ),
+
+    uptime:
+    now - createdAt,
 
     blockedRequests:
     securityState
@@ -28,7 +57,19 @@ function generateSecurityReport(){
 
     rateLimitHits:
     securityState
-    .rateLimitHits
+    .rateLimitHits,
+
+    activeRateLimitKeys:
+
+      securityState
+      .requestTracker
+      .size,
+
+    trustedOrigins:
+
+      securityState
+      .trustedOrigins
+      .size
 
   });
 
