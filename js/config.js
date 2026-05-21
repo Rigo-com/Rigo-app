@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // CONFIG
-// PRODUCTION FINAL
+// ULTIMATE PRODUCTION FINAL
 // =====================================
 
 
@@ -45,6 +45,9 @@ deepFreeze({
 
     AI_DELAY:
     1200,
+
+    MESSAGE_TIMEOUT:
+    30000,
 
     MAX_MESSAGE_LENGTH:
     5000,
@@ -126,7 +129,10 @@ deepFreeze({
     "rigo-chat-data",
 
     SETTINGS_KEY:
-    "rigo-settings"
+    "rigo-settings",
+
+    AUTH_KEY:
+    "rigo-auth-session"
 
   },
 
@@ -139,6 +145,9 @@ deepFreeze({
   FEATURES:{
 
     ENABLE_AI:
+    true,
+
+    ENABLE_AUTH:
     true,
 
     ENABLE_STORAGE:
@@ -165,6 +174,9 @@ deepFreeze({
 
     TYPING_ANIMATION_MS:
     1000,
+
+    LOADING_FADE_DURATION:
+    300,
 
     AUTO_SCROLL:
     true
