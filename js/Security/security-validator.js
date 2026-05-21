@@ -1,3 +1,7 @@
+// =====================================
+// VALIDATE SECURE INPUT
+// =====================================
+
 function validateSecureInput(
   input
 ){
@@ -7,13 +11,17 @@ function validateSecureInput(
     "string"
   ){
 
-    return {
+    return deepFreezeSecurity({
 
       valid:false,
 
-      reason:"INVALID_INPUT"
+      reason:
+      "INVALID_INPUT",
 
-    };
+      checkedAt:
+      Date.now()
+
+    });
 
   }
 
@@ -22,15 +30,48 @@ function validateSecureInput(
 
   if(!normalized){
 
-    return {
+    return deepFreezeSecurity({
 
       valid:false,
 
-      reason:"EMPTY_INPUT"
+      reason:
+      "EMPTY_INPUT",
 
-    };
+      checkedAt:
+      Date.now()
+
+    });
 
   }
+
+  if(
+
+    normalized.length >
+
+    SECURITY_CONFIG
+    .MAX_STRING_LENGTH
+
+  ){
+
+    return deepFreezeSecurity({
+
+      valid:false,
+
+      reason:
+      "MAX_LENGTH_EXCEEDED",
+
+      checkedAt:
+      Date.now()
+
+    });
+
+  }
+
+
+
+  // ===================================
+  // XSS DETECTION
+  // ===================================
 
   const hasXSS =
 
@@ -38,30 +79,69 @@ function validateSecureInput(
     .XSS
     .some((pattern) => {
 
-      return pattern.test(
-        normalized
+      return (
+
+        pattern instanceof
+        RegExp
+
+        &&
+
+        pattern.test(
+          normalized
+        )
+
       );
 
     });
 
   if(hasXSS){
 
-    securityState
-    .blockedRequests++;
+    if(
+
+      Number.isFinite(
+
+        securityState
+        .blockedRequests
+
+      )
+
+    ){
+
+      securityState
+      .blockedRequests++;
+
+    }
+
+    else{
+
+      securityState
+      .blockedRequests =
+      1;
+
+    }
 
     logSecurityEvent(
       "XSS PAYLOAD BLOCKED"
     );
 
-    return {
+    return deepFreezeSecurity({
 
       valid:false,
 
-      reason:"XSS"
+      reason:"XSS",
 
-    };
+      checkedAt:
+      Date.now()
+
+    });
 
   }
+
+
+
+  // ===================================
+  // PROMPT INJECTION
+  // ===================================
 
   const promptAnalysis =
   detectPromptInjection(
@@ -72,7 +152,7 @@ function validateSecureInput(
     promptAnalysis.detected
   ){
 
-    return {
+    return deepFreezeSecurity({
 
       valid:false,
 
@@ -80,18 +160,33 @@ function validateSecureInput(
       "PROMPT_INJECTION",
 
       score:
-      promptAnalysis.score
+      promptAnalysis.score,
 
-    };
+      checkedAt:
+      Date.now()
+
+    });
 
   }
 
-  return {
+
+
+  // ===================================
+  // VALID INPUT
+  // ===================================
+
+  return deepFreezeSecurity({
 
     valid:true,
 
-    reason:null
+    reason:null,
 
-  };
+    normalizedLength:
+    normalized.length,
+
+    checkedAt:
+    Date.now()
+
+  });
 
 }
