@@ -1,8 +1,120 @@
 // =====================================
-// RIGO AI
-// CONFIG
-// ULTIMATE PRODUCTION FINAL
+// SAFE DEEP FREEZE
 // =====================================
+
+function safeDeepFreeze(
+  value
+){
+
+  try{
+
+    if(
+      typeof deepFreeze ===
+      "function"
+    ){
+
+      return deepFreeze(
+        value
+      );
+
+    }
+
+    return Object.freeze(
+      value
+    );
+
+  }
+
+  catch(error){
+
+    return value;
+
+  }
+
+}
+
+
+
+// =====================================
+// ENVIRONMENT DETECTION
+// =====================================
+
+function detectEnvironment(){
+
+  try{
+
+    if(
+      typeof location ===
+      "undefined"
+    ){
+
+      return "production";
+
+    }
+
+    const hostname =
+    String(
+      location.hostname || ""
+    )
+    .toLowerCase();
+
+    const isDevelopment =
+
+      hostname ===
+      "localhost"
+
+      ||
+
+      hostname ===
+      "127.0.0.1"
+
+      ||
+
+      hostname.endsWith(
+        ".local"
+      );
+
+    return (
+
+      isDevelopment
+
+      ?
+
+      "development"
+
+      :
+
+      "production"
+
+    );
+
+  }
+
+  catch(error){
+
+    return "production";
+
+  }
+
+}
+
+
+
+// =====================================
+// SHARED CONSTANTS
+// =====================================
+
+const SHARED_TIMEOUT =
+30000;
+
+const SHARED_RETRIES =
+2;
+
+const SHARED_RETRY_DELAY =
+1200;
+
+const STORAGE_NAMESPACE =
+"rigo-ai:v1";
 
 
 
@@ -11,7 +123,7 @@
 // =====================================
 
 const APP_CONFIG =
-deepFreeze({
+safeDeepFreeze({
 
 
 
@@ -28,7 +140,7 @@ deepFreeze({
     "1.0.0",
 
     ENVIRONMENT:
-    "production"
+    detectEnvironment()
 
   },
 
@@ -47,7 +159,7 @@ deepFreeze({
     1200,
 
     MESSAGE_TIMEOUT:
-    30000,
+    SHARED_TIMEOUT,
 
     MAX_MESSAGE_LENGTH:
     5000,
@@ -58,7 +170,8 @@ deepFreeze({
     MAX_CHAT_MESSAGES:
     200,
 
-    VALID_ROLES:[
+    VALID_ROLES:
+    safeDeepFreeze([
 
       "user",
 
@@ -66,7 +179,7 @@ deepFreeze({
 
       "system"
 
-    ]
+    ])
 
   },
 
@@ -82,13 +195,13 @@ deepFreeze({
     "",
 
     REQUEST_TIMEOUT:
-    30000,
+    SHARED_TIMEOUT,
 
     MAX_RETRIES:
-    2,
+    SHARED_RETRIES,
 
     RETRY_DELAY:
-    1200
+    SHARED_RETRY_DELAY
 
   },
 
@@ -106,7 +219,7 @@ deepFreeze({
     TEMPERATURE:
     0.7,
 
-    MAX_TOKENS:
+    MAX_RESPONSE_CHARS:
     4000,
 
     STREAMING:
@@ -123,16 +236,28 @@ deepFreeze({
   STORAGE:{
 
     APP_KEY:
-    "rigo-ai",
+
+    STORAGE_NAMESPACE +
+
+    ":app",
 
     CHAT_KEY:
-    "rigo-chat-data",
+
+    STORAGE_NAMESPACE +
+
+    ":chat-data",
 
     SETTINGS_KEY:
-    "rigo-settings",
+
+    STORAGE_NAMESPACE +
+
+    ":settings",
 
     AUTH_KEY:
-    "rigo-auth-session"
+
+    STORAGE_NAMESPACE +
+
+    ":auth-session"
 
   },
 
@@ -184,3 +309,140 @@ deepFreeze({
   }
 
 });
+
+
+
+// =====================================
+// CONFIG VALIDATION
+// =====================================
+
+function validateAppConfig(){
+
+  try{
+
+    const validEnvironment =
+
+      [
+
+        "development",
+
+        "production"
+
+      ]
+
+      .includes(
+
+        APP_CONFIG
+        .APP
+        .ENVIRONMENT
+
+      );
+
+    if(
+      !validEnvironment
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      !Number.isFinite(
+
+        APP_CONFIG
+        .CHAT
+        .MAX_MESSAGE_LENGTH
+
+      )
+
+      ||
+
+      APP_CONFIG
+      .CHAT
+      .MAX_MESSAGE_LENGTH <= 0
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      !Number.isFinite(
+
+        APP_CONFIG
+        .API
+        .REQUEST_TIMEOUT
+
+      )
+
+      ||
+
+      APP_CONFIG
+      .API
+      .REQUEST_TIMEOUT < 1000
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      !Number.isFinite(
+
+        APP_CONFIG
+        .API
+        .MAX_RETRIES
+
+      )
+
+      ||
+
+      APP_CONFIG
+      .API
+      .MAX_RETRIES < 0
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      !Array.isArray(
+
+        APP_CONFIG
+        .CHAT
+        .VALID_ROLES
+
+      )
+
+      ||
+
+      APP_CONFIG
+      .CHAT
+      .VALID_ROLES
+      .length <= 0
+
+    ){
+
+      return false;
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
