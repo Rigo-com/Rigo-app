@@ -29,7 +29,7 @@ Object.freeze({
 
   VERSION:"1.0.0",
 
-  MAX_CHATS:100
+  MAX_CHATS:500
 
 });
 
@@ -117,7 +117,17 @@ function migrateStorage(){
 
     }
 
-    // FUTURE MIGRATIONS PLACE
+    // =================================
+    // FUTURE MIGRATIONS
+    // =================================
+    //
+    // Examples:
+    // - repair corrupted data
+    // - normalize memory
+    // - convert old structures
+    // - add new fields
+    //
+    // =================================
 
     localStorage.setItem(
 
@@ -320,16 +330,16 @@ function saveCurrentChat(){
 
     }
 
-    currentChat.updatedAt =
-    Date.now();
-
-    const chats =
-    loadChats();
-
     const safeChat =
     deepClone(
       currentChat
     );
+
+    safeChat.updatedAt =
+    Date.now();
+
+    const chats =
+    loadChats();
 
     const existingIndex =
     chats.findIndex(
@@ -500,11 +510,16 @@ function saveMemory(memory){
 
   try{
 
+    const safeMemory =
+    deepClone(memory);
+
     localStorage.setItem(
 
       STORAGE_KEYS.MEMORY,
 
-      JSON.stringify(memory)
+      JSON.stringify(
+        safeMemory
+      )
 
     );
 
@@ -565,6 +580,8 @@ function loadMemory(){
       )
     ){
 
+      clearCorruptedMemory();
+
       return {};
 
     }
@@ -574,6 +591,8 @@ function loadMemory(){
   }
 
   catch(error){
+
+    clearCorruptedMemory();
 
     handleStorageError(
       "LOAD MEMORY ERROR",
@@ -657,6 +676,33 @@ function clearCorruptedChats(){
 
     handleStorageError(
       "CLEAR CORRUPTED CHATS ERROR",
+      error
+    );
+
+  }
+
+}
+
+
+
+// =====================================
+// CLEAR CORRUPTED MEMORY
+// =====================================
+
+function clearCorruptedMemory(){
+
+  try{
+
+    localStorage.removeItem(
+      STORAGE_KEYS.MEMORY
+    );
+
+  }
+
+  catch(error){
+
+    handleStorageError(
+      "CLEAR CORRUPTED MEMORY ERROR",
       error
     );
 
