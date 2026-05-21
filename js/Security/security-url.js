@@ -1,3 +1,7 @@
+// =====================================
+// ADD TRUSTED ORIGIN
+// =====================================
+
 function addTrustedOrigin(
   origin
 ){
@@ -51,6 +55,52 @@ function addTrustedOrigin(
 
     }
 
+    if(
+      parsed.username ||
+      parsed.password
+    ){
+
+      logSecurityEvent(
+
+        "URL CREDENTIALS BLOCKED"
+
+      );
+
+      return false;
+
+    }
+
+    const hostname =
+    parsed.hostname
+    .toLowerCase();
+
+    if(
+
+      hostname ===
+      "localhost"
+
+      ||
+
+      hostname ===
+      "127.0.0.1"
+
+      ||
+
+      hostname ===
+      "::1"
+
+    ){
+
+      logSecurityEvent(
+
+        "LOCALHOST ORIGIN BLOCKED"
+
+      );
+
+      return false;
+
+    }
+
     securityState
     .trustedOrigins
     .add(
@@ -71,6 +121,10 @@ function addTrustedOrigin(
 
 
 
+// =====================================
+// REMOVE TRUSTED ORIGIN
+// =====================================
+
 function removeTrustedOrigin(
   origin
 ){
@@ -88,7 +142,11 @@ function removeTrustedOrigin(
 
     const parsed =
     new URL(
-      origin
+
+      safeString(
+        origin
+      )
+
     );
 
     return securityState
@@ -108,6 +166,10 @@ function removeTrustedOrigin(
 }
 
 
+
+// =====================================
+// SAFE URL
+// =====================================
 
 function safeURL(
   url
@@ -154,6 +216,10 @@ function safeURL(
       typeof window !==
       "undefined"
 
+      &&
+
+      window.location
+
       ?
 
       window.location.origin
@@ -186,6 +252,54 @@ function safeURL(
 
     }
 
+    if(
+      parsed.username ||
+      parsed.password
+    ){
+
+      securityState
+      .blockedURLs++;
+
+      logSecurityEvent(
+        "URL CREDENTIALS BLOCKED"
+      );
+
+      return null;
+
+    }
+
+    const hostname =
+    parsed.hostname
+    .toLowerCase();
+
+    if(
+
+      hostname ===
+      "localhost"
+
+      ||
+
+      hostname ===
+      "127.0.0.1"
+
+      ||
+
+      hostname ===
+      "::1"
+
+    ){
+
+      securityState
+      .blockedURLs++;
+
+      logSecurityEvent(
+        "LOCALHOST URL BLOCKED"
+      );
+
+      return null;
+
+    }
+
     return parsed.toString();
 
   }
@@ -203,12 +317,22 @@ function safeURL(
 
 
 
+// =====================================
+// VALIDATE TRUSTED URL
+// =====================================
+
 function validateTrustedURL(
   url
 ){
 
   const safe =
-  safeURL(url);
+  safeURL(
+
+    safeString(
+      url
+    )
+
+  );
 
   if(!safe){
 
