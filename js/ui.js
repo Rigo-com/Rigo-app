@@ -1,89 +1,15 @@
 // =====================================
-// RIGO AI
-// UI SYSTEM
-// ENTERPRISE OMEGA FINAL
+// UI EVENT STATE
 // =====================================
 
-
-
-// =====================================
-// UI CONFIG
-// =====================================
-
-const UI_CONFIG =
-Object.freeze({
-
-  MAX_TOASTS:5,
-
-  RESIZE_DELAY:150
-
-});
-
-
-
-// =====================================
-// UI STATE
-// =====================================
-
-const uiState =
+const uiEventState =
 Object.seal({
 
-  initialized:false,
+  eventsBound:false,
 
-  loading:false,
+  resizeTimeout:null,
 
-  sidebarOpen:false,
-
-  mobileMode:false,
-
-  darkMode:false,
-
-  activeModal:null,
-
-  activeToast:null,
-
-  activeAnimationFrame:null,
-
-  resizing:false,
-
-  rendering:false,
-
-  typing:false
-
-});
-
-
-
-// =====================================
-// UI ELEMENTS
-// =====================================
-
-const uiElements =
-Object.seal({
-
-  app:null,
-
-  body:null,
-
-  sidebar:null,
-
-  overlay:null,
-
-  header:null,
-
-  chatContainer:null,
-
-  messageInput:null,
-
-  sendButton:null,
-
-  sidebarToggle:null,
-
-  modalContainer:null,
-
-  toastContainer:null,
-
-  loadingScreen:null
+  toastTimeouts:new WeakMap()
 
 });
 
@@ -106,9 +32,12 @@ function safeLocalStorageGet(
 
   catch(error){
 
-    console.error(
+    safeLogError(
+
       "LOCAL STORAGE GET ERROR:",
+
       error
+
     );
 
     return null;
@@ -137,9 +66,12 @@ function safeLocalStorageSet(
 
   catch(error){
 
-    console.error(
+    safeLogError(
+
       "LOCAL STORAGE SET ERROR:",
+
       error
+
     );
 
     return false;
@@ -164,13 +96,22 @@ function initializeUI(){
 
   }
 
+  if(
+    typeof document ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
   cacheUIElements();
 
   if(
     !validateUIElements()
   ){
 
-    console.error(
+    safeLogError(
       "UI VALIDATION FAILED"
     );
 
@@ -193,106 +134,11 @@ function initializeUI(){
   uiState.initialized =
   true;
 
-  console.log(
+  safeLogInfo(
     "UI SYSTEM READY"
   );
 
   return true;
-
-}
-
-
-
-// =====================================
-// CACHE UI ELEMENTS
-// =====================================
-
-function cacheUIElements(){
-
-  uiElements.app =
-  document.getElementById(
-    "app"
-  );
-
-  uiElements.body =
-  document.body;
-
-  uiElements.sidebar =
-  document.getElementById(
-    "sidebar"
-  );
-
-  uiElements.overlay =
-  document.getElementById(
-    "overlay"
-  );
-
-  uiElements.header =
-  document.getElementById(
-    "header"
-  );
-
-  uiElements.chatContainer =
-  document.getElementById(
-    "chatContainer"
-  );
-
-  uiElements.messageInput =
-  document.getElementById(
-    "messageInput"
-  );
-
-  uiElements.sendButton =
-  document.getElementById(
-    "sendButton"
-  );
-
-  uiElements.sidebarToggle =
-  document.getElementById(
-    "sidebarToggle"
-  );
-
-  uiElements.modalContainer =
-  document.getElementById(
-    "modalContainer"
-  );
-
-  uiElements.toastContainer =
-  document.getElementById(
-    "toastContainer"
-  );
-
-  uiElements.loadingScreen =
-  document.getElementById(
-    "loadingScreen"
-  );
-
-}
-
-
-
-// =====================================
-// VALIDATE UI
-// =====================================
-
-function validateUIElements(){
-
-  const requiredElements = [
-
-    "body",
-
-    "chatContainer"
-
-  ];
-
-  return requiredElements
-  .every((key) => {
-
-    return Boolean(
-      uiElements[key]
-    );
-
-  });
 
 }
 
@@ -304,6 +150,14 @@ function validateUIElements(){
 
 function bindUIEvents(){
 
+  if(
+    uiEventState.eventsBound
+  ){
+
+    return true;
+
+  }
+
   bindSidebarEvents();
 
   bindInputEvents();
@@ -314,86 +168,10 @@ function bindUIEvents(){
 
   bindVisibilityEvents();
 
-}
+  uiEventState.eventsBound =
+  true;
 
-
-
-// =====================================
-// SIDEBAR EVENTS
-// =====================================
-
-function bindSidebarEvents(){
-
-  if(
-    uiElements.sidebarToggle
-  ){
-
-    uiElements.sidebarToggle
-    .addEventListener(
-
-      "click",
-
-      toggleSidebar
-
-    );
-
-  }
-
-  if(
-    uiElements.overlay
-  ){
-
-    uiElements.overlay
-    .addEventListener(
-
-      "click",
-
-      closeSidebar
-
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// INPUT EVENTS
-// =====================================
-
-function bindInputEvents(){
-
-  if(
-    !uiElements.messageInput
-  ){
-
-    return;
-  }
-
-  uiElements.messageInput
-  .addEventListener(
-
-    "keydown",
-
-    handleInputKeydown
-
-  );
-
-  if(
-    uiElements.sendButton
-  ){
-
-    uiElements.sendButton
-    .addEventListener(
-
-      "click",
-
-      safelySendMessage
-
-    );
-
-  }
+  return true;
 
 }
 
@@ -405,9 +183,6 @@ function bindInputEvents(){
 
 function bindResizeEvents(){
 
-  let resizeTimeout =
-  null;
-
   window.addEventListener(
     "resize",
     () => {
@@ -416,10 +191,12 @@ function bindResizeEvents(){
       true;
 
       clearTimeout(
-        resizeTimeout
+        uiEventState
+        .resizeTimeout
       );
 
-      resizeTimeout =
+      uiEventState
+      .resizeTimeout =
       setTimeout(() => {
 
         detectMobileMode();
@@ -428,6 +205,10 @@ function bindResizeEvents(){
 
         uiState.resizing =
         false;
+
+        uiEventState
+        .resizeTimeout =
+        null;
 
       },
 
@@ -442,96 +223,15 @@ function bindResizeEvents(){
 
 
 // =====================================
-// KEYBOARD EVENTS
+// UI RAF
 // =====================================
 
-function bindKeyboardEvents(){
-
-  document.addEventListener(
-    "keydown",
-    (event) => {
-
-      if(
-        event.key ===
-        "Escape"
-      ){
-
-        closeModal();
-
-        closeSidebar();
-
-      }
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// VISIBILITY EVENTS
-// =====================================
-
-function bindVisibilityEvents(){
-
-  document.addEventListener(
-    "visibilitychange",
-    () => {
-
-      if(
-        document.hidden
-      ){
-
-        cancelUIAnimationFrame();
-
-      }
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// HANDLE INPUT
-// =====================================
-
-function handleInputKeydown(
-  event
+function requestUIAnimationFrame(
+  callback
 ){
 
   if(
-    event.key !== "Enter"
-  ){
-
-    return;
-  }
-
-  if(
-    event.shiftKey
-  ){
-
-    return;
-  }
-
-  event.preventDefault();
-
-  safelySendMessage();
-
-}
-
-
-
-// =====================================
-// SAFE SEND
-// =====================================
-
-async function safelySendMessage(){
-
-  if(
-    typeof sendMessage !==
+    typeof callback !==
     "function"
   ){
 
@@ -539,337 +239,29 @@ async function safelySendMessage(){
 
   }
 
-  try{
+  cancelUIAnimationFrame();
 
-    return await sendMessage();
+  uiState.activeAnimationFrame =
+  requestAnimationFrame(() => {
 
-  }
-
-  catch(error){
-
-    console.error(
-      "SEND MESSAGE ERROR:",
-      error
-    );
+    uiState.activeAnimationFrame =
+    null;
 
     try{
 
-      showToast(
-        "Failed to send message"
+      callback();
+
+    }
+
+    catch(error){
+
+      safeLogError(
+        error
       );
 
     }
 
-    catch(toastError){
-
-      console.error(
-        "TOAST ERROR:",
-        toastError
-      );
-
-    }
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// MOBILE DETECTION
-// =====================================
-
-function detectMobileMode(){
-
-  uiState.mobileMode =
-
-    window.innerWidth <= 768;
-
-  return uiState.mobileMode;
-
-}
-
-
-
-// =====================================
-// RESPONSIVE UI
-// =====================================
-
-function updateResponsiveUI(){
-
-  if(
-    uiState.mobileMode
-  ){
-
-    if(
-      uiState.sidebarOpen
-    ){
-
-      closeSidebar();
-
-    }
-
-  }
-
-  else{
-
-    if(
-      !uiState.sidebarOpen
-    ){
-
-      openSidebar();
-
-    }
-
-  }
-
-}
-
-
-
-// =====================================
-// SIDEBAR
-// =====================================
-
-function toggleSidebar(){
-
-  if(
-    uiState.sidebarOpen
-  ){
-
-    return closeSidebar();
-
-  }
-
-  return openSidebar();
-
-}
-
-
-
-function openSidebar(){
-
-  if(
-    !uiElements.sidebar
-  ){
-
-    return false;
-
-  }
-
-  if(
-    uiState.sidebarOpen
-  ){
-
-    return true;
-
-  }
-
-  uiState.sidebarOpen =
-  true;
-
-  uiElements.sidebar
-  .classList.add(
-    "sidebar-open"
-  );
-
-  if(
-    uiElements.overlay
-  ){
-
-    uiElements.overlay
-    .classList.add(
-      "overlay-visible"
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-function closeSidebar(){
-
-  if(
-    !uiElements.sidebar
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !uiState.sidebarOpen
-  ){
-
-    return true;
-
-  }
-
-  uiState.sidebarOpen =
-  false;
-
-  uiElements.sidebar
-  .classList.remove(
-    "sidebar-open"
-  );
-
-  if(
-    uiElements.overlay
-  ){
-
-    uiElements.overlay
-    .classList.remove(
-      "overlay-visible"
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// THEME
-// =====================================
-
-function initializeTheme(){
-
-  const savedTheme =
-
-    safeLocalStorageGet(
-      "rigo-theme"
-    );
-
-  if(
-    savedTheme === "dark"
-  ){
-
-    enableDarkMode();
-
-  }
-
-  else{
-
-    disableDarkMode();
-
-  }
-
-}
-
-
-
-function enableDarkMode(){
-
-  uiState.darkMode =
-  true;
-
-  uiElements.body
-  ?.classList
-  .add(
-    "dark-mode"
-  );
-
-  safeLocalStorageSet(
-    "rigo-theme",
-    "dark"
-  );
-
-  return true;
-
-}
-
-
-
-function disableDarkMode(){
-
-  uiState.darkMode =
-  false;
-
-  uiElements.body
-  ?.classList
-  .remove(
-    "dark-mode"
-  );
-
-  safeLocalStorageSet(
-    "rigo-theme",
-    "light"
-  );
-
-  return true;
-
-}
-
-
-
-function toggleTheme(){
-
-  if(
-    uiState.darkMode
-  ){
-
-    return disableDarkMode();
-
-  }
-
-  return enableDarkMode();
-
-}
-
-
-
-// =====================================
-// LOADING
-// =====================================
-
-function showLoadingScreen(){
-
-  if(
-    !uiElements.loadingScreen
-  ){
-
-    return false;
-
-  }
-
-  uiState.loading =
-  true;
-
-  uiElements.loadingScreen
-  .classList.add(
-    "loading-visible"
-  );
-
-  return true;
-
-}
-
-
-
-function hideLoadingScreen(){
-
-  if(
-    !uiElements.loadingScreen
-  ){
-
-    return false;
-
-  }
-
-  uiState.loading =
-  false;
-
-  uiElements.loadingScreen
-  .classList.remove(
-    "loading-visible"
-  );
+  });
 
   return true;
 
@@ -880,42 +272,6 @@ function hideLoadingScreen(){
 // =====================================
 // TOAST
 // =====================================
-
-function initializeToastContainer(){
-
-  const existingContainer =
-  document.getElementById(
-    "toastContainer"
-  );
-
-  if(
-    existingContainer
-  ){
-
-    uiElements.toastContainer =
-    existingContainer;
-
-    return;
-  }
-
-  const container =
-  document.createElement(
-    "div"
-  );
-
-  container.id =
-  "toastContainer";
-
-  document.body.appendChild(
-    container
-  );
-
-  uiElements.toastContainer =
-  container;
-
-}
-
-
 
 function showToast(
   message,
@@ -945,8 +301,29 @@ function showToast(
 
   ){
 
-    activeToasts[0]
-    ?.remove();
+    const oldestToast =
+    activeToasts[0];
+
+    if(oldestToast){
+
+      const existingTimeout =
+
+        uiEventState
+        .toastTimeouts
+        .get(
+          oldestToast
+        );
+
+      if(existingTimeout){
+
+        clearTimeout(
+          existingTimeout
+        );
+
+      }
+
+      oldestToast.remove();
+    }
 
   }
 
@@ -970,9 +347,16 @@ function showToast(
   uiState.activeToast =
   toast;
 
+  const timeoutId =
   setTimeout(() => {
 
     toast.remove();
+
+    uiEventState
+    .toastTimeouts
+    .delete(
+      toast
+    );
 
     if(
       uiState.activeToast ===
@@ -986,6 +370,13 @@ function showToast(
 
   },duration);
 
+  uiEventState
+  .toastTimeouts
+  .set(
+    toast,
+    timeoutId
+  );
+
   return true;
 
 }
@@ -995,42 +386,6 @@ function showToast(
 // =====================================
 // MODAL
 // =====================================
-
-function initializeModalContainer(){
-
-  const existingContainer =
-  document.getElementById(
-    "modalContainer"
-  );
-
-  if(
-    existingContainer
-  ){
-
-    uiElements.modalContainer =
-    existingContainer;
-
-    return;
-  }
-
-  const container =
-  document.createElement(
-    "div"
-  );
-
-  container.id =
-  "modalContainer";
-
-  document.body.appendChild(
-    container
-  );
-
-  uiElements.modalContainer =
-  container;
-
-}
-
-
 
 function openModal(
   content
@@ -1055,6 +410,16 @@ function openModal(
     "modal"
   );
 
+  modal.setAttribute(
+    "role",
+    "dialog"
+  );
+
+  modal.setAttribute(
+    "aria-modal",
+    "true"
+  );
+
   modal.textContent =
   String(content);
 
@@ -1065,85 +430,6 @@ function openModal(
 
   uiState.activeModal =
   modal;
-
-  return true;
-
-}
-
-
-
-function closeModal(){
-
-  if(
-    !uiState.activeModal
-  ){
-
-    return false;
-
-  }
-
-  uiState.activeModal
-  .remove();
-
-  uiState.activeModal =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RAF CLEANUP
-// =====================================
-
-function cancelUIAnimationFrame(){
-
-  if(
-    !uiState
-    .activeAnimationFrame
-  ){
-
-    return false;
-
-  }
-
-  cancelAnimationFrame(
-
-    uiState
-    .activeAnimationFrame
-
-  );
-
-  uiState.activeAnimationFrame =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UI RAF
-// =====================================
-
-function requestUIAnimationFrame(
-  callback
-){
-
-  cancelUIAnimationFrame();
-
-  uiState.activeAnimationFrame =
-  requestAnimationFrame(() => {
-
-    uiState.activeAnimationFrame =
-    null;
-
-    callback();
-
-  });
 
   return true;
 
@@ -1164,6 +450,43 @@ function resetUIState(){
   closeModal();
 
   hideLoadingScreen();
+
+  if(
+    uiState.activeToast
+  ){
+
+    const timeoutId =
+
+      uiEventState
+      .toastTimeouts
+      .get(
+        uiState.activeToast
+      );
+
+    if(timeoutId){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+    uiState.activeToast
+    .remove();
+
+    uiState.activeToast =
+    null;
+
+  }
+
+  clearTimeout(
+    uiEventState
+    .resizeTimeout
+  );
+
+  uiEventState
+  .resizeTimeout =
+  null;
 
   uiState.loading =
   false;
