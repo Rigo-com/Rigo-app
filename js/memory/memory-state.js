@@ -14,6 +14,12 @@ function createMemoryIndex(){
 
   return {
 
+
+
+    // =================================
+    // PRIMARY INDEXES
+    // =================================
+
     byId:new Map(),
 
     byType:new Map(),
@@ -24,7 +30,39 @@ function createMemoryIndex(){
 
     byTag:new Map(),
 
-    byState:new Map()
+    byState:new Map(),
+
+
+
+    // =================================
+    // DATE INDEXES
+    // =================================
+
+    byCreatedAt:new Map(),
+
+    byUpdatedAt:new Map(),
+
+
+
+    // =================================
+    // SEARCH INDEXES
+    // =================================
+
+    byToken:new Map(),
+
+    byContentHash:new Map(),
+
+
+
+    // =================================
+    // RELATION INDEXES
+    // =================================
+
+    byParent:new Map(),
+
+    byChild:new Map(),
+
+    byRelation:new Map()
 
   };
 
