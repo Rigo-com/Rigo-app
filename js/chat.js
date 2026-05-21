@@ -1,45 +1,8 @@
 // =====================================
 // RIGO AI
 // CHAT SYSTEM
+// ULTIMATE PRODUCTION FINAL
 // =====================================
-
-
-
-// =====================================
-// DOM SAFETY
-// =====================================
-
-if(
-
-  typeof messageInput ===
-  "undefined" ||
-
-  !messageInput
-
-){
-
-  console.error(
-    "messageInput not found"
-  );
-
-}
-
-
-
-if(
-
-  typeof chatContainer ===
-  "undefined" ||
-
-  !chatContainer
-
-){
-
-  console.error(
-    "chatContainer not found"
-  );
-
-}
 
 
 
@@ -55,7 +18,7 @@ let saveTimeout = null;
 
 let saveVersion = 0;
 
-let pendingMessages = [];
+const pendingMessages = [];
 
 let currentChat =
 createNewChatObject();
@@ -71,15 +34,22 @@ null;
 
 function createNewChatObject(){
 
+  const timestamp =
+  Date.now();
+
   return {
 
     id:createChatId(),
 
     title:"",
 
-    createdAt:Date.now(),
+    createdAt:timestamp,
 
-    updatedAt:Date.now(),
+    updatedAt:timestamp,
+
+    lastMessageAt:null,
+
+    messageCount:0,
 
     messages:[]
 
@@ -95,21 +65,17 @@ function createNewChatObject(){
 
 async function sendMessage(){
 
-  if(
-
-    typeof messageInput ===
-    "undefined" ||
-
-    !messageInput
-
-  ){
+  if(!messageInput){
 
     return false;
 
   }
 
   const text =
-  messageInput.value.trim();
+  String(
+    messageInput.value || ""
+  )
+  .trim();
 
   if(!text){
 
@@ -181,7 +147,8 @@ async function sendMessage(){
 
   }
 
-  messageInput.value = "";
+  messageInput.value =
+  "";
 
   messageInput.focus();
 
@@ -218,9 +185,23 @@ async function processAIQueue(){
 
   }
 
-  pendingMessages.shift();
+  const nextMessageId =
+  pendingMessages[0];
 
-  return generateAIResponse();
+  const generated =
+  await generateAIResponse();
+
+  if(
+    generated &&
+    pendingMessages[0] ===
+    nextMessageId
+  ){
+
+    pendingMessages.shift();
+
+  }
+
+  return generated;
 
 }
 
@@ -232,24 +213,18 @@ async function processAIQueue(){
 
 function addMessage(messageData){
 
-  if(
-
-    typeof chatContainer ===
-    "undefined" ||
-
-    !chatContainer
-
-  ){
+  if(!chatContainer){
 
     return false;
 
   }
 
-  if(
-    !validateMessage(
-      messageData
-    )
-  ){
+  const validMessage =
+  validateMessage(
+    messageData
+  );
+
+  if(!validMessage){
 
     return false;
 
@@ -284,6 +259,12 @@ function addMessage(messageData){
     currentChat.updatedAt =
     Date.now();
 
+    currentChat.lastMessageAt =
+    safeMessage.timestamp;
+
+    currentChat.messageCount =
+    currentChat.messages.length;
+
     debouncedSaveCurrentChat();
 
     scrollToBottom();
@@ -315,7 +296,11 @@ function validateMessage(
   messageData
 ){
 
-  if(!messageData){
+  if(
+    !messageData ||
+    typeof messageData !==
+    "object"
+  ){
 
     return false;
 
@@ -331,8 +316,8 @@ function validateMessage(
   }
 
   if(
-    typeof messageData.content ===
-    "undefined"
+    messageData.content ==
+    null
   ){
 
     return false;
@@ -400,6 +385,13 @@ function createMessageElement(
   messageData
 ){
 
+  const normalizedRole =
+  String(
+    messageData.role
+  )
+  .trim()
+  .toLowerCase();
+
   const message =
   document.createElement(
     "div"
@@ -413,15 +405,16 @@ function createMessageElement(
   messageData.id;
 
   message.dataset.role =
-  messageData.role;
+  normalizedRole;
 
   message.setAttribute(
     "aria-label",
-    messageData.role + " message"
+    normalizedRole +
+    " message"
   );
 
   if(
-    messageData.role ===
+    normalizedRole ===
     "user"
   ){
 
@@ -467,14 +460,10 @@ async function generateAIResponse(){
   const requestId =
   ++activeRequestId;
 
-  clearTypingIndicator();
-
   const typingShown =
   showTypingIndicator();
 
   if(!typingShown){
-
-    removeTypingIndicator();
 
     isGenerating = false;
 
@@ -485,9 +474,11 @@ async function generateAIResponse(){
   try{
 
     await wait(
+
       APP_CONFIG
       .CHAT
       .AI_DELAY
+
     );
 
     if(
@@ -498,8 +489,6 @@ async function generateAIResponse(){
       return false;
 
     }
-
-    removeTypingIndicator();
 
     const aiMessage = {
 
@@ -513,6 +502,8 @@ async function generateAIResponse(){
       timestamp:Date.now()
 
     };
+
+    removeTypingIndicator();
 
     return addMessage(
       aiMessage
@@ -553,7 +544,7 @@ async function generateAIResponse(){
 function getMockAIResponse(){
 
   if(
-    document.body.dir ===
+    document.body?.dir ===
     "rtl"
   ){
 
@@ -576,7 +567,11 @@ function generateChatTitle(
 ){
 
   const cleanText =
-  text.trim();
+  String(
+    text || ""
+  )
+  .replace(/\s+/g," ")
+  .trim();
 
   if(
     cleanText.length <=
@@ -590,12 +585,19 @@ function generateChatTitle(
   }
 
   return (
+
     cleanText.substring(
+
       0,
+
       APP_CONFIG
       .CHAT
       .TITLE_LIMIT
-    ) + "..."
+
+    ) +
+
+    "..."
+
   );
 
 }
@@ -614,17 +616,24 @@ function createTypingIndicatorElement(){
   );
 
   typing.classList.add(
+
     "message",
+
     "ai-message",
+
     "typing-indicator"
+
   );
 
   typing.id =
   "typingIndicator";
 
   typing.setAttribute(
+
     "aria-label",
+
     "AI typing indicator"
+
   );
 
   return typing;
@@ -639,14 +648,7 @@ function createTypingIndicatorElement(){
 
 function showTypingIndicator(){
 
-  if(
-
-    typeof chatContainer ===
-    "undefined" ||
-
-    !chatContainer
-
-  ){
+  if(!chatContainer){
 
     return false;
 
@@ -664,12 +666,12 @@ function showTypingIndicator(){
   typingIndicatorElement
   .textContent =
 
-  document.body.dir ===
-  "rtl"
+    document.body?.dir ===
+    "rtl"
 
-  ? "RIGO AI يكتب..."
+    ? "RIGO AI يكتب..."
 
-  : "RIGO AI is typing...";
+    : "RIGO AI is typing...";
 
   chatContainer.appendChild(
     typingIndicatorElement
@@ -690,25 +692,18 @@ function showTypingIndicator(){
 function removeTypingIndicator(){
 
   if(
+
     typingIndicatorElement &&
-    typingIndicatorElement.parentNode
+
+    typingIndicatorElement
+    .parentNode
+
   ){
 
-    typingIndicatorElement.remove();
+    typingIndicatorElement
+    .remove();
 
   }
-
-}
-
-
-
-// =====================================
-// CLEAR TYPING
-// =====================================
-
-function clearTypingIndicator(){
-
-  removeTypingIndicator();
 
 }
 
@@ -724,7 +719,8 @@ function resetCurrentChat(){
 
   isGenerating = false;
 
-  pendingMessages = [];
+  pendingMessages.length =
+  0;
 
   clearTimeout(
     saveTimeout
@@ -734,19 +730,12 @@ function resetCurrentChat(){
 
   saveVersion++;
 
-  clearTypingIndicator();
+  removeTypingIndicator();
 
-  if(
-
-    typeof chatContainer !==
-    "undefined" &&
+  if(chatContainer){
 
     chatContainer
-
-  ){
-
-    chatContainer.innerHTML =
-    "";
+    .replaceChildren();
 
   }
 
@@ -767,20 +756,19 @@ function resetCurrentChat(){
 
 function scrollToBottom(){
 
-  if(
-
-    typeof chatContainer ===
-    "undefined" ||
-
-    !chatContainer
-
-  ){
+  if(!chatContainer){
 
     return false;
 
   }
 
   requestAnimationFrame(() => {
+
+    if(!chatContainer){
+
+      return;
+
+    }
 
     chatContainer.scrollTop =
     chatContainer.scrollHeight;
@@ -805,7 +793,6 @@ function debouncedSaveCurrentChat(){
   ){
 
     return;
-
   }
 
   clearTimeout(
@@ -827,18 +814,33 @@ function debouncedSaveCurrentChat(){
 
     }
 
-    const saveResult =
-    saveCurrentChat();
+    Promise.resolve(
+      saveCurrentChat()
+    )
+    .then((saveResult) => {
 
-    saveTimeout = null;
+      if(!saveResult){
 
-    if(!saveResult){
+        console.error(
+          "CHAT SAVE FAILED"
+        );
+
+      }
+
+    })
+    .catch((error) => {
 
       console.error(
-        "CHAT SAVE FAILED"
+        "CHAT SAVE ERROR:",
+        error
       );
 
-    }
+    })
+    .finally(() => {
+
+      saveTimeout = null;
+
+    });
 
   },300);
 
