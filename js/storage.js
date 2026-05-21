@@ -1,37 +1,18 @@
 // =====================================
-// RIGO AI
-// STORAGE SYSTEM
+// STORAGE AVAILABILITY CACHE
 // =====================================
 
-
-
-// =====================================
-// VALID ROLES
-// =====================================
-
-const VALID_ROLES =
-Object.freeze([
-
-  "user",
-
-  "assistant"
-
-]);
+let storageAvailableCache =
+null;
 
 
 
 // =====================================
-// STORAGE CONFIG
+// STORAGE SIZE LIMIT
 // =====================================
 
-const STORAGE_CONFIG =
-Object.freeze({
-
-  VERSION:"1.0.0",
-
-  MAX_CHATS:500
-
-});
+const MAX_STORAGE_SIZE =
+5 * 1024 * 1024;
 
 
 
@@ -42,13 +23,29 @@ Object.freeze({
 const STORAGE_KEYS =
 Object.freeze({
 
-  CHATS:"rigo_chats",
+  CHATS:
+  APP_CONFIG
+  ?.STORAGE
+  ?.CHAT_KEY ||
 
-  MEMORY:"rigo_memory",
+  "rigo-ai:v1:chat-data",
 
-  SETTINGS:"rigo_settings",
+  MEMORY:
+  APP_CONFIG
+  ?.STORAGE
+  ?.APP_KEY ||
 
-  VERSION:"rigo_version"
+  "rigo-ai:v1:memory",
+
+  SETTINGS:
+  APP_CONFIG
+  ?.STORAGE
+  ?.SETTINGS_KEY ||
+
+  "rigo-ai:v1:settings",
+
+  VERSION:
+  "rigo-ai:v1:version"
 
 });
 
@@ -60,7 +57,28 @@ Object.freeze({
 
 function isStorageAvailable(){
 
+  if(
+    storageAvailableCache !==
+    null
+  ){
+
+    return storageAvailableCache;
+
+  }
+
   try{
+
+    if(
+      typeof localStorage ===
+      "undefined"
+    ){
+
+      storageAvailableCache =
+      false;
+
+      return false;
+
+    }
 
     const testKey =
     "__rigo_test__";
@@ -74,15 +92,24 @@ function isStorageAvailable(){
       testKey
     );
 
+    storageAvailableCache =
+    true;
+
     return true;
 
   }
 
   catch(error){
 
-    console.error(
+    storageAvailableCache =
+    false;
+
+    safeLogError(
+
       "STORAGE NOT AVAILABLE",
+
       error
+
     );
 
     return false;
@@ -94,61 +121,111 @@ function isStorageAvailable(){
 
 
 // =====================================
-// STORAGE MIGRATION
+// SAFE JSON PARSE
 // =====================================
 
-function migrateStorage(){
+function safeJSONParse(
+  value,
+  fallback = null
+){
 
   try{
 
-    const currentVersion =
-    localStorage.getItem(
-
-      STORAGE_KEYS.VERSION
-
+    return JSON.parse(
+      value
     );
-
-    if(
-      currentVersion ===
-      STORAGE_CONFIG.VERSION
-    ){
-
-      return true;
-
-    }
-
-    // =================================
-    // FUTURE MIGRATIONS
-    // =================================
-    //
-    // Examples:
-    // - repair corrupted data
-    // - normalize memory
-    // - convert old structures
-    // - add new fields
-    //
-    // =================================
-
-    localStorage.setItem(
-
-      STORAGE_KEYS.VERSION,
-
-      STORAGE_CONFIG.VERSION
-
-    );
-
-    return true;
 
   }
 
   catch(error){
 
-    handleStorageError(
-      "MIGRATION ERROR",
-      error
+    return fallback;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE STORAGE SERIALIZE
+// =====================================
+
+function safeStorageSerialize(
+  value
+){
+
+  try{
+
+    const serialized =
+    JSON.stringify(
+      value
     );
 
-    return false;
+    if(
+      typeof serialized !==
+      "string"
+    ){
+
+      return null;
+
+    }
+
+    if(
+
+      serialized.length >
+
+      MAX_STORAGE_SIZE
+
+    ){
+
+      return null;
+
+    }
+
+    return serialized;
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE DEEP CLONE
+// =====================================
+
+function deepClone(data){
+
+  try{
+
+    return structuredClone(
+      data
+    );
+
+  }
+
+  catch(error){
+
+    try{
+
+      return JSON.parse(
+        JSON.stringify(data)
+      );
+
+    }
+
+    catch(cloneError){
+
+      return null;
+
+    }
 
   }
 
@@ -202,13 +279,22 @@ function saveChats(chats){
       STORAGE_CONFIG.MAX_CHATS
     );
 
+    const serialized =
+    safeStorageSerialize(
+      limitedChats
+    );
+
+    if(!serialized){
+
+      return false;
+
+    }
+
     localStorage.setItem(
 
       STORAGE_KEYS.CHATS,
 
-      JSON.stringify(
-        limitedChats
-      )
+      serialized
 
     );
 
@@ -271,7 +357,10 @@ function loadChats(){
     }
 
     const parsedData =
-    JSON.parse(data);
+    safeJSONParse(
+      data,
+      []
+    );
 
     if(
       !Array.isArray(parsedData)
@@ -335,6 +424,12 @@ function saveCurrentChat(){
       currentChat
     );
 
+    if(!safeChat){
+
+      return false;
+
+    }
+
     safeChat.updatedAt =
     Date.now();
 
@@ -391,53 +486,6 @@ function saveCurrentChat(){
 
 
 // =====================================
-// DELETE CHAT
-// =====================================
-
-function deleteChat(chatId){
-
-  if(!chatId){
-
-    return false;
-
-  }
-
-  try{
-
-    const chats =
-    loadChats();
-
-    const filteredChats =
-    chats.filter(
-
-      (chat) =>
-
-      chat.id !== chatId
-
-    );
-
-    return saveChats(
-      filteredChats
-    );
-
-  }
-
-  catch(error){
-
-    handleStorageError(
-      "DELETE CHAT ERROR",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
 // GET CHAT
 // =====================================
 
@@ -473,7 +521,9 @@ function getChatById(chatId){
 
     }
 
-    return deepClone(chat);
+    return deepClone(
+      chat
+    );
 
   }
 
@@ -513,13 +563,28 @@ function saveMemory(memory){
     const safeMemory =
     deepClone(memory);
 
+    if(!safeMemory){
+
+      return false;
+
+    }
+
+    const serialized =
+    safeStorageSerialize(
+      safeMemory
+    );
+
+    if(!serialized){
+
+      return false;
+
+    }
+
     localStorage.setItem(
 
       STORAGE_KEYS.MEMORY,
 
-      JSON.stringify(
-        safeMemory
-      )
+      serialized
 
     );
 
@@ -572,7 +637,10 @@ function loadMemory(){
     }
 
     const parsedData =
-    JSON.parse(data);
+    safeJSONParse(
+      data,
+      {}
+    );
 
     if(
       !validateMemoryObject(
@@ -600,111 +668,6 @@ function loadMemory(){
     );
 
     return {};
-
-  }
-
-}
-
-
-
-// =====================================
-// CLEAR STORAGE
-// =====================================
-
-function clearStorage(){
-
-  if(
-    !isStorageAvailable()
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    localStorage.removeItem(
-      STORAGE_KEYS.CHATS
-    );
-
-    localStorage.removeItem(
-      STORAGE_KEYS.MEMORY
-    );
-
-    localStorage.removeItem(
-      STORAGE_KEYS.SETTINGS
-    );
-
-    localStorage.removeItem(
-      STORAGE_KEYS.VERSION
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    handleStorageError(
-      "CLEAR STORAGE ERROR",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// CLEAR CORRUPTED CHATS
-// =====================================
-
-function clearCorruptedChats(){
-
-  try{
-
-    localStorage.removeItem(
-      STORAGE_KEYS.CHATS
-    );
-
-  }
-
-  catch(error){
-
-    handleStorageError(
-      "CLEAR CORRUPTED CHATS ERROR",
-      error
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// CLEAR CORRUPTED MEMORY
-// =====================================
-
-function clearCorruptedMemory(){
-
-  try{
-
-    localStorage.removeItem(
-      STORAGE_KEYS.MEMORY
-    );
-
-  }
-
-  catch(error){
-
-    handleStorageError(
-      "CLEAR CORRUPTED MEMORY ERROR",
-      error
-    );
 
   }
 
@@ -767,66 +730,8 @@ function validateChatObject(chat){
   }
 
   if(
-    typeof chat.createdAt !==
-    "number"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof chat.updatedAt !==
-    "number"
-  ){
-
-    return false;
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// VALIDATE MESSAGE OBJECT
-// =====================================
-
-function validateMessageObject(message){
-
-  if(
-    !message ||
-    typeof message !== "object" ||
-    Array.isArray(message)
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof message.id !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof message.role !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !VALID_ROLES.includes(
-      message.role
+    !Number.isFinite(
+      chat.createdAt
     )
   ){
 
@@ -835,25 +740,36 @@ function validateMessageObject(message){
   }
 
   if(
-    typeof message.content !==
-    "string"
+    !Number.isFinite(
+      chat.updatedAt
+    )
   ){
 
     return false;
 
   }
 
+  const currentTime =
+  Date.now();
+
+  const maximumTimestamp =
+
+    currentTime +
+
+    1000 * 60 * 60 * 24;
+
   if(
-    !message.content.trim()
-  ){
 
-    return false;
+    chat.createdAt < 0 ||
 
-  }
+    chat.updatedAt < 0 ||
 
-  if(
-    typeof message.timestamp !==
-    "number"
+    chat.createdAt >
+    maximumTimestamp ||
+
+    chat.updatedAt >
+    maximumTimestamp
+
   ){
 
     return false;
@@ -882,108 +798,17 @@ function validateMemoryObject(memory){
 
   }
 
-  return true;
-
-}
-
-
-
-// =====================================
-// DEDUPLICATE CHATS
-// =====================================
-
-function deduplicateChats(chats){
-
-  const seen =
-  new Set();
-
-  return chats.filter(
-    (chat) => {
-
-      if(
-        !chat ||
-        !chat.id
-      ){
-
-        return false;
-
-      }
-
-      if(
-        seen.has(chat.id)
-      ){
-
-        return false;
-
-      }
-
-      seen.add(chat.id);
-
-      return true;
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// DEEP CLONE
-// =====================================
-
-function deepClone(data){
-
-  try{
-
-    return structuredClone(
-      data
-    );
-
-  }
-
-  catch(error){
-
-    return JSON.parse(
-      JSON.stringify(data)
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// STORAGE ERROR HANDLER
-// =====================================
-
-function handleStorageError(
-  label,
-  error
-){
+  const keys =
+  Object.keys(memory);
 
   if(
-    error &&
-    error.name ===
-    "QuotaExceededError"
+    keys.length > 1000
   ){
 
-    console.error(
-
-      label,
-
-      "Storage limit exceeded"
-
-    );
-
-    return;
+    return false;
 
   }
 
-  console.error(
-    label,
-    error
-  );
+  return true;
 
 }
