@@ -1,46 +1,70 @@
 // =====================================
-// RIGO AI
-// API
-// PRODUCTION FINAL
+// VALID API STATUS
 // =====================================
 
+const VALID_API_STATUS =
+Object.freeze([
 
+  "idle",
 
-// =====================================
-// API STATE
-// =====================================
+  "loading",
 
-const apiState =
-Object.seal({
+  "success",
 
-  status:"idle",
-
-  pendingRequests:0,
-
-  lastError:null,
-
-  lastRequestAt:null
-
-});
-
-
-
-// =====================================
-// VALID API STATE KEYS
-// =====================================
-
-const VALID_API_STATE_KEYS =
-new Set([
-
-  "status",
-
-  "pendingRequests",
-
-  "lastError",
-
-  "lastRequestAt"
+  "error"
 
 ]);
+
+
+
+// =====================================
+// SAFE DEEP CLONE
+// =====================================
+
+function safeDeepClone(
+  value
+){
+
+  try{
+
+    if(
+      typeof deepClone ===
+      "function"
+    ){
+
+      return deepClone(
+        value
+      );
+
+    }
+
+    return structuredClone(
+      value
+    );
+
+  }
+
+  catch(error){
+
+    try{
+
+      return JSON.parse(
+        JSON.stringify(
+          value
+        )
+      );
+
+    }
+
+    catch(cloneError){
+
+      return null;
+
+    }
+
+  }
+
+}
 
 
 
@@ -58,8 +82,15 @@ function validateAPIStateValue(
     case "status":
 
       return (
+
         typeof value ===
         "string"
+
+        &&
+
+        VALID_API_STATUS
+        .includes(value)
+
       );
 
     case "pendingRequests":
@@ -108,113 +139,6 @@ function validateAPIStateValue(
 
 
 // =====================================
-// UPDATE API STATE
-// =====================================
-
-function updateAPIState(
-  updates = {}
-){
-
-  if(
-
-    !updates ||
-
-    typeof updates !==
-    "object" ||
-
-    Array.isArray(
-      updates
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  Object.keys(
-    updates
-  )
-  .forEach((key) => {
-
-    const isValidKey =
-
-      VALID_API_STATE_KEYS
-      .has(key);
-
-    if(!isValidKey){
-
-      return;
-
-    }
-
-    const value =
-    updates[key];
-
-    const isValidValue =
-
-      validateAPIStateValue(
-        key,
-        value
-      );
-
-    if(!isValidValue){
-
-      return;
-
-    }
-
-    apiState[key] =
-    value;
-
-  });
-
-  return true;
-
-}
-
-
-
-// =====================================
-// VALIDATE API RESPONSE
-// =====================================
-
-function validateAPIResult(
-  result
-){
-
-  if(
-
-    !result ||
-
-    typeof result !==
-    "object" ||
-
-    Array.isArray(
-      result
-    )
-
-  ){
-
-    throw createAPIError({
-
-      message:
-      "Invalid API result",
-
-      code:
-      "INVALID_API_RESULT"
-
-    });
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
 // NORMALIZE API RESPONSE
 // =====================================
 
@@ -243,15 +167,61 @@ function normalizeAPIResult(
       safeStatus
     )
 
-    ? safeStatus
+    ?
 
-    : 0,
+    safeStatus
+
+    :
+
+    0,
 
     data:
     result.data ?? null,
 
     headers:
-    result.headers ?? null
+    result.headers ?? null,
+
+    requestId:
+
+      typeof result
+      .requestId ===
+      "string"
+
+      ?
+
+      result.requestId
+
+      :
+
+      null,
+
+    duration:
+
+      Number.isFinite(
+        result.duration
+      )
+
+      ?
+
+      result.duration
+
+      :
+
+      null,
+
+    attempt:
+
+      Number.isFinite(
+        result.attempt
+      )
+
+      ?
+
+      result.attempt
+
+      :
+
+      null
 
   });
 
@@ -334,351 +304,9 @@ function createAPIPayload(
 
   }
 
-  return deepClone(
+  return safeDeepClone(
     data
   ) || {};
-
-}
-
-
-
-// =====================================
-// EXECUTE SAFE API ACTION
-// =====================================
-
-async function executeAPIAction(
-  action
-){
-
-  if(
-    typeof action !==
-    "function"
-  ){
-
-    throw createAPIError({
-
-      message:
-      "Invalid API action",
-
-      code:
-      "INVALID_API_ACTION"
-
-    });
-
-  }
-
-  const nextPending =
-
-    apiState
-    .pendingRequests + 1;
-
-  updateAPIState({
-
-    status:"loading",
-
-    pendingRequests:
-    nextPending,
-
-    lastRequestAt:
-    Date.now()
-
-  });
-
-  let error =
-  null;
-
-  try{
-
-    return await action();
-
-  }
-
-  catch(caughtError){
-
-    error =
-    caughtError;
-
-    throw caughtError;
-
-  }
-
-  finally{
-
-    const remainingPending =
-
-      Math.max(
-
-        0,
-
-        apiState
-        .pendingRequests - 1
-
-      );
-
-    updateAPIState({
-
-      pendingRequests:
-      remainingPending,
-
-      status:
-
-      remainingPending > 0
-
-      ? "loading"
-
-      : error
-
-        ? "error"
-
-        : "success",
-
-      lastError:
-
-      error
-
-      ? String(
-
-          error?.message ||
-
-          error ||
-
-          ""
-
-        ) || null
-
-      : null
-
-    });
-
-  }
-
-}
-
-
-
-// =====================================
-// HEALTH CHECK
-// =====================================
-
-async function checkAPIHealth(){
-
-  return executeAPIAction(
-    async () => {
-
-      const result =
-      await apiGet(
-        "/health"
-      );
-
-      return normalizeAPIResult(
-        result
-      );
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// FETCH AVAILABLE MODELS
-// =====================================
-
-async function fetchAvailableModels(){
-
-  return executeAPIAction(
-    async () => {
-
-      const result =
-      await apiGet(
-        "/models"
-      );
-
-      return normalizeAPIResult(
-        result
-      );
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// SEND CHAT MESSAGE
-// =====================================
-
-async function sendChatMessage({
-
-  message = "",
-
-  chatId = "",
-
-  context = []
-
-} = {}){
-
-  return executeAPIAction(
-    async () => {
-
-      const cleanMessage =
-      String(
-        message || ""
-      ).trim();
-
-      if(!cleanMessage){
-
-        throw createAPIError({
-
-          message:
-          "Message is required",
-
-          code:
-          "INVALID_MESSAGE"
-
-        });
-
-      }
-
-      const payload =
-      createAPIPayload({
-
-        message:
-        cleanMessage,
-
-        chatId:
-        String(
-          chatId || ""
-        ).trim(),
-
-        context:
-
-        Array.isArray(
-          context
-        )
-
-        ? deepClone(
-            context
-          ) || []
-
-        : []
-
-      });
-
-      const result =
-      await apiPost(
-
-        "/chat/message",
-
-        payload
-
-      );
-
-      return normalizeAPIResult(
-        result
-      );
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// SYNC CHAT
-// =====================================
-
-async function syncChatData(
-  chatData = {}
-){
-
-  return executeAPIAction(
-    async () => {
-
-      const payload =
-      createAPIPayload(
-        chatData
-      );
-
-      const result =
-      await apiPost(
-
-        "/chat/sync",
-
-        payload
-
-      );
-
-      return normalizeAPIResult(
-        result
-      );
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// SAVE USER SETTINGS
-// =====================================
-
-async function saveUserSettings(
-  settings = {}
-){
-
-  return executeAPIAction(
-    async () => {
-
-      const payload =
-      createAPIPayload(
-        settings
-      );
-
-      const result =
-      await apiPost(
-
-        "/settings/save",
-
-        payload
-
-      );
-
-      return normalizeAPIResult(
-        result
-      );
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// LOAD USER SETTINGS
-// =====================================
-
-async function loadUserSettings(){
-
-  return executeAPIAction(
-    async () => {
-
-      const result =
-      await apiGet(
-        "/settings"
-      );
-
-      return normalizeAPIResult(
-        result
-      );
-
-    }
-  );
 
 }
 
@@ -720,6 +348,63 @@ async function uploadFile(
 
       }
 
+      const maxFileSize =
+      10 * 1024 * 1024;
+
+      if(
+        file.size >
+        maxFileSize
+      ){
+
+        throw createAPIError({
+
+          message:
+          "File too large",
+
+          code:
+          "FILE_TOO_LARGE"
+
+        });
+
+      }
+
+      const allowedMimeTypes = [
+
+        "image/png",
+
+        "image/jpeg",
+
+        "image/webp",
+
+        "application/pdf",
+
+        "text/plain"
+
+      ];
+
+      if(
+
+        file.type &&
+
+        !allowedMimeTypes
+        .includes(
+          file.type
+        )
+
+      ){
+
+        throw createAPIError({
+
+          message:
+          "Unsupported file type",
+
+          code:
+          "INVALID_FILE_TYPE"
+
+        });
+
+      }
+
       const formData =
       new FormData();
 
@@ -736,7 +421,12 @@ async function uploadFile(
 
         method:"POST",
 
-        headers:{},
+        headers:{
+
+          Accept:
+          "application/json"
+
+        },
 
         body:formData
 
@@ -759,7 +449,7 @@ async function uploadFile(
 
 function getAPIStatus(){
 
-  return deepClone(
+  return safeDeepClone(
     apiState
   );
 
