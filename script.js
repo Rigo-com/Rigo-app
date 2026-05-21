@@ -65,23 +65,6 @@ function saveChat(){
 
 }
 
-/* LOAD CHAT */
-
-function loadChat(){
-
-  const saved =
-  localStorage.getItem(
-    "rigo_current_chat"
-  );
-
-  if(saved){
-
-    chat.innerHTML = saved;
-
-  }
-
-}
-
 /* CREATE CHAT ITEM */
 
 function createChatItem(title,content){
@@ -309,6 +292,15 @@ function toggleLanguage(){
 
 }
 
-/* LOAD */
+/* LOAD SAVED CHAT */
 
-loadChat();
+const savedChat =
+localStorage.getItem(
+  "rigo_current_chat"
+);
+
+if(savedChat){
+
+  chat.innerHTML = savedChat;
+
+}
