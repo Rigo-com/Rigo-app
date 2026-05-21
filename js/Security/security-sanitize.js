@@ -1,3 +1,7 @@
+// =====================================
+// SAFE STRING
+// =====================================
+
 function safeString(
   value,
   options = {}
@@ -8,6 +12,7 @@ function safeString(
   ){
 
     return "";
+
   }
 
   const shouldTrim =
@@ -21,8 +26,24 @@ function safeString(
       .AUTO_TRIM_STRINGS
     );
 
-  let normalized =
-  String(value);
+  let normalized = "";
+
+  try{
+
+    normalized =
+    String(value);
+
+  }
+
+  catch(error){
+
+    logSecurityEvent(
+      "STRING_CONVERSION_FAILED"
+    );
+
+    return "";
+
+  }
 
   if(
     typeof normalized.normalize ===
@@ -51,9 +72,14 @@ function safeString(
 
   }
 
+  const characters =
+  Array.from(
+    normalized
+  );
+
   if(
 
-    normalized.length >
+    characters.length >
 
     SECURITY_CONFIG
     .MAX_STRING_LENGTH
@@ -61,14 +87,16 @@ function safeString(
   ){
 
     normalized =
-    normalized.slice(
+    characters
+    .slice(
 
       0,
 
       SECURITY_CONFIG
       .MAX_STRING_LENGTH
 
-    );
+    )
+    .join("");
 
   }
 
@@ -77,6 +105,10 @@ function safeString(
 }
 
 
+
+// =====================================
+// ESCAPE HTML
+// =====================================
 
 function escapeHTML(
   input
@@ -88,11 +120,17 @@ function escapeHTML(
   .replace(/</g,"&lt;")
   .replace(/>/g,"&gt;")
   .replace(/"/g,"&quot;")
-  .replace(/'/g,"&#39;");
+  .replace(/'/g,"&#39;")
+  .replace(/`/g,"&#96;")
+  .replace(/=/g,"&#61;");
 
 }
 
 
+
+// =====================================
+// SANITIZE HTML
+// =====================================
 
 function sanitizeHTML(
   input
@@ -101,8 +139,29 @@ function sanitizeHTML(
   const sanitized =
   escapeHTML(input);
 
-  securityState
-  .sanitizedPayloads++;
+  if(
+
+    Number.isFinite(
+
+      securityState
+      .sanitizedPayloads
+
+    )
+
+  ){
+
+    securityState
+    .sanitizedPayloads++;
+
+  }
+
+  else{
+
+    securityState
+    .sanitizedPayloads =
+    1;
+
+  }
 
   return sanitized;
 
