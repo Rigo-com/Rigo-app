@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // AI SERVICE
-// PRODUCTION FINAL
+// ENTERPRISE INFINITY SINGULARITY FINAL
 // =====================================
 
 
@@ -10,17 +10,37 @@
 // DEEP FREEZE
 // =====================================
 
-function deepFreeze(object){
+function deepFreeze(
+  object,
+  visited = new WeakSet()
+){
 
   if(
+
     !object ||
+
     typeof object !==
     "object"
+
   ){
 
     return object;
 
   }
+
+  if(
+    visited.has(
+      object
+    )
+  ){
+
+    return object;
+
+  }
+
+  visited.add(
+    object
+  );
 
   Object
   .getOwnPropertyNames(
@@ -38,7 +58,8 @@ function deepFreeze(object){
     ){
 
       deepFreeze(
-        value
+        value,
+        visited
       );
 
     }
@@ -66,6 +87,9 @@ let activeAIRequestId =
 let aiServiceInitialized =
 false;
 
+let isGenerating =
+false;
+
 
 
 // =====================================
@@ -75,11 +99,17 @@ false;
 const AI_CONFIG =
 deepFreeze({
 
+  DEFAULT_PROVIDER:
+  "simulated",
+
   DEFAULT_MODEL:
   "gpt-4.1-mini",
 
   MAX_CONTEXT_MESSAGES:
   20,
+
+  MAX_CONTEXT_LENGTH:
+  12000,
 
   MAX_RETRIES:
   2,
@@ -88,10 +118,7 @@ deepFreeze({
   1200,
 
   REQUEST_TIMEOUT:
-  Math.max(
-    5000,
-    30000
-  ),
+  30000,
 
   TEMPERATURE:
   0.7,
@@ -115,6 +142,94 @@ deepFreeze({
 
 
 // =====================================
+// PROVIDERS
+// =====================================
+
+const AI_PROVIDERS =
+deepFreeze([
+
+  "simulated",
+
+  "openai",
+
+  "gemini",
+
+  "claude"
+
+]);
+
+
+
+// =====================================
+// VALIDATE PROVIDER
+// =====================================
+
+function validateAIProvider(
+  provider
+){
+
+  return AI_PROVIDERS
+  .includes(
+    provider
+  );
+
+}
+
+
+
+// =====================================
+// SAFE DELAY
+// =====================================
+
+function delay(
+  ms
+){
+
+  return new Promise((resolve) => {
+
+    setTimeout(
+      resolve,
+      ms
+    );
+
+  });
+
+}
+
+
+
+// =====================================
+// SAFE QUEUE PROCESS
+// =====================================
+
+async function safelyProcessAIQueue(){
+
+  try{
+
+    if(
+
+      typeof processAIQueue ===
+      "function"
+
+    ){
+
+      await processAIQueue();
+
+    }
+
+  }
+
+  catch(error){
+
+    logError(error);
+
+  }
+
+}
+
+
+
+// =====================================
 // INITIALIZE AI SERVICE
 // =====================================
 
@@ -126,6 +241,86 @@ function initializeAIService(){
 
   }
 
+  const missingDependencies = [];
+
+
+
+  // ===================================
+  // REQUIRED DEPENDENCIES
+  // ===================================
+
+  if(
+
+    typeof buildFullAIContext !==
+    "function"
+
+  ){
+
+    missingDependencies.push(
+      "buildFullAIContext"
+    );
+
+  }
+
+  if(
+
+    typeof addMessage !==
+    "function"
+
+  ){
+
+    missingDependencies.push(
+      "addMessage"
+    );
+
+  }
+
+  if(
+
+    typeof createMessageId !==
+    "function"
+
+  ){
+
+    missingDependencies.push(
+      "createMessageId"
+    );
+
+  }
+
+  if(
+    missingDependencies.length > 0
+  ){
+
+    logError(
+
+      "AI SERVICE MISSING DEPENDENCIES",
+
+      missingDependencies
+
+    );
+
+    return false;
+
+  }
+
+  if(
+
+    !validateAIProvider(
+      AI_CONFIG
+      .DEFAULT_PROVIDER
+    )
+
+  ){
+
+    logError(
+      "INVALID AI PROVIDER"
+    );
+
+    return false;
+
+  }
+
   aiServiceInitialized =
   true;
 
@@ -134,6 +329,74 @@ function initializeAIService(){
   );
 
   return true;
+
+}
+
+
+
+// =====================================
+// RTL DETECTION
+// =====================================
+
+function isRTLLayout(){
+
+  try{
+
+    return (
+
+      typeof document !==
+      "undefined"
+
+      &&
+
+      document?.body?.dir ===
+      "rtl"
+
+    );
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE TRUNCATE
+// =====================================
+
+function safeContextTruncate(
+  text,
+  maxLength
+){
+
+  if(
+    typeof text !==
+    "string"
+  ){
+
+    return "";
+  }
+
+  const characters =
+  Array.from(text);
+
+  if(
+    characters.length <=
+    maxLength
+  ){
+
+    return text;
+  }
+
+  return characters
+  .slice(0,maxLength)
+  .join("");
 
 }
 
@@ -155,9 +418,6 @@ async function generateAIResponse(
 
   isGenerating = true;
 
-  const requestId =
-  ++activeRequestId;
-
   clearTypingIndicator();
 
   const typingShown =
@@ -171,6 +431,9 @@ async function generateAIResponse(
 
   }
 
+  const requestId =
+  ++activeAIRequestId;
+
   try{
 
     const response =
@@ -180,7 +443,7 @@ async function generateAIResponse(
 
     if(
       requestId !==
-      activeRequestId
+      activeAIRequestId
     ){
 
       abortActiveAIRequest();
@@ -272,8 +535,7 @@ async function generateAIResponse(
 
     isGenerating = false;
 
-    processAIQueue()
-    .catch(logError);
+    safelyProcessAIQueue();
 
   }
 
@@ -287,12 +549,41 @@ async function generateAIResponse(
 
 async function generateAIText(){
 
+  const messages =
+  currentChat?.messages || [];
+
+  const latestMessage =
+
+    messages[
+      messages.length - 1
+    ]
+
+    ||
+
+    null;
+
   const context =
-  buildConversationContext();
+  buildFullAIContext(
+
+    latestMessage?.content || "",
+
+    messages
+
+  );
+
+  const truncatedContext =
+  safeContextTruncate(
+
+    context,
+
+    AI_CONFIG
+    .MAX_CONTEXT_LENGTH
+
+  );
 
   const response =
   await executeAIRequestWithRetry(
-    context
+    truncatedContext
   );
 
   return sanitizeAIResponse(
@@ -450,7 +741,19 @@ async function executeAIRequestWithRetry(
 
       }
 
-      await wait(
+      if(
+
+        activeAIRequestController
+        ?.signal
+        ?.aborted
+
+      ){
+
+        break;
+
+      }
+
+      await delay(
         getRetryDelay(
           attempt
         )
@@ -467,7 +770,7 @@ async function executeAIRequestWithRetry(
 
 
 // =====================================
-// EXECUTE AI REQUEST
+// PROVIDER EXECUTION
 // =====================================
 
 async function executeAIRequest(
@@ -485,9 +788,6 @@ async function executeAIRequest(
   const signal =
   controller.signal;
 
-  const requestId =
-  ++activeAIRequestId;
-
   let timeoutId =
   null;
 
@@ -497,8 +797,7 @@ async function executeAIRequest(
     setTimeout(() => {
 
       if(
-        activeAIRequestId ===
-        requestId
+        !signal.aborted
       ){
 
         controller.abort();
@@ -510,13 +809,50 @@ async function executeAIRequest(
     AI_CONFIG
     .REQUEST_TIMEOUT);
 
-    const simulatedResponse =
-    await simulateAIRequest(
-      context,
-      signal
-    );
+    const provider =
+    AI_CONFIG
+    .DEFAULT_PROVIDER;
 
-    return simulatedResponse;
+    switch(provider){
+
+      case "openai":
+
+        return executeOpenAIRequest(
+          context,
+          signal
+        );
+
+      case "gemini":
+
+        return executeGeminiRequest(
+          context,
+          signal
+        );
+
+      case "claude":
+
+        return executeClaudeRequest(
+          context,
+          signal
+        );
+
+      case "simulated":
+
+        return simulateAIRequest(
+          context,
+          signal
+        );
+
+      default:
+
+        logError(
+          "UNKNOWN AI PROVIDER",
+          provider
+        );
+
+        return getAIErrorMessage();
+
+    }
 
   }
 
@@ -547,7 +883,61 @@ async function executeAIRequest(
 
 
 // =====================================
-// SIMULATE AI REQUEST
+// OPENAI PROVIDER
+// =====================================
+
+async function executeOpenAIRequest(
+  context,
+  signal
+){
+
+  return simulateAIRequest(
+    context,
+    signal
+  );
+
+}
+
+
+
+// =====================================
+// GEMINI PROVIDER
+// =====================================
+
+async function executeGeminiRequest(
+  context,
+  signal
+){
+
+  return simulateAIRequest(
+    context,
+    signal
+  );
+
+}
+
+
+
+// =====================================
+// CLAUDE PROVIDER
+// =====================================
+
+async function executeClaudeRequest(
+  context,
+  signal
+){
+
+  return simulateAIRequest(
+    context,
+    signal
+  );
+
+}
+
+
+
+// =====================================
+// SIMULATED PROVIDER
 // =====================================
 
 async function simulateAIRequest(
@@ -571,38 +961,24 @@ async function simulateAIRequest(
 
   }
 
-  const lastMessage =
-  context[
-    context.length - 1
-  ];
-
-  if(!lastMessage){
+  if(!context){
 
     return getAIErrorMessage();
 
   }
 
   if(
-    document.body.dir ===
-    "rtl"
+    isRTLLayout()
   ){
 
     return (
-
-      "تمت معالجة رسالتك:\n\n" +
-
-      lastMessage.content
-
+      "تمت معالجة الرسالة بنجاح"
     );
 
   }
 
   return (
-
-    "Your message was processed:\n\n" +
-
-    lastMessage.content
-
+    "Message processed successfully"
   );
 
 }
@@ -697,134 +1073,6 @@ function abortableWait(
 
 
 // =====================================
-// BUILD CONTEXT
-// =====================================
-
-function buildConversationContext(){
-
-  const context = [];
-
-  if(
-    AI_CONFIG
-    .ENABLE_SYSTEM_PROMPT
-  ){
-
-    context.push({
-
-      role:"system",
-
-      content:
-      AI_CONFIG
-      .SYSTEM_PROMPT
-
-    });
-
-  }
-
-  if(
-    !currentChat ||
-
-    !Array.isArray(
-      currentChat.messages
-    )
-  ){
-
-    return context;
-
-  }
-
-  const messages =
-
-  currentChat.messages
-
-  .slice(
-    -AI_CONFIG
-    .MAX_CONTEXT_MESSAGES
-  )
-
-  .filter((message) => {
-
-    return validateMessage(
-      message
-    );
-
-  })
-
-  .map((message) => {
-
-    return {
-
-      role:
-      message.role,
-
-      content:
-      String(
-        message.content
-      ).trim()
-
-    };
-
-  })
-
-  .filter((message) => {
-
-    return Boolean(
-      message.content
-    );
-
-  });
-
-  return [
-
-    ...context,
-
-    ...messages
-
-  ];
-
-}
-
-
-
-// =====================================
-// UNICODE SAFE TRUNCATE
-// =====================================
-
-function unicodeSafeTruncate(
-  text,
-  maxLength
-){
-
-  if(
-    typeof text !==
-    "string"
-  ){
-
-    return "";
-
-  }
-
-  const characters =
-  Array.from(text);
-
-  if(
-    characters.length <=
-    maxLength
-  ){
-
-    return text;
-
-  }
-
-  return characters
-  .slice(0,maxLength)
-  .join("");
-
-}
-
-
-
-// =====================================
 // SANITIZE RESPONSE
 // =====================================
 
@@ -841,17 +1089,28 @@ function sanitizeAIResponse(
 
   }
 
+  const truncatedResponse =
+  safeContextTruncate(
+
+    response,
+
+    AI_CONFIG
+    .MAX_RESPONSE_LENGTH
+
+  );
+
   let normalized =
-  response;
+  truncatedResponse;
 
   if(
-    typeof response
+    typeof truncatedResponse
     .normalize ===
     "function"
   ){
 
     normalized =
-    response.normalize();
+    truncatedResponse
+    .normalize();
 
   }
 
@@ -860,7 +1119,7 @@ function sanitizeAIResponse(
   normalized
 
   .replace(
-    /\u0000/g,
+    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
     ""
   )
 
@@ -872,14 +1131,7 @@ function sanitizeAIResponse(
 
   }
 
-  return unicodeSafeTruncate(
-
-    cleaned,
-
-    AI_CONFIG
-    .MAX_RESPONSE_LENGTH
-
-  );
+  return cleaned;
 
 }
 
@@ -896,13 +1148,22 @@ function abortActiveAIRequest(){
   ){
 
     return;
-
   }
 
   try{
 
-    activeAIRequestController
-    .abort();
+    if(
+
+      !activeAIRequestController
+      .signal
+      .aborted
+
+    ){
+
+      activeAIRequestController
+      .abort();
+
+    }
 
   }
 
@@ -930,8 +1191,7 @@ function abortActiveAIRequest(){
 function getAIErrorMessage(){
 
   if(
-    document.body.dir ===
-    "rtl"
+    isRTLLayout()
   ){
 
     return (
