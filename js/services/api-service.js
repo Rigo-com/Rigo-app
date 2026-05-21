@@ -1,197 +1,34 @@
 // =====================================
-// RIGO AI
-// API SERVICE
-// PRODUCTION FINAL
-// =====================================
-
-
-
-// =====================================
-// API CONFIG
-// =====================================
-
-const API_CONFIG =
-deepFreeze({
-
-  BASE_URL:"",
-
-  DEFAULT_HEADERS:
-  deepFreeze({
-
-    "Content-Type":
-    "application/json",
-
-    "Accept":
-    "application/json"
-
-  }),
-
-  REQUEST_TIMEOUT:
-  30000,
-
-  MAX_RETRIES:
-  2,
-
-  RETRY_DELAY:
-  1200
-
-});
-
-
-
-// =====================================
-// ACTIVE REQUESTS
-// =====================================
-
-const activeAPIRequests =
-new Map();
-
-
-
-// =====================================
 // CREATE REQUEST ID
 // =====================================
 
 function createRequestId(){
 
-  if(
-    typeof crypto !==
-    "undefined" &&
+  try{
 
-    typeof crypto
-    .randomUUID ===
-    "function"
-  ){
+    if(
+      typeof crypto !==
+      "undefined" &&
 
-    return crypto.randomUUID();
+      typeof crypto
+      .randomUUID ===
+      "function"
+    ){
+
+      return crypto.randomUUID();
+
+    }
 
   }
 
-  return (
+  catch(error){
 
+    // FALLBACK
+  }
+
+  return (
     "req_" +
-
-    Date.now() +
-
-    "_" +
-
-    Math.random()
-    .toString(36)
-    .substring(2,9)
-
-  );
-
-}
-
-
-
-// =====================================
-// CREATE TIMEOUT CONTROLLER
-// =====================================
-
-function createTimeoutController(
-  timeout
-){
-
-  const safeTimeout =
-
-  Number.isFinite(timeout)
-
-  ? Math.max(
-      1000,
-      timeout
-    )
-
-  : API_CONFIG
-    .REQUEST_TIMEOUT;
-
-  const controller =
-  new AbortController();
-
-  const timeoutId =
-  setTimeout(() => {
-
-    controller.abort();
-
-  },
-
-  safeTimeout);
-
-  return {
-
-    controller,
-
-    timeoutId
-
-  };
-
-}
-
-
-
-// =====================================
-// BUILD URL
-// =====================================
-
-function buildAPIUrl(
-  endpoint
-){
-
-  const baseUrl =
-  String(
-    API_CONFIG
-    .BASE_URL || ""
-  ).trim();
-
-  const cleanEndpoint =
-  String(
-    endpoint || ""
-  ).trim();
-
-  if(!cleanEndpoint){
-
-    throw createAPIError({
-
-      message:
-      "Invalid API endpoint",
-
-      code:
-      "INVALID_ENDPOINT"
-
-    });
-
-  }
-
-  const isAbsoluteURL =
-
-    cleanEndpoint.startsWith(
-      "http://"
-    ) ||
-
-    cleanEndpoint.startsWith(
-      "https://"
-    );
-
-  if(isAbsoluteURL){
-
-    return cleanEndpoint;
-
-  }
-
-  return (
-
-    baseUrl.replace(
-      /\/+$/,
-      ""
-    ) +
-
-    "/" +
-
-    cleanEndpoint.replace(
-      /^\/+/,
-      ""
-    )
-
+    generateSecureRandomId()
   );
 
 }
@@ -217,320 +54,55 @@ function buildHeaders(
       customHeaders
     )
 
-    ? customHeaders
+    ?
 
-    : {};
+    customHeaders
+
+    :
+
+    {};
+
+  const blockedKeys = [
+
+    "__proto__",
+
+    "prototype",
+
+    "constructor"
+
+  ];
+
+  const cleanHeaders =
+  Object.create(null);
+
+  Object.entries(
+    safeHeaders
+  )
+  .forEach(([key,value]) => {
+
+    if(
+      blockedKeys.includes(
+        key
+      )
+    ){
+
+      return;
+
+    }
+
+    cleanHeaders[key] =
+    String(value);
+
+  });
 
   return {
 
     ...API_CONFIG
     .DEFAULT_HEADERS,
 
-    ...safeHeaders
+    ...cleanHeaders
 
   };
-
-}
-
-
-
-// =====================================
-// SAFE JSON STRINGIFY
-// =====================================
-
-function safeJSONStringify(
-  value
-){
-
-  if(
-    typeof value ===
-    "undefined"
-  ){
-
-    return undefined;
-
-  }
-
-  let result =
-  null;
-
-  try{
-
-    result =
-    JSON.stringify(
-      value
-    );
-
-  }
-
-  catch(error){
-
-    throw createAPIError({
-
-      message:
-      "Invalid request body",
-
-      code:
-      "INVALID_REQUEST_BODY"
-
-    });
-
-  }
-
-  if(
-    typeof result !==
-    "string"
-  ){
-
-    throw createAPIError({
-
-      message:
-      "Request body serialization failed",
-
-      code:
-      "INVALID_REQUEST_BODY"
-
-    });
-
-  }
-
-  return result;
-
-}
-
-
-
-// =====================================
-// SAFE JSON PARSE
-// =====================================
-
-async function safeParseJSON(
-  response
-){
-
-  if(
-    !(response instanceof Response)
-  ){
-
-    return null;
-
-  }
-
-  const contentType =
-
-  response.headers.get(
-    "content-type"
-  ) || "";
-
-  if(
-    !contentType
-    .toLowerCase()
-    .includes("json")
-  ){
-
-    return null;
-
-  }
-
-  try{
-
-    return await response.json();
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// CREATE API ERROR
-// =====================================
-
-function createAPIError({
-
-  message = "API Error",
-
-  status = 0,
-
-  code = "API_ERROR",
-
-  details = null
-
-}){
-
-  const error =
-  new Error(message);
-
-  error.name =
-  "APIError";
-
-  error.status =
-  status;
-
-  error.code =
-  code;
-
-  error.details =
-  details;
-
-  return error;
-
-}
-
-
-
-// =====================================
-// VALIDATE RESPONSE
-// =====================================
-
-function validateAPIResponse(
-  response
-){
-
-  if(
-    !(response instanceof Response)
-  ){
-
-    throw createAPIError({
-
-      message:
-      "Invalid response object",
-
-      code:
-      "INVALID_RESPONSE"
-
-    });
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SHOULD RETRY REQUEST
-// =====================================
-
-function shouldRetryRequest(
-  error
-){
-
-  if(!error){
-
-    return false;
-
-  }
-
-  if(
-    error?.name ===
-    "AbortError"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    error?.code ===
-    "ABORT_ERROR"
-  ){
-
-    return false;
-
-  }
-
-  const retryableStatus = [
-
-    408,
-    429,
-    500,
-    502,
-    503,
-    504
-
-  ];
-
-  if(
-    retryableStatus.includes(
-      error?.status
-    )
-  ){
-
-    return true;
-
-  }
-
-  const retryableCodes = [
-
-    "NETWORK_ERROR",
-
-    "FETCH_ERROR",
-
-    "TIMEOUT_ERROR",
-
-    "RETRYABLE_HTTP_ERROR"
-
-  ];
-
-  if(
-    retryableCodes.includes(
-      error?.code
-    )
-  ){
-
-    return true;
-
-  }
-
-  return (
-    error instanceof
-    TypeError
-  );
-
-}
-
-
-
-// =====================================
-// RETRY DELAY
-// =====================================
-
-function getAPIRetryDelay(
-  attempt
-){
-
-  const baseDelay =
-
-  API_CONFIG
-  .RETRY_DELAY;
-
-  const exponentialDelay =
-
-  baseDelay *
-
-  Math.pow(
-    2,
-    attempt
-  );
-
-  const jitter =
-
-  Math.floor(
-    Math.random() * 300
-  );
-
-  return (
-    exponentialDelay +
-    jitter
-  );
 
 }
 
@@ -561,6 +133,9 @@ async function executeFetch({
   const requestId =
   createRequestId();
 
+  const startedAt =
+  Date.now();
+
   const {
 
     controller,
@@ -570,6 +145,23 @@ async function executeFetch({
   } = createTimeoutController(
     timeout
   );
+
+  let timedOut =
+  false;
+
+  const timeoutHandler =
+  setTimeout(() => {
+
+    timedOut = true;
+
+    controller.abort();
+
+  },
+
+  Math.max(
+    1000,
+    timeout
+  ));
 
   activeAPIRequests.set(
     requestId,
@@ -642,11 +234,15 @@ async function executeFetch({
 
         body !== null
 
-        ? safeJSONStringify(
-            body
-          )
+        ?
 
-        : undefined,
+        safeJSONStringify(
+          body
+        )
+
+        :
+
+        undefined,
 
         signal:
         finalSignal
@@ -702,9 +298,13 @@ async function executeFetch({
 
         isRetryableStatus
 
-        ? "RETRYABLE_HTTP_ERROR"
+        ?
 
-        : "HTTP_ERROR",
+        "RETRYABLE_HTTP_ERROR"
+
+        :
+
+        "HTTP_ERROR",
 
         details:
         data
@@ -716,6 +316,13 @@ async function executeFetch({
     return {
 
       ok:true,
+
+      requestId,
+
+      duration:
+
+        Date.now() -
+        startedAt,
 
       status:
       response.status,
@@ -739,9 +346,27 @@ async function executeFetch({
       throw createAPIError({
 
         message:
+
+        timedOut
+
+        ?
+
+        "Request timeout"
+
+        :
+
         "Request aborted",
 
         code:
+
+        timedOut
+
+        ?
+
+        "TIMEOUT_ERROR"
+
+        :
+
         "ABORT_ERROR"
 
       });
@@ -785,6 +410,10 @@ async function executeFetch({
 
     clearTimeout(
       timeoutId
+    );
+
+    clearTimeout(
+      timeoutHandler
     );
 
     if(
@@ -837,9 +466,18 @@ async function apiRequest(
 
     try{
 
-      return await executeFetch(
+      const response =
+      await executeFetch(
         options
       );
+
+      return {
+
+        ...response,
+
+        attempt
+
+      };
 
     }
 
@@ -856,7 +494,7 @@ async function apiRequest(
       const isLastAttempt =
 
       attempt ===
-      AI_CONFIG
+      API_CONFIG
       .MAX_RETRIES;
 
       if(
@@ -887,104 +525,6 @@ async function apiRequest(
 
 
 // =====================================
-// GET REQUEST
-// =====================================
-
-async function apiGet(
-  endpoint,
-  options = {}
-){
-
-  return apiRequest({
-
-    ...options,
-
-    endpoint,
-
-    method:"GET"
-
-  });
-
-}
-
-
-
-// =====================================
-// POST REQUEST
-// =====================================
-
-async function apiPost(
-  endpoint,
-  body = {},
-  options = {}
-){
-
-  return apiRequest({
-
-    ...options,
-
-    endpoint,
-
-    body,
-
-    method:"POST"
-
-  });
-
-}
-
-
-
-// =====================================
-// PUT REQUEST
-// =====================================
-
-async function apiPut(
-  endpoint,
-  body = {},
-  options = {}
-){
-
-  return apiRequest({
-
-    ...options,
-
-    endpoint,
-
-    body,
-
-    method:"PUT"
-
-  });
-
-}
-
-
-
-// =====================================
-// DELETE REQUEST
-// =====================================
-
-async function apiDelete(
-  endpoint,
-  options = {}
-){
-
-  return apiRequest({
-
-    ...options,
-
-    endpoint,
-
-    method:"DELETE"
-
-  });
-
-}
-
-
-
-// =====================================
 // CANCEL ALL REQUESTS
 // =====================================
 
@@ -1001,7 +541,16 @@ function cancelAllAPIRequests(){
 
     catch(error){
 
-      logError(error);
+      if(
+        typeof console !==
+        "undefined"
+      ){
+
+        console.error(
+          error
+        );
+
+      }
 
     }
 
