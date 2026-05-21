@@ -1,227 +1,31 @@
 // =====================================
-// RIGO AI
-// AI SERVICE
-// ENTERPRISE INFINITY SINGULARITY FINAL
+// SAFE LOGGER
 // =====================================
 
-
-
-// =====================================
-// DEEP FREEZE
-// =====================================
-
-function deepFreeze(
-  object,
-  visited = new WeakSet()
+function safeLogError(
+  ...args
 ){
-
-  if(
-
-    !object ||
-
-    typeof object !==
-    "object"
-
-  ){
-
-    return object;
-
-  }
-
-  if(
-    visited.has(
-      object
-    )
-  ){
-
-    return object;
-
-  }
-
-  visited.add(
-    object
-  );
-
-  Object
-  .getOwnPropertyNames(
-    object
-  )
-  .forEach((key) => {
-
-    const value =
-    object[key];
-
-    if(
-      value &&
-      typeof value ===
-      "object"
-    ){
-
-      deepFreeze(
-        value,
-        visited
-      );
-
-    }
-
-  });
-
-  return Object.freeze(
-    object
-  );
-
-}
-
-
-
-// =====================================
-// AI STATE
-// =====================================
-
-let activeAIRequestController =
-null;
-
-let activeAIRequestId =
-0;
-
-let aiServiceInitialized =
-false;
-
-let isGenerating =
-false;
-
-
-
-// =====================================
-// AI CONFIG
-// =====================================
-
-const AI_CONFIG =
-deepFreeze({
-
-  DEFAULT_PROVIDER:
-  "simulated",
-
-  DEFAULT_MODEL:
-  "gpt-4.1-mini",
-
-  MAX_CONTEXT_MESSAGES:
-  20,
-
-  MAX_CONTEXT_LENGTH:
-  12000,
-
-  MAX_RETRIES:
-  2,
-
-  RETRY_DELAY:
-  1200,
-
-  REQUEST_TIMEOUT:
-  30000,
-
-  TEMPERATURE:
-  0.7,
-
-  MAX_RESPONSE_LENGTH:
-  4000,
-
-  ENABLE_SYSTEM_PROMPT:
-  true,
-
-  SYSTEM_PROMPT:
-
-  "You are RIGO AI. " +
-
-  "Be helpful, concise, " +
-
-  "accurate and safe."
-
-});
-
-
-
-// =====================================
-// PROVIDERS
-// =====================================
-
-const AI_PROVIDERS =
-deepFreeze([
-
-  "simulated",
-
-  "openai",
-
-  "gemini",
-
-  "claude"
-
-]);
-
-
-
-// =====================================
-// VALIDATE PROVIDER
-// =====================================
-
-function validateAIProvider(
-  provider
-){
-
-  return AI_PROVIDERS
-  .includes(
-    provider
-  );
-
-}
-
-
-
-// =====================================
-// SAFE DELAY
-// =====================================
-
-function delay(
-  ms
-){
-
-  return new Promise((resolve) => {
-
-    setTimeout(
-      resolve,
-      ms
-    );
-
-  });
-
-}
-
-
-
-// =====================================
-// SAFE QUEUE PROCESS
-// =====================================
-
-async function safelyProcessAIQueue(){
 
   try{
 
     if(
-
-      typeof processAIQueue ===
+      typeof logError ===
       "function"
-
     ){
 
-      await processAIQueue();
+      logError(...args);
+
+      return;
 
     }
 
+    console.error(...args);
+
   }
 
   catch(error){
 
-    logError(error);
+    console.error(error);
 
   }
 
@@ -229,174 +33,32 @@ async function safelyProcessAIQueue(){
 
 
 
-// =====================================
-// INITIALIZE AI SERVICE
-// =====================================
-
-function initializeAIService(){
-
-  if(aiServiceInitialized){
-
-    return true;
-
-  }
-
-  const missingDependencies = [];
-
-
-
-  // ===================================
-  // REQUIRED DEPENDENCIES
-  // ===================================
-
-  if(
-
-    typeof buildFullAIContext !==
-    "function"
-
-  ){
-
-    missingDependencies.push(
-      "buildFullAIContext"
-    );
-
-  }
-
-  if(
-
-    typeof addMessage !==
-    "function"
-
-  ){
-
-    missingDependencies.push(
-      "addMessage"
-    );
-
-  }
-
-  if(
-
-    typeof createMessageId !==
-    "function"
-
-  ){
-
-    missingDependencies.push(
-      "createMessageId"
-    );
-
-  }
-
-  if(
-    missingDependencies.length > 0
-  ){
-
-    logError(
-
-      "AI SERVICE MISSING DEPENDENCIES",
-
-      missingDependencies
-
-    );
-
-    return false;
-
-  }
-
-  if(
-
-    !validateAIProvider(
-      AI_CONFIG
-      .DEFAULT_PROVIDER
-    )
-
-  ){
-
-    logError(
-      "INVALID AI PROVIDER"
-    );
-
-    return false;
-
-  }
-
-  aiServiceInitialized =
-  true;
-
-  logInfo(
-    "AI SERVICE READY"
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RTL DETECTION
-// =====================================
-
-function isRTLLayout(){
+function safeLogInfo(
+  ...args
+){
 
   try{
 
-    return (
+    if(
+      typeof logInfo ===
+      "function"
+    ){
 
-      typeof document !==
-      "undefined"
+      logInfo(...args);
 
-      &&
+      return;
 
-      document?.body?.dir ===
-      "rtl"
+    }
 
-    );
+    console.info(...args);
 
   }
 
   catch(error){
 
-    return false;
+    console.error(error);
 
   }
-
-}
-
-
-
-// =====================================
-// SAFE TRUNCATE
-// =====================================
-
-function safeContextTruncate(
-  text,
-  maxLength
-){
-
-  if(
-    typeof text !==
-    "string"
-  ){
-
-    return "";
-  }
-
-  const characters =
-  Array.from(text);
-
-  if(
-    characters.length <=
-    maxLength
-  ){
-
-    return text;
-  }
-
-  return characters
-  .slice(0,maxLength)
-  .join("");
 
 }
 
@@ -406,9 +68,7 @@ function safeContextTruncate(
 // GENERATE AI RESPONSE
 // =====================================
 
-async function generateAIResponse(
-  requestMessageId
-){
+async function generateAIResponse(){
 
   if(isGenerating){
 
@@ -434,12 +94,13 @@ async function generateAIResponse(
   const requestId =
   ++activeAIRequestId;
 
+  const startedAt =
+  Date.now();
+
   try{
 
     const response =
-    await generateAIText(
-      requestMessageId
-    );
+    await generateAIText();
 
     if(
       requestId !==
@@ -471,13 +132,30 @@ async function generateAIResponse(
 
     if(!inserted){
 
-      logError(
+      safeLogError(
         "AI MESSAGE INSERT FAILED"
       );
 
       return false;
 
     }
+
+    safeLogInfo(
+
+      "AI RESPONSE GENERATED",
+
+      {
+
+        requestId,
+
+        duration:
+
+          Date.now() -
+          startedAt
+
+      }
+
+    );
 
     return true;
 
@@ -494,7 +172,7 @@ async function generateAIResponse(
 
     }
 
-    logError(
+    safeLogError(
       error?.message ||
       error
     );
@@ -519,8 +197,10 @@ async function generateAIResponse(
 
     if(!fallbackInserted){
 
-      logError(
+      safeLogError(
+
         "FALLBACK MESSAGE INSERT FAILED"
+
       );
 
     }
@@ -550,12 +230,30 @@ async function generateAIResponse(
 async function generateAIText(){
 
   const messages =
-  currentChat?.messages || [];
+  Array.isArray(
+    currentChat?.messages
+  )
+
+  ?
+
+  currentChat.messages
+
+  :
+
+  [];
+
+  const limitedMessages =
+  messages.slice(
+
+    -AI_CONFIG
+    .MAX_CONTEXT_MESSAGES
+
+  );
 
   const latestMessage =
 
-    messages[
-      messages.length - 1
+    limitedMessages[
+      limitedMessages.length - 1
     ]
 
     ||
@@ -567,7 +265,7 @@ async function generateAIText(){
 
     latestMessage?.content || "",
 
-    messages
+    limitedMessages
 
   );
 
@@ -595,182 +293,7 @@ async function generateAIText(){
 
 
 // =====================================
-// SHOULD RETRY
-// =====================================
-
-function shouldRetry(error){
-
-  if(!error){
-
-    return false;
-
-  }
-
-  const errorName =
-  String(
-    error?.name || ""
-  );
-
-  if(
-    errorName ===
-    "AbortError"
-  ){
-
-    return false;
-
-  }
-
-  const retryableErrors = [
-
-    "TypeError",
-
-    "NetworkError",
-
-    "FetchError",
-
-    "TimeoutError"
-
-  ];
-
-  return (
-
-    error instanceof
-    TypeError ||
-
-    retryableErrors
-    .includes(
-      errorName
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// RETRY DELAY
-// =====================================
-
-function getRetryDelay(
-  attempt
-){
-
-  const baseDelay =
-
-  AI_CONFIG
-  .RETRY_DELAY;
-
-  const exponentialDelay =
-
-  baseDelay *
-
-  Math.pow(
-    2,
-    attempt
-  );
-
-  const jitter =
-
-  Math.floor(
-    Math.random() * 300
-  );
-
-  return (
-    exponentialDelay +
-    jitter
-  );
-
-}
-
-
-
-// =====================================
-// EXECUTE AI REQUEST WITH RETRY
-// =====================================
-
-async function executeAIRequestWithRetry(
-  context
-){
-
-  let lastError =
-  null;
-
-  for(
-
-    let attempt = 0;
-
-    attempt <=
-    AI_CONFIG
-    .MAX_RETRIES;
-
-    attempt++
-
-  ){
-
-    try{
-
-      return await executeAIRequest(
-        context
-      );
-
-    }
-
-    catch(error){
-
-      lastError =
-      error;
-
-      const retryAllowed =
-      shouldRetry(
-        error
-      );
-
-      const isLastAttempt =
-
-      attempt ===
-      AI_CONFIG
-      .MAX_RETRIES;
-
-      if(
-        !retryAllowed ||
-        isLastAttempt
-      ){
-
-        break;
-
-      }
-
-      if(
-
-        activeAIRequestController
-        ?.signal
-        ?.aborted
-
-      ){
-
-        break;
-
-      }
-
-      await delay(
-        getRetryDelay(
-          attempt
-        )
-      );
-
-    }
-
-  }
-
-  throw lastError;
-
-}
-
-
-
-// =====================================
-// PROVIDER EXECUTION
+// EXECUTE AI REQUEST
 // =====================================
 
 async function executeAIRequest(
@@ -791,6 +314,9 @@ async function executeAIRequest(
   let timeoutId =
   null;
 
+  let timedOut =
+  false;
+
   try{
 
     timeoutId =
@@ -799,6 +325,8 @@ async function executeAIRequest(
       if(
         !signal.aborted
       ){
+
+        timedOut = true;
 
         controller.abort();
 
@@ -845,7 +373,7 @@ async function executeAIRequest(
 
       default:
 
-        logError(
+        safeLogError(
           "UNKNOWN AI PROVIDER",
           provider
         );
@@ -853,6 +381,23 @@ async function executeAIRequest(
         return getAIErrorMessage();
 
     }
+
+  }
+
+  catch(error){
+
+    if(
+      timedOut
+    ){
+
+      throw new DOMException(
+        "Request timeout",
+        "TimeoutError"
+      );
+
+    }
+
+    throw error;
 
   }
 
@@ -877,196 +422,6 @@ async function executeAIRequest(
     }
 
   }
-
-}
-
-
-
-// =====================================
-// OPENAI PROVIDER
-// =====================================
-
-async function executeOpenAIRequest(
-  context,
-  signal
-){
-
-  return simulateAIRequest(
-    context,
-    signal
-  );
-
-}
-
-
-
-// =====================================
-// GEMINI PROVIDER
-// =====================================
-
-async function executeGeminiRequest(
-  context,
-  signal
-){
-
-  return simulateAIRequest(
-    context,
-    signal
-  );
-
-}
-
-
-
-// =====================================
-// CLAUDE PROVIDER
-// =====================================
-
-async function executeClaudeRequest(
-  context,
-  signal
-){
-
-  return simulateAIRequest(
-    context,
-    signal
-  );
-
-}
-
-
-
-// =====================================
-// SIMULATED PROVIDER
-// =====================================
-
-async function simulateAIRequest(
-  context,
-  signal
-){
-
-  await abortableWait(
-    1000,
-    signal
-  );
-
-  if(
-    signal?.aborted
-  ){
-
-    throw new DOMException(
-      "Request aborted",
-      "AbortError"
-    );
-
-  }
-
-  if(!context){
-
-    return getAIErrorMessage();
-
-  }
-
-  if(
-    isRTLLayout()
-  ){
-
-    return (
-      "تمت معالجة الرسالة بنجاح"
-    );
-
-  }
-
-  return (
-    "Message processed successfully"
-  );
-
-}
-
-
-
-// =====================================
-// ABORTABLE WAIT
-// =====================================
-
-function abortableWait(
-  ms,
-  signal
-){
-
-  return new Promise(
-    (resolve,reject) => {
-
-      if(
-        signal?.aborted
-      ){
-
-        reject(
-
-          new DOMException(
-            "Request aborted",
-            "AbortError"
-          )
-
-        );
-
-        return;
-
-      }
-
-      const timeoutId =
-      setTimeout(() => {
-
-        cleanup();
-
-        resolve();
-
-      },ms);
-
-      function onAbort(){
-
-        cleanup();
-
-        reject(
-
-          new DOMException(
-            "Request aborted",
-            "AbortError"
-          )
-
-        );
-
-      }
-
-      function cleanup(){
-
-        clearTimeout(
-          timeoutId
-        );
-
-        if(signal){
-
-          signal.removeEventListener(
-            "abort",
-            onAbort
-          );
-
-        }
-
-      }
-
-      if(signal){
-
-        signal.addEventListener(
-          "abort",
-          onAbort,
-          { once:true }
-        );
-
-      }
-
-    }
-  );
 
 }
 
@@ -1110,7 +465,9 @@ function sanitizeAIResponse(
 
     normalized =
     truncatedResponse
-    .normalize();
+    .normalize(
+      "NFKC"
+    );
 
   }
 
@@ -1120,6 +477,11 @@ function sanitizeAIResponse(
 
   .replace(
     /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
+    ""
+  )
+
+  .replace(
+    /[\u202A-\u202E\u2066-\u2069]/g,
     ""
   )
 
@@ -1138,79 +500,6 @@ function sanitizeAIResponse(
 
 
 // =====================================
-// ABORT ACTIVE REQUEST
-// =====================================
-
-function abortActiveAIRequest(){
-
-  if(
-    !activeAIRequestController
-  ){
-
-    return;
-  }
-
-  try{
-
-    if(
-
-      !activeAIRequestController
-      .signal
-      .aborted
-
-    ){
-
-      activeAIRequestController
-      .abort();
-
-    }
-
-  }
-
-  catch(error){
-
-    logError(error);
-
-  }
-
-  finally{
-
-    activeAIRequestController =
-    null;
-
-  }
-
-}
-
-
-
-// =====================================
-// AI ERROR MESSAGE
-// =====================================
-
-function getAIErrorMessage(){
-
-  if(
-    isRTLLayout()
-  ){
-
-    return (
-      "حدث خطأ أثناء " +
-      "معالجة الطلب"
-    );
-
-  }
-
-  return (
-    "An error occurred " +
-    "while processing your request"
-  );
-
-}
-
-
-
-// =====================================
 // RESET AI SERVICE
 // =====================================
 
@@ -1222,7 +511,7 @@ function resetAIService(){
 
   isGenerating = false;
 
-  logInfo(
+  safeLogInfo(
     "AI SERVICE RESET"
   );
 
