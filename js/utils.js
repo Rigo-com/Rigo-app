@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // UTILS
+// PRODUCTION FINAL
 // =====================================
 
 
@@ -23,11 +24,98 @@ function wait(ms){
     (resolve) => {
 
       setTimeout(
+
         resolve,
-        Math.max(0,ms)
+
+        Math.max(
+          0,
+          Math.trunc(ms)
+        )
+
       );
 
     }
+  );
+
+}
+
+
+
+// =====================================
+// DEEP FREEZE
+// =====================================
+
+function deepFreeze(
+  object,
+  seen = new WeakSet()
+){
+
+  if(
+
+    !object ||
+
+    (
+
+      typeof object !==
+      "object" &&
+
+      typeof object !==
+      "function"
+
+    )
+
+  ){
+
+    return object;
+
+  }
+
+  if(
+    seen.has(object)
+  ){
+
+    return object;
+
+  }
+
+  seen.add(object);
+
+  Object
+  .getOwnPropertyNames(
+    object
+  )
+  .forEach((key) => {
+
+    const value =
+    object[key];
+
+    if(
+
+      value &&
+
+      (
+
+        typeof value ===
+        "object" ||
+
+        typeof value ===
+        "function"
+
+      )
+
+    ){
+
+      deepFreeze(
+        value,
+        seen
+      );
+
+    }
+
+  });
+
+  return Object.freeze(
+    object
   );
 
 }
@@ -39,6 +127,15 @@ function wait(ms){
 // =====================================
 
 function deepClone(data){
+
+  if(
+    typeof data ===
+    "undefined"
+  ){
+
+    return undefined;
+
+  }
 
   try{
 
@@ -76,26 +173,44 @@ function deepClone(data){
 
 
 // =====================================
-// MESSAGE ID
+// CREATE UNIQUE ID
 // =====================================
 
-function createMessageId(){
+function createUniqueId(
+  prefix = "id"
+){
+
+  const safePrefix =
+  String(
+    prefix || "id"
+  ).trim();
 
   if(
     typeof crypto !==
     "undefined" &&
 
-    typeof crypto.randomUUID ===
+    typeof crypto
+    .randomUUID ===
     "function"
   ){
 
-    return crypto.randomUUID();
+    return (
+
+      safePrefix +
+
+      "_" +
+
+      crypto.randomUUID()
+
+    );
 
   }
 
   return (
 
-    "msg_" +
+    safePrefix +
+
+    "_" +
 
     Date.now() +
 
@@ -112,35 +227,27 @@ function createMessageId(){
 
 
 // =====================================
+// MESSAGE ID
+// =====================================
+
+function createMessageId(){
+
+  return createUniqueId(
+    "msg"
+  );
+
+}
+
+
+
+// =====================================
 // CHAT ID
 // =====================================
 
 function createChatId(){
 
-  if(
-    typeof crypto !==
-    "undefined" &&
-
-    typeof crypto.randomUUID ===
-    "function"
-  ){
-
-    return crypto.randomUUID();
-
-  }
-
-  return (
-
-    "chat_" +
-
-    Date.now() +
-
-    "_" +
-
-    Math.random()
-    .toString(36)
-    .substring(2,9)
-
+  return createUniqueId(
+    "chat"
   );
 
 }
