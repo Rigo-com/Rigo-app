@@ -35,6 +35,105 @@ body{
 
 }
 
+/* SIDEBAR */
+
+.sidebar{
+
+  position:fixed;
+
+  top:0;
+
+  right:-320px;
+
+  width:300px;
+
+  height:100%;
+
+  background:#071321;
+
+  border-left:1px solid rgba(255,255,255,0.05);
+
+  transition:0.25s;
+
+  z-index:1000;
+
+  padding:20px;
+
+  overflow-y:auto;
+
+}
+
+.sidebar.active{
+
+  right:0;
+
+}
+
+.sidebar h2{
+
+  color:#42e4ab;
+
+  margin-bottom:20px;
+
+}
+
+.chat-item{
+
+  background:rgba(255,255,255,0.05);
+
+  padding:14px;
+
+  border-radius:16px;
+
+  margin-bottom:12px;
+
+  cursor:pointer;
+
+  transition:0.2s;
+
+  overflow:hidden;
+
+  text-overflow:ellipsis;
+
+  white-space:nowrap;
+
+}
+
+.chat-item:hover{
+
+  background:rgba(255,255,255,0.08);
+
+}
+
+.new-chat{
+
+  width:100%;
+
+  padding:14px;
+
+  border:none;
+
+  border-radius:16px;
+
+  background:
+  linear-gradient(
+    135deg,
+    #42e4ab,
+    #2acb8d
+  );
+
+  color:#04101d;
+
+  font-size:16px;
+
+  font-weight:bold;
+
+  cursor:pointer;
+
+  margin-bottom:20px;
+
+}
+
 /* HEADER */
 
 header{
@@ -77,6 +176,41 @@ header{
 
 }
 
+/* MENU BUTTON */
+
+.menu-btn{
+
+  position:absolute;
+
+  right:18px;
+
+  top:18px;
+
+  width:52px;
+
+  height:52px;
+
+  border:none;
+
+  border-radius:16px;
+
+  background:
+  linear-gradient(
+    135deg,
+    #42e4ab,
+    #27c98b
+  );
+
+  color:#04101d;
+
+  font-size:24px;
+
+  font-weight:bold;
+
+  cursor:pointer;
+
+}
+
 /* LANGUAGE BUTTON */
 
 .lang-btn{
@@ -96,7 +230,11 @@ header{
   border-radius:16px;
 
   background:
-  linear-gradient(135deg,#42e4ab,#27c98b);
+  linear-gradient(
+    135deg,
+    #42e4ab,
+    #27c98b
+  );
 
   color:#04101d;
 
@@ -105,9 +243,6 @@ header{
   font-weight:bold;
 
   cursor:pointer;
-
-  box-shadow:
-  0 0 14px rgba(66,228,171,0.22);
 
 }
 
@@ -143,7 +278,7 @@ header{
 
 }
 
-/* MESSAGES */
+/* MESSAGE */
 
 .message{
 
@@ -176,8 +311,6 @@ header{
 
   border:1px solid rgba(255,255,255,0.06);
 
-  backdrop-filter:blur(10px);
-
   color:white;
 
   border-top-right-radius:8px;
@@ -200,6 +333,14 @@ header{
   font-weight:bold;
 
   border-top-left-radius:8px;
+
+}
+
+.typing{
+
+  opacity:.65;
+
+  font-style:italic;
 
 }
 
@@ -226,8 +367,6 @@ header{
 
   border-top:1px solid rgba(255,255,255,0.05);
 
-  backdrop-filter:blur(10px);
-
 }
 
 input{
@@ -248,19 +387,11 @@ input{
 
   font-size:17px;
 
-  border:1px solid rgba(255,255,255,0.05);
-
 }
 
 input::placeholder{
 
   color:#70839b;
-
-}
-
-input:focus{
-
-  border:1px solid rgba(66,228,171,0.35);
 
 }
 
@@ -286,14 +417,6 @@ input:focus{
   font-weight:900;
 
   cursor:pointer;
-
-}
-
-.typing{
-
-  opacity:.65;
-
-  font-style:italic;
 
 }
 
@@ -325,7 +448,46 @@ input:focus{
 
 <body>
 
+<!-- SIDEBAR -->
+
+<div
+class="sidebar"
+id="sidebar"
+>
+
+<button
+class="new-chat"
+onclick="newChat()"
+>
+
++ محادثة جديدة
+
+</button>
+
+<h2>
+المحادثات
+</h2>
+
+<div
+id="chatHistory"
+>
+
+</div>
+
+</div>
+
+<!-- HEADER -->
+
 <header>
+
+<button
+class="menu-btn"
+onclick="toggleSidebar()"
+>
+
+☰
+
+</button>
 
 <button
 class="lang-btn"
@@ -352,26 +514,16 @@ SMART PERSONAL ASSISTANT
 
 </header>
 
+<!-- CHAT -->
+
 <div
 class="chat"
 id="chat"
 >
 
-<div
-class="message ai"
-id="welcome"
->
-
-مرحباً 👋
-
-<br><br>
-
-أنا مساعدك الذكي الشخصي.  
-كيف أقدر أساعدك اليوم؟
-
 </div>
 
-</div>
+<!-- INPUT -->
 
 <div class="input-area">
 
@@ -394,7 +546,7 @@ id="sendBtn"
 
 <script>
 
-/* ===== ELEMENTS ===== */
+/* ELEMENTS */
 
 const chat =
 document.getElementById("chat");
@@ -411,64 +563,131 @@ document.getElementById("langBtn");
 const subtitle =
 document.getElementById("subtitle");
 
-const welcome =
-document.getElementById("welcome");
+const sidebar =
+document.getElementById("sidebar");
 
-/* ===== LANGUAGE ===== */
+const chatHistory =
+document.getElementById("chatHistory");
+
+/* LANGUAGE */
 
 let currentLanguage = "ar";
 
-function toggleLanguage(){
+let currentChatTitle = "";
 
-  if(currentLanguage === "ar"){
+/* FIRST MESSAGE */
 
-    currentLanguage = "en";
+function showWelcome(){
 
-    document.documentElement.lang = "en";
+  chat.innerHTML = `
+  <div class="message ai">
 
-    document.documentElement.dir = "ltr";
+  مرحباً 👋
 
-    langBtn.innerText = "AR";
+  <br><br>
 
-    subtitle.innerText =
-    "SMART PERSONAL ASSISTANT";
+  أنا مساعدك الذكي الشخصي.
+  كيف أقدر أساعدك اليوم؟
 
-    input.placeholder =
-    "Type your message here...";
+  </div>
+  `;
 
-    sendBtn.innerText = "Send";
+}
 
-    welcome.innerHTML =
-    "Hello 👋 <br><br> I'm your personal AI assistant. How can I help you today?";
+showWelcome();
 
-  }
+/* SIDEBAR */
 
-  else{
+function toggleSidebar(){
 
-    currentLanguage = "ar";
+  sidebar.classList.toggle("active");
 
-    document.documentElement.lang = "ar";
+}
 
-    document.documentElement.dir = "rtl";
+/* SAVE CHAT */
 
-    langBtn.innerText = "EN";
+function saveChat(){
 
-    subtitle.innerText =
-    "مساعد ذكي شخصي";
+  localStorage.setItem(
+    "rigo_current_chat",
+    chat.innerHTML
+  );
 
-    input.placeholder =
-    "اكتب رسالتك هنا...";
+}
 
-    sendBtn.innerText = "إرسال";
+/* LOAD CHAT */
 
-    welcome.innerHTML =
-    "مرحباً 👋 <br><br> أنا مساعدك الذكي الشخصي. كيف أقدر أساعدك اليوم؟";
+function loadChat(){
+
+  const saved =
+  localStorage.getItem(
+    "rigo_current_chat"
+  );
+
+  if(saved){
+
+    chat.innerHTML = saved;
 
   }
 
 }
 
-/* ===== ADD MESSAGE ===== */
+/* CREATE CHAT ITEM */
+
+function createChatItem(title,content){
+
+  const item =
+  document.createElement("div");
+
+  item.className =
+  "chat-item";
+
+  item.innerText = title;
+
+  item.onclick = () => {
+
+    chat.innerHTML = content;
+
+    saveChat();
+
+    sidebar.classList.remove(
+      "active"
+    );
+
+  };
+
+  chatHistory.prepend(item);
+
+}
+
+/* NEW CHAT */
+
+function newChat(){
+
+  const oldChat =
+  chat.innerHTML;
+
+  if(
+    oldChat.trim() !== "" &&
+    currentChatTitle !== ""
+  ){
+
+    createChatItem(
+      currentChatTitle,
+      oldChat
+    );
+
+  }
+
+  currentChatTitle = "";
+
+  showWelcome();
+
+  saveChat();
+
+}
+
+/* ADD MESSAGE */
 
 function addMessage(text,type){
 
@@ -485,9 +704,11 @@ function addMessage(text,type){
   chat.scrollTop =
   chat.scrollHeight;
 
+  saveChat();
+
 }
 
-/* ===== TYPING ===== */
+/* TYPING */
 
 function showTyping(){
 
@@ -506,9 +727,6 @@ function showTyping(){
 
   chat.appendChild(typing);
 
-  chat.scrollTop =
-  chat.scrollHeight;
-
 }
 
 function removeTyping(){
@@ -524,14 +742,9 @@ function removeTyping(){
 
 }
 
-/* ===== AI REPLY ===== */
+/* AI */
 
 function aiReply(userText){
-
-  const text =
-  userText.toLowerCase();
-
-  let reply = "";
 
   showTyping();
 
@@ -539,93 +752,18 @@ function aiReply(userText){
 
     removeTyping();
 
-    if(currentLanguage === "ar"){
-
-      if(
-        text.includes("مرحبا") ||
-        text.includes("هلا")
-      ){
-
-        reply =
-        "أهلاً 👋 شلونك؟";
-
-      }
-
-      else if(
-        text.includes("شلونك")
-      ){
-
-        reply =
-        "تمام 😄 وانت؟";
-
-      }
-
-      else if(
-        text.includes("اسمك")
-      ){
-
-        reply =
-        "أنا RIGO AI 🤖";
-
-      }
-
-      else if(
-        text.includes("ساعدني")
-      ){
-
-        reply =
-        "أكيد 👍 احكيلي شو تحتاج.";
-
-      }
-
-      else{
-
-        reply =
-        "فهمت عليك 👍\n\nأنت كتبت:\n" +
-        userText;
-
-      }
-
-    }
-
-    else{
-
-      if(
-        text.includes("hello") ||
-        text.includes("hi")
-      ){
-
-        reply =
-        "Hello 👋 How are you?";
-
-      }
-
-      else if(
-        text.includes("your name")
-      ){
-
-        reply =
-        "I'm RIGO AI 🤖";
-
-      }
-
-      else{
-
-        reply =
-        "I understand 👍\n\nYou wrote:\n" +
-        userText;
-
-      }
-
-    }
-
-    addMessage(reply,"ai");
+    addMessage(
+      currentLanguage === "ar"
+      ? "فهمت عليك 👍"
+      : "I understand 👍",
+      "ai"
+    );
 
   },700);
 
 }
 
-/* ===== SEND MESSAGE ===== */
+/* SEND */
 
 function sendMessage(){
 
@@ -634,6 +772,15 @@ function sendMessage(){
 
   if(text === "") return;
 
+  if(currentChatTitle === ""){
+
+    currentChatTitle =
+    text.length > 30
+    ? text.substring(0,30) + "..."
+    : text;
+
+  }
+
   addMessage(text,"user");
 
   input.value = "";
@@ -641,8 +788,6 @@ function sendMessage(){
   aiReply(text);
 
 }
-
-/* ===== EVENTS ===== */
 
 sendBtn.addEventListener(
   "click",
@@ -661,6 +806,62 @@ input.addEventListener(
 
   }
 );
+
+/* LANGUAGE */
+
+function toggleLanguage(){
+
+  if(currentLanguage === "ar"){
+
+    currentLanguage = "en";
+
+    document.documentElement.dir =
+    "ltr";
+
+    document.documentElement.lang =
+    "en";
+
+    langBtn.innerText = "AR";
+
+    subtitle.innerText =
+    "SMART PERSONAL ASSISTANT";
+
+    input.placeholder =
+    "Type your message here...";
+
+    sendBtn.innerText =
+    "Send";
+
+  }
+
+  else{
+
+    currentLanguage = "ar";
+
+    document.documentElement.dir =
+    "rtl";
+
+    document.documentElement.lang =
+    "ar";
+
+    langBtn.innerText = "EN";
+
+    subtitle.innerText =
+    "مساعد ذكي شخصي";
+
+    input.placeholder =
+    "اكتب رسالتك هنا...";
+
+    sendBtn.innerText =
+    "إرسال";
+
+  }
+
+}
+
+/* LOAD */
+
+loadChat();
 
 </script>
 
