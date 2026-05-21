@@ -1,10 +1,36 @@
+// =====================================
+// REGISTER SECURITY PATTERNS
+// =====================================
+
 function registerSecurityPatterns(){
+
+  if(
+    securityState
+    .blockedPatterns
+    .size > 0
+  ){
+
+    return true;
+
+  }
 
   Object.values(
     SECURITY_PATTERNS
   )
   .flat()
   .forEach((pattern) => {
+
+    if(
+      !(pattern instanceof RegExp)
+    ){
+
+      logSecurityEvent(
+        "INVALID SECURITY PATTERN"
+      );
+
+      return;
+
+    }
 
     securityState
     .blockedPatterns
@@ -19,6 +45,10 @@ function registerSecurityPatterns(){
 }
 
 
+
+// =====================================
+// SECURITY LOGGER
+// =====================================
 
 function logSecurityEvent(
   message,
@@ -38,6 +68,25 @@ function logSecurityEvent(
 
   try{
 
+    const safeMessage =
+    safeString(
+      message
+    );
+
+    const safeMetadata =
+
+      metadata == null
+
+      ?
+
+      null
+
+      :
+
+      sanitizeObject(
+        metadata
+      );
+
     if(
       typeof logDiagnosticWarning ===
       "function"
@@ -46,9 +95,9 @@ function logSecurityEvent(
       logDiagnosticWarning(
 
         "[SECURITY] " +
-        String(message),
+        safeMessage,
 
-        metadata
+        safeMetadata
 
       );
 
@@ -58,8 +107,8 @@ function logSecurityEvent(
 
       console.warn(
         "[SECURITY]",
-        message,
-        metadata || ""
+        safeMessage,
+        safeMetadata || ""
       );
 
     }
@@ -67,6 +116,14 @@ function logSecurityEvent(
   }
 
   catch(error){
+
+    console.error(
+
+      "[SECURITY LOGGER FAILURE]",
+
+      error
+
+    );
 
     return false;
 
