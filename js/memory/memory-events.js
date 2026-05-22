@@ -488,6 +488,16 @@ function subscribeMemoryEvent(
 
   }
 
+  if(
+    listeners.has(
+      listener
+    )
+  ){
+
+    return true;
+
+  }
+
   listeners.add(
     listener
   );
@@ -567,6 +577,16 @@ function onceMemoryEvent(
   ){
 
     return false;
+
+  }
+
+  if(
+    listeners.has(
+      listener
+    )
+  ){
+
+    return true;
 
   }
 
