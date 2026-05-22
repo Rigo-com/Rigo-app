@@ -786,6 +786,41 @@ async function emitMemoryEvent(
     payload
   );
 
+
+
+  // ================================
+  // SYSTEM EVENTS BRIDGE
+  // ================================
+
+  if(
+
+    typeof emitSystemEvent ===
+    "function"
+
+  ){
+
+    emitSystemEvent(
+
+      normalizedEvent,
+
+      {
+
+        source:"memory",
+
+        memoryEvent:true,
+
+        payload:
+        safeCloneEventPayload(
+          payload
+        )
+
+      }
+
+    )
+    .catch(() => {});
+
+  }
+
   memoryEventsState
   .activeEmits++;
 
