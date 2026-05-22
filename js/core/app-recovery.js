@@ -115,6 +115,9 @@ async function recoverApplication(){
     appState.crashed =
     false;
 
+    appState.lastError =
+    null;
+
     await emitAppEvent(
       "app.recovered"
     );
@@ -125,15 +128,17 @@ async function recoverApplication(){
 
   catch(error){
 
-    appState.lastError =
-    error;
+    setAppError(
+      error
+    );
 
     if(
       typeof DiagnosticsRuntime !==
       "undefined"
     ){
 
-      DiagnosticsRuntime.error(
+      await DiagnosticsRuntime
+      .error(
 
         "APPLICATION RECOVERY FAILED",
 
@@ -153,6 +158,10 @@ async function recoverApplication(){
   }
 
   finally{
+
+    updateAppPhase(
+      APP_PHASES.IDLE
+    );
 
     appState.recovering =
     false;
