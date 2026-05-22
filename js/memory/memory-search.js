@@ -478,6 +478,7 @@ function calculateMemoryScore(
   if(
 
     memoryState
+    .tracking
     .pinnedMemoryIds
     .has(memory.id)
 
@@ -543,7 +544,7 @@ function sortSearchResults(
   results = []
 ){
 
-  return results.sort((
+  return [...results].sort((
     a,
     b
   ) => {
@@ -652,7 +653,8 @@ function getCachedSearchResults(
 
   }
 
-  return memoryState
+  const cachedResults =
+  memoryState
   .cache
   .searchResults
   .get(
@@ -662,6 +664,18 @@ function getCachedSearchResults(
   ||
 
   null;
+
+  if(
+    !cachedResults
+  ){
+
+    return null;
+
+  }
+
+  return deepClone(
+    cachedResults
+  );
 
 }
 
@@ -695,7 +709,7 @@ function setCachedSearchResults(
   .searchResults
   .set(
     cacheKey,
-    results
+    deepClone(results)
   );
 
 
@@ -1211,7 +1225,9 @@ function searchMemories(
     finalResults
   );
 
-  return finalResults;
+  return deepClone(
+    finalResults
+  );
 
 }
 
