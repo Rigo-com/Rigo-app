@@ -1,4 +1,12 @@
 // =====================================
+// RIGO AI
+// SHARED UTILITIES
+// ENTERPRISE FINAL
+// =====================================
+
+
+
+// =====================================
 // WAIT
 // =====================================
 
@@ -49,6 +57,108 @@ function noop(){}
 
 
 // =====================================
+// CLAMP
+// =====================================
+
+function clamp(
+  value,
+  minimum,
+  maximum
+){
+
+  const normalized =
+  Number(value);
+
+  if(
+    !Number.isFinite(
+      normalized
+    )
+  ){
+
+    return minimum;
+
+  }
+
+  return Math.min(
+
+    maximum,
+
+    Math.max(
+      minimum,
+      normalized
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// SAFE TRIM
+// =====================================
+
+function safeTrim(
+  value
+){
+
+  if(
+    value == null
+  ){
+
+    return "";
+  }
+
+  return String(value)
+  .trim();
+
+}
+
+
+
+// =====================================
+// SAFE PARSE NUMBER
+// =====================================
+
+function safeParseNumber(
+  value,
+  fallback = 0
+){
+
+  const normalized =
+  Number(value);
+
+  if(
+    !Number.isFinite(
+      normalized
+    )
+  ){
+
+    return fallback;
+
+  }
+
+  return normalized;
+
+}
+
+
+
+// =====================================
+// SAFE PARSE BOOLEAN
+// =====================================
+
+function safeParseBoolean(
+  value
+){
+
+  return Boolean(value);
+
+}
+
+
+
+// =====================================
 // IS PLAIN OBJECT
 // =====================================
 
@@ -81,6 +191,51 @@ function isPlainObject(
     prototype === null
 
   );
+
+}
+
+
+
+// =====================================
+// SAFE EXECUTE
+// =====================================
+
+function safeExecute(
+  callback,
+  fallback = null
+){
+
+  if(
+    typeof callback !==
+    "function"
+  ){
+
+    return fallback;
+
+  }
+
+  try{
+
+    return callback();
+
+  }
+
+  catch(error){
+
+    if(
+      typeof safeLogError ===
+      "function"
+    ){
+
+      safeLogError(
+        error
+      );
+
+    }
+
+    return fallback;
+
+  }
 
 }
 
@@ -246,10 +401,9 @@ function createUniqueId(
 ){
 
   const normalizedPrefix =
-  String(
+  safeTrim(
     prefix || "id"
-  )
-  .trim();
+  );
 
   const safePrefix =
 
@@ -258,12 +412,16 @@ function createUniqueId(
     "id";
 
   if(
+
     typeof crypto !==
-    "undefined" &&
+    "undefined"
+
+    &&
 
     typeof crypto
     .randomUUID ===
     "function"
+
   ){
 
     return (
@@ -293,5 +451,91 @@ function createUniqueId(
     .substring(2,9)
 
   );
+
+}
+
+
+
+// =====================================
+// DEBOUNCE
+// =====================================
+
+function debounce(
+  callback,
+  delay = 0
+){
+
+  let timeoutId =
+  null;
+
+  return function(
+    ...args
+  ){
+
+    clearTimeout(
+      timeoutId
+    );
+
+    timeoutId =
+    setTimeout(() => {
+
+      callback.apply(
+        this,
+        args
+      );
+
+    },
+
+    Math.max(
+      0,
+      Number(delay) || 0
+    ));
+
+  };
+
+}
+
+
+
+// =====================================
+// THROTTLE
+// =====================================
+
+function throttle(
+  callback,
+  delay = 0
+){
+
+  let waiting =
+  false;
+
+  return function(
+    ...args
+  ){
+
+    if(waiting){
+
+      return;
+    }
+
+    waiting = true;
+
+    callback.apply(
+      this,
+      args
+    );
+
+    setTimeout(() => {
+
+      waiting = false;
+
+    },
+
+    Math.max(
+      0,
+      Number(delay) || 0
+    ));
+
+  };
 
 }
