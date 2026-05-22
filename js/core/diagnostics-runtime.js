@@ -1,13 +1,13 @@
 // =====================================
 // RIGO AI
 // DIAGNOSTICS RUNTIME SYSTEM
-// ENTERPRISE OMEGA FINAL
+// ENTERPRISE OBSERVABILITY ENGINE FINAL
 // =====================================
 
 
 
 // =====================================
-// DIAGNOSTICS CONFIG
+// CONFIG
 // =====================================
 
 const DIAGNOSTICS_CONFIG =
@@ -21,8 +21,21 @@ Object.freeze({
 
   MAX_SNAPSHOT_ENTRIES:100,
 
+  MAX_QUEUE_SIZE:2000,
+
+  MAX_BATCH_SIZE:50,
+
+  MAX_RETENTION_AGE:
+  1000 * 60 * 60,
+
   HEALTH_MONITOR_INTERVAL:
   60000,
+
+  SNAPSHOT_INTERVAL:
+  30000,
+
+  BATCH_FLUSH_INTERVAL:
+  1000,
 
   ENABLE_CONSOLE_LOGGING:true,
 
@@ -32,14 +45,26 @@ Object.freeze({
 
   ENABLE_RUNTIME_MONITORING:true,
 
-  ENABLE_EVENTS:true
+  ENABLE_BATCHING:true,
+
+  ENABLE_EVENT_BRIDGE:true,
+
+  ENABLE_AUTO_SNAPSHOTS:true,
+
+  ENABLE_LOG_SAMPLING:true,
+
+  ENABLE_RETENTION_CLEANUP:true,
+
+  ENABLE_EVENTS:true,
+
+  LOG_SAMPLING_RATE:1
 
 });
 
 
 
 // =====================================
-// DIAGNOSTICS EVENTS
+// EVENTS
 // =====================================
 
 const DIAGNOSTICS_EVENTS =
@@ -53,6 +78,12 @@ Object.freeze({
 
   CRITICAL:
   "diagnostics.critical",
+
+  WARNING:
+  "diagnostics.warning",
+
+  INFO:
+  "diagnostics.info",
 
   SNAPSHOT_CREATED:
   "diagnostics.snapshot.created",
@@ -68,7 +99,7 @@ Object.freeze({
 
 
 // =====================================
-// DIAGNOSTICS STATE
+// STATE
 // =====================================
 
 const diagnosticsState =
@@ -78,7 +109,13 @@ Object.seal({
 
   globalHandlersRegistered:false,
 
+  processingQueue:false,
+
   monitoringTimer:null,
+
+  flushTimer:null,
+
+  snapshotTimer:null,
 
   startedAt:Date.now(),
 
@@ -98,6 +135,8 @@ Object.seal({
 
   snapshots:[],
 
+  queue:[],
+
   counters:{
 
     logs:0,
@@ -108,16 +147,23 @@ Object.seal({
 
     crashes:0,
 
-    healthChecks:0
+    healthChecks:0,
 
-  }
+    batches:0,
+
+    queueProcessed:0
+
+  },
+
+  performanceMetrics:
+  new Map()
 
 });
 
 
 
 // =====================================
-// LOG LEVELS
+// LEVELS
 // =====================================
 
 const DIAGNOSTIC_LEVELS =
@@ -136,13 +182,24 @@ Object.freeze({
 
 
 // =====================================
-// SAFE EVENT EMIT
+// EVENT EMITTER
 // =====================================
 
 async function emitDiagnosticsEvent(
   eventName,
   payload = {}
 ){
+
+  if(
+
+    !DIAGNOSTICS_CONFIG
+    .ENABLE_EVENT_BRIDGE
+
+  ){
+
+    return false;
+
+  }
 
   if(
     typeof emitSystemEvent !==
@@ -209,7 +266,7 @@ function createDiagnosticsId(){
 
 
 // =====================================
-// DEEP FREEZE
+// SAFE FREEZE
 // =====================================
 
 function deepFreezeDiagnostics(
@@ -243,22 +300,13 @@ function deepFreezeDiagnostics(
     object
   );
 
-  Object
-  .getOwnPropertyNames(
-    object
-  )
-  .forEach((key) => {
-
-    const value =
-    object[key];
+  Object.values(object)
+  .forEach((value) => {
 
     if(
-
       value &&
-
       typeof value ===
       "object"
-
     ){
 
       deepFreezeDiagnostics(
@@ -277,7 +325,7 @@ function deepFreezeDiagnostics(
 
 
 // =====================================
-// SAFE METADATA
+// SAFE CLONE
 // =====================================
 
 function safeMetadataClone(
@@ -343,11 +391,7 @@ function getPerformanceNow(){
 
   }
 
-  catch(error){
-
-    console.error(error);
-
-  }
+  catch(error){}
 
   return Date.now();
 
@@ -368,7 +412,37 @@ function createDiagnosticTimestamp(){
 
 
 // =====================================
-// CREATE ENTRY
+// LOG SAMPLING
+// =====================================
+
+function shouldSampleLog(){
+
+  if(
+
+    !DIAGNOSTICS_CONFIG
+    .ENABLE_LOG_SAMPLING
+
+  ){
+
+    return true;
+
+  }
+
+  return (
+
+    Math.random() <=
+
+    DIAGNOSTICS_CONFIG
+    .LOG_SAMPLING_RATE
+
+  );
+
+}
+
+
+
+// =====================================
+// ENTRY
 // =====================================
 
 function createDiagnosticEntry(
@@ -403,7 +477,7 @@ function createDiagnosticEntry(
 
 
 // =====================================
-// SAFE PUSH
+// ARRAY PUSH
 // =====================================
 
 function pushDiagnosticEntry(
@@ -424,6 +498,249 @@ function pushDiagnosticEntry(
     targetArray.shift();
 
   }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// QUEUE
+// =====================================
+
+function enqueueDiagnosticEntry(
+  target,
+  entry,
+  maxSize
+){
+
+  if(
+    !shouldSampleLog()
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    diagnosticsState
+    .queue
+    .length >=
+
+    DIAGNOSTICS_CONFIG
+    .MAX_QUEUE_SIZE
+
+  ){
+
+    diagnosticsState
+    .queue
+    .shift();
+
+  }
+
+  diagnosticsState
+  .queue
+  .push({
+
+    target,
+
+    entry,
+
+    maxSize
+
+  });
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PROCESS QUEUE
+// =====================================
+
+async function processDiagnosticsQueue(){
+
+  if(
+    diagnosticsState
+    .processingQueue
+  ){
+
+    return false;
+
+  }
+
+  diagnosticsState
+  .processingQueue =
+  true;
+
+  try{
+
+    while(
+
+      diagnosticsState
+      .queue
+      .length > 0
+
+    ){
+
+      const batch =
+
+        diagnosticsState
+        .queue
+        .splice(
+
+          0,
+
+          DIAGNOSTICS_CONFIG
+          .MAX_BATCH_SIZE
+
+        );
+
+      batch.forEach((item) => {
+
+        pushDiagnosticEntry(
+
+          item.target,
+
+          item.entry,
+
+          item.maxSize
+
+        );
+
+      });
+
+      diagnosticsState
+      .counters
+      .batches++;
+
+      diagnosticsState
+      .counters
+      .queueProcessed +=
+
+        batch.length;
+
+    }
+
+    return true;
+
+  }
+
+  finally{
+
+    diagnosticsState
+    .processingQueue =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// START QUEUE
+// =====================================
+
+function startDiagnosticsQueueProcessor(){
+
+  if(
+    diagnosticsState
+    .flushTimer
+  ){
+
+    clearInterval(
+
+      diagnosticsState
+      .flushTimer
+
+    );
+
+  }
+
+  diagnosticsState
+  .flushTimer =
+  setInterval(() => {
+
+    processDiagnosticsQueue();
+
+  },
+
+  DIAGNOSTICS_CONFIG
+  .BATCH_FLUSH_INTERVAL);
+
+  return true;
+
+}
+
+
+
+// =====================================
+// RETENTION CLEANUP
+// =====================================
+
+function cleanupDiagnosticsRetention(){
+
+  if(
+
+    !DIAGNOSTICS_CONFIG
+    .ENABLE_RETENTION_CLEANUP
+
+  ){
+
+    return false;
+
+  }
+
+  const minimumTimestamp =
+
+    Date.now() -
+
+    DIAGNOSTICS_CONFIG
+    .MAX_RETENTION_AGE;
+
+  const cleanupArray =
+  (array) => {
+
+    return array.filter((entry) => {
+
+      return (
+        entry.timestamp >=
+        minimumTimestamp
+      );
+
+    });
+
+  };
+
+  diagnosticsState.logs =
+  cleanupArray(
+    diagnosticsState.logs
+  );
+
+  diagnosticsState.errors =
+  cleanupArray(
+    diagnosticsState.errors
+  );
+
+  diagnosticsState.warnings =
+  cleanupArray(
+    diagnosticsState.warnings
+  );
+
+  diagnosticsState.performance =
+  cleanupArray(
+    diagnosticsState.performance
+  );
+
+  diagnosticsState.snapshots =
+  cleanupArray(
+    diagnosticsState.snapshots
+  );
 
   return true;
 
@@ -479,7 +796,7 @@ function writeConsoleLog(
 // INFO
 // =====================================
 
-function logDiagnosticInfo(
+async function logDiagnosticInfo(
   message,
   metadata = null
 ){
@@ -499,7 +816,7 @@ function logDiagnosticInfo(
   .counters
   .logs++;
 
-  pushDiagnosticEntry(
+  enqueueDiagnosticEntry(
 
     diagnosticsState.logs,
 
@@ -522,6 +839,21 @@ function logDiagnosticInfo(
 
   );
 
+  await emitDiagnosticsEvent(
+
+    DIAGNOSTICS_EVENTS
+    .INFO,
+
+    {
+
+      message,
+
+      metadata
+
+    }
+
+  );
+
   return true;
 
 }
@@ -532,7 +864,7 @@ function logDiagnosticInfo(
 // WARNING
 // =====================================
 
-function logDiagnosticWarning(
+async function logDiagnosticWarning(
   message,
   metadata = null
 ){
@@ -552,7 +884,7 @@ function logDiagnosticWarning(
   .counters
   .warnings++;
 
-  pushDiagnosticEntry(
+  enqueueDiagnosticEntry(
 
     diagnosticsState
     .warnings,
@@ -573,6 +905,21 @@ function logDiagnosticWarning(
     message,
 
     metadata
+
+  );
+
+  await emitDiagnosticsEvent(
+
+    DIAGNOSTICS_EVENTS
+    .WARNING,
+
+    {
+
+      message,
+
+      metadata
+
+    }
 
   );
 
@@ -606,7 +953,7 @@ async function logDiagnosticError(
   .counters
   .errors++;
 
-  pushDiagnosticEntry(
+  enqueueDiagnosticEntry(
 
     diagnosticsState
     .errors,
@@ -667,6 +1014,8 @@ async function logCriticalError(
   diagnosticsState
   .runtimeHealthy =
   false;
+
+  await createRuntimeSnapshot();
 
   await emitDiagnosticsEvent(
 
@@ -746,7 +1095,7 @@ function normalizeMetricDuration(
 
 
 // =====================================
-// PERFORMANCE TRACKING
+// PERFORMANCE
 // =====================================
 
 function trackPerformanceMetric(
@@ -766,6 +1115,11 @@ function trackPerformanceMetric(
 
   }
 
+  const normalizedDuration =
+  normalizeMetricDuration(
+    duration
+  );
+
   const metric =
   deepFreezeDiagnostics({
 
@@ -776,9 +1130,7 @@ function trackPerformanceMetric(
     String(metricName),
 
     duration:
-    normalizeMetricDuration(
-      duration
-    ),
+    normalizedDuration,
 
     metadata:
     safeMetadataClone(
@@ -790,7 +1142,7 @@ function trackPerformanceMetric(
 
   });
 
-  pushDiagnosticEntry(
+  enqueueDiagnosticEntry(
 
     diagnosticsState
     .performance,
@@ -799,6 +1151,59 @@ function trackPerformanceMetric(
 
     DIAGNOSTICS_CONFIG
     .MAX_PERFORMANCE_ENTRIES
+
+  );
+
+  if(
+
+    !diagnosticsState
+    .performanceMetrics
+    .has(metricName)
+
+  ){
+
+    diagnosticsState
+    .performanceMetrics
+    .set(metricName,{
+
+      count:0,
+
+      total:0,
+
+      min:Infinity,
+
+      max:0
+
+    });
+
+  }
+
+  const aggregatedMetric =
+
+    diagnosticsState
+    .performanceMetrics
+    .get(metricName);
+
+  aggregatedMetric.count++;
+
+  aggregatedMetric.total +=
+  normalizedDuration;
+
+  aggregatedMetric.min =
+  Math.min(
+
+    aggregatedMetric.min,
+
+    normalizedDuration
+
+  );
+
+  aggregatedMetric.max =
+  Math.max(
+
+    aggregatedMetric.max,
+
+    normalizedDuration
 
   );
 
@@ -851,18 +1256,7 @@ async function measureAsyncPerformance(
 // HEALTH SCORE
 // =====================================
 
-function calculateHealthScore(){
-
-  if(
-
-    !DIAGNOSTICS_CONFIG
-    .ENABLE_HEALTH_SCORING
-
-  ){
-
-    return 100;
-
-  }
+async function calculateHealthScore(){
 
   let score = 100;
 
@@ -915,7 +1309,7 @@ function calculateHealthScore(){
 
   if(score < 70){
 
-    emitDiagnosticsEvent(
+    await emitDiagnosticsEvent(
 
       DIAGNOSTICS_EVENTS
       .HEALTH_DEGRADED,
@@ -1020,7 +1414,7 @@ async function createRuntimeSnapshot(){
 
   });
 
-  pushDiagnosticEntry(
+  enqueueDiagnosticEntry(
 
     diagnosticsState
     .snapshots,
@@ -1046,13 +1440,100 @@ async function createRuntimeSnapshot(){
 
 
 // =====================================
+// AUTO SNAPSHOTS
+// =====================================
+
+function startAutomaticSnapshots(){
+
+  if(
+
+    !DIAGNOSTICS_CONFIG
+    .ENABLE_AUTO_SNAPSHOTS
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+    diagnosticsState
+    .snapshotTimer
+  ){
+
+    clearInterval(
+
+      diagnosticsState
+      .snapshotTimer
+
+    );
+
+  }
+
+  diagnosticsState
+  .snapshotTimer =
+  setInterval(() => {
+
+    createRuntimeSnapshot();
+
+    cleanupDiagnosticsRetention();
+
+  },
+
+  DIAGNOSTICS_CONFIG
+  .SNAPSHOT_INTERVAL);
+
+  return true;
+
+}
+
+
+
+// =====================================
+// MONITORING
+// =====================================
+
+function startDiagnosticsMonitoring(){
+
+  if(
+    diagnosticsState
+    .monitoringTimer
+  ){
+
+    clearInterval(
+
+      diagnosticsState
+      .monitoringTimer
+
+    );
+
+  }
+
+  diagnosticsState
+  .monitoringTimer =
+  setInterval(() => {
+
+    calculateHealthScore();
+
+  },
+
+  DIAGNOSTICS_CONFIG
+  .HEALTH_MONITOR_INTERVAL);
+
+  return true;
+
+}
+
+
+
+// =====================================
 // HEALTH REPORT
 // =====================================
 
-function generateHealthReport(){
+async function generateHealthReport(){
 
   const healthScore =
-  calculateHealthScore();
+  await calculateHealthScore();
 
   return deepFreezeDiagnostics({
 
@@ -1080,6 +1561,14 @@ function generateHealthReport(){
       .counters
 
     },
+
+    performanceMetrics:[
+
+      ...diagnosticsState
+      .performanceMetrics
+      .entries()
+
+    ],
 
     lastHealthCheckAt:
 
@@ -1179,49 +1668,10 @@ function registerGlobalErrorHandlers(){
 
 
 // =====================================
-// MONITORING
-// =====================================
-
-function startDiagnosticsMonitoring(){
-
-  if(
-    diagnosticsState
-    .monitoringTimer
-  ){
-
-    clearInterval(
-
-      diagnosticsState
-      .monitoringTimer
-
-    );
-
-  }
-
-  diagnosticsState
-  .monitoringTimer =
-  setInterval(() => {
-
-    calculateHealthScore();
-
-    createRuntimeSnapshot();
-
-  },
-
-  DIAGNOSTICS_CONFIG
-  .HEALTH_MONITOR_INTERVAL);
-
-  return true;
-
-}
-
-
-
-// =====================================
 // EXPORT
 // =====================================
 
-function exportDiagnosticsBundle(){
+async function exportDiagnosticsBundle(){
 
   return deepFreezeDiagnostics({
 
@@ -1229,8 +1679,7 @@ function exportDiagnosticsBundle(){
     Date.now(),
 
     health:
-
-      generateHealthReport(),
+    await generateHealthReport(),
 
     logs:[
 
@@ -1294,6 +1743,12 @@ function resetDiagnosticsSystem(){
   diagnosticsState.snapshots =
   [];
 
+  diagnosticsState.queue =
+  [];
+
+  diagnosticsState.performanceMetrics
+  .clear();
+
   diagnosticsState.runtimeHealthy =
   true;
 
@@ -1316,7 +1771,11 @@ function resetDiagnosticsSystem(){
 
     crashes:0,
 
-    healthChecks:0
+    healthChecks:0,
+
+    batches:0,
+
+    queueProcessed:0
 
   };
 
@@ -1333,8 +1792,7 @@ function resetDiagnosticsSystem(){
 async function initializeDiagnosticsSystem(){
 
   if(
-    diagnosticsState
-    .initialized
+    diagnosticsState.initialized
   ){
 
     return true;
@@ -1343,13 +1801,17 @@ async function initializeDiagnosticsSystem(){
 
   registerGlobalErrorHandlers();
 
+  startDiagnosticsQueueProcessor();
+
+  startAutomaticSnapshots();
+
   startDiagnosticsMonitoring();
 
   diagnosticsState
   .initialized =
   true;
 
-  logDiagnosticInfo(
+  await logDiagnosticInfo(
     "DIAGNOSTICS SYSTEM READY"
   );
 
