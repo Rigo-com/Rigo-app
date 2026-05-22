@@ -118,13 +118,13 @@ function runMemoryHealthCheck(){
 
     const cacheHealthy =
 
-      memoryState.cache instanceof
-      Object;
+      typeof memoryState.cache ===
+      "object";
 
     const runtimeHealthy =
 
-      memoryState.runtime instanceof
-      Object;
+      typeof memoryState.runtime ===
+      "object";
 
     const mapsHealthy =
 
@@ -241,6 +241,15 @@ function runMemoryHealthCheck(){
 
 function cleanupMemorySystem(){
 
+  if(
+    memoryManagerState
+    .maintenanceRunning
+  ){
+
+    return false;
+
+  }
+
   try{
 
     memoryManagerState
@@ -326,8 +335,6 @@ async function initializeMemorySystem(){
 
   try{
 
-    lockMemoryState();
-
     const hydrated =
     await hydrateMemorySystem();
 
@@ -388,8 +395,6 @@ async function initializeMemorySystem(){
   }
 
   finally{
-
-    unlockMemoryState();
 
     memoryManagerState
     .initializing = false;
@@ -701,11 +706,10 @@ async function deleteMemoryData(
 
       }
 
-      const previousMemories = [
-
-        ...memoryState.memories
-
-      ];
+      const previousMemories =
+      deepClone(
+        memoryState.memories
+      );
 
       memoryState.memories =
 
