@@ -1,5 +1,12 @@
 // =====================================
+// RIGO AI
 // APP RECOVERY
+// =====================================
+
+
+
+// =====================================
+// RECOVER APPLICATION
 // =====================================
 
 async function recoverApplication(){
@@ -51,7 +58,50 @@ async function recoverApplication(){
 
   try{
 
+
+
+    // ================================
+    // RESET HEALTH SYSTEM
+    // ================================
+
+    if(
+      typeof HealthSystem !==
+      "undefined"
+    ){
+
+      HealthSystem.reset();
+
+    }
+
+
+
+    // ================================
+    // RESET RUNTIME
+    // ================================
+
+    if(
+      typeof RuntimeManager !==
+      "undefined"
+    ){
+
+      await RuntimeManager
+      .shutdown();
+
+    }
+
+
+
+    // ================================
+    // CLEANUP APP
+    // ================================
+
     cleanupApp();
+
+
+
+    // ================================
+    // RESTART APP
+    // ================================
 
     const restarted =
     await startApp();
@@ -65,6 +115,10 @@ async function recoverApplication(){
     appState.crashed =
     false;
 
+    await emitAppEvent(
+      "app.recovered"
+    );
+
     return true;
 
   }
@@ -73,6 +127,26 @@ async function recoverApplication(){
 
     appState.lastError =
     error;
+
+    if(
+      typeof DiagnosticsRuntime !==
+      "undefined"
+    ){
+
+      DiagnosticsRuntime.error(
+
+        "APPLICATION RECOVERY FAILED",
+
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
 
     return false;
 
