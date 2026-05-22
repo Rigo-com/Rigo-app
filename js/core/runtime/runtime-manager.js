@@ -7,59 +7,204 @@
 
 
 // =====================================
-// SYSTEM BOOT ORDER
+// RUNTIME CONFIG
 // =====================================
 
-function createRuntimeBootSequence(){
+const RUNTIME_MANAGER_CONFIG =
+Object.freeze({
 
-  return [
+  ENABLE_HEALTH_SYNC:true,
 
-    {
+  ENABLE_RECOVERY:true,
 
-      name:"diagnostics",
+  ENABLE_STARTUP_QUEUE:true,
 
-      initialize:
-      initializeDiagnosticsSystem
+  ENABLE_SHUTDOWN_COORDINATION:true,
 
-    },
+  ENABLE_DIAGNOSTICS:true,
 
-    {
+  ENABLE_BOOT_PROTECTION:true,
 
-      name:"events",
+  MAX_BOOT_RETRIES:
+  3,
 
-      initialize:
-      initializeSystemEvents
+  MAX_RUNTIME_ERRORS:
+  20,
 
-    },
+  STARTUP_TIMEOUT:
+  30000,
 
-    {
+  SHUTDOWN_TIMEOUT:
+  15000
 
-      name:"state",
+});
 
-      initialize:
-      initializeStateManager
 
-    },
 
-    {
+// =====================================
+// RUNTIME STATE
+// =====================================
 
-      name:"container",
+const runtimeManagerState =
+Object.seal({
 
-      initialize:
-      initializeDependencyContainer
+  initialized:false,
 
-    },
+  booting:false,
 
-    {
+  shuttingDown:false,
 
-      name:"modules",
+  recovering:false,
 
-      initialize:
-      initializeModuleLoader
+  runtimeState:
+  RUNTIME_STATES
+  .IDLE,
+
+  startupQueue:[],
+
+  runtimeErrors:[],
+
+  bootRetries:0,
+
+  diagnostics:{
+
+    boots:0,
+
+    recoveries:0,
+
+    shutdowns:0,
+
+    failures:0,
+
+    synchronizedSystems:0
+
+  },
+
+  startedAt:null,
+
+  bootCompletedAt:null,
+
+  lastRecoveryAt:null,
+
+  lastShutdownAt:null
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function freezeRuntimeObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeRuntimeObject(
+        nestedValue,
+        visited
+      );
 
     }
 
-  ];
+  });
+
+  return value;
+
+}
+
+
+
+function setRuntimeState(
+  runtimeState
+){
+
+  runtimeManagerState
+  .runtimeState =
+  runtimeState;
+
+  return true;
+
+}
+
+
+
+function addRuntimeError(
+  error
+){
+
+  runtimeManagerState
+  .runtimeErrors
+  .push({
+
+    error:
+    String(error),
+
+    timestamp:
+    Date.now()
+
+  });
+
+  if(
+
+    runtimeManagerState
+    .runtimeErrors
+    .length >
+
+    RUNTIME_MANAGER_CONFIG
+    .MAX_RUNTIME_ERRORS
+
+  ){
+
+    runtimeManagerState
+    .runtimeErrors
+    .shift();
+
+  }
+
+  return true;
 
 }
 
@@ -227,7 +372,10 @@ async function bootRuntimeManager(){
         step
       );
 
-      if(!success){
+      if(
+        !success &&
+        step.critical === true
+      ){
 
         throw new Error(
 
