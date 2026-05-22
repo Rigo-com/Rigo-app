@@ -148,6 +148,12 @@ function createAppStateSnapshot(){
     lastHealthcheckAt:
     appState.lastHealthcheckAt,
 
+    observers:
+
+      appState
+      .observers
+      .size,
+
     activeModules:[
 
       ...appState
@@ -289,6 +295,12 @@ function updateAppPhase(
   appState.phase =
   phase;
 
+  appState.ready =
+  (
+    phase ===
+    APP_PHASES.READY
+  );
+
   notifyAppStateObservers();
 
   return true;
@@ -307,6 +319,9 @@ function setAppError(
 
   appState.lastError =
   error;
+
+  appState.crashed =
+  Boolean(error);
 
   notifyAppStateObservers();
 
