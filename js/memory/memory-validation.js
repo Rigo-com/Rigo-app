@@ -1271,10 +1271,14 @@ function sanitizeMemoryInput(
 
   return {
 
-    id:
-    normalizeMemoryString(
-      input.id
-    ),
+    ...(input.id != null
+      ? {
+          id:
+          normalizeMemoryString(
+            input.id
+          )
+        }
+      : {}),
 
     type:
     normalizeMemoryType(
