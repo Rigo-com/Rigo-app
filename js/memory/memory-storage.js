@@ -154,7 +154,7 @@ function createStorageSnapshot(
     memories.length,
 
     memories:
-    memories
+    deepClone(memories)
 
   };
 
@@ -182,7 +182,7 @@ function createMemoryStoragePayload(
     memories.length,
 
     memories:
-    memories
+    deepClone(memories)
 
   };
 
@@ -365,7 +365,7 @@ async function saveMemories(
         memories
       )
 
-      ? memories
+      ? deepClone(memories)
 
       : [];
 
@@ -522,6 +522,13 @@ async function saveMemory(
 
     return false;
 
+  }
+
+  if(
+    memoryStorageLocked
+  ){
+
+    return false;
   }
 
   const latestMemories =
@@ -682,7 +689,9 @@ async function loadAllMemories(){
     memoryState.metrics
     .successfulOperations++;
 
-    return memories;
+    return deepClone(
+      memories
+    );
 
   }
 
@@ -730,7 +739,7 @@ async function loadMemory(
   const memories =
   await loadAllMemories();
 
-  return (
+  const memory =
 
     memories.find((memory) => {
 
@@ -743,9 +752,11 @@ async function loadMemory(
 
     ||
 
-    null
+    null;
 
-  );
+  return memory
+    ? deepClone(memory)
+    : null;
 
 }
 
@@ -759,6 +770,13 @@ async function updateMemory(
   memoryId,
   updates = {}
 ){
+
+  if(
+    memoryStorageLocked
+  ){
+
+    return false;
+  }
 
   const memory =
   await loadMemory(
@@ -803,6 +821,13 @@ async function updateMemory(
 async function deleteMemory(
   memoryId
 ){
+
+  if(
+    memoryStorageLocked
+  ){
+
+    return false;
+  }
 
   const normalizedMemoryId =
   normalizeMemoryString(
@@ -873,10 +898,6 @@ async function clearMemoryStorage(){
       .BACKUP
 
     );
-
-    clearMemoryIndexes();
-
-    clearMemoryCache();
 
     resetMemoryState();
 
@@ -1017,6 +1038,10 @@ async function restoreMemoryBackup(){
 
     );
 
+    clearSearchCache();
+
+    updateMemoryMetrics();
+
     return true;
 
   }
@@ -1110,6 +1135,19 @@ function validateImportData(
     !validateStoragePayload(
       payload
     )
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    payload.memories.length >
+
+    MEMORY_LIMITS
+    .MAX_IMPORT_ITEMS
+
   ){
 
     return false;
