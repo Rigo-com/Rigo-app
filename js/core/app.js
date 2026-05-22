@@ -3,6 +3,40 @@
 // APP ENTRYPOINT
 // =====================================
 
+
+
+// =====================================
+// BOOTSTRAP
+// =====================================
+
+async function bootstrapApplication(){
+
+  try{
+
+    await startApp();
+
+  }
+
+  catch(error){
+
+    safeLogError(
+
+      getSafeErrorMessage(
+        error
+      )
+
+    );
+
+  }
+
+}
+
+
+
+// =====================================
+// START APPLICATION
+// =====================================
+
 if(
   typeof document !==
   "undefined"
@@ -17,16 +51,7 @@ if(
 
       "DOMContentLoaded",
 
-      () => {
-
-        startApp()
-        .catch((error) => {
-
-          safeLogError(error);
-
-        });
-
-      },
+      bootstrapApplication,
 
       { once:true }
 
@@ -36,12 +61,7 @@ if(
 
   else{
 
-    startApp()
-    .catch((error) => {
-
-      safeLogError(error);
-
-    });
+    bootstrapApplication();
 
   }
 
