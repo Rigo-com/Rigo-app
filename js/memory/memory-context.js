@@ -937,6 +937,17 @@ function buildConversationContext(
 
 function buildSystemContext(){
 
+  if(
+
+    !MEMORY_DEBUG
+    ?.ENABLE_LOGS
+
+  ){
+
+    return "";
+
+  }
+
   const diagnostics =
   getMemoryDiagnostics();
 
