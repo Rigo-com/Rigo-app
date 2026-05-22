@@ -276,6 +276,15 @@ function createMemoryTracking(){
     new Set(),
 
     lockedIds:
+    new Set(),
+
+    pinnedMemoryIds:
+    new Set(),
+
+    sessionMemoryIds:
+    new Set(),
+
+    temporaryMemoryIds:
     new Set()
 
   };
@@ -369,33 +378,6 @@ Object.seal({
   // ===================================
 
   activeMemoryId:null,
-
-
-
-  // ===================================
-  // PINNED MEMORY
-  // ===================================
-
-  pinnedMemoryIds:
-  new Set(),
-
-
-
-  // ===================================
-  // SESSION MEMORY
-  // ===================================
-
-  sessionMemoryIds:
-  new Set(),
-
-
-
-  // ===================================
-  // TEMP MEMORY
-  // ===================================
-
-  temporaryMemoryIds:
-  new Set(),
 
 
 
@@ -675,6 +657,7 @@ function getMemoryCount(){
 function getPinnedMemoryCount(){
 
   return memoryState
+  .tracking
   .pinnedMemoryIds
   .size;
 
@@ -685,6 +668,7 @@ function getPinnedMemoryCount(){
 function getSessionMemoryCount(){
 
   return memoryState
+  .tracking
   .sessionMemoryIds
   .size;
 
@@ -708,6 +692,7 @@ function updateMemoryMetrics(){
   memoryState.metrics
   .pinnedMemories =
   memoryState
+  .tracking
   .pinnedMemoryIds
   .size;
 
@@ -974,13 +959,16 @@ function resetMemoryState(){
   memoryState.activeMemoryId =
   null;
 
-  memoryState.pinnedMemoryIds
+  memoryState.tracking
+  .pinnedMemoryIds
   .clear();
 
-  memoryState.sessionMemoryIds
+  memoryState.tracking
+  .sessionMemoryIds
   .clear();
 
-  memoryState.temporaryMemoryIds
+  memoryState.tracking
+  .temporaryMemoryIds
   .clear();
 
   clearMemoryIndexes();
