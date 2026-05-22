@@ -1,4 +1,11 @@
 // =====================================
+// RIGO AI
+// APP STATE
+// =====================================
+
+
+
+// =====================================
 // APP STATE
 // =====================================
 
@@ -17,6 +24,8 @@ Object.seal({
 
   crashed:false,
 
+  ready:false,
+
   phase:
   APP_PHASES.IDLE,
 
@@ -27,6 +36,10 @@ Object.seal({
   startupCompletedAt:null,
 
   shutdownAt:null,
+
+  lastRecoveredAt:null,
+
+  lastHealthcheckAt:null,
 
   lastError:null,
 
@@ -61,6 +74,105 @@ function updateAppPhase(
   appState.phase =
   phase;
 
+  if(
+    phase ===
+    APP_PHASES.READY
+  ){
+
+    appState.ready =
+    true;
+
+  }
+
+  else{
+
+    appState.ready =
+    false;
+
+  }
+
   return true;
+
+}
+
+
+
+// =====================================
+// APP SNAPSHOT
+// =====================================
+
+function getAppStateSnapshot(){
+
+  return Object.freeze({
+
+    initialized:
+    appState.initialized,
+
+    started:
+    appState.started,
+
+    starting:
+    appState.starting,
+
+    shuttingDown:
+    appState.shuttingDown,
+
+    recovering:
+    appState.recovering,
+
+    crashed:
+    appState.crashed,
+
+    ready:
+    appState.ready,
+
+    phase:
+    appState.phase,
+
+    initializedAt:
+    appState.initializedAt,
+
+    startupStartedAt:
+    appState.startupStartedAt,
+
+    startupCompletedAt:
+    appState.startupCompletedAt,
+
+    shutdownAt:
+    appState.shutdownAt,
+
+    lastRecoveredAt:
+    appState.lastRecoveredAt,
+
+    lastHealthcheckAt:
+    appState.lastHealthcheckAt,
+
+    startupDuration:
+    appState.startupDuration,
+
+    recoveryAttempts:
+    appState.recoveryAttempts,
+
+    failedStarts:
+    appState.failedStarts,
+
+    crashCount:
+    appState.crashCount,
+
+    activeModules:[
+
+      ...appState
+      .activeModules
+
+    ],
+
+    failedModules:[
+
+      ...appState
+      .failedModules
+
+    ]
+
+  });
 
 }
