@@ -152,8 +152,9 @@ async function handleSendMessage(){
 
   catch(error){
 
-    appState.lastError =
-    error;
+    setAppError(
+      error
+    );
 
     safeLogError(
       getSafeErrorMessage(
@@ -205,6 +206,9 @@ async function handleSendMessage(){
 function cleanupApp(){
 
   sendingMessage =
+  false;
+
+  appState.ready =
   false;
 
   if(sendButton){
@@ -394,6 +398,9 @@ async function startApp(){
   appState.starting =
   true;
 
+  appState.booting =
+  true;
+
   appState.startupStartedAt =
   Date.now();
 
@@ -446,6 +453,9 @@ async function startApp(){
     appState.initialized =
     true;
 
+    appState.crashed =
+    false;
+
     appState.initializedAt =
     Date.now();
 
@@ -484,8 +494,9 @@ async function startApp(){
 
     appState.failedStarts++;
 
-    appState.lastError =
-    error;
+    setAppError(
+      error
+    );
 
     updateAppPhase(
       APP_PHASES.ERROR
@@ -548,6 +559,9 @@ async function startApp(){
 
   finally{
 
+    appState.booting =
+    false;
+
     appState.starting =
     false;
 
@@ -591,6 +605,9 @@ async function shutdownApp(){
     appState.started =
     false;
 
+    appState.ready =
+    false;
+
     appState.shutdownAt =
     Date.now();
 
@@ -600,8 +617,9 @@ async function shutdownApp(){
 
   catch(error){
 
-    appState.lastError =
-    error;
+    setAppError(
+      error
+    );
 
     return false;
 
@@ -624,7 +642,7 @@ async function shutdownApp(){
 
 function getAppDiagnostics(){
 
-  return {
+  return Object.freeze({
 
     initialized:
     appState.initialized,
@@ -674,6 +692,6 @@ function getAppDiagnostics(){
 
       : null
 
-  };
+  });
 
 }
