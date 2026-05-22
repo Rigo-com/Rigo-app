@@ -1,4 +1,27 @@
 // =====================================
+// RIGO AI
+// AI SERVICE
+// ENTERPRISE AI ORCHESTRATOR
+// =====================================
+
+
+
+// =====================================
+// AI STATE
+// =====================================
+
+let isGenerating =
+false;
+
+let activeAIRequestId =
+0;
+
+let activeAIRequestController =
+null;
+
+
+
+// =====================================
 // SAFE LOGGER
 // =====================================
 
@@ -57,6 +80,71 @@ function safeLogInfo(
   catch(error){
 
     console.error(error);
+
+  }
+
+}
+
+
+
+// =====================================
+// ABORT ACTIVE REQUEST
+// =====================================
+
+function abortActiveAIRequest(){
+
+  try{
+
+    if(
+      activeAIRequestController
+    ){
+
+      activeAIRequestController
+      .abort();
+
+    }
+
+  }
+
+  catch(error){
+
+    safeLogError(error);
+
+  }
+
+  finally{
+
+    activeAIRequestController =
+    null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE QUEUE
+// =====================================
+
+function safelyProcessAIQueue(){
+
+  try{
+
+    if(
+      typeof processAIQueue ===
+      "function"
+    ){
+
+      processAIQueue();
+
+    }
+
+  }
+
+  catch(error){
+
+    safeLogError(error);
 
   }
 
@@ -162,6 +250,20 @@ async function generateAIResponse(){
   }
 
   catch(error){
+
+    await DiagnosticsRuntime
+    ?.error?.(
+
+      "AI RESPONSE FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
 
     if(
       error?.name ===
@@ -287,6 +389,81 @@ async function generateAIText(){
   return sanitizeAIResponse(
     response
   );
+
+}
+
+
+
+// =====================================
+// EXECUTE WITH RETRY
+// =====================================
+
+async function executeAIRequestWithRetry(
+  context
+){
+
+  let lastError =
+  null;
+
+  for(
+
+    let attempt = 0;
+
+    attempt <=
+    AI_CONFIG
+    .MAX_RETRIES;
+
+    attempt++
+
+  ){
+
+    try{
+
+      return await executeAIRequest(
+        context
+      );
+
+    }
+
+    catch(error){
+
+      lastError =
+      error;
+
+      const isLastAttempt =
+
+      attempt ===
+      AI_CONFIG
+      .MAX_RETRIES;
+
+      if(
+        isLastAttempt
+      ){
+
+        break;
+
+      }
+
+      await new Promise(
+        (resolve) => {
+
+          setTimeout(
+
+            resolve,
+
+            AI_CONFIG
+            .RETRY_DELAY
+
+          );
+
+        }
+      );
+
+    }
+
+  }
+
+  throw lastError;
 
 }
 
@@ -518,3 +695,47 @@ function resetAIService(){
   return true;
 
 }
+
+
+
+// =====================================
+// INITIALIZE AI SERVICE
+// =====================================
+
+function initializeAIService(){
+
+  registerService(
+    "ai",
+    AIService
+  );
+
+  activateService(
+    "ai"
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const AIService =
+Object.freeze({
+
+  initialize:
+  initializeAIService,
+
+  generate:
+  generateAIResponse,
+
+  reset:
+  resetAIService,
+
+  abort:
+  abortActiveAIRequest
+
+});
