@@ -72,7 +72,7 @@ Object.freeze({
 // =====================================
 
 const TRANSLATIONS =
-deepFreeze({
+Object.seal({
 
   en:{
 
@@ -890,7 +890,7 @@ async function registerTranslations(
 
   TRANSLATIONS[
     normalizedLanguage
-  ] = deepFreeze({
+  ] = Object.freeze({
 
     ...TRANSLATIONS[
       normalizedLanguage
@@ -1041,6 +1041,47 @@ function createLanguageRuntimeSnapshot(){
 
 
 // =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getLanguageRuntimeDiagnostics(){
+
+  return Object.freeze({
+
+    initialized:
+    languageRuntimeState
+    .initialized,
+
+    currentLanguage:
+
+      languageRuntimeState
+      .currentLanguage,
+
+    cacheSize:
+
+      languageRuntimeState
+      .translationCache
+      .size,
+
+    supportedLanguages:[
+
+      ...LANGUAGE_CONFIG
+      .SUPPORTED_LANGUAGES
+
+    ],
+
+    lastUpdatedAt:
+
+      languageRuntimeState
+      .lastUpdatedAt
+
+  });
+
+}
+
+
+
+// =====================================
 // INITIALIZE
 // =====================================
 
@@ -1116,6 +1157,9 @@ Object.freeze({
   formatDate,
 
   snapshot:
-  createLanguageRuntimeSnapshot
+  createLanguageRuntimeSnapshot,
+
+  diagnostics:
+  getLanguageRuntimeDiagnostics
 
 });
