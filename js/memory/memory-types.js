@@ -1072,8 +1072,7 @@ function ensureMemoryDefaults(
 
     flags:{
 
-      ...MEMORY_DEFAULTS
-      .FLAGS,
+      ...(MEMORY_DEFAULTS.FLAGS || {}),
 
       ...(memory.flags || {})
 
@@ -1081,8 +1080,7 @@ function ensureMemoryDefaults(
 
     stats:{
 
-      ...MEMORY_DEFAULTS
-      .STATS,
+      ...(MEMORY_DEFAULTS.STATS || {}),
 
       ...(memory.stats || {})
 
@@ -1090,8 +1088,7 @@ function ensureMemoryDefaults(
 
     relations:{
 
-      ...MEMORY_DEFAULTS
-      .RELATIONS,
+      ...(MEMORY_DEFAULTS.RELATIONS || {}),
 
       ...(memory.relations || {})
 
@@ -1099,8 +1096,7 @@ function ensureMemoryDefaults(
 
     metadata:{
 
-      ...MEMORY_DEFAULTS
-      .METADATA,
+      ...(MEMORY_DEFAULTS.METADATA || {}),
 
       ...(memory.metadata || {})
 
@@ -1108,8 +1104,7 @@ function ensureMemoryDefaults(
 
     audit:{
 
-      ...MEMORY_DEFAULTS
-      .AUDIT,
+      ...(MEMORY_DEFAULTS.AUDIT || {}),
 
       ...(memory.audit || {})
 
