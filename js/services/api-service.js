@@ -1,4 +1,76 @@
 // =====================================
+// RIGO AI
+// API SERVICE
+// ENTERPRISE NETWORK ENGINE
+// =====================================
+
+
+
+// =====================================
+// API CONFIG
+// =====================================
+
+const API_CONFIG =
+Object.freeze({
+
+  BASE_URL:
+  "",
+
+  REQUEST_TIMEOUT:
+  30000,
+
+  MAX_RETRIES:
+  2,
+
+  RETRY_DELAY:
+  1000,
+
+  ENABLE_DIAGNOSTICS:true,
+
+  DEFAULT_HEADERS:{
+
+    "Content-Type":
+    "application/json"
+
+  }
+
+});
+
+
+
+// =====================================
+// ACTIVE REQUESTS
+// =====================================
+
+const activeAPIRequests =
+new Map();
+
+
+
+// =====================================
+// API EVENTS
+// =====================================
+
+const API_EVENTS =
+Object.freeze({
+
+  REQUEST_STARTED:
+  "api.request.started",
+
+  REQUEST_COMPLETED:
+  "api.request.completed",
+
+  REQUEST_FAILED:
+  "api.request.failed",
+
+  REQUEST_ABORTED:
+  "api.request.aborted"
+
+});
+
+
+
+// =====================================
 // CREATE REQUEST ID
 // =====================================
 
@@ -27,8 +99,17 @@ function createRequestId(){
   }
 
   return (
+
     "req_" +
-    generateSecureRandomId()
+
+    Date.now() +
+
+    "_" +
+
+    Math.random()
+    .toString(36)
+    .slice(2,10)
+
   );
 
 }
@@ -109,6 +190,145 @@ function buildHeaders(
 
 
 // =====================================
+// BUILD URL
+// =====================================
+
+function buildAPIUrl(
+  endpoint = ""
+){
+
+  const normalizedEndpoint =
+  String(endpoint)
+  .trim();
+
+  return (
+
+    API_CONFIG
+    .BASE_URL +
+
+    normalizedEndpoint
+
+  );
+
+}
+
+
+
+// =====================================
+// SAFE JSON
+// =====================================
+
+function safeJSONStringify(
+  value
+){
+
+  try{
+
+    return JSON.stringify(
+      value
+    );
+
+  }
+
+  catch(error){
+
+    return "{}";
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE PARSE JSON
+// =====================================
+
+async function safeParseJSON(
+  response
+){
+
+  try{
+
+    return await response.json();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// API ERROR
+// =====================================
+
+function createAPIError({
+
+  message = "API ERROR",
+
+  status = 0,
+
+  code = "API_ERROR",
+
+  details = null
+
+}){
+
+  const error =
+  new Error(message);
+
+  error.name =
+  "APIError";
+
+  error.status =
+  status;
+
+  error.code =
+  code;
+
+  error.details =
+  details;
+
+  return error;
+
+}
+
+
+
+// =====================================
+// VALIDATE RESPONSE
+// =====================================
+
+function validateAPIResponse(
+  response
+){
+
+  if(
+    !response
+  ){
+
+    throw createAPIError({
+
+      message:
+      "EMPTY RESPONSE"
+
+    });
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
 // EXECUTE FETCH
 // =====================================
 
@@ -145,23 +365,6 @@ async function executeFetch({
   } = createTimeoutController(
     timeout
   );
-
-  let timedOut =
-  false;
-
-  const timeoutHandler =
-  setTimeout(() => {
-
-    timedOut = true;
-
-    controller.abort();
-
-  },
-
-  Math.max(
-    1000,
-    timeout
-  ));
 
   activeAPIRequests.set(
     requestId,
@@ -206,7 +409,9 @@ async function executeFetch({
 
       upperMethod !== "GET" &&
 
-      upperMethod !== "DELETE";
+      upperMethod !== "DELETE" &&
+
+      upperMethod !== "HEAD";
 
     const url =
     buildAPIUrl(
@@ -346,27 +551,9 @@ async function executeFetch({
       throw createAPIError({
 
         message:
-
-        timedOut
-
-        ?
-
-        "Request timeout"
-
-        :
-
         "Request aborted",
 
         code:
-
-        timedOut
-
-        ?
-
-        "TIMEOUT_ERROR"
-
-        :
-
         "ABORT_ERROR"
 
       });
@@ -412,10 +599,6 @@ async function executeFetch({
       timeoutId
     );
 
-    clearTimeout(
-      timeoutHandler
-    );
-
     if(
       signal &&
       abortHandler
@@ -436,6 +619,81 @@ async function executeFetch({
     );
 
   }
+
+}
+
+
+
+// =====================================
+// RETRY CHECK
+// =====================================
+
+function shouldRetryRequest(
+  error
+){
+
+  if(!error){
+
+    return false;
+
+  }
+
+  const retryableCodes = [
+
+    "NETWORK_ERROR",
+
+    "RETRYABLE_HTTP_ERROR"
+
+  ];
+
+  return retryableCodes
+  .includes(
+    error.code
+  );
+
+}
+
+
+
+// =====================================
+// RETRY DELAY
+// =====================================
+
+function getAPIRetryDelay(
+  attempt
+){
+
+  return (
+
+    API_CONFIG
+    .RETRY_DELAY *
+
+    (attempt + 1)
+
+  );
+
+}
+
+
+
+// =====================================
+// WAIT
+// =====================================
+
+function wait(
+  duration
+){
+
+  return new Promise(
+    (resolve) => {
+
+      setTimeout(
+        resolve,
+        duration
+      );
+
+    }
+  );
 
 }
 
@@ -561,3 +819,105 @@ function cancelAllAPIRequests(){
   return true;
 
 }
+
+
+
+// =====================================
+// TIMEOUT CONTROLLER
+// =====================================
+
+function createTimeoutController(
+  timeout
+){
+
+  const controller =
+  new AbortController();
+
+  const timeoutId =
+  setTimeout(() => {
+
+    controller.abort();
+
+  },
+
+  timeout);
+
+  return {
+
+    controller,
+
+    timeoutId
+
+  };
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getAPIDiagnostics(){
+
+  return Object.freeze({
+
+    activeRequests:
+
+      activeAPIRequests
+      .size,
+
+    requestIds:[
+
+      ...activeAPIRequests
+      .keys()
+
+    ]
+
+  });
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+function initializeAPIService(){
+
+  registerService(
+    "api",
+    APIService
+  );
+
+  activateService(
+    "api"
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const APIService =
+Object.freeze({
+
+  initialize:
+  initializeAPIService,
+
+  request:
+  apiRequest,
+
+  cancelAll:
+  cancelAllAPIRequests,
+
+  diagnostics:
+  getAPIDiagnostics
+
+});
