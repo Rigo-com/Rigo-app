@@ -192,6 +192,21 @@ function resetDOMReferences(){
   .loadingScreen =
   null;
 
+
+
+  // ================================
+  // RESET LEGACY GLOBAL REFERENCES
+  // ================================
+
+  messageInput =
+  null;
+
+  sendButton =
+  null;
+
+  chatContainer =
+  null;
+
   return true;
 
 }
@@ -204,7 +219,7 @@ function resetDOMReferences(){
 
 function getDOMDiagnostics(){
 
-  return {
+  return Object.freeze({
 
     initialized:
     DOMReferences
@@ -238,7 +253,7 @@ function getDOMDiagnostics(){
         .loadingScreen
       )
 
-  };
+  });
 
 }
 
