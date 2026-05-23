@@ -102,6 +102,10 @@ Object.seal({
 
   initialized:false,
 
+  initializing:false,
+
+  processingQueue:false,
+
   tools:
   new Map(),
 
@@ -214,6 +218,19 @@ function freezeToolObject(
 
 
 
+function cloneToolDiagnostics(){
+
+  return freezeToolObject({
+
+    ...toolExecutorState
+    .diagnostics
+
+  });
+
+}
+
+
+
 async function emitToolEvent(
   eventName,
   payload = {}
@@ -297,7 +314,7 @@ function createToolObject(
   config = {}
 ){
 
-  return {
+  return freezeToolObject({
 
     id:
     normalizeToolName(
@@ -328,7 +345,9 @@ function createToolObject(
         config.permissions
       )
 
-      ? config.permissions
+      ? freezeToolObject([
+          ...config.permissions
+        ])
 
       : [],
 
@@ -346,16 +365,10 @@ function createToolObject(
       TOOL_EXECUTOR_CONFIG
       .EXECUTION_TIMEOUT,
 
-    retries:0,
-
-    state:
-    TOOL_STATES
-    .REGISTERED,
-
     createdAt:
     Date.now()
 
-  };
+  });
 
 }
 
@@ -410,9 +423,6 @@ async function registerTool(
 
   }
 
-  tool.state =
-  TOOL_STATES.READY;
-
   toolExecutorState
   .tools
   .set(
@@ -438,9 +448,7 @@ async function registerTool(
 
   );
 
-  return freezeToolObject(
-    tool
-  );
+  return tool;
 
 }
 
@@ -507,13 +515,14 @@ async function executeWithTimeout(
   timeout
 ){
 
-  return Promise.race([
+  let timeoutId = null;
 
-    Promise.resolve()
-    .then(callback),
+  try{
 
+    const timeoutPromise =
     new Promise((_,reject) => {
 
+      timeoutId =
       setTimeout(() => {
 
         reject(
@@ -526,9 +535,32 @@ async function executeWithTimeout(
 
       },timeout);
 
-    })
+    });
 
-  ]);
+    return await Promise.race([
+
+      Promise.resolve()
+      .then(callback),
+
+      timeoutPromise
+
+    ]);
+
+  }
+
+  finally{
+
+    if(
+      timeoutId
+    ){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+  }
 
 }
 
@@ -644,16 +676,13 @@ async function executeTool(
   const executionId =
   createToolExecutionId();
 
-  tool.state =
-  TOOL_STATES.RUNNING;
-
   toolExecutorState
   .activeExecutions
   .set(
 
     executionId,
 
-    {
+    freezeToolObject({
 
       toolId:
       normalizedId,
@@ -661,7 +690,7 @@ async function executeTool(
       startedAt:
       Date.now()
 
-    }
+    })
 
   );
 
@@ -681,198 +710,198 @@ async function executeTool(
 
   );
 
+  let attempts = 0;
+
   try{
 
-    const result =
-    await executeWithTimeout(
+    while(
 
-      () => {
-
-        return tool.execute({
-
-          payload:
-
-            freezeToolObject(
-              payload
-            ),
-
-          context:
-
-            freezeToolObject(
-              context
-            ),
-
-          state:
-          StateManager,
-
-          memory:
-
-            typeof MemorySystem !==
-            "undefined"
-
-            ? MemorySystem
-
-            : null,
-
-          agent:
-          AgentManager,
-
-          diagnostics:
-          diagnosticsState
-
-        });
-
-      },
-
-      tool.timeout
-
-    );
-
-    tool.state =
-    TOOL_STATES.READY;
-
-    toolExecutorState
-    .diagnostics
-    .executed++;
-
-    toolExecutorState
-    .diagnostics
-    .queueProcessed++;
-
-    toolExecutorState
-    .lastExecutionAt =
-    Date.now();
-
-    toolExecutorState
-    .activeExecutions
-    .delete(
-      executionId
-    );
-
-    await emitToolEvent(
-
-      TOOL_EVENTS
-      .EXECUTION_COMPLETED,
-
-      {
-
-        toolId:
-        normalizedId,
-
-        executionId
-
-      }
-
-    );
-
-    return normalizeToolResult(
-      result
-    );
-
-  }
-
-  catch(error){
-
-    tool.retries++;
-
-    tool.state =
-    TOOL_STATES
-    .FAILED;
-
-    toolExecutorState
-    .diagnostics
-    .failed++;
-
-    toolExecutorState
-    .activeExecutions
-    .delete(
-      executionId
-    );
-
-    if(
-
-      String(error)
-      .includes(
-        "TIMEOUT"
-      )
-
-    ){
-
-      toolExecutorState
-      .diagnostics
-      .timeouts++;
-
-      await emitToolEvent(
-
-        TOOL_EVENTS
-        .EXECUTION_TIMEOUT,
-
-        {
-
-          toolId:
-          normalizedId,
-
-          executionId
-
-        }
-
-      );
-
-    }
-
-    await emitToolEvent(
-
-      TOOL_EVENTS
-      .EXECUTION_FAILED,
-
-      {
-
-        toolId:
-        normalizedId,
-
-        executionId,
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    if(
-
-      TOOL_EXECUTOR_CONFIG
-      .ENABLE_TOOL_RETRIES &&
-
-      tool.retries <
+      attempts <
 
       TOOL_EXECUTOR_CONFIG
       .MAX_RETRIES
 
     ){
 
-      toolExecutorState
-      .diagnostics
-      .retries++;
+      try{
 
-      return executeTool(
+        const result =
+        await executeWithTimeout(
 
-        normalizedId,
+          () => {
 
-        payload,
+            return tool.execute({
 
-        context
+              payload:
 
-      );
+                freezeToolObject(
+                  payload
+                ),
+
+              context:
+
+                freezeToolObject(
+                  context
+                ),
+
+              state:
+              StateManager,
+
+              memory:
+
+                typeof MemorySystem !==
+                "undefined"
+
+                ? MemorySystem
+
+                : null,
+
+              agent:
+              AgentManager,
+
+              diagnostics:
+              diagnosticsState
+
+            });
+
+          },
+
+          tool.timeout
+
+        );
+
+        toolExecutorState
+        .diagnostics
+        .executed++;
+
+        toolExecutorState
+        .diagnostics
+        .queueProcessed++;
+
+        toolExecutorState
+        .lastExecutionAt =
+        Date.now();
+
+        await emitToolEvent(
+
+          TOOL_EVENTS
+          .EXECUTION_COMPLETED,
+
+          {
+
+            toolId:
+            normalizedId,
+
+            executionId
+
+          }
+
+        );
+
+        return normalizeToolResult(
+          result
+        );
+
+      }
+
+      catch(error){
+
+        attempts++;
+
+        toolExecutorState
+        .diagnostics
+        .failed++;
+
+        if(
+
+          String(error)
+          .includes(
+            "TIMEOUT"
+          )
+
+        ){
+
+          toolExecutorState
+          .diagnostics
+          .timeouts++;
+
+          await emitToolEvent(
+
+            TOOL_EVENTS
+            .EXECUTION_TIMEOUT,
+
+            {
+
+              toolId:
+              normalizedId,
+
+              executionId
+
+            }
+
+          );
+
+        }
+
+        await emitToolEvent(
+
+          TOOL_EVENTS
+          .EXECUTION_FAILED,
+
+          {
+
+            toolId:
+            normalizedId,
+
+            executionId,
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+        if(
+
+          attempts >=
+
+          TOOL_EXECUTOR_CONFIG
+          .MAX_RETRIES
+
+        ){
+
+          return freezeToolObject({
+
+            success:false,
+
+            error:
+            String(error),
+
+            timestamp:
+            Date.now()
+
+          });
+
+        }
+
+        toolExecutorState
+        .diagnostics
+        .retries++;
+
+      }
 
     }
 
-    return normalizeToolResult({
+  }
 
-      error:
-      String(error)
+  finally{
 
-    });
+    toolExecutorState
+    .activeExecutions
+    .delete(
+      executionId
+    );
 
   }
 
@@ -943,39 +972,64 @@ async function queueToolExecution(
 
 async function processExecutionQueue(){
 
-  while(
-
+  if(
     toolExecutorState
-    .executionQueue
-    .length > 0
-
+    .processingQueue
   ){
 
-    const queuedTask =
-
-      toolExecutorState
-      .executionQueue
-      .shift();
-
-    if(!queuedTask){
-
-      continue;
-
-    }
-
-    await executeTool(
-
-      queuedTask.toolId,
-
-      queuedTask.payload,
-
-      queuedTask.context
-
-    );
+    return false;
 
   }
 
-  return true;
+  toolExecutorState
+  .processingQueue =
+  true;
+
+  try{
+
+    while(
+
+      toolExecutorState
+      .executionQueue
+      .length > 0
+
+    ){
+
+      const queuedTask =
+
+        toolExecutorState
+        .executionQueue
+        .shift();
+
+      if(!queuedTask){
+
+        continue;
+
+      }
+
+      await executeTool(
+
+        queuedTask.toolId,
+
+        queuedTask.payload,
+
+        queuedTask.context
+
+      );
+
+    }
+
+    return true;
+
+  }
+
+  finally{
+
+    toolExecutorState
+    .processingQueue =
+    false;
+
+  }
 
 }
 
@@ -1013,18 +1067,6 @@ async function disableTool(
   .add(
     normalizedId
   );
-
-  const tool =
-
-    toolExecutorState
-    .tools
-    .get(
-      normalizedId
-    );
-
-  tool.state =
-  TOOL_STATES
-  .DISABLED;
 
   await emitToolEvent(
 
@@ -1083,9 +1125,7 @@ function getToolExecutorDiagnostics(){
       .size,
 
     diagnostics:
-
-      toolExecutorState
-      .diagnostics,
+    cloneToolDiagnostics(),
 
     lastExecutionAt:
 
@@ -1109,7 +1149,8 @@ async function resetToolExecutor(){
   .clear();
 
   toolExecutorState
-  .executionQueue = [];
+  .executionQueue =
+  [];
 
   toolExecutorState
   .activeExecutions
@@ -1118,6 +1159,10 @@ async function resetToolExecutor(){
   toolExecutorState
   .disabledTools
   .clear();
+
+  toolExecutorState
+  .processingQueue =
+  false;
 
   toolExecutorState
   .diagnostics = {
@@ -1157,11 +1202,36 @@ async function initializeToolExecutor(){
 
   }
 
+  if(
+    toolExecutorState
+    .initializing
+  ){
+
+    return false;
+
+  }
+
   toolExecutorState
-  .initialized =
+  .initializing =
   true;
 
-  return true;
+  try{
+
+    toolExecutorState
+    .initialized =
+    true;
+
+    return true;
+
+  }
+
+  finally{
+
+    toolExecutorState
+    .initializing =
+    false;
+
+  }
 
 }
 
