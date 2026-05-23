@@ -1,8 +1,23 @@
 // =====================================
 // RIGO AI
 // SHARED UTILITIES
-// ENTERPRISE FINAL
+// ENTERPRISE FINAL STABLE
 // =====================================
+
+
+
+// =====================================
+// SHARED CONFIG
+// =====================================
+
+const SHARED_UTILS_CONFIG =
+Object.freeze({
+
+  MAX_TIMEOUT:60000,
+
+  DEFAULT_DELAY:0
+
+});
 
 
 
@@ -10,10 +25,14 @@
 // WAIT
 // =====================================
 
-function wait(ms){
+function wait(
+  milliseconds
+){
 
   if(
-    !Number.isFinite(ms)
+    !Number.isFinite(
+      milliseconds
+    )
   ){
 
     return Promise.resolve();
@@ -24,11 +43,14 @@ function wait(ms){
 
     Math.min(
 
-      60000,
+      SHARED_UTILS_CONFIG
+      .MAX_TIMEOUT,
 
       Math.max(
         0,
-        Math.trunc(ms)
+        Math.trunc(
+          milliseconds
+        )
       )
 
     );
@@ -49,7 +71,7 @@ function wait(ms){
 
 
 // =====================================
-// NOOP
+// NO OPERATION
 // =====================================
 
 function noop(){}
@@ -57,7 +79,7 @@ function noop(){}
 
 
 // =====================================
-// CLAMP
+// CLAMP NUMBER
 // =====================================
 
 function clamp(
@@ -95,7 +117,7 @@ function clamp(
 
 
 // =====================================
-// SAFE TRIM
+// SAFE STRING TRIM
 // =====================================
 
 function safeTrim(
@@ -117,7 +139,7 @@ function safeTrim(
 
 
 // =====================================
-// SAFE PARSE NUMBER
+// SAFE NUMBER
 // =====================================
 
 function safeParseNumber(
@@ -128,31 +150,29 @@ function safeParseNumber(
   const normalized =
   Number(value);
 
-  if(
-    !Number.isFinite(
-      normalized
-    )
-  ){
+  return Number.isFinite(
+    normalized
+  )
 
-    return fallback;
+  ? normalized
 
-  }
-
-  return normalized;
+  : fallback;
 
 }
 
 
 
 // =====================================
-// SAFE PARSE BOOLEAN
+// SAFE BOOLEAN
 // =====================================
 
 function safeParseBoolean(
   value
 ){
 
-  return Boolean(value);
+  return Boolean(
+    value
+  );
 
 }
 
@@ -167,9 +187,12 @@ function isPlainObject(
 ){
 
   if(
+
     !value ||
+
     typeof value !==
     "object"
+
   ){
 
     return false;
@@ -197,7 +220,7 @@ function isPlainObject(
 
 
 // =====================================
-// SAFE EXECUTE
+// SAFE EXECUTION
 // =====================================
 
 function safeExecute(
@@ -222,13 +245,33 @@ function safeExecute(
 
   catch(error){
 
-    if(
-      typeof safeLogError ===
-      "function"
-    ){
+    try{
 
-      safeLogError(
-        error
+      if(
+        typeof safeLogError ===
+        "function"
+      ){
+
+        safeLogError(
+          error
+        );
+
+      }
+
+      else{
+
+        console.error(
+          error
+        );
+
+      }
+
+    }
+
+    catch(logError){
+
+      console.error(
+        logError
       );
 
     }
@@ -242,12 +285,12 @@ function safeExecute(
 
 
 // =====================================
-// DEEP FREEZE
+// SHARED DEEP FREEZE
 // =====================================
 
-function deepFreeze(
+function sharedDeepFreeze(
   object,
-  seen = new WeakSet()
+  visited = new WeakSet()
 ){
 
   if(
@@ -257,13 +300,23 @@ function deepFreeze(
     (
 
       typeof object !==
-      "object" &&
+      "object"
+
+      &&
 
       typeof object !==
       "function"
 
     )
 
+  ){
+
+    return object;
+
+  }
+
+  if(
+    visited.has(object)
   ){
 
     return object;
@@ -280,46 +333,49 @@ function deepFreeze(
 
   }
 
-  if(
-    seen.has(object)
-  ){
-
-    return object;
-
-  }
-
-  seen.add(object);
-
-  Object
-  .getOwnPropertyNames(
+  visited.add(
     object
-  )
+  );
+
+  Reflect
+  .ownKeys(object)
   .forEach((key) => {
 
-    const value =
-    object[key];
+    try{
 
-    if(
+      const value =
+      object[key];
 
-      value &&
+      if(
 
-      (
+        value &&
 
-        typeof value ===
-        "object" ||
+        (
 
-        typeof value ===
-        "function"
+          typeof value ===
+          "object"
 
-      )
+          ||
 
-    ){
+          typeof value ===
+          "function"
 
-      deepFreeze(
-        value,
-        seen
-      );
+        )
 
+      ){
+
+        sharedDeepFreeze(
+          value,
+          visited
+        );
+
+      }
+
+    }
+
+    catch(error){
+
+      // IGNORE ACCESS ERRORS
     }
 
   });
@@ -333,13 +389,15 @@ function deepFreeze(
 
 
 // =====================================
-// DEEP CLONE
+// SHARED DEEP CLONE
 // =====================================
 
-function deepClone(data){
+function sharedDeepClone(
+  value
+){
 
   if(
-    typeof data ===
+    typeof value ===
     "undefined"
   ){
 
@@ -349,42 +407,46 @@ function deepClone(data){
 
   try{
 
-    return structuredClone(
-      data
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+  }
+
+  catch(error){
+
+    // FALLBACK
+  }
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
     );
 
   }
 
   catch(error){
 
-    try{
+    safeExecute(() => {
 
-      return JSON.parse(
-        JSON.stringify(data)
+      console.error(
+        "SHARED_DEEP_CLONE_FAILED",
+        error
       );
 
-    }
+    });
 
-    catch(cloneError){
-
-      if(
-        typeof safeLogError ===
-        "function"
-      ){
-
-        safeLogError(
-
-          "DEEP CLONE ERROR:",
-
-          cloneError
-
-        );
-
-      }
-
-      return null;
-
-    }
+    return null;
 
   }
 
@@ -393,7 +455,7 @@ function deepClone(data){
 
 
 // =====================================
-// CREATE UNIQUE ID
+// UNIQUE ID
 // =====================================
 
 function createUniqueId(
@@ -401,9 +463,7 @@ function createUniqueId(
 ){
 
   const normalizedPrefix =
-  safeTrim(
-    prefix || "id"
-  );
+  safeTrim(prefix);
 
   const safePrefix =
 
@@ -411,29 +471,38 @@ function createUniqueId(
 
     "id";
 
-  if(
+  try{
 
-    typeof crypto !==
-    "undefined"
+    if(
 
-    &&
+      typeof crypto !==
+      "undefined"
 
-    typeof crypto
-    .randomUUID ===
-    "function"
+      &&
 
-  ){
+      typeof crypto
+      .randomUUID ===
+      "function"
 
-    return (
+    ){
 
-      safePrefix +
+      return (
 
-      "_" +
+        safePrefix +
 
-      crypto.randomUUID()
+        "_" +
 
-    );
+        crypto.randomUUID()
 
+      );
+
+    }
+
+  }
+
+  catch(error){
+
+    // FALLBACK
   }
 
   return (
@@ -448,7 +517,7 @@ function createUniqueId(
 
     Math.random()
     .toString(36)
-    .substring(2,9)
+    .slice(2,10)
 
   );
 
@@ -462,7 +531,11 @@ function createUniqueId(
 
 function debounce(
   callback,
-  delay = 0
+  delay =
+
+  SHARED_UTILS_CONFIG
+  .DEFAULT_DELAY
+
 ){
 
   let timeoutId =
@@ -503,7 +576,11 @@ function debounce(
 
 function throttle(
   callback,
-  delay = 0
+  delay =
+
+  SHARED_UTILS_CONFIG
+  .DEFAULT_DELAY
+
 ){
 
   let waiting =
@@ -539,3 +616,42 @@ function throttle(
   };
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SharedUtils =
+Object.freeze({
+
+  wait,
+
+  noop,
+
+  clamp,
+
+  safeTrim,
+
+  safeParseNumber,
+
+  safeParseBoolean,
+
+  isPlainObject,
+
+  safeExecute,
+
+  deepFreeze:
+  sharedDeepFreeze,
+
+  deepClone:
+  sharedDeepClone,
+
+  createUniqueId,
+
+  debounce,
+
+  throttle
+
+});
