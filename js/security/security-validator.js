@@ -21,15 +21,15 @@ Object.freeze({
 
   XSS:[
 
-    /<script/i,
+    /<script\b/i,
 
-    /<\/script/i,
+    /<\/script>/i,
 
-    /javascript:/i,
+    /javascript\s*:/i,
 
-    /vbscript:/i,
+    /vbscript\s*:/i,
 
-    /data:/i,
+    /data\s*:/i,
 
     /onerror\s*=/i,
 
@@ -41,19 +41,23 @@ Object.freeze({
 
     /srcdoc\s*=/i,
 
-    /<iframe/i,
+    /<iframe\b/i,
 
-    /<object/i,
+    /<object\b/i,
 
-    /<embed/i,
+    /<embed\b/i,
 
-    /<svg/i,
+    /<svg\b/i,
 
-    /<link/i,
+    /<link\b/i,
 
-    /<meta/i,
+    /<meta\b/i,
 
     /document\.cookie/i,
+
+    /document\.write/i,
+
+    /window\.location/i,
 
     /data:text\/html/i
 
@@ -67,17 +71,25 @@ Object.freeze({
 
   SQL_INJECTION:[
 
-    /union\s+select/i,
+    /\bunion\b\s+\bselect\b/i,
 
-    /drop\s+table/i,
+    /\bdrop\b\s+\btable\b/i,
 
-    /insert\s+into/i,
+    /\binsert\b\s+\binto\b/i,
 
-    /delete\s+from/i,
+    /\bdelete\b\s+\bfrom\b/i,
 
-    /update\s+.*set/i,
+    /\bupdate\b\s+.+\bset\b/i,
 
-    /or\s+1=1/i
+    /\bor\b\s+1\s*=\s*1\b/i,
+
+    /--/,
+
+    /;\s*shutdown/i,
+
+    /\bexec\b/i,
+
+    /\bbenchmark\s*\(/i
 
   ],
 
@@ -104,85 +116,70 @@ Object.freeze({
 
 
 // =====================================
-// SAFE STRING
+// NORMALIZE VALIDATION INPUT
 // =====================================
 
-function safeString(
-  value
+function normalizeValidationInput(
+  input
 ){
 
-  if(
-    value == null
-  ){
+  return safeString(input)
 
-    return "";
-  }
+  .normalize("NFKC")
 
-  let normalized = "";
+  .replace(
+    /\0/g,
+    ""
+  )
+
+  .replace(
+    /\s+/g,
+    " "
+  )
+
+  .trim();
+
+}
+
+
+
+// =====================================
+// SAFE REGEX TEST
+// =====================================
+
+function safeRegexTest(
+  pattern,
+  input
+){
 
   try{
 
-    normalized =
-    String(value);
+    if(
+      !(pattern instanceof RegExp)
+    ){
+
+      return false;
+
+    }
+
+    const safePattern =
+    new RegExp(
+      pattern.source,
+      pattern.flags
+      .replace(/g/g,"")
+    );
+
+    return safePattern.test(
+      input
+    );
 
   }
 
   catch(error){
 
-    logSecurityEvent(
-      "SAFE_STRING_FAILED"
-    );
-
-    return "";
+    return false;
 
   }
-
-  if(
-    typeof normalized.normalize ===
-    "function"
-  ){
-
-    normalized =
-    normalized.normalize(
-      "NFKC"
-    );
-
-  }
-
-  if(
-
-    SECURITY_CONFIG
-    .AUTO_TRIM_STRINGS
-
-  ){
-
-    normalized =
-    normalized.trim();
-
-  }
-
-  if(
-
-    normalized.length >
-
-    SECURITY_CONFIG
-    .MAX_STRING_LENGTH
-
-  ){
-
-    normalized =
-    normalized.slice(
-
-      0,
-
-      SECURITY_CONFIG
-      .MAX_STRING_LENGTH
-
-    );
-
-  }
-
-  return normalized;
 
 }
 
@@ -197,22 +194,49 @@ function matchSecurityPatterns(
   patterns = []
 ){
 
+  const normalized =
+  normalizeValidationInput(
+    input
+  );
+
   return patterns.some((pattern) => {
 
-    return (
-
-      pattern instanceof
-      RegExp
-
-      &&
-
-      pattern.test(
-        input
-      )
-
+    return safeRegexTest(
+      pattern,
+      normalized
     );
 
   });
+
+}
+
+
+
+// =====================================
+// DECODE ENCODED PAYLOADS
+// =====================================
+
+function decodeValidationPayload(
+  input
+){
+
+  let normalized =
+  normalizeValidationInput(
+    input
+  );
+
+  try{
+
+    normalized =
+    decodeURIComponent(
+      normalized
+    );
+
+  }
+
+  catch(error){}
+
+  return normalized;
 
 }
 
@@ -226,58 +250,37 @@ function detectPromptInjection(
   input
 ){
 
-  if(
-    typeof SecurityPolicy !==
-    "undefined"
-
-    &&
-
-    typeof SecurityPolicy
-    .validateExecution ===
-    "function"
-  ){
-
-    const allowed =
-    SecurityPolicy
-    .validateExecution(
-      "prompt"
-    );
-
-    if(!allowed){
-
-      return {
-
-        detected:true,
-
-        score:100
-
-      };
-
-    }
-
-  }
+  const normalized =
+  normalizeValidationInput(
+    input
+  )
+  .toLowerCase();
 
   const suspiciousPatterns = [
 
     "ignore previous instructions",
 
+    "ignore all previous",
+
     "system prompt",
 
     "developer message",
 
-    "bypass restrictions",
-
     "reveal hidden",
 
-    "disable safety"
+    "disable safety",
+
+    "bypass restrictions",
+
+    "show internal prompt",
+
+    "act as unrestricted",
+
+    "jailbreak"
 
   ];
 
   let score = 0;
-
-  const normalized =
-  safeString(input)
-  .toLowerCase();
 
   suspiciousPatterns
   .forEach((pattern) => {
@@ -335,7 +338,9 @@ function validateSecureInput(
   }
 
   const normalized =
-  safeString(input);
+  normalizeValidationInput(
+    input
+  );
 
   if(!normalized){
 
@@ -376,6 +381,11 @@ function validateSecureInput(
 
   }
 
+  const decoded =
+  decodeValidationPayload(
+    normalized
+  );
+
 
 
   // ===================================
@@ -383,14 +393,26 @@ function validateSecureInput(
   // ===================================
 
   const hasXSS =
-  matchSecurityPatterns(
 
-    normalized,
+    matchSecurityPatterns(
 
-    SECURITY_PATTERNS
-    .XSS
+      normalized,
 
-  );
+      SECURITY_PATTERNS
+      .XSS
+
+    )
+
+    ||
+
+    matchSecurityPatterns(
+
+      decoded,
+
+      SECURITY_PATTERNS
+      .XSS
+
+    );
 
   if(hasXSS){
 
@@ -421,14 +443,26 @@ function validateSecureInput(
   // ===================================
 
   const hasSQLInjection =
-  matchSecurityPatterns(
 
-    normalized,
+    matchSecurityPatterns(
 
-    SECURITY_PATTERNS
-    .SQL_INJECTION
+      normalized,
 
-  );
+      SECURITY_PATTERNS
+      .SQL_INJECTION
+
+    )
+
+    ||
+
+    matchSecurityPatterns(
+
+      decoded,
+
+      SECURITY_PATTERNS
+      .SQL_INJECTION
+
+    );
 
   if(hasSQLInjection){
 
@@ -524,7 +558,8 @@ function validateSecureInput(
 
 function validateJSONDepth(
   value,
-  depth = 0
+  depth = 0,
+  visited = new WeakSet()
 ){
 
   if(
@@ -553,6 +588,16 @@ function validateJSONDepth(
 
   }
 
+  if(
+    visited.has(value)
+  ){
+
+    return false;
+
+  }
+
+  visited.add(value);
+
   return Object.values(value)
   .every((nestedValue) => {
 
@@ -560,7 +605,9 @@ function validateJSONDepth(
 
       nestedValue,
 
-      depth + 1
+      depth + 1,
+
+      visited
 
     );
 
@@ -604,7 +651,8 @@ function validateArraySize(
 // =====================================
 
 function validateObjectKeys(
-  object
+  object,
+  visited = new WeakSet()
 ){
 
   if(
@@ -619,6 +667,16 @@ function validateObjectKeys(
     return false;
 
   }
+
+  if(
+    visited.has(object)
+  ){
+
+    return false;
+
+  }
+
+  visited.add(object);
 
   const keys =
   Object.keys(object);
@@ -650,7 +708,34 @@ function validateObjectKeys(
 
   });
 
-  return !polluted;
+  if(polluted){
+
+    return false;
+
+  }
+
+  return Object.values(object)
+  .every((value) => {
+
+    if(
+
+      value &&
+
+      typeof value ===
+      "object"
+
+    ){
+
+      return validateObjectKeys(
+        value,
+        visited
+      );
+
+    }
+
+    return true;
+
+  });
 
 }
 
@@ -679,9 +764,23 @@ function validatePayload(
     Array.isArray(payload)
   ){
 
-    return validateArraySize(
-      payload
-    );
+    if(
+      !validateArraySize(
+        payload
+      )
+    ){
+
+      return false;
+
+    }
+
+    return payload.every((item) => {
+
+      return validatePayload(
+        item
+      );
+
+    });
 
   }
 
@@ -694,9 +793,24 @@ function validatePayload(
 
   ){
 
-    return validateObjectKeys(
-      payload
-    );
+    if(
+      !validateObjectKeys(
+        payload
+      )
+    ){
+
+      return false;
+
+    }
+
+    return Object.values(payload)
+    .every((value) => {
+
+      return validatePayload(
+        value
+      );
+
+    });
 
   }
 
