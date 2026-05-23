@@ -204,6 +204,45 @@ Object.freeze({
 
 
 // =====================================
+// SAFE SECURITY METADATA
+// =====================================
+
+function sanitizeSecurityMetadata(
+  metadata
+){
+
+  if(
+    metadata == null
+  ){
+
+    return null;
+
+  }
+
+  try{
+
+    if(
+      typeof sanitizeObject ===
+      "function"
+    ){
+
+      return sanitizeObject(
+        metadata
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  return null;
+
+}
+
+
+
+// =====================================
 // SECURITY LOGGER
 // =====================================
 
@@ -225,17 +264,36 @@ function logSecurityEvent(
 
   try{
 
+    const safeMessage =
+
+      typeof safeString ===
+      "function"
+
+      ?
+
+      safeString(message)
+
+      :
+
+      String(message);
+
+    const safeMetadata =
+
+      sanitizeSecurityMetadata(
+        metadata
+      );
+
     if(
-      typeof DiagnosticsRuntime !==
-      "undefined"
+      typeof logDiagnosticWarning ===
+      "function"
     ){
 
-      DiagnosticsRuntime
-      .info(
+      logDiagnosticWarning(
 
-        message,
+        "[SECURITY] " +
+        safeMessage,
 
-        metadata
+        safeMetadata
 
       );
 
@@ -243,13 +301,13 @@ function logSecurityEvent(
 
     else{
 
-      console.info(
+      console.warn(
 
         "[SECURITY]",
 
-        message,
+        safeMessage,
 
-        metadata || ""
+        safeMetadata || ""
 
       );
 
@@ -259,7 +317,15 @@ function logSecurityEvent(
 
   catch(error){
 
-    console.error(error);
+    console.error(
+
+      "[SECURITY LOGGER FAILURE]",
+
+      error
+
+    );
+
+    return false;
 
   }
 
@@ -270,42 +336,56 @@ function logSecurityEvent(
 
 
 // =====================================
-// REGISTER PATTERNS
+// REGISTER SECURITY PATTERNS
 // =====================================
 
 function registerSecurityPatterns(){
 
-  const patterns = [
+  if(
+    securityState
+    .blockedPatterns
+    .size > 0
+  ){
 
-    "<script",
+    return true;
 
-    "javascript:",
+  }
 
-    "data:text/html",
+  if(
+    typeof SECURITY_PATTERNS !==
+    "object"
+  ){
 
-    "onerror=",
+    logSecurityEvent(
+      "SECURITY PATTERNS MISSING"
+    );
 
-    "onload=",
+    return false;
 
-    "../",
+  }
 
-    "..\\",
+  Object.values(
+    SECURITY_PATTERNS
+  )
+  .flat()
+  .forEach((pattern) => {
 
-    "%3Cscript",
+    if(
+      !(pattern instanceof RegExp)
+    ){
 
-    "eval(",
+      logSecurityEvent(
+        "INVALID SECURITY PATTERN"
+      );
 
-    "Function("
+      return;
 
-  ];
-
-  patterns.forEach((pattern) => {
+    }
 
     securityState
     .blockedPatterns
     .add(
       pattern
-      .toLowerCase()
     );
 
   });
@@ -332,11 +412,28 @@ function freezeCriticalObjects(){
       FREEZE_STATES
     );
 
+    Object.freeze(
+      SECURITY_EVENTS
+    );
+
     return true;
 
   }
 
   catch(error){
+
+    logSecurityEvent(
+
+      "FREEZE CRITICAL OBJECTS FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
 
     return false;
 
@@ -362,9 +459,23 @@ function initializeSecuritySystem(){
 
   try{
 
+    const patternsReady =
     registerSecurityPatterns();
 
+    if(!patternsReady){
+
+      return false;
+
+    }
+
+    const frozen =
     freezeCriticalObjects();
+
+    if(!frozen){
+
+      return false;
+
+    }
 
     securityState.initialized =
     true;
@@ -415,6 +526,10 @@ function getSecurityDiagnostics(){
     securityState
     .initialized,
 
+    createdAt:
+    securityState
+    .createdAt,
+
     blockedRequests:
     securityState
     .blockedRequests,
@@ -446,12 +561,11 @@ function getSecurityDiagnostics(){
 
     ],
 
-    blockedPatterns:[
+    blockedPatternsCount:
 
-      ...securityState
+      securityState
       .blockedPatterns
-
-    ]
+      .size
 
   });
 
@@ -471,6 +585,9 @@ Object.freeze({
 
   diagnostics:
   getSecurityDiagnostics,
+
+  log:
+  logSecurityEvent,
 
   state:
   securityState
