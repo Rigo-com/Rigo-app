@@ -11,7 +11,7 @@
 // =====================================
 
 const LANGUAGE_CONFIG =
-deepFreeze({
+Object.freeze({
 
   DEFAULT_LANGUAGE:
   "en",
@@ -71,8 +71,7 @@ Object.freeze({
 // TRANSLATIONS
 // =====================================
 
-const TRANSLATIONS =
-Object.seal({
+const TRANSLATIONS = {
 
   en:{
 
@@ -158,7 +157,7 @@ Object.seal({
 
   }
 
-});
+};
 
 
 
@@ -1163,3 +1162,22 @@ Object.freeze({
   getLanguageRuntimeDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.LanguageRuntime =
+  LanguageRuntime;
+
+  window.initializeLanguageRuntime =
+  initializeLanguageRuntime;
+
+}
