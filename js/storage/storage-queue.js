@@ -5,6 +5,9 @@
 const MAX_STORAGE_QUEUE_SIZE =
 1000;
 
+const MAX_STORAGE_BATCH_SIZE =
+50;
+
 
 
 // =====================================
@@ -46,17 +49,50 @@ function enqueueStorageWrite(
     .failedWrites++;
 
     handleStorageError(
-      "STORAGE QUEUE LIMIT EXCEEDED"
+      "STORAGE_QUEUE_LIMIT_EXCEEDED"
     );
 
     return false;
 
   }
 
-  storageState.writeQueue
+  storageState
+  .writeQueue
   .push(callback);
 
   processStorageQueue();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CLEAR STORAGE QUEUE
+// =====================================
+
+function clearStorageQueue(){
+
+  storageState
+  .writeQueue
+  .length = 0;
+
+  if(
+    storageState.writeTimer
+  ){
+
+    clearTimeout(
+      storageState.writeTimer
+    );
+
+    storageState.writeTimer =
+    null;
+
+  }
+
+  storageState.writing =
+  false;
 
   return true;
 
@@ -74,7 +110,10 @@ function processStorageQueue(){
     storageState.destroyed
   ){
 
+    clearStorageQueue();
+
     return;
+
   }
 
   if(
@@ -82,35 +121,48 @@ function processStorageQueue(){
   ){
 
     return;
+
   }
 
   if(
     storageState.writeTimer
   ){
 
-    clearTimeout(
-      storageState.writeTimer
-    );
-
-    storageState.writeTimer =
-    null;
+    return;
 
   }
 
   storageState.writeTimer =
   setTimeout(async () => {
 
+    storageState.writeTimer =
+    null;
+
     if(
       storageState.destroyed
     ){
 
+      clearStorageQueue();
+
       return;
+
+    }
+
+    if(
+      storageState.writing
+    ){
+
+      return;
+
     }
 
     storageState.writing =
     true;
 
     try{
+
+      let processed =
+      0;
 
       while(
 
@@ -124,7 +176,21 @@ function processStorageQueue(){
           storageState.destroyed
         ){
 
+          clearStorageQueue();
+
           break;
+
+        }
+
+        if(
+
+          processed >=
+          MAX_STORAGE_BATCH_SIZE
+
+        ){
+
+          break;
+
         }
 
         const callback =
@@ -139,13 +205,24 @@ function processStorageQueue(){
         ){
 
           continue;
+
         }
 
         try{
 
+          const result =
           await Promise.resolve(
             callback()
           );
+
+          if(
+            result === false
+          ){
+
+            storageState
+            .failedWrites++;
+
+          }
 
         }
 
@@ -155,11 +232,13 @@ function processStorageQueue(){
           .failedWrites++;
 
           handleStorageError(
-            "STORAGE QUEUE ERROR",
+            "STORAGE_QUEUE_ERROR",
             error
           );
 
         }
+
+        processed++;
 
       }
 
@@ -172,9 +251,6 @@ function processStorageQueue(){
 
       storageState.writing =
       false;
-
-      storageState.writeTimer =
-      null;
 
       if(
 
