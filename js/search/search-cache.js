@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SEARCH CACHE
-// ENTERPRISE FINAL
+// ENTERPRISE ULTRA FINAL
 // =====================================
 
 
@@ -9,7 +9,11 @@
 const searchCache =
 Object.seal({
 
-  results:new Map()
+  results:new Map(),
+
+  cacheMisses:0,
+
+  cacheEvictions:0
 
 });
 
@@ -24,6 +28,9 @@ function getCachedSearch(
   .get(cacheKey);
 
   if(!cached){
+
+    searchCache
+    .cacheMisses++;
 
     return null;
   }
@@ -40,6 +47,9 @@ function getCachedSearch(
     .delete(
       cacheKey
     );
+
+    searchCache
+    .cacheMisses++;
 
     return null;
   }
@@ -76,6 +86,9 @@ function setCachedSearch(
 
     searchCache.results
     .delete(firstKey);
+
+    searchCache
+    .cacheEvictions++;
 
   }
 
