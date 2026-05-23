@@ -21,6 +21,8 @@ Object.seal({
 
   newChatButton:null,
 
+  newChatHandler:null,
+
   historyElements:
   new Map()
 
@@ -33,6 +35,15 @@ Object.seal({
 // =====================================
 
 function initializeSidebarElements(){
+
+  if(
+    typeof document ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
 
   sidebarState
   .chatHistoryList =
@@ -47,6 +58,8 @@ function initializeSidebarElements(){
     document.getElementById(
       "newChatButton"
     );
+
+  return true;
 
 }
 
@@ -145,12 +158,54 @@ function attachSidebarListeners(){
 
 
 // =====================================
+// ABORT ACTIVE GENERATION
+// =====================================
+
+async function abortSidebarGeneration(){
+
+  if(
+
+    typeof abortMessageGeneration !==
+    "function"
+
+  ){
+
+    return true;
+
+  }
+
+  try{
+
+    await abortMessageGeneration();
+
+    return true;
+
+  }
+
+  catch(error){
+
+    logError(error);
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // SIDEBAR CLICK
 // =====================================
 
-function handleSidebarClick(
+async function handleSidebarClick(
   event
 ){
+
+  if(!event){
+
+    return;
+  }
 
   const deleteButton =
   event.target.closest(
@@ -196,7 +251,7 @@ function handleSidebarClick(
       return;
     }
 
-    deleteChat(
+    await deleteChat(
       chatId
     );
 
@@ -213,7 +268,7 @@ function handleSidebarClick(
     return;
   }
 
-  loadChat(
+  await loadChat(
 
     historyItem.dataset
     .chatId
@@ -228,9 +283,14 @@ function handleSidebarClick(
 // SIDEBAR KEYBOARD
 // =====================================
 
-function handleSidebarKeyboard(
+async function handleSidebarKeyboard(
   event
 ){
+
+  if(!event){
+
+    return;
+  }
 
   const historyItem =
   event.target.closest(
@@ -264,7 +324,7 @@ function handleSidebarKeyboard(
 
   event.preventDefault();
 
-  loadChat(
+  await loadChat(
 
     historyItem.dataset
     .chatId
@@ -290,7 +350,14 @@ function setupSidebar(){
 
   }
 
+  const initialized =
   initializeSidebarElements();
+
+  if(!initialized){
+
+    return false;
+
+  }
 
   const valid =
   validateSidebarElements();
@@ -363,17 +430,18 @@ function setupNewChatButton(){
   .newChatButton =
   cleanButton;
 
-  const button =
   sidebarState
-  .newChatButton;
+  .newChatHandler =
+  async () => {
 
-  button.addEventListener(
+    await createNewChat();
+
+  };
+
+  cleanButton.addEventListener(
     "click",
-    () => {
-
-      createNewChat();
-
-    }
+    sidebarState
+    .newChatHandler
   );
 
   return true;
@@ -386,7 +454,9 @@ function setupNewChatButton(){
 // CREATE NEW CHAT
 // =====================================
 
-function createNewChat(){
+async function createNewChat(){
+
+  await abortSidebarGeneration();
 
   const hasMessages =
 
@@ -401,16 +471,27 @@ function createNewChat(){
 
   if(hasMessages){
 
-    Promise.resolve(
-      saveCurrentChat()
-    )
-    .catch(logError);
+    try{
+
+      await Promise.resolve(
+        saveCurrentChat()
+      );
+
+    }
+
+    catch(error){
+
+      logError(error);
+
+    }
 
   }
 
   clearTypingIndicator();
 
-  resetCurrentChat();
+  await Promise.resolve(
+    resetCurrentChat()
+  );
 
   renderChatMessages();
 
@@ -418,7 +499,17 @@ function createNewChat(){
 
   if(messageInput){
 
-    messageInput.focus();
+    try{
+
+      messageInput.focus();
+
+    }
+
+    catch(error){
+
+      logError(error);
+
+    }
 
   }
 
@@ -832,7 +923,7 @@ function createHistoryActions(
 // LOAD CHAT
 // =====================================
 
-function loadChat(
+async function loadChat(
   chatId
 ){
 
@@ -854,6 +945,8 @@ function loadChat(
 
   }
 
+  await abortSidebarGeneration();
+
   clearTypingIndicator();
 
   const hasMessages =
@@ -869,10 +962,19 @@ function loadChat(
 
   if(hasMessages){
 
-    Promise.resolve(
-      saveCurrentChat()
-    )
-    .catch(logError);
+    try{
+
+      await Promise.resolve(
+        saveCurrentChat()
+      );
+
+    }
+
+    catch(error){
+
+      logError(error);
+
+    }
 
   }
 
@@ -915,7 +1017,17 @@ function loadChat(
 
   if(messageInput){
 
-    messageInput.focus();
+    try{
+
+      messageInput.focus();
+
+    }
+
+    catch(error){
+
+      logError(error);
+
+    }
 
   }
 
@@ -933,7 +1045,7 @@ function loadChat(
 // DELETE CHAT
 // =====================================
 
-function deleteChat(
+async function deleteChat(
   chatId
 ){
 
@@ -945,6 +1057,8 @@ function deleteChat(
     return false;
 
   }
+
+  await abortSidebarGeneration();
 
   const chats =
   getSortedChats();
@@ -1006,7 +1120,9 @@ function deleteChat(
 
     else{
 
-      resetCurrentChat();
+      await Promise.resolve(
+        resetCurrentChat()
+      );
 
     }
 
@@ -1018,7 +1134,17 @@ function deleteChat(
 
   if(messageInput){
 
-    messageInput.focus();
+    try{
+
+      messageInput.focus();
+
+    }
+
+    catch(error){
+
+      logError(error);
+
+    }
 
   }
 
@@ -1129,6 +1255,29 @@ function destroySidebar(){
 
   }
 
+  if(
+    sidebarState
+    .newChatButton
+
+    &&
+
+    sidebarState
+    .newChatHandler
+  ){
+
+    sidebarState
+    .newChatButton
+    .removeEventListener(
+
+      "click",
+
+      sidebarState
+      .newChatHandler
+
+    );
+
+  }
+
   sidebarState
   .historyElements
   .clear();
@@ -1140,6 +1289,18 @@ function destroySidebar(){
   sidebarState
   .initialized =
   false;
+
+  sidebarState
+  .chatHistoryList =
+  null;
+
+  sidebarState
+  .newChatButton =
+  null;
+
+  sidebarState
+  .newChatHandler =
+  null;
 
   return true;
 
