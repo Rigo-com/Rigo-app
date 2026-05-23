@@ -8,7 +8,7 @@
 const ConfigAPI =
 Object.freeze({
 
-  app:
+  info:
   APP_INFO,
 
   environment:
@@ -27,16 +27,28 @@ Object.freeze({
   APP_CORE_CONFIG,
 
   runtime:
+  ConfigRuntime,
+
+  runtimeState:
   configRuntimeState,
 
   get:
   getConfigValue,
 
-  set:
-  setConfigValue,
+  update:
+  updateRuntimeConfig,
 
-  has:
-  hasConfigValue,
+  updateFeature:
+  updateFeatureFlag,
+
+  validate:
+  validateAppConfig,
+
+  snapshot:
+  createConfigSnapshot,
+
+  diagnostics:
+  getConfigRuntimeDiagnostics,
 
   reset:
   resetRuntimeConfig
