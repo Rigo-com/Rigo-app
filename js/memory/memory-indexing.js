@@ -285,7 +285,11 @@ function tokenizeMemoryText(
   const rawTokens =
 
     normalizedText
-    .split(/[\s.,!?;:/\\()[\]{}"'`<>@#$%^&*_+=|-]+/g);
+    .match(/[a-z0-9]+/gi)
+
+    ||
+
+    [];
 
   const uniqueTokens =
   new Set();
@@ -461,7 +465,32 @@ function validateMemoryIndexes(){
 
         );
 
+        return;
+
       }
+
+      indexes[indexName]
+      .forEach((bucket) => {
+
+        if(
+
+          indexName !== "byId"
+
+          &&
+
+          !(bucket instanceof Set)
+
+        ){
+
+          errors.push(
+
+            `INVALID_BUCKET_${indexName}`
+
+          );
+
+        }
+
+      });
 
     });
 
@@ -523,6 +552,21 @@ function indexMemory(
   if(!memoryId){
 
     return false;
+
+  }
+
+  const existingMemory =
+  memoryState.indexes
+  .byId
+  .get(
+    memoryId
+  );
+
+  if(existingMemory){
+
+    deindexMemory(
+      existingMemory
+    );
 
   }
 
@@ -650,7 +694,10 @@ function indexMemory(
       memory
     );
 
-    tokens.forEach((token) => {
+    const uniqueTokens =
+    new Set(tokens);
+
+    uniqueTokens.forEach((token) => {
 
       addMemoryIndexValue(
 
@@ -682,7 +729,14 @@ function indexMemory(
     ){
 
       if(
+
         relations.parentMemoryId
+
+        &&
+
+        relations.parentMemoryId !==
+        memoryId
+
       ){
 
         addMemoryIndexValue(
@@ -708,6 +762,15 @@ function indexMemory(
 
         relations.relatedMemoryIds
         .forEach((relatedId) => {
+
+          if(
+            relatedId ===
+            memoryId
+          ){
+
+            return;
+
+          }
 
           addMemoryIndexValue(
 
@@ -735,6 +798,15 @@ function indexMemory(
         relations.childMemoryIds
         .forEach((childId) => {
 
+          if(
+            childId ===
+            memoryId
+          ){
+
+            return;
+
+          }
+
           addMemoryIndexValue(
 
             memoryState.indexes
@@ -754,6 +826,24 @@ function indexMemory(
 
   }
 
+  if(
+
+    MEMORY_INDEX_CONFIG
+    .ENABLE_EMBEDDING_INDEXING
+
+    &&
+
+    typeof markEmbeddingDirty ===
+    "function"
+
+  ){
+
+    markEmbeddingDirty(
+      memoryId
+    );
+
+  }
+
   return true;
 
 }
@@ -767,6 +857,15 @@ function indexMemory(
 function deindexMemory(
   memory
 ){
+
+  if(
+    typeof memory !==
+    "object"
+  ){
+
+    return false;
+
+  }
 
   if(
     !memory ||
@@ -906,6 +1005,111 @@ function deindexMemory(
     }
 
   }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CLEANUP ORPHAN INDEXES
+// =====================================
+
+function cleanupOrphanIndexes(){
+
+  const validIds =
+  new Set(
+
+    memoryState.memories
+    .map((memory) => {
+
+      return normalizeMemoryString(
+        memory.id
+      );
+
+    })
+
+  );
+
+  Object.values(
+    memoryState.indexes
+  )
+  .forEach((index) => {
+
+    if(
+      !(index instanceof Map)
+    ){
+
+      return;
+
+    }
+
+    index.forEach((bucket,key) => {
+
+      if(
+        bucket instanceof Set
+      ){
+
+        [...bucket]
+        .forEach((id) => {
+
+          if(
+            !validIds.has(id)
+          ){
+
+            bucket.delete(id);
+
+          }
+
+        });
+
+        if(
+          bucket.size <= 0
+        ){
+
+          index.delete(key);
+
+        }
+
+      }
+
+    });
+
+  });
+
+  return true;
+
+}
+
+
+
+// =====================================
+// REBUILD INDEXES
+// =====================================
+
+function rebuildMemoryIndexes(){
+
+  Object.keys(
+    memoryState.indexes
+  )
+  .forEach((key) => {
+
+    memoryState.indexes[key]
+    .clear();
+
+  });
+
+  memoryState.memories
+  .forEach((memory) => {
+
+    indexMemory(
+      memory
+    );
+
+  });
+
+  cleanupOrphanIndexes();
 
   return true;
 
