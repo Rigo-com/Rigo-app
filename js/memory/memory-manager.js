@@ -243,7 +243,11 @@ function runMemoryHealthCheck(){
         return memoryState
         .indexes
         .byId
-        .has(memory.id);
+        .has(
+          normalizeMemoryString(
+            memory.id
+          )
+        );
 
       });
 
@@ -453,6 +457,15 @@ async function initializeMemorySystem(){
 
   }
 
+  if(
+    memoryManagerState
+    .initializing
+  ){
+
+    return false;
+
+  }
+
   memoryManagerState
   .initializing = true;
 
@@ -486,6 +499,10 @@ async function initializeMemorySystem(){
 
     }
 
+    rebuildMemoryIndexes();
+
+    rebuildDirtyEmbeddings();
+
     updateMemoryMetrics();
 
     startMemoryServices();
@@ -502,6 +519,9 @@ async function initializeMemorySystem(){
 
     memoryState.runtime
     .initialized = true;
+
+    memoryState.runtime
+    .corrupted = false;
 
     return true;
 
@@ -642,6 +662,8 @@ async function createMemory(
         memory.id
       );
 
+      clearSearchCache();
+
       updateMemoryMetrics();
 
       const saved =
@@ -673,6 +695,10 @@ async function createMemory(
           memory.id
         );
 
+        clearSearchCache();
+
+        updateMemoryMetrics();
+
         return null;
 
       }
@@ -680,7 +706,9 @@ async function createMemory(
       memoryState.stats
       .saves++;
 
-      return memory;
+      return freezeMemoryObject(
+        memory
+      );
 
     }
   );
@@ -710,9 +738,14 @@ async function updateMemoryData(
   return runMemoryTransaction(
     async() => {
 
+      const normalizedMemoryId =
+      normalizeMemoryString(
+        memoryId
+      );
+
       const existingMemory =
       getMemoryById(
-        memoryId
+        normalizedMemoryId
       );
 
       if(
@@ -764,8 +797,15 @@ async function updateMemoryData(
         .findIndex((memory) => {
 
           return (
-            memory.id ===
-            memoryId
+
+            normalizeMemoryString(
+              memory.id
+            )
+
+            ===
+
+            normalizedMemoryId
+
           );
 
         });
@@ -782,13 +822,16 @@ async function updateMemoryData(
         memoryIndex
       ] = updatedMemory;
 
-      updateMemoryIndexes(
-        existingMemory,
+      deindexMemory(
+        previousMemory
+      );
+
+      indexMemory(
         updatedMemory
       );
 
       markMemoryDirty(
-        memoryId
+        normalizedMemoryId
       );
 
       clearSearchCache();
@@ -806,16 +849,23 @@ async function updateMemoryData(
           memoryIndex
         ] = previousMemory;
 
-        updateMemoryIndexes(
-          updatedMemory,
+        deindexMemory(
+          updatedMemory
+        );
+
+        indexMemory(
           previousMemory
         );
 
         memoryState.tracking
         .dirtyIds
         .delete(
-          memoryId
+          normalizedMemoryId
         );
+
+        clearSearchCache();
+
+        updateMemoryMetrics();
 
         return null;
 
@@ -824,7 +874,9 @@ async function updateMemoryData(
       memoryState.stats
       .updates++;
 
-      return updatedMemory;
+      return freezeMemoryObject(
+        updatedMemory
+      );
 
     }
   );
@@ -853,9 +905,14 @@ async function deleteMemoryData(
   return runMemoryTransaction(
     async() => {
 
+      const normalizedMemoryId =
+      normalizeMemoryString(
+        memoryId
+      );
+
       const memory =
       getMemoryById(
-        memoryId
+        normalizedMemoryId
       );
 
       if(!memory){
@@ -870,8 +927,15 @@ async function deleteMemoryData(
         .findIndex((item) => {
 
           return (
-            item.id ===
-            memoryId
+
+            normalizeMemoryString(
+              item.id
+            )
+
+            ===
+
+            normalizedMemoryId
+
           );
 
         });
@@ -900,7 +964,7 @@ async function deleteMemoryData(
       );
 
       markMemoryDeleted(
-        memoryId
+        normalizedMemoryId
       );
 
       clearSearchCache();
@@ -928,8 +992,12 @@ async function deleteMemoryData(
         memoryState.tracking
         .deletedIds
         .delete(
-          memoryId
+          normalizedMemoryId
         );
+
+        clearSearchCache();
+
+        updateMemoryMetrics();
 
         return false;
 
@@ -965,6 +1033,15 @@ async function syncMemorySystem(){
   if(
     memoryManagerState
     .shuttingDown
+  ){
+
+    return false;
+
+  }
+
+  if(
+    memoryState.runtime
+    .syncing
   ){
 
     return false;
@@ -1018,6 +1095,9 @@ async function syncMemorySystem(){
     memoryState.runtime
     .lastError =
     error;
+
+    memoryState.metrics
+    .failedOperations++;
 
     return false;
 
