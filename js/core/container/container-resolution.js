@@ -230,6 +230,33 @@ async function resolveService(
       .lastResolvedAt =
       Date.now();
 
+      if(
+        typeof emitSystemEvent ===
+        "function"
+      ){
+
+        await emitSystemEvent(
+
+          CONTAINER_EVENTS
+          .RESOLVED,
+
+          {
+
+            service:
+            normalizedName,
+
+            lifecycle:
+            serviceDefinition
+            .lifecycle,
+
+            scope
+
+          }
+
+        );
+
+      }
+
       return singleton;
 
     }
@@ -289,6 +316,37 @@ async function resolveService(
       .diagnostics
       .resolved++;
 
+      dependencyContainerState
+      .lastResolvedAt =
+      Date.now();
+
+      if(
+        typeof emitSystemEvent ===
+        "function"
+      ){
+
+        await emitSystemEvent(
+
+          CONTAINER_EVENTS
+          .RESOLVED,
+
+          {
+
+            service:
+            normalizedName,
+
+            lifecycle:
+            serviceDefinition
+            .lifecycle,
+
+            scope
+
+          }
+
+        );
+
+      }
+
       return scopedInstance;
 
     }
@@ -315,6 +373,33 @@ async function resolveService(
     dependencyContainerState
     .lastResolvedAt =
     Date.now();
+
+    if(
+      typeof emitSystemEvent ===
+      "function"
+    ){
+
+      await emitSystemEvent(
+
+        CONTAINER_EVENTS
+        .RESOLVED,
+
+        {
+
+          service:
+          normalizedName,
+
+          lifecycle:
+          serviceDefinition
+          .lifecycle,
+
+          scope
+
+        }
+
+      );
+
+    }
 
     return transientInstance;
 
@@ -349,18 +434,31 @@ async function resolveService(
   finally{
 
     dependencyContainerState
-    .resolutionStack =
-    dependencyContainerState
     .resolutionStack
-    .filter((item) => {
-
-      return (
-        item !==
-        normalizedName
-      );
-
-    });
+    .pop();
 
   }
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.resolveDependencies =
+  resolveDependencies;
+
+  window.createServiceInstance =
+  createServiceInstance;
+
+  window.resolveService =
+  resolveService;
 
 }
