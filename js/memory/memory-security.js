@@ -32,6 +32,12 @@ Object.freeze({
   MAX_ENCRYPTION_SIZE:
   1024 * 1024 * 5,
 
+  MAX_EXPORT_SIZE:
+  1024 * 1024 * 20,
+
+  MAX_SESSION_AGE:
+  86400000,
+
   SECURITY_VERSION:"1.0.0"
 
 });
@@ -135,6 +141,89 @@ function isCryptoAvailable(){
 function createSecurityTimestamp(){
 
   return Date.now();
+
+}
+
+
+
+// =====================================
+// SECURE STRING COMPARE
+// =====================================
+
+function secureCompareStrings(
+  valueA,
+  valueB
+){
+
+  try{
+
+    const normalizedA =
+    String(valueA || "");
+
+    const normalizedB =
+    String(valueB || "");
+
+    if(
+      normalizedA.length !==
+      normalizedB.length
+    ){
+
+      return false;
+
+    }
+
+    let result = 0;
+
+    for(
+      let i = 0;
+      i < normalizedA.length;
+      i++
+    ){
+
+      result |= (
+
+        normalizedA.charCodeAt(i)
+
+        ^
+
+        normalizedB.charCodeAt(i)
+
+      );
+
+    }
+
+    return result === 0;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// ENCRYPTION KEY VALIDATION
+// =====================================
+
+function isValidEncryptionKey(
+  encryptionKey
+){
+
+  return (
+
+    encryptionKey instanceof CryptoKey
+
+    ||
+
+    typeof encryptionKey ===
+    "object"
+
+  );
 
 }
 
@@ -375,8 +464,8 @@ async function verifyMemorySignature(
       })
     );
 
-    return (
-      trustedSignature ===
+    return secureCompareStrings(
+      trustedSignature,
       currentSignature
     );
 
@@ -550,30 +639,40 @@ function base64ToUint8Array(
   base64
 ){
 
-  const binary =
-  atob(base64);
+  try{
 
-  const bytes =
-  new Uint8Array(
-    binary.length
-  );
+    const binary =
+    atob(base64);
 
-  for(
+    const bytes =
+    new Uint8Array(
+      binary.length
+    );
 
-    let i = 0;
+    for(
 
-    i < binary.length;
+      let i = 0;
 
-    i++
+      i < binary.length;
 
-  ){
+      i++
 
-    bytes[i] =
-    binary.charCodeAt(i);
+    ){
+
+      bytes[i] =
+      binary.charCodeAt(i);
+
+    }
+
+    return bytes;
 
   }
 
-  return bytes;
+  catch(error){
+
+    return new Uint8Array();
+
+  }
 
 }
 
@@ -593,6 +692,16 @@ async function encryptMemoryContent(
     if(
       !MEMORY_SECURITY_CONFIG
       .ENABLE_ENCRYPTION
+    ){
+
+      return null;
+
+    }
+
+    if(
+      !isValidEncryptionKey(
+        encryptionKey
+      )
     ){
 
       return null;
@@ -698,6 +807,16 @@ async function decryptMemoryContent(
 
     }
 
+    if(
+      !isValidEncryptionKey(
+        encryptionKey
+      )
+    ){
+
+      return null;
+
+    }
+
     const encryptedBytes =
     base64ToUint8Array(
       encryptedPayload
@@ -797,6 +916,16 @@ function sanitizeSecureMemoryContent(
 
   .replace(
     /Function\s*\(/gi,
+    ""
+  )
+
+  .replace(
+    /ignore\s+previous\s+instructions/gi,
+    ""
+  )
+
+  .replace(
+    /system\s*prompt/gi,
     ""
   )
 
@@ -915,6 +1044,24 @@ async function createSecureMemoryExport(){
       memoryState.memories
     );
 
+    const serialized =
+    JSON.stringify(
+      memories
+    );
+
+    if(
+
+      serialized.length >
+
+      MEMORY_SECURITY_CONFIG
+      .MAX_EXPORT_SIZE
+
+    ){
+
+      return null;
+
+    }
+
     const signatures = [];
 
     for(
@@ -938,6 +1085,11 @@ async function createSecureMemoryExport(){
 
     }
 
+    const exportChecksum =
+    await createMemoryHash(
+      serialized
+    );
+
     return {
 
       exportId:
@@ -952,6 +1104,9 @@ async function createSecureMemoryExport(){
 
       memoryCount:
       memories.length,
+
+      checksum:
+      exportChecksum,
 
       signatures,
 
@@ -996,7 +1151,9 @@ function createSecureSession(){
   memorySecurityState
   .activeSessions
   .add(
-    session.sessionId
+    deepFreeze(
+      session
+    )
   );
 
   return deepFreeze(
@@ -1011,13 +1168,122 @@ function invalidateSecureSession(
   sessionId
 ){
 
-  return memorySecurityState
-  .activeSessions
-  .delete(
-    normalizeMemoryString(
-      sessionId
-    )
+  const normalizedSessionId =
+  normalizeMemoryString(
+    sessionId
   );
+
+  let removed = false;
+
+  memorySecurityState
+  .activeSessions
+  .forEach((session) => {
+
+    if(
+      session.sessionId ===
+      normalizedSessionId
+    ){
+
+      memorySecurityState
+      .activeSessions
+      .delete(session);
+
+      removed = true;
+
+    }
+
+  });
+
+  return removed;
+
+}
+
+
+
+// =====================================
+// SESSION CLEANUP
+// =====================================
+
+function cleanupExpiredSecuritySessions(){
+
+  const now =
+  Date.now();
+
+  const expiredSessions = [];
+
+  memorySecurityState
+  .activeSessions
+  .forEach((session) => {
+
+    if(
+
+      now -
+
+      session.createdAt >
+
+      MEMORY_SECURITY_CONFIG
+      .MAX_SESSION_AGE
+
+    ){
+
+      expiredSessions.push(
+        session
+      );
+
+    }
+
+  });
+
+  expiredSessions.forEach((session) => {
+
+    memorySecurityState
+    .activeSessions
+    .delete(
+      session
+    );
+
+  });
+
+  return expiredSessions.length;
+
+}
+
+
+
+// =====================================
+// SECURITY CLEANUP
+// =====================================
+
+function cleanupMemorySecurityState(){
+
+  cleanupExpiredSecuritySessions();
+
+  if(
+
+    memorySecurityState
+    .securityErrors
+    .length >
+
+    MEMORY_SECURITY_CONFIG
+    .MAX_SECURITY_ERRORS
+
+  ){
+
+    memorySecurityState
+    .securityErrors =
+
+    memorySecurityState
+    .securityErrors
+    .slice(
+
+      -MEMORY_SECURITY_CONFIG
+      .MAX_SECURITY_ERRORS
+
+    );
+
+  }
+
+  return true;
 
 }
 
@@ -1029,7 +1295,7 @@ function invalidateSecureSession(
 
 function getMemorySecurityDiagnostics(){
 
-  return {
+  return deepFreeze({
 
     initialized:
     memorySecurityState
@@ -1096,6 +1362,6 @@ function getMemorySecurityDiagnostics(){
       memorySecurityState
       .lastEncryptionAt
 
-  };
+  });
 
 }
