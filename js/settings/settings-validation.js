@@ -22,6 +22,26 @@ function validateSettingsObject(
     return false;
   }
 
+  if(
+    typeof settings.version !==
+    "string"
+  ){
+
+    return false;
+  }
+
+  if(
+
+    !settings.settings ||
+
+    typeof settings.settings !==
+    "object"
+
+  ){
+
+    return false;
+  }
+
   try{
 
     const serialized =
