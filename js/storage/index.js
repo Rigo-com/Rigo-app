@@ -7,49 +7,131 @@ function getStorageDiagnostics(){
   return Object.freeze({
 
     initialized:
-    storageState.initialized,
+    storageState
+    .initialized,
 
     available:
-    storageState.available,
+    storageState
+    .available,
 
     hydrated:
-    storageState.hydrated,
+    storageState
+    .hydrated,
 
     pendingHydration:
-    storageState.pendingHydration,
+    storageState
+    .pendingHydration,
 
     writing:
-    storageState.writing,
+    storageState
+    .writing,
 
     destroyed:
-    storageState.destroyed,
+    storageState
+    .destroyed,
+
+
+
+    // ===================================
+    // TIMESTAMPS
+    // ===================================
 
     lastSyncAt:
-    storageState.lastSyncAt,
+    storageState
+    .lastSyncAt,
 
     lastWriteAt:
-    storageState.lastWriteAt,
+    storageState
+    .lastWriteAt,
+
+    lastHydrationAt:
+    storageState
+    .lastHydrationAt,
+
+    lastMemoryWriteVersion:
+    storageState
+    .lastMemoryWriteVersion,
+
+
+
+    // ===================================
+    // QUEUE
+    // ===================================
 
     queueSize:
 
+      Array.isArray(
+
+        storageState
+        .writeQueue
+
+      )
+
+      ?
+
       storageState
       .writeQueue
-      .length,
+      .length
+
+      :
+
+      0,
+
+
+
+    // ===================================
+    // METRICS
+    // ===================================
 
     failedWrites:
-    storageState.failedWrites,
+    storageState
+    .failedWrites,
 
     quotaRecoveries:
-    storageState.quotaRecoveries,
+    storageState
+    .quotaRecoveries,
+
+
+
+    // ===================================
+    // CACHE
+    // ===================================
 
     cachedChats:
+
+      Array.isArray(
+
+        storageState
+        .cache
+        .chats
+
+      )
+
+      ?
 
       storageState
       .cache
       .chats
-      .length,
+      .length
+
+      :
+
+      0,
 
     cachedMemoryKeys:
+
+      storageState
+      .cache
+      .memory
+
+      &&
+
+      typeof storageState
+      .cache
+      .memory ===
+      "object"
+
+      ?
 
       Object.keys(
 
@@ -58,6 +140,10 @@ function getStorageDiagnostics(){
         .memory
 
       ).length
+
+      :
+
+      0
 
   });
 
@@ -73,19 +159,67 @@ function isStorageReady(){
 
   return (
 
-    storageState.initialized
-
-    &&
-
-    storageState.available ===
+    storageState
+    .initialized ===
     true
 
     &&
 
-    storageState.destroyed ===
+    storageState
+    .available ===
+    true
+
+    &&
+
+    storageState
+    .hydrated ===
+    true
+
+    &&
+
+    storageState
+    .destroyed ===
     false
 
   );
+
+}
+
+
+
+// =====================================
+// SAFE STATE SNAPSHOT
+// =====================================
+
+function getStorageStateSnapshot(){
+
+  return deepClone({
+
+    initialized:
+    storageState
+    .initialized,
+
+    available:
+    storageState
+    .available,
+
+    hydrated:
+    storageState
+    .hydrated,
+
+    pendingHydration:
+    storageState
+    .pendingHydration,
+
+    writing:
+    storageState
+    .writing,
+
+    destroyed:
+    storageState
+    .destroyed
+
+  });
 
 }
 
@@ -104,14 +238,32 @@ Object.freeze({
   destroy:
   destroyStorageRuntime,
 
+
+
+  // ===================================
+  // CHAT
+  // ===================================
+
   saveChats,
   loadChats,
+
+  saveCurrentChat,
+  getChatById,
+
+
+
+  // ===================================
+  // MEMORY
+  // ===================================
 
   saveMemory,
   loadMemory,
 
-  saveCurrentChat,
-  getChatById,
+
+
+  // ===================================
+  // STATUS
+  // ===================================
 
   diagnostics:
   getStorageDiagnostics,
@@ -119,7 +271,7 @@ Object.freeze({
   isReady:
   isStorageReady,
 
-  state:
-  storageState
+  getState:
+  getStorageStateSnapshot
 
 });
