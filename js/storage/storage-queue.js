@@ -1,4 +1,13 @@
 // =====================================
+// STORAGE QUEUE CONFIG
+// =====================================
+
+const MAX_STORAGE_QUEUE_SIZE =
+1000;
+
+
+
+// =====================================
 // STORAGE WRITE QUEUE
 // =====================================
 
@@ -7,9 +16,38 @@ function enqueueStorageWrite(
 ){
 
   if(
+    storageState.destroyed
+  ){
+
+    return false;
+
+  }
+
+  if(
     typeof callback !==
     "function"
   ){
+
+    return false;
+
+  }
+
+  if(
+
+    storageState
+    .writeQueue
+    .length >=
+
+    MAX_STORAGE_QUEUE_SIZE
+
+  ){
+
+    storageState
+    .failedWrites++;
+
+    handleStorageError(
+      "STORAGE QUEUE LIMIT EXCEEDED"
+    );
 
     return false;
 
@@ -33,18 +71,41 @@ function enqueueStorageWrite(
 function processStorageQueue(){
 
   if(
+    storageState.destroyed
+  ){
+
+    return;
+  }
+
+  if(
     storageState.writing
   ){
 
     return;
   }
 
-  clearTimeout(
+  if(
     storageState.writeTimer
-  );
+  ){
+
+    clearTimeout(
+      storageState.writeTimer
+    );
+
+    storageState.writeTimer =
+    null;
+
+  }
 
   storageState.writeTimer =
   setTimeout(async () => {
+
+    if(
+      storageState.destroyed
+    ){
+
+      return;
+    }
 
     storageState.writing =
     true;
@@ -59,11 +120,26 @@ function processStorageQueue(){
 
       ){
 
+        if(
+          storageState.destroyed
+        ){
+
+          break;
+        }
+
         const callback =
 
           storageState
           .writeQueue
           .shift();
+
+        if(
+          typeof callback !==
+          "function"
+        ){
+
+          continue;
+        }
 
         try{
 
@@ -74,6 +150,9 @@ function processStorageQueue(){
         }
 
         catch(error){
+
+          storageState
+          .failedWrites++;
 
           handleStorageError(
             "STORAGE QUEUE ERROR",
@@ -93,6 +172,25 @@ function processStorageQueue(){
 
       storageState.writing =
       false;
+
+      storageState.writeTimer =
+      null;
+
+      if(
+
+        !storageState.destroyed
+
+        &&
+
+        storageState
+        .writeQueue
+        .length > 0
+
+      ){
+
+        processStorageQueue();
+
+      }
 
     }
 
