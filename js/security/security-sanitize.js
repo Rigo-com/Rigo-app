@@ -1,4 +1,12 @@
 // =====================================
+// RIGO AI
+// SECURITY SANITIZE
+// ENTERPRISE SANITIZATION ENGINE
+// =====================================
+
+
+
+// =====================================
 // SAFE STRING
 // =====================================
 
@@ -163,6 +171,222 @@ function sanitizeHTML(
 
   }
 
+  logSecurityEvent(
+    "HTML SANITIZED"
+  );
+
   return sanitized;
 
 }
+
+
+
+// =====================================
+// SANITIZE URL
+// =====================================
+
+function sanitizeURL(
+  url
+){
+
+  const normalized =
+  safeString(url);
+
+  if(!normalized){
+
+    return "";
+  }
+
+  const blockedProtocols = [
+
+    "javascript:",
+
+    "data:",
+
+    "vbscript:"
+
+  ];
+
+  const lowered =
+  normalized
+  .toLowerCase();
+
+  const blocked =
+  blockedProtocols
+  .some((protocol) => {
+
+    return lowered.startsWith(
+      protocol
+    );
+
+  });
+
+  if(blocked){
+
+    securityState
+    .blockedURLs++;
+
+    logSecurityEvent(
+      "BLOCKED URL",
+      { url }
+    );
+
+    return "";
+  }
+
+  return normalized;
+
+}
+
+
+
+// =====================================
+// SANITIZE OBJECT
+// =====================================
+
+function sanitizeObject(
+  object,
+  visited = new WeakSet()
+){
+
+  if(
+    object == null
+  ){
+
+    return null;
+
+  }
+
+  if(
+
+    typeof object !==
+    "object"
+
+  ){
+
+    return safeString(
+      object
+    );
+
+  }
+
+  if(
+    visited.has(object)
+  ){
+
+    return null;
+
+  }
+
+  visited.add(
+    object
+  );
+
+  if(
+    Array.isArray(object)
+  ){
+
+    return object.map((item) => {
+
+      return sanitizeObject(
+        item,
+        visited
+      );
+
+    });
+
+  }
+
+  const cleanObject =
+  Object.create(null);
+
+  Object.entries(object)
+  .forEach(([key,value]) => {
+
+    if(
+
+      key === "__proto__" ||
+
+      key === "constructor" ||
+
+      key === "prototype"
+
+    ){
+
+      return;
+
+    }
+
+    cleanObject[
+      safeString(key)
+    ] = sanitizeObject(
+      value,
+      visited
+    );
+
+  });
+
+  return cleanObject;
+
+}
+
+
+
+// =====================================
+// SANITIZE PROMPT
+// =====================================
+
+function sanitizePrompt(
+  prompt
+){
+
+  const normalized =
+  safeString(prompt);
+
+  return normalized
+
+  .replace(
+    /ignore previous instructions/gi,
+    ""
+  )
+
+  .replace(
+    /system prompt/gi,
+    ""
+  )
+
+  .replace(
+    /developer message/gi,
+    ""
+
+  )
+
+  .trim();
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SecuritySanitize =
+Object.freeze({
+
+  string:
+  safeString,
+
+  html:
+  sanitizeHTML,
+
+  url:
+  sanitizeURL,
+
+  object:
+  sanitizeObject,
+
+  prompt:
+  sanitizePrompt
+
+});
