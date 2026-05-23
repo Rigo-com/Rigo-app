@@ -1,13 +1,13 @@
 // =====================================
 // RIGO AI
 // MEMORY UTILS
-// ENTERPRISE INFINITY GOD FINAL
+// ENTERPRISE INFINITY ULTRA FINAL
 // =====================================
 
 
 
 // =====================================
-// TOKENIZATION CONFIG
+// UTILS CONFIG
 // =====================================
 
 const MEMORY_UTILS_CONFIG =
@@ -15,15 +15,21 @@ Object.freeze({
 
   MIN_TOKEN_LENGTH:2,
 
-  MAX_TOKEN_LENGTH:50,
+  MAX_TOKEN_LENGTH:64,
 
-  MAX_TOKENS:500,
+  MAX_TOKENS:1000,
 
-  HASH_LENGTH:32,
+  HASH_LENGTH:64,
 
   MAX_TEXT_LENGTH:50000,
 
-  MAX_ARRAY_LENGTH:10000
+  MAX_ARRAY_LENGTH:10000,
+
+  MAX_RETRY_COUNT:5,
+
+  DEFAULT_DEBOUNCE:300,
+
+  DEFAULT_THROTTLE:300
 
 });
 
@@ -167,6 +173,30 @@ function safeMemoryObject(
 
 
 // =====================================
+// SAFE BOOLEAN
+// =====================================
+
+function safeMemoryBoolean(
+  value,
+  fallback = false
+){
+
+  if(
+    typeof value ===
+    "boolean"
+  ){
+
+    return value;
+
+  }
+
+  return fallback;
+
+}
+
+
+
+// =====================================
 // NORMALIZE TEXT
 // =====================================
 
@@ -214,6 +244,30 @@ function normalizeMemoryTextLower(
 
 
 // =====================================
+// SAFE CONTENT NORMALIZATION
+// =====================================
+
+function normalizeMemoryContent(
+  text
+){
+
+  return normalizeMemoryText(
+    text
+  )
+  .slice(
+
+    0,
+
+    MEMORY_UTILS_CONFIG
+    .MAX_TEXT_LENGTH
+
+  );
+
+}
+
+
+
+// =====================================
 // TOKENIZE TEXT
 // =====================================
 
@@ -237,7 +291,9 @@ function tokenizeMemoryText(
 
     normalizedText
 
-    .split(/[^a-z0-9_]+/)
+    .split(
+      /[^a-z0-9\u0600-\u06FF_]+/giu
+    )
 
     .filter((token) => {
 
@@ -305,7 +361,7 @@ function countMemoryTokens(
 // CONTENT HASH
 // =====================================
 
-function createMemoryHash(
+function createUtilityMemoryHash(
   value
 ){
 
@@ -314,7 +370,11 @@ function createMemoryHash(
     value
   );
 
-  let hash = 0;
+  let hash1 =
+  5381;
+
+  let hash2 =
+  52711;
 
   for(
 
@@ -332,32 +392,59 @@ function createMemoryHash(
       normalizedValue
       .charCodeAt(index);
 
-    hash =
+    hash1 =
 
       (
-        hash << 5
+        (hash1 << 5)
+        + hash1
       )
 
-      -
-
-      hash +
+      ^
 
       charCode;
 
-    hash |= 0;
+    hash2 =
+
+      (
+        (hash2 << 5)
+        + hash2
+      )
+
+      ^
+
+      charCode;
 
   }
 
-  return Math.abs(
-    hash
-  )
-  .toString(16)
+  const combinedHash =
+
+    (
+      hash1 >>> 0
+    )
+    .toString(16)
+
+    +
+
+    (
+      hash2 >>> 0
+    )
+    .toString(16);
+
+  return combinedHash
   .padStart(
 
     MEMORY_UTILS_CONFIG
     .HASH_LENGTH,
 
     "0"
+
+  )
+  .slice(
+
+    0,
+
+    MEMORY_UTILS_CONFIG
+    .HASH_LENGTH
 
   );
 
@@ -461,6 +548,50 @@ function deduplicateMemoryArray(
 
 
 // =====================================
+// SAFE BATCHING
+// =====================================
+
+function chunkMemoryArray(
+  values = [],
+  chunkSize = 100
+){
+
+  const safeValues =
+  safeMemoryArray(
+    values
+  );
+
+  const chunks = [];
+
+  for(
+
+    let index = 0;
+
+    index <
+    safeValues.length;
+
+    index += chunkSize
+
+  ){
+
+    chunks.push(
+
+      safeValues.slice(
+        index,
+        index + chunkSize
+      )
+
+    );
+
+  }
+
+  return chunks;
+
+}
+
+
+
+// =====================================
 // SORT HELPERS
 // =====================================
 
@@ -488,6 +619,21 @@ function sortMemoriesByDate(
     safeMemoryNumber(
       b?.[field]
     );
+
+    if(
+      valueA === valueB
+    ){
+
+      return String(
+        a?.id || ""
+      )
+      .localeCompare(
+        String(
+          b?.id || ""
+        )
+      );
+
+    }
 
     return direction ===
     "asc"
@@ -600,8 +746,40 @@ function safeJsonStringify(
 
   try{
 
+    const visited =
+    new WeakSet();
+
     return JSON.stringify(
-      value
+      value,
+      (key,nestedValue) => {
+
+        if(
+
+          nestedValue &&
+
+          typeof nestedValue ===
+          "object"
+
+        ){
+
+          if(
+            visited.has(
+              nestedValue
+            )
+          ){
+
+            return "[Circular]";
+          }
+
+          visited.add(
+            nestedValue
+          );
+
+        }
+
+        return nestedValue;
+
+      }
     );
 
   }
@@ -611,6 +789,85 @@ function safeJsonStringify(
     return fallback;
 
   }
+
+}
+
+
+
+// =====================================
+// DEEP CLONE
+// =====================================
+
+function deepClone(
+  value
+){
+
+  return safeJsonParse(
+
+    safeJsonStringify(
+      value,
+      "null"
+    ),
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// IMMUTABLE FREEZE
+// =====================================
+
+function deepFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(
+    value
+  )
+  .forEach((nestedValue) => {
+
+    deepFreeze(
+      nestedValue,
+      visited
+    );
+
+  });
+
+  return value;
 
 }
 
@@ -746,7 +1003,7 @@ function calculateMemoryRelevance(
 
   ){
 
-    return 0.8;
+    return 0.85;
   }
 
   const textTokens =
@@ -782,8 +1039,37 @@ function calculateMemoryRelevance(
 
   });
 
-  return matches /
-  queryTokens.length;
+  return normalizeMemoryScore(
+    matches /
+    queryTokens.length
+  );
+
+}
+
+
+
+// =====================================
+// SAFE COMPARE
+// =====================================
+
+function areMemoryValuesEqual(
+  firstValue,
+  secondValue
+){
+
+  return (
+
+    safeJsonStringify(
+      firstValue
+    )
+
+    ===
+
+    safeJsonStringify(
+      secondValue
+    )
+
+  );
 
 }
 
@@ -993,5 +1279,121 @@ function normalizeMemoryScore(
     0,
     1
   );
+
+}
+
+
+
+// =====================================
+// RETRY HELPER
+// =====================================
+
+async function retryMemoryOperation(
+  operation,
+  retries =
+  MEMORY_UTILS_CONFIG
+  .MAX_RETRY_COUNT
+){
+
+  let lastError = null;
+
+  for(
+
+    let attempt = 0;
+
+    attempt <= retries;
+
+    attempt++
+
+  ){
+
+    try{
+
+      return await operation();
+
+    }
+
+    catch(error){
+
+      lastError = error;
+
+    }
+
+  }
+
+  throw lastError;
+
+}
+
+
+
+// =====================================
+// DEBOUNCE
+// =====================================
+
+function debounceMemoryFunction(
+  callback,
+  delay =
+  MEMORY_UTILS_CONFIG
+  .DEFAULT_DEBOUNCE
+){
+
+  let timer = null;
+
+  return function(...args){
+
+    clearTimeout(
+      timer
+    );
+
+    timer = setTimeout(() => {
+
+      callback.apply(
+        this,
+        args
+      );
+
+    },delay);
+
+  };
+
+}
+
+
+
+// =====================================
+// THROTTLE
+// =====================================
+
+function throttleMemoryFunction(
+  callback,
+  delay =
+  MEMORY_UTILS_CONFIG
+  .DEFAULT_THROTTLE
+){
+
+  let waiting = false;
+
+  return function(...args){
+
+    if(waiting){
+
+      return;
+    }
+
+    waiting = true;
+
+    callback.apply(
+      this,
+      args
+    );
+
+    setTimeout(() => {
+
+      waiting = false;
+
+    },delay);
+
+  };
 
 }
