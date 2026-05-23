@@ -19,7 +19,7 @@ function validateStorageKey(
   key.trim();
 
   if(
-    normalized.length <= 0
+    !normalized
   ){
 
     return false;
@@ -74,7 +74,7 @@ function normalizeStorageValue(
 
 
 // =====================================
-// STORAGE ENCRYPTION
+// STORAGE ENCODING
 // =====================================
 
 function encodeStorageValue(
@@ -96,8 +96,12 @@ function encodeStorageValue(
 
     return btoa(
 
-      encodeURIComponent(
-        value
+      unescape(
+
+        encodeURIComponent(
+          value
+        )
+
       )
 
     );
@@ -107,7 +111,7 @@ function encodeStorageValue(
   catch(error){
 
     handleStorageError(
-      "STORAGE ENCODE ERROR",
+      "STORAGE_ENCODE_ERROR",
       error
     );
 
@@ -138,7 +142,9 @@ function decodeStorageValue(
 
     return decodeURIComponent(
 
-      atob(value)
+      escape(
+        atob(value)
+      )
 
     );
 
@@ -147,7 +153,7 @@ function decodeStorageValue(
   catch(error){
 
     handleStorageError(
-      "STORAGE DECODE ERROR",
+      "STORAGE_DECODE_ERROR",
       error
     );
 
@@ -182,7 +188,7 @@ function recoverStorageQuota(){
     }
 
     const parsedChats =
-    safeJSONParse(
+    safeJsonParse(
       rawChats,
       []
     );
@@ -198,51 +204,72 @@ function recoverStorageQuota(){
     }
 
     const reducedChats =
-    parsedChats
 
-    .filter(
-      validateChatObject
-    )
+      parsedChats
 
-    .sort(
-      (a,b) =>
+      .filter((chat) => {
 
-      b.updatedAt -
-      a.updatedAt
+        return validateChatObject(
+          chat
+        );
 
-    )
+      })
 
-    .slice(
+      .sort((a,b) => {
 
-      0,
+        const first =
+        Number(
+          b?.updatedAt
+        ) || 0;
 
-      Math.max(
-        10,
-        Math.floor(
-          parsedChats.length / 2
+        const second =
+        Number(
+          a?.updatedAt
+        ) || 0;
+
+        return first - second;
+
+      })
+
+      .slice(
+
+        0,
+
+        Math.max(
+
+          10,
+
+          Math.floor(
+            parsedChats.length / 2
+          )
+
         )
-      )
 
-    );
+      );
 
     const serialized =
     safeStorageSerialize(
       reducedChats
     );
 
-    if(!serialized){
+    if(
+      !serialized
+    ){
 
       return false;
 
     }
 
+    const encoded =
+    encodeStorageValue(
+      serialized
+    );
+
     localStorage.setItem(
 
       STORAGE_KEYS.CHATS,
 
-      encodeStorageValue(
-        serialized
-      )
+      encoded
 
     );
 
@@ -250,9 +277,13 @@ function recoverStorageQuota(){
     .quotaRecoveries++;
 
     storageState.cache.chats =
-    deepClone(
-      reducedChats
-    ) || [];
+    deepFreeze(
+
+      deepClone(
+        reducedChats
+      ) || []
+
+    );
 
     return true;
 
@@ -261,7 +292,7 @@ function recoverStorageQuota(){
   catch(error){
 
     handleStorageError(
-      "STORAGE QUOTA RECOVERY ERROR",
+      "STORAGE_QUOTA_RECOVERY_ERROR",
       error
     );
 
@@ -325,7 +356,7 @@ Object.freeze({
     catch(error){
 
       handleStorageError(
-        "STORAGE GET ERROR",
+        "STORAGE_GET_ERROR",
         error
       );
 
@@ -334,6 +365,8 @@ Object.freeze({
     }
 
   },
+
+
 
   set(key,value){
 
@@ -369,16 +402,33 @@ Object.freeze({
 
     }
 
+    if(
+
+      normalized.length >
+
+      STORAGE_RUNTIME_CONFIG
+      .MAX_STORAGE_SIZE
+
+    ){
+
+      handleStorageError(
+        "STORAGE_LIMIT_EXCEEDED"
+      );
+
+      return false;
+
+    }
+
     try{
 
+      const encoded =
+      encodeStorageValue(
+        normalized
+      );
+
       localStorage.setItem(
-
         key,
-
-        encodeStorageValue(
-          normalized
-        )
-
+        encoded
       );
 
       storageState.lastWriteAt =
@@ -406,21 +456,24 @@ Object.freeze({
         const recovered =
         recoverStorageQuota();
 
-        if(recovered){
+        if(
+          recovered
+        ){
 
           try{
 
-            localStorage.setItem(
-
-              key,
-
-              encodeStorageValue(
-                normalized
-              )
-
+            const encoded =
+            encodeStorageValue(
+              normalized
             );
 
-            storageState.lastWriteAt =
+            localStorage.setItem(
+              key,
+              encoded
+            );
+
+            storageState
+            .lastWriteAt =
             Date.now();
 
             return true;
@@ -433,7 +486,7 @@ Object.freeze({
             .failedWrites++;
 
             handleStorageError(
-              "STORAGE RETRY FAILED",
+              "STORAGE_RETRY_FAILED",
               retryError
             );
 
@@ -447,7 +500,7 @@ Object.freeze({
       .failedWrites++;
 
       handleStorageError(
-        "STORAGE SET ERROR",
+        "STORAGE_SET_ERROR",
         error
       );
 
@@ -456,6 +509,8 @@ Object.freeze({
     }
 
   },
+
+
 
   remove(key){
 
@@ -483,6 +538,9 @@ Object.freeze({
         key
       );
 
+      storageState.lastWriteAt =
+      Date.now();
+
       return true;
 
     }
@@ -490,7 +548,7 @@ Object.freeze({
     catch(error){
 
       handleStorageError(
-        "STORAGE REMOVE ERROR",
+        "STORAGE_REMOVE_ERROR",
         error
       );
 
@@ -559,7 +617,7 @@ function isStorageAvailable(){
     false;
 
     safeLogError(
-      "STORAGE NOT AVAILABLE",
+      "STORAGE_NOT_AVAILABLE",
       error
     );
 
