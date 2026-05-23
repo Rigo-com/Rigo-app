@@ -43,7 +43,13 @@ Object.freeze({
   60000,
 
   RECOVERY_COOLDOWN:
-  3000
+  3000,
+
+  MAX_COMPLETED_REQUESTS:
+  500,
+
+  MAX_FAILED_REQUESTS:
+  300
 
 });
 
@@ -120,8 +126,6 @@ Object.seal({
 
   initializing:false,
 
-  processing:false,
-
   recovering:false,
 
   shuttingDown:false,
@@ -134,10 +138,10 @@ Object.seal({
   new Map(),
 
   completedRequests:
-  new Set(),
+  [],
 
   failedRequests:
-  new Set(),
+  [],
 
   synchronizedSystems:
   new Set(),
@@ -241,6 +245,30 @@ function freezeKernelObject(
 
 
 
+function cloneKernelObject(
+  value
+){
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return {};
+
+  }
+
+}
+
+
+
 function createKernelRequestId(){
 
   return (
@@ -325,6 +353,99 @@ function cloneKernelDiagnostics(){
 
     ...aiKernelState
     .diagnostics
+
+  });
+
+}
+
+
+
+function trimKernelCollections(){
+
+  if(
+
+    aiKernelState
+    .completedRequests
+    .length >
+
+    AI_KERNEL_CONFIG
+    .MAX_COMPLETED_REQUESTS
+
+  ){
+
+    aiKernelState
+    .completedRequests
+    .shift();
+
+  }
+
+  if(
+
+    aiKernelState
+    .failedRequests
+    .length >
+
+    AI_KERNEL_CONFIG
+    .MAX_FAILED_REQUESTS
+
+  ){
+
+    aiKernelState
+    .failedRequests
+    .shift();
+
+  }
+
+  return true;
+
+}
+
+
+
+function createAIKernelSnapshot(){
+
+  return freezeKernelObject({
+
+    initialized:
+    aiKernelState
+    .initialized,
+
+    state:
+    aiKernelState
+    .state,
+
+    activeRequests:
+
+      aiKernelState
+      .activeRequests
+      .size,
+
+    completedRequests:
+
+      aiKernelState
+      .completedRequests
+      .length,
+
+    failedRequests:
+
+      aiKernelState
+      .failedRequests
+      .length,
+
+    recoveryAttempts:
+
+      aiKernelState
+      .recoveryAttempts,
+
+    synchronizedSystems:[
+
+      ...aiKernelState
+      .synchronizedSystems
+
+    ],
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -426,22 +547,53 @@ async function synchronizeAISystems(){
     of systems
   ){
 
-    if(
-      typeof system.initialize !==
-      "function"
-    ){
+    try{
 
-      continue;
+      if(
+        typeof system.initialize !==
+        "function"
+      ){
+
+        continue;
+
+      }
+
+      await system.initialize();
+
+      aiKernelState
+      .synchronizedSystems
+      .add(
+        system.name
+      );
 
     }
 
-    await system.initialize();
+    catch(error){
 
-    aiKernelState
-    .synchronizedSystems
-    .add(
-      system.name
-    );
+      if(
+        typeof logDiagnosticError ===
+        "function"
+      ){
+
+        await logDiagnosticError(
+
+          "AI SYSTEM SYNC FAILED",
+
+          {
+
+            system:
+            system.name,
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+      }
+
+    }
 
   }
 
@@ -459,7 +611,7 @@ function createKernelRequest(
   payload = {}
 ){
 
-  return freezeKernelObject({
+  return {
 
     id:
     createKernelRequestId(),
@@ -472,22 +624,28 @@ function createKernelRequest(
       ),
 
     input:
+    cloneKernelObject(
 
-      freezeKernelObject(
+      payload.input ||
+      {}
 
-        payload.input ||
-        {}
-
-      ),
+    ),
 
     metadata:
+    cloneKernelObject(
 
-      freezeKernelObject(
+      payload.metadata ||
+      {}
 
-        payload.metadata ||
-        {}
+    ),
 
-      ),
+    runtime:{
+
+      retries:0,
+
+      contextInjected:false
+
+    },
 
     priority:
 
@@ -500,7 +658,7 @@ function createKernelRequest(
     createdAt:
     Date.now()
 
-  });
+  };
 
 }
 
@@ -534,6 +692,18 @@ async function routeKernelRequest(
 
   ){
 
+    if(
+      typeof PlannerEngine
+      ?.generate !==
+      "function"
+    ){
+
+      throw new Error(
+        "PLANNER ENGINE UNAVAILABLE"
+      );
+
+    }
+
     aiKernelState
     .diagnostics
     .routedToPlanner++;
@@ -551,7 +721,7 @@ async function routeKernelRequest(
       context:
       request.input
 
-    );
+    });
 
   }
 
@@ -568,6 +738,18 @@ async function routeKernelRequest(
     )
 
   ){
+
+    if(
+      typeof WorkflowEngine
+      ?.execute !==
+      "function"
+    ){
+
+      throw new Error(
+        "WORKFLOW ENGINE UNAVAILABLE"
+      );
+
+    }
 
     aiKernelState
     .diagnostics
@@ -599,6 +781,18 @@ async function routeKernelRequest(
 
   ){
 
+    if(
+      typeof ToolExecutor
+      ?.execute !==
+      "function"
+    ){
+
+      throw new Error(
+        "TOOL EXECUTOR UNAVAILABLE"
+      );
+
+    }
+
     aiKernelState
     .diagnostics
     .routedToTools++;
@@ -624,6 +818,18 @@ async function routeKernelRequest(
   // ================================
   // AGENT ROUTE
   // ================================
+
+  if(
+    typeof AgentManager
+    ?.executeTask !==
+    "function"
+  ){
+
+    throw new Error(
+      "AGENT MANAGER UNAVAILABLE"
+    );
+
+  }
 
   aiKernelState
   .diagnostics
@@ -672,6 +878,16 @@ async function injectRequestContext(
 
   try{
 
+    if(
+      typeof ContextManager
+      ?.buildWindow !==
+      "function"
+    ){
+
+      return request;
+
+    }
+
     const contextWindow =
     await ContextManager
     .buildWindow(
@@ -682,13 +898,14 @@ async function injectRequestContext(
 
     );
 
-    return freezeKernelObject({
+    request.runtime
+    .contextInjected =
+    true;
 
-      ...request,
+    request.contextWindow =
+    contextWindow;
 
-      contextWindow
-
-    });
+    return request;
 
   }
 
@@ -760,10 +977,6 @@ async function processKernelRequest(
   aiKernelState
   .lastRequestAt =
   Date.now();
-
-  aiKernelState
-  .processing =
-  true;
 
   setKernelState(
     AI_KERNEL_STATES
@@ -841,9 +1054,11 @@ async function processKernelRequest(
 
     aiKernelState
     .completedRequests
-    .add(
+    .push(
       request.id
     );
+
+    trimKernelCollections();
 
     aiKernelState
     .diagnostics
@@ -861,11 +1076,6 @@ async function processKernelRequest(
 
       }
 
-    );
-
-    setKernelState(
-      AI_KERNEL_STATES
-      .READY
     );
 
     return freezeKernelObject({
@@ -888,9 +1098,11 @@ async function processKernelRequest(
 
     aiKernelState
     .failedRequests
-    .add(
+    .push(
       request.id
     );
+
+    trimKernelCollections();
 
     aiKernelState
     .diagnostics
@@ -913,15 +1125,15 @@ async function processKernelRequest(
 
     );
 
-    setKernelState(
-      AI_KERNEL_STATES
-      .FAILED
-    );
-
     if(
 
       AI_KERNEL_CONFIG
       .ENABLE_RECOVERY
+
+      &&
+
+      !aiKernelState
+      .recovering
 
       &&
 
@@ -933,7 +1145,7 @@ async function processKernelRequest(
 
     ){
 
-      await recoverAIKernel();
+      recoverAIKernel();
 
     }
 
@@ -972,21 +1184,11 @@ async function processKernelRequest(
       request.id
     );
 
-    aiKernelState
-    .processing =
-    false;
-
     if(
 
       aiKernelState
       .activeRequests
       .size <= 0
-
-      &&
-
-      aiKernelState.state !==
-      AI_KERNEL_STATES
-      .FAILED
 
     ){
 
@@ -1129,8 +1331,10 @@ function getAIKernelHealthReport(){
     .state,
 
     processing:
-    aiKernelState
-    .processing,
+
+      aiKernelState
+      .activeRequests
+      .size > 0,
 
     recovering:
     aiKernelState
@@ -1150,13 +1354,13 @@ function getAIKernelHealthReport(){
 
       aiKernelState
       .completedRequests
-      .size,
+      .length,
 
     failedRequests:
 
       aiKernelState
       .failedRequests
-      .size,
+      .length,
 
     synchronizedSystems:[
 
@@ -1193,12 +1397,12 @@ async function resetAIKernel(){
   .clear();
 
   aiKernelState
-  .completedRequests
-  .clear();
+  .completedRequests =
+  [];
 
   aiKernelState
-  .failedRequests
-  .clear();
+  .failedRequests =
+  [];
 
   aiKernelState
   .synchronizedSystems
@@ -1360,6 +1564,27 @@ async function initializeAIKernel(){
 
     );
 
+
+
+    // ================================
+    // RUNTIME REGISTRATION
+    // ================================
+
+    if(
+      typeof registerModule ===
+      "function"
+    ){
+
+      await registerModule(
+
+        "ai-kernel",
+
+        async () => AIKernel
+
+      );
+
+    }
+
     return true;
 
   }
@@ -1408,6 +1633,9 @@ Object.freeze({
 
   health:
   getAIKernelHealthReport,
+
+  snapshot:
+  createAIKernelSnapshot,
 
   reset:
   resetAIKernel
