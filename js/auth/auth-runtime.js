@@ -88,6 +88,7 @@ Object.freeze({
 // =====================================
 
 const VALID_AUTH_STATE_KEYS =
+Object.freeze(
 new Set([
 
   "initialized",
@@ -108,7 +109,7 @@ new Set([
 
   "error"
 
-]);
+]));
 
 
 
@@ -175,6 +176,17 @@ async function emitAuthRuntimeEvent(
 ){
 
   if(
+
+    !AUTH_RUNTIME_CONFIG
+    .ENABLE_EVENTS
+
+  ){
+
+    return false;
+
+  }
+
+  if(
     typeof emitSystemEvent !==
     "function"
   ){
@@ -214,6 +226,30 @@ async function emitAuthRuntimeEvent(
 
 
 
+function getSafeErrorMessage(
+  error
+){
+
+  if(
+    error instanceof Error
+  ){
+
+    return (
+      error.message ||
+      "UNKNOWN_ERROR"
+    );
+
+  }
+
+  return String(
+    error ||
+    "UNKNOWN_ERROR"
+  );
+
+}
+
+
+
 function safeCloneAuth(
   value
 ){
@@ -231,31 +267,71 @@ function safeCloneAuth(
 
     }
 
-    return structuredClone(
-      value
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
     );
 
   }
 
   catch(error){
 
-    try{
-
-      return JSON.parse(
-        JSON.stringify(
-          value
-        )
-      );
-
-    }
-
-    catch(cloneError){
-
-      return null;
-
-    }
+    return null;
 
   }
+
+}
+
+
+
+function freezeAuthObject(
+  value
+){
+
+  if(
+    typeof deepFreeze ===
+    "function"
+  ){
+
+    return deepFreeze(
+      value
+    );
+
+  }
+
+  return Object.freeze(
+    value
+  );
+
+}
+
+
+
+function isBrowserEnvironment(){
+
+  return (
+
+    typeof window !==
+    "undefined"
+
+    &&
+
+    typeof localStorage !==
+    "undefined"
+
+  );
 
 }
 
@@ -264,6 +340,14 @@ function safeCloneAuth(
 function isStorageAvailable(){
 
   try{
+
+    if(
+      !isBrowserEnvironment()
+    ){
+
+      return false;
+
+    }
 
     const testKey =
     "__rigo_test__";
@@ -697,22 +781,43 @@ function validateAuthSession(
 
   }
 
-  return (
+  if(
 
-    validateToken(
+    AUTH_RUNTIME_CONFIG
+    .ENABLE_TOKEN_VALIDATION
+
+    &&
+
+    !validateToken(
       session.token
     )
 
-    &&
+  ){
+
+    return false;
+
+  }
+
+  return (
 
     typeof session.user ===
     "object"
 
     &&
 
+    session.user !==
+    null
+
+    &&
+
     Number.isFinite(
       session.expiresAt
     )
+
+    &&
+
+    session.expiresAt >
+    0
 
   );
 
@@ -742,7 +847,7 @@ function createAuthSession({
 
   }
 
-  return deepFreeze({
+  return freezeAuthObject({
 
     user:
     safeCloneAuth(
@@ -856,6 +961,13 @@ function loadAuthSession(){
     ){
 
       clearAuthSession();
+
+      emitAuthRuntimeEvent(
+
+        AUTH_RUNTIME_EVENTS
+        .TOKEN_INVALID
+
+      );
 
       return null;
 
@@ -1012,6 +1124,14 @@ function registerFailedLogin(){
 // =====================================
 
 function startSessionMonitor(){
+
+  if(
+    !isBrowserEnvironment()
+  ){
+
+    return false;
+
+  }
 
   if(
 
@@ -1260,7 +1380,7 @@ async function login({
     }
 
     const user =
-    deepFreeze({
+    freezeAuthObject({
 
       id:createUniqueId(
         "user"
@@ -1309,11 +1429,11 @@ async function login({
     .failedLoginAttempts =
     0;
 
-    updateLastActivity();
-
     authRuntimeState
     .loginBlockedUntil =
     null;
+
+    updateLastActivity();
 
     updateAuthRuntimeState({
 
@@ -1367,7 +1487,9 @@ async function login({
     updateAuthRuntimeState({
 
       error:
-      String(error)
+      getSafeErrorMessage(
+        error
+      )
 
     });
 
@@ -1379,7 +1501,9 @@ async function login({
       {
 
         error:
-        String(error)
+        getSafeErrorMessage(
+          error
+        )
 
       }
 
@@ -1466,6 +1590,14 @@ async function logout(){
     resetAuthRuntimeState();
 
     authRuntimeState
+    .failedLoginAttempts =
+    0;
+
+    authRuntimeState
+    .loginBlockedUntil =
+    null;
+
+    authRuntimeState
     .diagnostics
     .logouts++;
 
@@ -1489,7 +1621,9 @@ async function logout(){
     updateAuthRuntimeState({
 
       error:
-      String(error)
+      getSafeErrorMessage(
+        error
+      )
 
     });
 
@@ -1560,7 +1694,9 @@ async function initializeAuthRuntime(){
     updateAuthRuntimeState({
 
       error:
-      String(error)
+      getSafeErrorMessage(
+        error
+      )
 
     });
 
@@ -1587,6 +1723,8 @@ async function initializeAuthRuntime(){
 // =====================================
 
 function resetAuthRuntime(){
+
+  clearAuthSession();
 
   resetAuthRuntimeState();
 
