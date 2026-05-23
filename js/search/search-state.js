@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SEARCH STATE
-// ENTERPRISE FINAL
+// ENTERPRISE ULTRA FINAL
 // =====================================
 
 
@@ -24,6 +24,16 @@ Object.seal({
   cachedHits:0,
 
   activeSearches:0,
+
+  pendingSearches:0,
+
+  abortedSearches:0,
+
+  averageSearchLatency:0,
+
+  lastSearchLatency:0,
+
+  activeSearchToken:null,
 
   currentState:
   SEARCH_STATES.IDLE
