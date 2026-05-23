@@ -21,7 +21,13 @@ Object.freeze({
 
   ENABLE_FUNCTION_BLOCKING:true,
 
-  ENABLE_ASYNC_EXECUTION:true
+  ENABLE_ASYNC_EXECUTION:true,
+
+  ENABLE_RESULT_FREEZE:true,
+
+  ENABLE_SOURCE_VALIDATION:true,
+
+  MAX_SOURCE_LENGTH:50000
 
 });
 
@@ -43,7 +49,9 @@ Object.seal({
 
   timeoutExecutions:0,
 
-  blockedExecutions:0
+  blockedExecutions:0,
+
+  lastExecutionAt:null
 
 });
 
@@ -67,6 +75,35 @@ function validateSandboxCallback(
 
 
 // =====================================
+// GET SANDBOX SOURCE
+// =====================================
+
+function getSandboxSource(
+  callback
+){
+
+  try{
+
+    return safeString(
+
+      callback
+      .toString()
+
+    );
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
+
+// =====================================
 // VALIDATE SANDBOX EXECUTION
 // =====================================
 
@@ -84,13 +121,49 @@ function validateSandboxExecution(
 
   }
 
+  if(
+
+    !SANDBOX_CONFIG
+    .ENABLE_SOURCE_VALIDATION
+
+  ){
+
+    return true;
+
+  }
+
   const source =
-  safeString(
-
+  getSandboxSource(
     callback
-    .toString()
-
   );
+
+  if(!source){
+
+    return false;
+
+  }
+
+  if(
+
+    source.length >
+
+    SANDBOX_CONFIG
+    .MAX_SOURCE_LENGTH
+
+  ){
+
+    sandboxState
+    .blockedExecutions++;
+
+    logSecurityEvent(
+
+      "SANDBOX SOURCE TOO LARGE"
+
+    );
+
+    return false;
+
+  }
 
   if(
 
@@ -99,8 +172,18 @@ function validateSandboxExecution(
 
     &&
 
-    source.includes(
-      "eval("
+    (
+
+      source.includes(
+        "eval("
+      )
+
+      ||
+
+      source.includes(
+        "globalThis.eval"
+      )
+
     )
 
   ){
@@ -125,8 +208,18 @@ function validateSandboxExecution(
 
     &&
 
-    source.includes(
-      "Function("
+    (
+
+      source.includes(
+        "Function("
+      )
+
+      ||
+
+      source.includes(
+        "new Function"
+      )
+
     )
 
   ){
@@ -219,11 +312,86 @@ function createSandboxTimeout(
           timeoutId
         );
 
+        timeoutId = null;
+
       }
 
     }
 
   };
+
+}
+
+
+
+// =====================================
+// CREATE EXECUTION RESULT
+// =====================================
+
+function createSandboxExecutionResult(
+  payload = {}
+){
+
+  const result = {
+
+    success:
+    Boolean(
+      payload.success
+    ),
+
+    blocked:
+    Boolean(
+      payload.blocked
+    ),
+
+    timedOut:
+    Boolean(
+      payload.timedOut
+    ),
+
+    executionId:
+    payload.executionId || null,
+
+    duration:
+    Number.isFinite(
+      payload.duration
+    )
+
+    ?
+
+    payload.duration
+
+    :
+
+    0,
+
+    result:
+    payload.result,
+
+    error:
+
+      payload.error
+      ? safeString(
+          payload.error
+        )
+      : null
+
+  };
+
+  if(
+
+    SANDBOX_CONFIG
+    .ENABLE_RESULT_FREEZE
+
+  ){
+
+    return deepFreezeSecurity(
+      result
+    );
+
+  }
+
+  return result;
 
 }
 
@@ -244,7 +412,7 @@ async function executeInSandbox(
     )
   ){
 
-    return deepFreezeSecurity({
+    return createSandboxExecutionResult({
 
       success:false,
 
@@ -255,10 +423,24 @@ async function executeInSandbox(
   }
 
   const executionId =
-  generateSecureRandomId();
+
+    typeof generateSecureRandomId ===
+    "function"
+
+    ?
+
+    generateSecureRandomId()
+
+    :
+
+    `sandbox_${Date.now()}`;
 
   const startedAt =
   Date.now();
+
+  sandboxState
+  .lastExecutionAt =
+  startedAt;
 
   const timeoutController =
   createSandboxTimeout(
@@ -272,7 +454,13 @@ async function executeInSandbox(
 
     {
 
-      startedAt
+      startedAt,
+
+      timeout:
+      options.timeout ||
+
+      SANDBOX_CONFIG
+      .DEFAULT_TIMEOUT
 
     }
 
@@ -285,9 +473,20 @@ async function executeInSandbox(
 
     const executionPromise =
     Promise.resolve()
-    .then(() => {
+    .then(async() => {
 
-      return callback();
+      if(
+
+        !SANDBOX_CONFIG
+        .ENABLE_ASYNC_EXECUTION
+
+      ){
+
+        return callback();
+
+      }
+
+      return await callback();
 
     });
 
@@ -306,7 +505,7 @@ async function executeInSandbox(
     sandboxState
     .completedExecutions++;
 
-    return deepFreezeSecurity({
+    return createSandboxExecutionResult({
 
       success:true,
 
@@ -366,7 +565,7 @@ async function executeInSandbox(
 
     );
 
-    return deepFreezeSecurity({
+    return createSandboxExecutionResult({
 
       success:false,
 
@@ -377,7 +576,10 @@ async function executeInSandbox(
         Date.now() -
         startedAt,
 
-      timedOut
+      timedOut,
+
+      error:
+      error?.message
 
     });
 
@@ -444,7 +646,11 @@ function getSandboxDiagnostics(){
 
     blockedExecutions:
     sandboxState
-    .blockedExecutions
+    .blockedExecutions,
+
+    lastExecutionAt:
+    sandboxState
+    .lastExecutionAt
 
   });
 
@@ -473,6 +679,10 @@ function resetSandboxState(){
 
   sandboxState
   .blockedExecutions = 0;
+
+  sandboxState
+  .lastExecutionAt =
+  null;
 
   return true;
 
