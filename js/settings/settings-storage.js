@@ -11,9 +11,29 @@ const SETTINGS_STORAGE_KEY =
 
 
 
+function isSettingsStorageAvailable(){
+
+  return (
+
+    typeof localStorage !==
+    "undefined"
+
+  );
+
+}
+
+
+
 async function saveSettingsToStorage(){
 
   try{
+
+    if(
+      !isSettingsStorageAvailable()
+    ){
+
+      return false;
+    }
 
     settingsState.saving =
     true;
@@ -78,6 +98,13 @@ async function loadSettingsFromStorage(){
 
   try{
 
+    if(
+      !isSettingsStorageAvailable()
+    ){
+
+      return false;
+    }
+
     settingsState.loading =
     true;
 
@@ -96,10 +123,15 @@ async function loadSettingsFromStorage(){
     const parsed =
     JSON.parse(raw);
 
+    const migrated =
+    migrateSettingsObject(
+      parsed
+    );
+
     if(
 
       !validateSettingsObject(
-        parsed
+        migrated
       )
 
     ){
@@ -109,7 +141,7 @@ async function loadSettingsFromStorage(){
 
     settingsState
     .runtimeSettings =
-    parsed;
+    migrated;
 
     settingsState
     .lastLoadedAt =
