@@ -137,10 +137,15 @@ Object.seal({
 
   initialized:false,
 
+  initializing:false,
+
   plans:
   new Map(),
 
   activePlans:
+  new Set(),
+
+  executionLocks:
   new Set(),
 
   completedPlans:
@@ -252,6 +257,19 @@ function freezePlannerObject(
 
 
 
+function clonePlannerDiagnostics(){
+
+  return freezePlannerObject({
+
+    ...plannerEngineState
+    .diagnostics
+
+  });
+
+}
+
+
+
 async function emitPlannerEvent(
   eventName,
   payload = {}
@@ -316,6 +334,70 @@ function createPlannerId(){
 
 
 
+function getRegisteredTools(){
+
+  try{
+
+    if(
+      typeof ToolExecutor ===
+      "undefined"
+    ){
+
+      return [];
+    }
+
+    return [
+
+      ...toolExecutorState
+      .tools
+      .values()
+
+    ];
+
+  }
+
+  catch(error){
+
+    return [];
+
+  }
+
+}
+
+
+
+function getAvailableAgents(){
+
+  try{
+
+    if(
+      typeof AgentManager ===
+      "undefined"
+    ){
+
+      return [];
+    }
+
+    return [
+
+      ...agentManagerState
+      .agents
+      .values()
+
+    ];
+
+  }
+
+  catch(error){
+
+    return [];
+
+  }
+
+}
+
+
+
 // =====================================
 // PLAN OBJECT
 // =====================================
@@ -324,7 +406,7 @@ function createPlanObject(
   config = {}
 ){
 
-  return {
+  return freezePlannerObject({
 
     id:
     normalizePlanId(
@@ -382,7 +464,9 @@ function createPlanObject(
         config.selectedTools
       )
 
-      ? config.selectedTools
+      ? freezePlannerObject([
+          ...config.selectedTools
+        ])
 
       : [],
 
@@ -412,7 +496,7 @@ function createPlanObject(
     updatedAt:
     Date.now()
 
-  };
+  });
 
 }
 
@@ -439,7 +523,7 @@ function decomposeGoal(
   .split(".")
   .map((segment,index) => {
 
-    return {
+    return freezePlannerObject({
 
       id:
       createMemoryId(),
@@ -455,7 +539,7 @@ function decomposeGoal(
         PLAN_STEP_STATES
         .PENDING
 
-    };
+    });
 
   })
   .filter((step) => {
@@ -478,37 +562,44 @@ function selectToolsForGoal(
   goal
 ){
 
-  if(
-    typeof ToolExecutor ===
-    "undefined"
-  ){
-
-    return [];
-  }
-
   try{
 
-    const tools = [
+    const normalizedGoal =
+    String(goal)
+    .toLowerCase();
 
-      ...toolExecutorState
-      .tools
-      .values()
+    return getRegisteredTools()
 
-    ];
-
-    return tools
     .filter((tool) => {
 
-      return String(goal)
-      .toLowerCase()
-      .includes(
+      const toolName =
+      String(
+        tool.name || ""
+      )
+      .toLowerCase();
 
-        tool.name
-        .toLowerCase()
+      const toolDescription =
+      String(
+        tool.description || ""
+      )
+      .toLowerCase();
+
+      return (
+
+        normalizedGoal
+        .includes(toolName)
+
+        ||
+
+        normalizedGoal
+        .includes(
+          toolDescription
+        )
 
       );
 
     })
+
     .map((tool) => {
 
       return tool.id;
@@ -533,24 +624,10 @@ function selectToolsForGoal(
 
 function assignAgentToPlan(){
 
-  if(
-    typeof AgentManager ===
-    "undefined"
-  ){
-
-    return null;
-
-  }
-
   try{
 
-    const agents = [
-
-      ...agentManagerState
-      .agents
-      .values()
-
-    ];
+    const agents =
+    getAvailableAgents();
 
     const availableAgent =
     agents.find((agent) => {
@@ -603,17 +680,24 @@ async function generateExecutionPlan(
 
   }
 
-  const plan =
+  const basePlan =
   createPlanObject(
     config
   );
 
-  plannerEngineState
-  .plans
-  .set(
-    plan.id,
-    plan
-  );
+  if(
+
+    plannerEngineState
+    .plans
+    .has(
+      basePlan.id
+    )
+
+  ){
+
+    return false;
+
+  }
 
   plannerEngineState
   .diagnostics
@@ -631,7 +715,7 @@ async function generateExecutionPlan(
     {
 
       planId:
-      plan.id
+      basePlan.id
 
     }
 
@@ -639,31 +723,44 @@ async function generateExecutionPlan(
 
   try{
 
-    plan.state =
-    PLAN_STATES
-    .ANALYZING;
-
     const decomposedSteps =
     decomposeGoal(
-      plan.goal
+      basePlan.goal
     );
 
-    plan.steps =
+    const selectedTools =
+    selectToolsForGoal(
+      basePlan.goal
+    );
+
+    const assignedAgent =
+    assignAgentToPlan();
+
+    const enrichedSteps =
     decomposedSteps.map((step) => {
 
-      return {
+      return freezePlannerObject({
 
         ...step,
 
         retries:0,
 
-        assignedTool:null,
+        assignedTool:
 
-        assignedAgent:null,
+          selectedTools[0]
 
-        parallel:false
+          || null,
 
-      };
+        assignedAgent,
+
+        parallel:false,
+
+        state:
+
+          PLAN_STEP_STATES
+          .READY
+
+      });
 
     });
 
@@ -679,70 +776,39 @@ async function generateExecutionPlan(
       {
 
         planId:
-        plan.id
+        basePlan.id
 
       }
 
     );
 
+    const finalizedPlan =
+    freezePlannerObject({
 
+      ...basePlan,
 
-    // ================================
-    // TOOL SELECTION
-    // ================================
+      state:
+      PLAN_STATES
+      .PLANNED,
 
-    plan.selectedTools =
-    selectToolsForGoal(
-      plan.goal
-    );
+      selectedTools,
 
+      assignedAgent,
 
+      steps:
+      enrichedSteps,
 
-    // ================================
-    // AGENT ASSIGNMENT
-    // ================================
-
-    plan.assignedAgent =
-    assignAgentToPlan();
-
-
-
-    // ================================
-    // STEP ENRICHMENT
-    // ================================
-
-    plan.steps =
-    plan.steps.map((step) => {
-
-      return {
-
-        ...step,
-
-        assignedTool:
-
-          plan.selectedTools[0]
-
-          || null,
-
-        assignedAgent:
-
-          plan.assignedAgent,
-
-        state:
-
-          PLAN_STEP_STATES
-          .READY
-
-      };
+      updatedAt:
+      Date.now()
 
     });
 
-    plan.state =
-    PLAN_STATES
-    .PLANNED;
-
-    plan.updatedAt =
-    Date.now();
+    plannerEngineState
+    .plans
+    .set(
+      finalizedPlan.id,
+      finalizedPlan
+    );
 
     plannerEngineState
     .diagnostics
@@ -756,23 +822,17 @@ async function generateExecutionPlan(
       {
 
         planId:
-        plan.id
+        finalizedPlan.id
 
       }
 
     );
 
-    return freezePlannerObject(
-      plan
-    );
+    return finalizedPlan;
 
   }
 
   catch(error){
-
-    plan.state =
-    PLAN_STATES
-    .FAILED;
 
     plannerEngineState
     .diagnostics
@@ -786,7 +846,7 @@ async function generateExecutionPlan(
       {
 
         planId:
-        plan.id,
+        basePlan.id,
 
         error:
         String(error)
@@ -809,99 +869,116 @@ async function generateExecutionPlan(
 
 async function executePlanStep(
   plan,
-  step
+  originalStep
 ){
 
-  step.state =
-  PLAN_STEP_STATES
-  .RUNNING;
+  let attempts = 0;
 
-  try{
+  while(
 
-    if(
-      step.assignedTool
-    ){
+    attempts <
 
-      await ToolExecutor
-      .execute(
+    PLANNER_ENGINE_CONFIG
+    .MAX_RETRIES
 
-        step.assignedTool,
+  ){
+
+    attempts++;
+
+    try{
+
+      if(
+        originalStep.assignedTool
+      ){
+
+        await ToolExecutor
+        .execute(
+
+          originalStep
+          .assignedTool,
+
+          {
+
+            objective:
+            originalStep
+            .objective
+
+          },
+
+          {
+
+            source:
+            "planner-engine"
+
+          }
+
+        );
+
+      }
+
+      await emitPlannerEvent(
+
+        PLAN_EVENTS
+        .STEP_COMPLETED,
 
         {
 
-          objective:
-          step.objective
+          planId:
+          plan.id,
 
-        },
-
-        {
-
-          source:
-          "planner-engine"
+          stepId:
+          originalStep.id
 
         }
 
       );
 
+      return freezePlannerObject({
+
+        ...originalStep,
+
+        retries:
+        attempts - 1,
+
+        state:
+        PLAN_STEP_STATES
+        .COMPLETED
+
+      });
+
     }
 
-    step.state =
-    PLAN_STEP_STATES
-    .COMPLETED;
+    catch(error){
 
-    await emitPlannerEvent(
+      if(
 
-      PLAN_EVENTS
-      .STEP_COMPLETED,
+        attempts >=
 
-      {
+        PLANNER_ENGINE_CONFIG
+        .MAX_RETRIES
 
-        planId:
-        plan.id,
+      ){
 
-        stepId:
-        step.id
+        return freezePlannerObject({
+
+          ...originalStep,
+
+          retries:
+          attempts,
+
+          state:
+          PLAN_STEP_STATES
+          .FAILED
+
+        });
 
       }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    step.retries++;
-
-    step.state =
-    PLAN_STEP_STATES
-    .FAILED;
-
-    if(
-
-      PLANNER_ENGINE_CONFIG
-      .ENABLE_REPLANNING &&
-
-      step.retries <
-
-      PLANNER_ENGINE_CONFIG
-      .MAX_RETRIES
-
-    ){
 
       plannerEngineState
       .diagnostics
       .replans++;
 
-      return executePlanStep(
-        plan,
-        step
-      );
-
     }
-
-    return false;
 
   }
 
@@ -922,7 +999,21 @@ async function executePlan(
     planId
   );
 
-  const plan =
+  if(
+
+    plannerEngineState
+    .executionLocks
+    .has(
+      normalizedId
+    )
+
+  ){
+
+    return false;
+
+  }
+
+  const originalPlan =
 
     plannerEngineState
     .plans
@@ -930,7 +1021,7 @@ async function executePlan(
       normalizedId
     );
 
-  if(!plan){
+  if(!originalPlan){
 
     return false;
 
@@ -951,12 +1042,11 @@ async function executePlan(
 
   }
 
-  plan.state =
-  PLAN_STATES
-  .EXECUTING;
-
-  plan.updatedAt =
-  Date.now();
+  plannerEngineState
+  .executionLocks
+  .add(
+    normalizedId
+  );
 
   plannerEngineState
   .activePlans
@@ -982,137 +1072,200 @@ async function executePlan(
 
   );
 
+  let attempts = 0;
+
   try{
 
-    for(
-      const step
-      of plan.steps
-    ){
+    while(
 
-      const success =
-      await executePlanStep(
-        plan,
-        step
-      );
-
-      if(!success){
-
-        throw new Error(
-          "PLAN STEP FAILED"
-        );
-
-      }
-
-    }
-
-    plan.state =
-    PLAN_STATES
-    .COMPLETED;
-
-    plan.updatedAt =
-    Date.now();
-
-    plannerEngineState
-    .completedPlans
-    .add(
-      normalizedId
-    );
-
-    plannerEngineState
-    .activePlans
-    .delete(
-      normalizedId
-    );
-
-    plannerEngineState
-    .diagnostics
-    .completed++;
-
-    await emitPlannerEvent(
-
-      PLAN_EVENTS
-      .COMPLETED,
-
-      {
-
-        planId:
-        normalizedId
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    plan.retries++;
-
-    plan.state =
-    PLAN_STATES
-    .FAILED;
-
-    plan.updatedAt =
-    Date.now();
-
-    plannerEngineState
-    .failedPlans
-    .add(
-      normalizedId
-    );
-
-    plannerEngineState
-    .activePlans
-    .delete(
-      normalizedId
-    );
-
-    plannerEngineState
-    .diagnostics
-    .failed++;
-
-    await emitPlannerEvent(
-
-      PLAN_EVENTS
-      .FAILED,
-
-      {
-
-        planId:
-        normalizedId,
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    if(
-
-      PLANNER_ENGINE_CONFIG
-      .ENABLE_REPLANNING &&
-
-      plan.retries <
+      attempts <
 
       PLANNER_ENGINE_CONFIG
       .MAX_RETRIES
 
     ){
 
-      plannerEngineState
-      .diagnostics
-      .replans++;
+      attempts++;
 
-      return executePlan(
-        normalizedId
-      );
+      try{
+
+        const completedSteps = [];
+
+        for(
+          const step
+          of originalPlan.steps
+        ){
+
+          const result =
+          await executePlanStep(
+            originalPlan,
+            step
+          );
+
+          completedSteps.push(
+            result
+          );
+
+          if(
+
+            result.state !==
+            PLAN_STEP_STATES
+            .COMPLETED
+
+          ){
+
+            throw new Error(
+              "PLAN STEP FAILED"
+            );
+
+          }
+
+        }
+
+        const completedPlan =
+        freezePlannerObject({
+
+          ...originalPlan,
+
+          retries:
+          attempts - 1,
+
+          state:
+          PLAN_STATES
+          .COMPLETED,
+
+          steps:
+          completedSteps,
+
+          updatedAt:
+          Date.now()
+
+        });
+
+        plannerEngineState
+        .plans
+        .set(
+          normalizedId,
+          completedPlan
+        );
+
+        plannerEngineState
+        .completedPlans
+        .add(
+          normalizedId
+        );
+
+        plannerEngineState
+        .diagnostics
+        .completed++;
+
+        await emitPlannerEvent(
+
+          PLAN_EVENTS
+          .COMPLETED,
+
+          {
+
+            planId:
+            normalizedId
+
+          }
+
+        );
+
+        return true;
+
+      }
+
+      catch(error){
+
+        plannerEngineState
+        .diagnostics
+        .failed++;
+
+        await emitPlannerEvent(
+
+          PLAN_EVENTS
+          .FAILED,
+
+          {
+
+            planId:
+            normalizedId,
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+        if(
+
+          attempts >=
+
+          PLANNER_ENGINE_CONFIG
+          .MAX_RETRIES
+
+        ){
+
+          const failedPlan =
+          freezePlannerObject({
+
+            ...originalPlan,
+
+            retries:
+            attempts,
+
+            state:
+            PLAN_STATES
+            .FAILED,
+
+            updatedAt:
+            Date.now()
+
+          });
+
+          plannerEngineState
+          .plans
+          .set(
+            normalizedId,
+            failedPlan
+          );
+
+          plannerEngineState
+          .failedPlans
+          .add(
+            normalizedId
+          );
+
+          return false;
+
+        }
+
+        plannerEngineState
+        .diagnostics
+        .replans++;
+
+      }
 
     }
 
-    return false;
+  }
+
+  finally{
+
+    plannerEngineState
+    .activePlans
+    .delete(
+      normalizedId
+    );
+
+    plannerEngineState
+    .executionLocks
+    .delete(
+      normalizedId
+    );
 
   }
 
@@ -1147,15 +1300,35 @@ async function terminatePlan(
 
   }
 
-  plan.state =
-  PLAN_STATES
-  .TERMINATED;
+  const terminatedPlan =
+  freezePlannerObject({
 
-  plan.updatedAt =
-  Date.now();
+    ...plan,
+
+    state:
+    PLAN_STATES
+    .TERMINATED,
+
+    updatedAt:
+    Date.now()
+
+  });
+
+  plannerEngineState
+  .plans
+  .set(
+    normalizedId,
+    terminatedPlan
+  );
 
   plannerEngineState
   .activePlans
+  .delete(
+    normalizedId
+  );
+
+  plannerEngineState
+  .executionLocks
   .delete(
     normalizedId
   );
@@ -1219,9 +1392,7 @@ function getPlannerDiagnostics(){
       .size,
 
     diagnostics:
-
-      plannerEngineState
-      .diagnostics,
+    clonePlannerDiagnostics(),
 
     lastPlanAt:
 
@@ -1246,6 +1417,10 @@ async function resetPlannerEngine(){
 
   plannerEngineState
   .activePlans
+  .clear();
+
+  plannerEngineState
+  .executionLocks
   .clear();
 
   plannerEngineState
@@ -1296,11 +1471,36 @@ async function initializePlannerEngine(){
 
   }
 
+  if(
+    plannerEngineState
+    .initializing
+  ){
+
+    return false;
+
+  }
+
   plannerEngineState
-  .initialized =
+  .initializing =
   true;
 
-  return true;
+  try{
+
+    plannerEngineState
+    .initialized =
+    true;
+
+    return true;
+
+  }
+
+  finally{
+
+    plannerEngineState
+    .initializing =
+    false;
+
+  }
 
 }
 
