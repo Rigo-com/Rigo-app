@@ -116,6 +116,16 @@ function addValidationError(
   error
 ){
 
+  if(
+    !result ||
+    typeof result !==
+    "object"
+  ){
+
+    return createValidationResult();
+
+  }
+
   result.valid = false;
 
   result.errors.push(
@@ -146,6 +156,16 @@ function addValidationWarning(
   result,
   warning
 ){
+
+  if(
+    !result ||
+    typeof result !==
+    "object"
+  ){
+
+    return createValidationResult();
+
+  }
 
   result.warnings.push(
     normalizeMemoryString(
@@ -448,6 +468,8 @@ function validateMemoryContent(
 
     );
 
+    return result;
+
   }
 
   if(
@@ -535,6 +557,9 @@ function validateMemoryTags(
 
   }
 
+  const uniqueTags =
+  new Set();
+
   tags.forEach((tag) => {
 
     const normalizedTag =
@@ -553,7 +578,29 @@ function validateMemoryTags(
 
       );
 
+      return;
+
     }
+
+    if(
+      uniqueTags.has(
+        normalizedTag
+      )
+    ){
+
+      addValidationWarning(
+
+        result,
+
+        "Duplicate tag detected"
+
+      );
+
+    }
+
+    uniqueTags.add(
+      normalizedTag
+    );
 
     if(
 
@@ -742,6 +789,9 @@ function validateMemoryRelations(
 
   }
 
+  const uniqueIds =
+  new Set();
+
   allIds.forEach((id) => {
 
     const normalizedId =
@@ -759,7 +809,29 @@ function validateMemoryRelations(
 
       );
 
+      return;
+
     }
+
+    if(
+      uniqueIds.has(
+        normalizedId
+      )
+    ){
+
+      addValidationWarning(
+
+        result,
+
+        "Duplicate relation detected"
+
+      );
+
+    }
+
+    uniqueIds.add(
+      normalizedId
+    );
 
     if(
       normalizedId ===
@@ -1046,6 +1118,35 @@ function validateMemoryTimestamps(
 
   });
 
+  if(
+
+    Number.isFinite(
+      memory.createdAt
+    )
+
+    &&
+
+    Number.isFinite(
+      memory.updatedAt
+    )
+
+    &&
+
+    memory.updatedAt <
+    memory.createdAt
+
+  ){
+
+    addValidationWarning(
+
+      result,
+
+      "updatedAt older than createdAt"
+
+    );
+
+  }
+
   return result;
 
 }
@@ -1283,7 +1384,29 @@ function sanitizeMemoryContent(
   return normalizeMemoryContent(
     content
   )
+
   .replace(/\0/g,"")
+
+  .replace(
+    /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+    ""
+  )
+
+  .replace(
+    /javascript:/gi,
+    ""
+  )
+
+  .replace(
+    /vbscript:/gi,
+    ""
+  )
+
+  .replace(
+    /data:text\/html/gi,
+    ""
+  )
+
   .slice(
     0,
     MEMORY_LIMITS
@@ -1330,88 +1453,145 @@ function sanitizeMemoryInput(
     return {};
   }
 
-  return {
+  const sanitizedInput =
+  {};
 
-    ...(input.id != null
-      ? {
-          id:
-          normalizeMemoryString(
-            input.id
-          )
-        }
-      : {}),
+  if(
+    input.id != null
+  ){
 
-    type:
+    sanitizedInput.id =
+    normalizeMemoryString(
+      input.id
+    );
+
+  }
+
+  if(
+    input.type != null
+  ){
+
+    sanitizedInput.type =
     normalizeMemoryType(
       input.type
-    ),
+    );
 
-    category:
+  }
+
+  if(
+    input.category != null
+  ){
+
+    sanitizedInput.category =
     normalizeMemoryCategory(
       input.category
-    ),
+    );
 
-    title:
+  }
 
-      String(
+  if(
+    input.title != null
+  ){
 
-        normalizeMemoryString(
-          input.title
-        ) || ""
+    sanitizedInput.title =
 
+      normalizeMemoryString(
+        input.title
       )
+
       .slice(
         0,
         MEMORY_LIMITS
         .MAX_TITLE_LENGTH
-      ),
+      );
 
-    content:
+  }
+
+  if(
+    input.content != null
+  ){
+
+    sanitizedInput.content =
     sanitizeMemoryContent(
       input.content
-    ),
+    );
 
-    summary:
+  }
 
-      String(
+  if(
+    input.summary != null
+  ){
 
-        normalizeMemoryString(
-          input.summary
-        ) || ""
+    sanitizedInput.summary =
 
+      normalizeMemoryString(
+        input.summary
       )
+
       .slice(
         0,
         MEMORY_LIMITS
         .MAX_SUMMARY_LENGTH
-      ),
+      );
 
-    tags:
+  }
+
+  if(
+    input.tags != null
+  ){
+
+    sanitizedInput.tags =
     normalizeMemoryTags(
       input.tags
-    ),
+    );
 
-    metadata:
+  }
+
+  if(
+    input.metadata != null
+  ){
+
+    sanitizedInput.metadata =
     sanitizeMemoryMetadata(
       input.metadata
-    ),
+    );
 
-    priority:
+  }
+
+  if(
+    input.priority != null
+  ){
+
+    sanitizedInput.priority =
     normalizeMemoryPriority(
       input.priority
-    ),
+    );
 
-    expiration:
+  }
+
+  if(
+    input.expiration != null
+  ){
+
+    sanitizedInput.expiration =
     normalizeMemoryExpiration(
       input.expiration
-    ),
+    );
 
-    state:
+  }
+
+  if(
+    input.state != null
+  ){
+
+    sanitizedInput.state =
     normalizeMemoryState(
       input.state
-    )
+    );
 
-  };
+  }
+
+  return sanitizedInput;
 
 }
 
