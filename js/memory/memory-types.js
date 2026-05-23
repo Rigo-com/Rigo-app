@@ -1,8 +1,35 @@
 // =====================================
 // RIGO AI
 // MEMORY TYPES
-// ENTERPRISE INFINITY FINAL
+// ENTERPRISE INFINITY ULTRA FINAL
 // =====================================
+
+
+
+// =====================================
+// TYPES CONFIG
+// =====================================
+
+const MEMORY_TYPES_CONFIG =
+Object.freeze({
+
+  ENABLE_IMMUTABLE_FREEZE:true,
+
+  ENABLE_DEV_FREEZE:false,
+
+  ENABLE_CHECKSUMS:true,
+
+  ENABLE_SANITIZATION:true,
+
+  ENABLE_SCHEMA_VERSIONING:true,
+
+  MAX_RELATION_DEPTH:10,
+
+  LIGHTWEIGHT_MODE:false,
+
+  SCHEMA_VERSION:"1.0.0"
+
+});
 
 
 
@@ -59,7 +86,7 @@ function createMemoryTimestamps(){
   const timestamp =
   Date.now();
 
-  return deepFreeze({
+  return {
 
     createdAt:
     timestamp,
@@ -67,7 +94,7 @@ function createMemoryTimestamps(){
     updatedAt:
     timestamp
 
-  });
+  };
 
 }
 
@@ -85,7 +112,37 @@ function normalizeMemoryString(
   return String(
     value ?? fallback
   )
+
+  .normalize("NFKC")
+
+  .replace(
+    /[\u0000-\u001F\u007F]/g,
+    " "
+  )
+
+  .replace(
+    /\s+/g,
+    " "
+  )
+
   .trim();
+
+}
+
+
+
+// =====================================
+// NORMALIZE VALUE
+// =====================================
+
+function normalizeMemoryValue(
+  value
+){
+
+  return normalizeMemoryString(
+    value
+  )
+  .toLowerCase();
 
 }
 
@@ -101,9 +158,48 @@ function normalizeMemoryContent(
 
   return normalizeMemoryString(
     content
-  )
-  .replace(/\s+/g," ")
-  .trim();
+  );
+
+}
+
+
+
+// =====================================
+// MEMORY FINGERPRINT
+// =====================================
+
+function createMemoryFingerprint(
+  memory
+){
+
+  if(
+
+    !MEMORY_TYPES_CONFIG
+    .ENABLE_CHECKSUMS
+
+  ){
+
+    return null;
+
+  }
+
+  return createMemoryHash(
+    JSON.stringify({
+
+      id:memory.id,
+
+      title:memory.title,
+
+      content:memory.content,
+
+      updatedAt:
+      memory.updatedAt,
+
+      version:
+      memory.version
+
+    })
+  );
 
 }
 
@@ -424,7 +520,7 @@ function createMemoryFlags(
   options = {}
 ){
 
-  return deepFreeze({
+  return {
 
     pinned:
     Boolean(
@@ -451,7 +547,7 @@ function createMemoryFlags(
       options.system
     )
 
-  });
+  };
 
 }
 
@@ -463,7 +559,7 @@ function createMemoryFlags(
 
 function createMemoryStats(){
 
-  return deepFreeze({
+  return {
 
     score:0,
 
@@ -479,7 +575,84 @@ function createMemoryStats(){
 
     lastAccessedAt:null
 
-  });
+  };
+
+}
+
+
+
+// =====================================
+// RELATION CYCLE DETECTION
+// =====================================
+
+function validateMemoryRelations(
+  relations = {},
+  currentMemoryId = null
+){
+
+  const visited =
+  new Set();
+
+  function walk(
+    ids = [],
+    depth = 0
+  ){
+
+    if(
+
+      depth >
+
+      MEMORY_TYPES_CONFIG
+      .MAX_RELATION_DEPTH
+
+    ){
+
+      return false;
+
+    }
+
+    for(
+      const id of ids
+    ){
+
+      if(
+        visited.has(id)
+      ){
+
+        return false;
+
+      }
+
+      if(
+        id ===
+        currentMemoryId
+      ){
+
+        return false;
+
+      }
+
+      visited.add(id);
+
+    }
+
+    return true;
+
+  }
+
+  return (
+
+    walk(
+      relations.childMemoryIds
+    )
+
+    &&
+
+    walk(
+      relations.relatedMemoryIds
+    )
+
+  );
 
 }
 
@@ -528,22 +701,13 @@ function createMemoryRelations(
 
   };
 
-  const parentMemoryId =
-
-    normalizeMemoryString(
-      options.parentMemoryId
-    ) || null;
-
-  return deepFreeze({
+  const relations = {
 
     parentMemoryId:
 
-      parentMemoryId ===
-      currentMemoryId
-
-      ? null
-
-      : parentMemoryId,
+      normalizeMemoryString(
+        options.parentMemoryId
+      ) || null,
 
     childMemoryIds:
     normalizeIds(
@@ -555,7 +719,33 @@ function createMemoryRelations(
       options.relatedMemoryIds
     )
 
-  });
+  };
+
+  if(
+
+    !validateMemoryRelations(
+
+      relations,
+
+      currentMemoryId
+
+    )
+
+  ){
+
+    return {
+
+      parentMemoryId:null,
+
+      childMemoryIds:[],
+
+      relatedMemoryIds:[]
+
+    };
+
+  }
+
+  return relations;
 
 }
 
@@ -567,7 +757,7 @@ function createMemoryRelations(
 
 function createMemoryEmbedding(){
 
-  return deepFreeze({
+  return {
 
     vector:null,
 
@@ -577,7 +767,7 @@ function createMemoryEmbedding(){
 
     createdAt:null
 
-  });
+  };
 
 }
 
@@ -591,16 +781,13 @@ function createMemoryMetadata(
   metadata = {}
 ){
 
-  const normalizedMetadata =
-  normalizeMemoryMetadata(
-    metadata
-  );
+  return {
 
-  return deepFreeze({
+    ...normalizeMemoryMetadata(
+      metadata
+    )
 
-    ...normalizedMetadata
-
-  });
+  };
 
 }
 
@@ -617,7 +804,7 @@ function createMemoryAudit(
   const timestamps =
   createMemoryTimestamps();
 
-  return deepFreeze({
+  return {
 
     createdBy:
     normalizeMemoryString(
@@ -645,7 +832,46 @@ function createMemoryAudit(
     updatedAt:
     timestamps.updatedAt
 
-  });
+  };
+
+}
+
+
+
+// =====================================
+// LIGHTWEIGHT MEMORY
+// =====================================
+
+function createLightweightMemoryObject(
+  options = {}
+){
+
+  return {
+
+    id:createMemoryId(),
+
+    title:
+    normalizeMemoryString(
+      options.title
+    ),
+
+    content:
+    normalizeMemoryContent(
+      options.content
+    ),
+
+    type:
+    normalizeMemoryType(
+      options.type
+    ),
+
+    createdAt:
+    Date.now(),
+
+    updatedAt:
+    Date.now()
+
+  };
 
 }
 
@@ -658,6 +884,19 @@ function createMemoryAudit(
 function createMemoryObject(
   options = {}
 ){
+
+  if(
+
+    MEMORY_TYPES_CONFIG
+    .LIGHTWEIGHT_MODE
+
+  ){
+
+    return createLightweightMemoryObject(
+      options
+    );
+
+  }
 
   const timestamps =
   createMemoryTimestamps();
@@ -672,6 +911,11 @@ function createMemoryObject(
 
     version:
     MEMORY_VERSION,
+
+    schemaVersion:
+
+      MEMORY_TYPES_CONFIG
+      .SCHEMA_VERSION,
 
     type:
     normalizeMemoryType(
@@ -768,6 +1012,8 @@ function createMemoryObject(
     embedding:
     createMemoryEmbedding(),
 
+    fingerprint:null,
+
     createdAt:
     timestamps.createdAt,
 
@@ -780,6 +1026,11 @@ function createMemoryObject(
     )
 
   };
+
+  memoryObject.fingerprint =
+  createMemoryFingerprint(
+    memoryObject
+  );
 
   return freezeMemoryObject(
     memoryObject
@@ -972,7 +1223,7 @@ function createSystemMemory(
 
 
 // =====================================
-// CLONE MEMORY OBJECT
+// SAFE CLONE
 // =====================================
 
 function cloneMemoryObject(
@@ -980,6 +1231,19 @@ function cloneMemoryObject(
 ){
 
   try{
+
+    if(
+
+      typeof structuredClone ===
+      "function"
+
+    ){
+
+      return structuredClone(
+        memory
+      );
+
+    }
 
     return JSON.parse(
       JSON.stringify(
@@ -1020,8 +1284,102 @@ function freezeMemoryObject(
 
   }
 
+  if(
+
+    !MEMORY_TYPES_CONFIG
+    .ENABLE_IMMUTABLE_FREEZE
+
+  ){
+
+    return memory;
+
+  }
+
+  if(
+
+    MEMORY_TYPES_CONFIG
+    .ENABLE_DEV_FREEZE !==
+    true
+
+  ){
+
+    return memory;
+
+  }
+
   return deepFreeze(
     memory
+  );
+
+}
+
+
+
+// =====================================
+// IMMUTABLE PATCH
+// =====================================
+
+function patchMemoryObject(
+  memory,
+  patch = {}
+){
+
+  return createMemoryObject({
+
+    ...cloneMemoryObject(
+      memory
+    ),
+
+    ...patch,
+
+    updatedAt:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
+// UPDATE MEMORY FIELD
+// =====================================
+
+function updateMemoryField(
+  memory,
+  field,
+  value
+){
+
+  return patchMemoryObject(
+    memory,
+    {
+      [field]:value
+    }
+  );
+
+}
+
+
+
+// =====================================
+// MERGE MEMORY METADATA
+// =====================================
+
+function mergeMemoryMetadata(
+  memory,
+  metadata = {}
+){
+
+  return patchMemoryObject(
+    memory,
+    {
+      metadata:{
+        ...(memory.metadata || {}),
+
+        ...metadata
+      }
+    }
   );
 
 }
