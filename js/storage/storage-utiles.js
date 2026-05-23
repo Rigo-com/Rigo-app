@@ -1,4 +1,38 @@
 // =====================================
+// HOST OBJECT DETECTION
+// =====================================
+
+function isHostStorageObject(
+  value
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  return (
+
+    value instanceof Element ||
+
+    value instanceof Node ||
+
+    value instanceof Window ||
+
+    value instanceof Document
+
+  );
+
+}
+
+
+
+// =====================================
 // SAFE JSON PARSE
 // =====================================
 
@@ -6,6 +40,23 @@ function safeJSONParse(
   value,
   fallback = null
 ){
+
+  if(
+    typeof value !==
+    "string"
+  ){
+
+    return fallback;
+
+  }
+
+  if(
+    value.length <= 0
+  ){
+
+    return fallback;
+
+  }
 
   try{
 
@@ -35,9 +86,63 @@ function safeStorageSerialize(
 
   try{
 
+    const visited =
+    new WeakSet();
+
     const serialized =
     JSON.stringify(
-      value
+
+      value,
+
+      (_,nestedValue) => {
+
+        if(
+          typeof nestedValue ===
+          "function"
+        ){
+
+          return undefined;
+
+        }
+
+        if(
+          isHostStorageObject(
+            nestedValue
+          )
+        ){
+
+          return undefined;
+
+        }
+
+        if(
+
+          nestedValue &&
+
+          typeof nestedValue ===
+          "object"
+
+        ){
+
+          if(
+            visited.has(
+              nestedValue
+            )
+          ){
+
+            return "[Circular]";
+          }
+
+          visited.add(
+            nestedValue
+          );
+
+        }
+
+        return nestedValue;
+
+      }
+
     );
 
     if(
@@ -83,6 +188,16 @@ function safeStorageSerialize(
 function deepClone(data){
 
   if(
+    isHostStorageObject(
+      data
+    )
+  ){
+
+    return null;
+
+  }
+
+  if(
     typeof structuredClone ===
     "function"
   ){
@@ -101,8 +216,20 @@ function deepClone(data){
 
   try{
 
-    return JSON.parse(
-      JSON.stringify(data)
+    const serialized =
+    safeStorageSerialize(
+      data
+    );
+
+    if(!serialized){
+
+      return null;
+
+    }
+
+    return safeJSONParse(
+      serialized,
+      null
     );
 
   }
