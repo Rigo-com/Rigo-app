@@ -16,6 +16,15 @@ false;
 
 
 // =====================================
+// STORAGE SAVE QUEUE
+// =====================================
+
+const memoryStorageQueue =
+[];
+
+
+
+// =====================================
 // STORAGE HELPERS
 // =====================================
 
@@ -52,6 +61,63 @@ function isMemoryStorageAvailable(){
     return false;
 
   }
+
+}
+
+
+
+function getPerformanceNow(){
+
+  try{
+
+    if(
+      typeof performance !==
+      "undefined"
+      &&
+      typeof performance.now ===
+      "function"
+    ){
+
+      return performance.now();
+
+    }
+
+    return Date.now();
+
+  }
+
+  catch(error){
+
+    return Date.now();
+
+  }
+
+}
+
+
+
+function waitForStorageUnlock(){
+
+  return new Promise((resolve) => {
+
+    const interval =
+    setInterval(() => {
+
+      if(
+        !memoryStorageLocked
+      ){
+
+        clearInterval(
+          interval
+        );
+
+        resolve(true);
+
+      }
+
+    },25);
+
+  });
 
 }
 
@@ -118,6 +184,15 @@ function deserializeMemoryData(
 
   try{
 
+    if(
+      typeof serialized !==
+      "string"
+    ){
+
+      return null;
+
+    }
+
     return JSON.parse(
       serialized
     );
@@ -135,6 +210,71 @@ function deserializeMemoryData(
 
 
 // =====================================
+// IMMUTABLE HELPERS
+// =====================================
+
+function freezeStorageObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeStorageObject(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
 // STORAGE SNAPSHOT
 // =====================================
 
@@ -142,7 +282,7 @@ function createStorageSnapshot(
   memories = []
 ){
 
-  return {
+  return freezeStorageObject({
 
     snapshotId:
     createMemoryId(),
@@ -156,7 +296,7 @@ function createStorageSnapshot(
     memories:
     deepClone(memories)
 
-  };
+  });
 
 }
 
@@ -170,7 +310,7 @@ function createMemoryStoragePayload(
   memories = []
 ){
 
-  return {
+  return freezeStorageObject({
 
     version:
     MEMORY_VERSION,
@@ -184,7 +324,7 @@ function createMemoryStoragePayload(
     memories:
     deepClone(memories)
 
-  };
+  });
 
 }
 
@@ -322,6 +462,86 @@ function removeDuplicateMemories(
 
 
 // =====================================
+// CLEAN INVALID MEMORIES
+// =====================================
+
+function filterValidMemories(
+  memories = []
+){
+
+  return memories.filter((memory) => {
+
+    const validation =
+
+      validateMemoryObject(
+        memory,
+        {
+          strict:true
+        }
+      );
+
+    if(
+      !validation.valid
+    ){
+
+      markMemoryCorrupted(
+        memory?.id ||
+        createMemoryId()
+      );
+
+    }
+
+    return validation.valid;
+
+  });
+
+}
+
+
+
+// =====================================
+// ATOMIC STORAGE WRITE
+// =====================================
+
+function atomicStorageWrite(
+  key,
+  serialized
+){
+
+  try{
+
+    const temporaryKey =
+    `${key}_temp`;
+
+    localStorage.setItem(
+      temporaryKey,
+      serialized
+    );
+
+    localStorage.setItem(
+      key,
+      serialized
+    );
+
+    localStorage.removeItem(
+      temporaryKey
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // SAVE ALL MEMORIES
 // =====================================
 
@@ -341,7 +561,7 @@ async function saveMemories(
     memoryStorageLocked
   ){
 
-    return false;
+    await waitForStorageUnlock();
 
   }
 
@@ -355,7 +575,7 @@ async function saveMemories(
   }
 
   const startedAt =
-  performance.now();
+  getPerformanceNow();
 
   try{
 
@@ -375,33 +595,9 @@ async function saveMemories(
     );
 
     const validMemories =
-
+    filterValidMemories(
       uniqueMemories
-      .filter((memory) => {
-
-        const validation =
-
-          validateMemoryObject(
-            memory,
-            {
-              strict:true
-            }
-          );
-
-        if(
-          !validation.valid
-        ){
-
-          markMemoryCorrupted(
-            memory?.id ||
-            createMemoryId()
-          );
-
-        }
-
-        return validation.valid;
-
-      });
+    );
 
     const payload =
     createMemoryStoragePayload(
@@ -419,7 +615,24 @@ async function saveMemories(
 
     }
 
-    localStorage.setItem(
+    const backupSuccess =
+    await backupMemoryStorage();
+
+    if(
+      !backupSuccess
+      &&
+      localStorage.getItem(
+        MEMORY_STORAGE_KEYS
+        .MEMORIES
+      )
+    ){
+
+      return false;
+
+    }
+
+    const writeSuccess =
+    atomicStorageWrite(
 
       MEMORY_STORAGE_KEYS
       .MEMORIES,
@@ -427,6 +640,12 @@ async function saveMemories(
       serialized
 
     );
+
+    if(!writeSuccess){
+
+      return false;
+
+    }
 
     memoryState.metrics
     .lastSaveAt =
@@ -436,7 +655,7 @@ async function saveMemories(
     .saveDuration =
     Math.round(
 
-      performance.now() -
+      getPerformanceNow() -
       startedAt
 
     );
@@ -524,13 +743,6 @@ async function saveMemory(
 
   }
 
-  if(
-    memoryStorageLocked
-  ){
-
-    return false;
-  }
-
   const latestMemories =
   await loadAllMemories();
 
@@ -591,7 +803,7 @@ async function loadAllMemories(){
   }
 
   const startedAt =
-  performance.now();
+  getPerformanceNow();
 
   try{
 
@@ -629,33 +841,9 @@ async function loadAllMemories(){
     }
 
     const memories =
-
+    filterValidMemories(
       payload.memories
-      .filter((memory) => {
-
-        const validation =
-
-          validateMemoryObject(
-            memory,
-            {
-              strict:true
-            }
-          );
-
-        if(
-          !validation.valid
-        ){
-
-          markMemoryCorrupted(
-            memory?.id ||
-            createMemoryId()
-          );
-
-        }
-
-        return validation.valid;
-
-      });
+    );
 
     memoryState.metrics
     .lastLoadAt =
@@ -665,7 +853,7 @@ async function loadAllMemories(){
     .loadDuration =
     Math.round(
 
-      performance.now() -
+      getPerformanceNow() -
       startedAt
 
     );
@@ -689,8 +877,8 @@ async function loadAllMemories(){
     memoryState.metrics
     .successfulOperations++;
 
-    return deepClone(
-      memories
+    return freezeStorageObject(
+      deepClone(memories)
     );
 
   }
@@ -755,7 +943,9 @@ async function loadMemory(
     null;
 
   return memory
-    ? deepClone(memory)
+    ? freezeStorageObject(
+        deepClone(memory)
+      )
     : null;
 
 }
@@ -770,13 +960,6 @@ async function updateMemory(
   memoryId,
   updates = {}
 ){
-
-  if(
-    memoryStorageLocked
-  ){
-
-    return false;
-  }
 
   const memory =
   await loadMemory(
@@ -821,13 +1004,6 @@ async function updateMemory(
 async function deleteMemory(
   memoryId
 ){
-
-  if(
-    memoryStorageLocked
-  ){
-
-    return false;
-  }
 
   const normalizedMemoryId =
   normalizeMemoryString(
@@ -947,6 +1123,21 @@ async function backupMemoryStorage(){
 
     if(!serialized){
 
+      return true;
+
+    }
+
+    const payload =
+    deserializeMemoryData(
+      serialized
+    );
+
+    if(
+      !validateStoragePayload(
+        payload
+      )
+    ){
+
       return false;
 
     }
@@ -1029,14 +1220,37 @@ async function restoreMemoryBackup(){
 
     }
 
-    localStorage.setItem(
+    payload.memories =
+    filterValidMemories(
+      payload.memories
+    );
+
+    const serialized =
+    serializeMemoryData(
+      payload
+    );
+
+    if(!serialized){
+
+      return false;
+
+    }
+
+    const restored =
+    atomicStorageWrite(
 
       MEMORY_STORAGE_KEYS
       .MEMORIES,
 
-      backup
+      serialized
 
     );
+
+    if(!restored){
+
+      return false;
+
+    }
 
     clearSearchCache();
 
@@ -1120,6 +1334,19 @@ function validateImportData(
   if(
     typeof importedData !==
     "string"
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    importedData.length >
+
+    MEMORY_LIMITS
+    .MAX_IMPORT_SIZE
+
   ){
 
     return false;
