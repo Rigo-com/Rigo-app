@@ -21,7 +21,7 @@ Object.freeze({
   RUNTIME_MANAGER_CONFIG,
 
   systemEventConfig:
-  SYSTEM_EVENT_CONFIG,
+  SYSTEM_EVENTS_CONFIG,
 
   systemEventPriorities:
   SYSTEM_EVENT_PRIORITIES,
