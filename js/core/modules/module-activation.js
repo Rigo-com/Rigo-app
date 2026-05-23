@@ -28,6 +28,84 @@ function detectModuleCircularDependency(
 
 
 // =====================================
+// SAFE MODULE EVENT
+// =====================================
+
+async function emitModuleEvent(
+  eventName,
+  payload = {}
+){
+
+  try{
+
+    if(
+      typeof emitSystemEvent !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
+    await emitSystemEvent(
+
+      eventName,
+
+      {
+
+        source:
+        "module-loader",
+
+        ...payload
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// MODULE TIMEOUT
+// =====================================
+
+function createModuleTimeout(){
+
+  return new Promise((_,reject) => {
+
+    setTimeout(() => {
+
+      reject(
+
+        new Error(
+          "MODULE TIMEOUT"
+        )
+
+      );
+
+    },
+
+    MODULE_LOADER_CONFIG
+    .MODULE_TIMEOUT);
+
+  });
+
+}
+
+
+
+// =====================================
 // LOAD DEPENDENCIES
 // =====================================
 
@@ -53,6 +131,19 @@ async function loadModuleDependencies(
 
   }
 
+  await emitModuleEvent(
+
+    MODULE_EVENTS
+    .DEPENDENCIES_RESOLVED,
+
+    {
+
+      dependencies
+
+    }
+
+  );
+
   return true;
 
 }
@@ -69,23 +160,66 @@ async function activateModule(
 
   try{
 
+    const startedAt =
+    Date.now();
+
     const moduleInstance =
-    await moduleDefinition
-    .factory({
+    await Promise.race([
 
-      container:
-      DependencyContainer,
+      moduleDefinition
+      .factory({
 
-      state:
-      StateManager,
+        container:
+        DependencyContainer,
 
-      diagnostics:
-      diagnosticsState,
+        state:
+        StateManager,
 
-      events:
-      SystemEvents
+        diagnostics:
+        diagnosticsState,
 
-    });
+        events:
+        SystemEvents
+
+      }),
+
+      createModuleTimeout()
+
+    ]);
+
+
+
+    // ================================
+    // INSTANCE STORE
+    // ================================
+
+    if(
+      !moduleLoaderState
+      .instances
+    ){
+
+      moduleLoaderState
+      .instances =
+      new Map();
+
+    }
+
+    moduleLoaderState
+    .instances
+    .set(
+
+      moduleDefinition
+      .name,
+
+      moduleInstance
+
+    );
+
+
+
+    // ================================
+    // ACTIVE
+    // ================================
 
     moduleLoaderState
     .activeModules
@@ -95,18 +229,27 @@ async function activateModule(
     );
 
     moduleLoaderState
+    .failedModules
+    .delete(
+      moduleDefinition
+      .name
+    );
+
+    moduleLoaderState
     .diagnostics
     .activated++;
 
     if(
-      typeof emitSystemEvent ===
+      typeof trackPerformanceMetric ===
       "function"
     ){
 
-      await emitSystemEvent(
+      trackPerformanceMetric(
 
-        MODULE_EVENTS
-        .ACTIVATED,
+        "module.activation",
+
+        Date.now() -
+        startedAt,
 
         {
 
@@ -119,6 +262,21 @@ async function activateModule(
       );
 
     }
+
+    await emitModuleEvent(
+
+      MODULE_EVENTS
+      .ACTIVATED,
+
+      {
+
+        module:
+        moduleDefinition
+        .name
+
+      }
+
+    );
 
     return moduleInstance;
 
@@ -142,7 +300,7 @@ async function activateModule(
       "function"
     ){
 
-      logDiagnosticError(
+      await logDiagnosticError(
 
         "MODULE ACTIVATION FAILED",
 
@@ -253,12 +411,30 @@ async function loadModule(
 
     moduleDefinition.state =
     MODULE_STATES
+    .INITIALIZING;
+
+    await emitModuleEvent(
+
+      MODULE_EVENTS
+      .INITIALIZED,
+
+      {
+
+        module:
+        normalizedName
+
+      }
+
+    );
+
+    moduleDefinition.state =
+    MODULE_STATES
     .LOADING;
 
 
 
     // ================================
-    // LOAD DEPENDENCIES
+    // DEPENDENCIES
     // ================================
 
     const dependenciesLoaded =
@@ -308,26 +484,19 @@ async function loadModule(
     .lastLoadedAt =
     Date.now();
 
-    if(
-      typeof emitSystemEvent ===
-      "function"
-    ){
+    await emitModuleEvent(
 
-      await emitSystemEvent(
+      MODULE_EVENTS
+      .LOADED,
 
-        MODULE_EVENTS
-        .LOADED,
+      {
 
-        {
+        module:
+        normalizedName
 
-          module:
-          normalizedName
+      }
 
-        }
-
-      );
-
-    }
+    );
 
     return true;
 
@@ -335,7 +504,11 @@ async function loadModule(
 
   catch(error){
 
-    moduleDefinition.retries++;
+    moduleDefinition.retries =
+    Number(
+      moduleDefinition
+      .retries || 0
+    ) + 1;
 
     moduleDefinition.state =
     MODULE_STATES
@@ -346,6 +519,39 @@ async function loadModule(
     .add(
       normalizedName
     );
+
+    if(
+      typeof logDiagnosticError ===
+      "function"
+    ){
+
+      await logDiagnosticError(
+
+        "MODULE LOAD FAILED",
+
+        {
+
+          module:
+          normalizedName,
+
+          retries:
+          moduleDefinition
+          .retries,
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
+
+
+
+    // ================================
+    // RETRY
+    // ================================
 
     if(
 
@@ -363,35 +569,41 @@ async function loadModule(
       .diagnostics
       .retries++;
 
+      await new Promise((resolve) => {
+
+        setTimeout(
+
+          resolve,
+
+          MODULE_LOADER_CONFIG
+          .RETRY_DELAY
+
+        );
+
+      });
+
       return loadModule(
         normalizedName
       );
 
     }
 
-    if(
-      typeof emitSystemEvent ===
-      "function"
-    ){
+    await emitModuleEvent(
 
-      await emitSystemEvent(
+      MODULE_EVENTS
+      .FAILED,
 
-        MODULE_EVENTS
-        .FAILED,
+      {
 
-        {
+        module:
+        normalizedName,
 
-          module:
-          normalizedName,
+        error:
+        String(error)
 
-          error:
-          String(error)
+      }
 
-        }
-
-      );
-
-    }
+    );
 
     return false;
 
@@ -452,6 +664,76 @@ async function unloadModule(
 
   }
 
+  const moduleDefinition =
+
+    moduleLoaderState
+    .modules
+    .get(
+      normalizedName
+    );
+
+  moduleDefinition.state =
+  MODULE_STATES
+  .UNLOADING;
+
+  await emitModuleEvent(
+
+    MODULE_EVENTS
+    .UNLOADING,
+
+    {
+
+      module:
+      normalizedName
+
+    }
+
+  );
+
+
+
+  // ================================
+  // DESTROY INSTANCE
+  // ================================
+
+  const moduleInstance =
+
+    moduleLoaderState
+    ?.instances
+    ?.get(
+      normalizedName
+    );
+
+  if(
+    moduleInstance &&
+    typeof moduleInstance
+    .destroy ===
+    "function"
+  ){
+
+    try{
+
+      await moduleInstance
+      .destroy();
+
+    }
+
+    catch(error){}
+
+  }
+
+  moduleLoaderState
+  ?.instances
+  ?.delete(
+    normalizedName
+  );
+
+
+
+  // ================================
+  // CLEANUP
+  // ================================
+
   moduleLoaderState
   .activeModules
   .delete(
@@ -464,38 +746,23 @@ async function unloadModule(
     normalizedName
   );
 
-  const moduleDefinition =
-
-    moduleLoaderState
-    .modules
-    .get(
-      normalizedName
-    );
-
   moduleDefinition.state =
   MODULE_STATES
-  .DISABLED;
+  .UNLOADED;
 
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
+  await emitModuleEvent(
 
-    await emitSystemEvent(
+    MODULE_EVENTS
+    .UNLOADED,
 
-      MODULE_EVENTS
-      .UNLOADED,
+    {
 
-      {
+      module:
+      normalizedName
 
-        module:
-        normalizedName
+    }
 
-      }
-
-    );
-
-  }
+  );
 
   return true;
 
