@@ -561,6 +561,15 @@ function chunkMemoryArray(
     values
   );
 
+  const normalizedChunkSize =
+  Math.max(
+    1,
+    safeMemoryNumber(
+      chunkSize,
+      100
+    )
+  );
+
   const chunks = [];
 
   for(
@@ -570,7 +579,7 @@ function chunkMemoryArray(
     index <
     safeValues.length;
 
-    index += chunkSize
+    index += normalizedChunkSize
 
   ){
 
@@ -578,7 +587,7 @@ function chunkMemoryArray(
 
       safeValues.slice(
         index,
-        index + chunkSize
+        index + normalizedChunkSize
       )
 
     );
@@ -802,6 +811,25 @@ function deepClone(
   value
 ){
 
+  try{
+
+    if(
+
+      typeof structuredClone ===
+      "function"
+
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
   return safeJsonParse(
 
     safeJsonStringify(
@@ -860,10 +888,21 @@ function deepFreeze(
   )
   .forEach((nestedValue) => {
 
-    deepFreeze(
-      nestedValue,
-      visited
-    );
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      deepFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
 
   });
 
@@ -907,9 +946,18 @@ function truncateMemoryText(
     text
   );
 
+  const normalizedMaxLength =
+  Math.max(
+    1,
+    safeMemoryNumber(
+      maxLength,
+      500
+    )
+  );
+
   if(
     normalizedText.length <=
-    maxLength
+    normalizedMaxLength
   ){
 
     return normalizedText;
@@ -922,7 +970,7 @@ function truncateMemoryText(
 
       0,
 
-      maxLength
+      normalizedMaxLength
 
     )
 
@@ -1297,11 +1345,21 @@ async function retryMemoryOperation(
 
   let lastError = null;
 
+  const normalizedRetries =
+  Math.max(
+    0,
+    safeMemoryNumber(
+      retries,
+      MEMORY_UTILS_CONFIG
+      .MAX_RETRY_COUNT
+    )
+  );
+
   for(
 
     let attempt = 0;
 
-    attempt <= retries;
+    attempt <= normalizedRetries;
 
     attempt++
 
