@@ -80,6 +80,13 @@ async function updateSetting(
     value
   );
 
+  if(
+    safeValue === undefined
+  ){
+
+    return false;
+  }
+
   setNestedSetting(
 
     settingsState
