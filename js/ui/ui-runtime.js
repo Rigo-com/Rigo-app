@@ -1,73 +1,168 @@
 // =====================================
 // RIGO AI
-// UI RUNTIME SYSTEM
-// ENTERPRISE FINAL
+// UI RUNTIME
+// ENTERPRISE UI ORCHESTRATOR
 // =====================================
 
 
 
 // =====================================
-// UI EVENT STATE
+// UI RUNTIME STATE
 // =====================================
 
-const uiEventState =
+const uiRuntimeState =
 Object.seal({
 
-  eventsBound:false,
+  initialized:false,
 
-  resizeTimeout:null,
+  initializing:false,
 
-  toastTimeouts:
-  new WeakMap()
+  destroying:false,
+
+  crashed:false,
+
+  initializedAt:null,
+
+  destroyedAt:null,
+
+  lastError:null
 
 });
 
 
 
 // =====================================
-// STORAGE HELPERS
+// UI MODULES
 // =====================================
 
-function safeLocalStorageGet(
-  key
-){
+const UI_RUNTIME_MODULES =
+Object.freeze([
 
-  try{
+  {
 
-    return localStorage
-    .getItem(key);
+    name:"elements",
+
+    required:true,
+
+    initialize(){
+
+      return (
+
+        typeof UIElements !==
+        "undefined"
+
+        &&
+
+        UIElements
+        .cache()
+
+        &&
+
+        UIElements
+        .validate()
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"events",
+
+    required:true,
+
+    initialize(){
+
+      return (
+
+        typeof UIEvents !==
+        "undefined"
+
+        &&
+
+        UIEvents
+        .bind()
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"renderer",
+
+    required:true,
+
+    initialize(){
+
+      return (
+        typeof UIRenderer !==
+        "undefined"
+      );
+
+    }
 
   }
 
-  catch(error){
+]);
 
-    safeLogError(
 
-      "LOCAL STORAGE GET ERROR:",
 
-      error
+// =====================================
+// VALIDATE DOM
+// =====================================
 
-    );
+function validateUIRuntimeEnvironment(){
 
-    return null;
+  return (
 
-  }
+    typeof window !==
+    "undefined"
+
+    &&
+
+    typeof document !==
+    "undefined"
+
+  );
 
 }
 
 
 
-function safeLocalStorageSet(
-  key,
-  value
-){
+// =====================================
+// INITIALIZE RESPONSIVE UI
+// =====================================
+
+function initializeResponsiveUI(){
 
   try{
 
-    localStorage.setItem(
-      key,
-      value
-    );
+    if(
+      typeof detectMobileMode ===
+      "function"
+    ){
+
+      detectMobileMode();
+
+    }
+
+    if(
+      typeof updateResponsiveUI ===
+      "function"
+    ){
+
+      updateResponsiveUI();
+
+    }
 
     return true;
 
@@ -76,16 +171,141 @@ function safeLocalStorageSet(
   catch(error){
 
     safeLogError(
-
-      "LOCAL STORAGE SET ERROR:",
-
       error
-
     );
 
     return false;
 
   }
+
+}
+
+
+
+// =====================================
+// INITIALIZE THEME
+// =====================================
+
+function initializeUITheme(){
+
+  try{
+
+    if(
+      typeof initializeTheme ===
+      "function"
+    ){
+
+      return initializeTheme();
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    safeLogError(
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// INITIALIZE CONTAINERS
+// =====================================
+
+function initializeUIContainers(){
+
+  if(
+    typeof UIElements ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  const toastReady =
+  UIElements
+  .initializeToast();
+
+  const modalReady =
+  UIElements
+  .initializeModal();
+
+  return (
+    toastReady &&
+    modalReady
+  );
+
+}
+
+
+
+// =====================================
+// INITIALIZE MODULES
+// =====================================
+
+function initializeUIModules(){
+
+  return UI_RUNTIME_MODULES
+  .every((module) => {
+
+    try{
+
+      const initialized =
+      module.initialize();
+
+      if(
+        !initialized
+      ){
+
+        if(
+          module.required
+        ){
+
+          return false;
+
+        }
+
+      }
+
+      return true;
+
+    }
+
+    catch(error){
+
+      safeLogError(
+
+        "UI MODULE INIT FAILED",
+
+        module.name,
+
+        error
+
+      );
+
+      if(
+        module.required
+      ){
+
+        return false;
+
+      }
+
+      return true;
+
+    }
+
+  });
 
 }
 
@@ -98,7 +318,8 @@ function safeLocalStorageSet(
 function initializeUI(){
 
   if(
-    uiState.initialized
+    uiRuntimeState
+    .initialized
   ){
 
     return true;
@@ -106,644 +327,114 @@ function initializeUI(){
   }
 
   if(
-    typeof document ===
-    "undefined"
+    uiRuntimeState
+    .initializing
   ){
 
     return false;
 
   }
 
-  cacheUIElements();
-
-  if(
-    !validateUIElements()
-  ){
-
-    safeLogError(
-      "UI VALIDATION FAILED"
-    );
-
-    return false;
-
-  }
-
-  detectMobileMode();
-
-  initializeTheme();
-
-  bindUIEvents();
-
-  initializeToastContainer();
-
-  initializeModalContainer();
-
-  updateResponsiveUI();
-
-  uiState.initialized =
+  uiRuntimeState
+  .initializing =
   true;
 
-  safeLogInfo(
-    "UI SYSTEM READY"
-  );
+  try{
 
-  return true;
+    const environmentValid =
+    validateUIRuntimeEnvironment();
 
-}
-
-
-
-// =====================================
-// BIND EVENTS
-// =====================================
-
-function bindUIEvents(){
-
-  if(
-    uiEventState.eventsBound
-  ){
-
-    return true;
-
-  }
-
-  bindSidebarEvents();
-
-  bindInputEvents();
-
-  bindResizeEvents();
-
-  bindKeyboardEvents();
-
-  bindVisibilityEvents();
-
-  uiEventState.eventsBound =
-  true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// WINDOW RESIZE HANDLER
-// =====================================
-
-function handleWindowResize(){
-
-  uiState.resizing =
-  true;
-
-  clearTimeout(
-    uiEventState
-    .resizeTimeout
-  );
-
-  uiEventState
-  .resizeTimeout =
-  setTimeout(() => {
-
-    requestUIAnimationFrame(
-      () => {
-
-        detectMobileMode();
-
-        updateResponsiveUI();
-
-        uiState.resizing =
-        false;
-
-        uiEventState
-        .resizeTimeout =
-        null;
-
-      }
-    );
-
-  },
-
-  UI_CONFIG
-  .RESIZE_DELAY);
-
-}
-
-
-
-// =====================================
-// RESIZE EVENTS
-// =====================================
-
-function bindResizeEvents(){
-
-  if(
-    typeof window ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
-
-  window.addEventListener(
-    "resize",
-    handleWindowResize,
-    {
-      passive:true
-    }
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// GLOBAL KEYBOARD
-// =====================================
-
-function handleGlobalKeyboard(
-  event
-){
-
-  if(
-    !event
-  ){
-
-    return false;
-
-  }
-
-  const activeElement =
-  document.activeElement;
-
-  const typingTarget =
-
-    activeElement?.tagName ===
-    "INPUT"
-
-    ||
-
-    activeElement?.tagName ===
-    "TEXTAREA"
-
-    ||
-
-    activeElement
-    ?.isContentEditable ===
-    true;
-
-  if(
-    typingTarget
-  ){
-
-    return false;
-
-  }
-
-  if(
-    event.key ===
-    "Escape"
-  ){
-
-    closeModal();
-
-    closeSidebar();
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// KEYBOARD EVENTS
-// =====================================
-
-function bindKeyboardEvents(){
-
-  document.addEventListener(
-    "keydown",
-    handleGlobalKeyboard
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// VISIBILITY CHANGE
-// =====================================
-
-function handleVisibilityChange(){
-
-  if(
-    document.hidden
-  ){
-
-    cancelUIAnimationFrame();
-
-  }
-
-}
-
-
-
-// =====================================
-// VISIBILITY EVENTS
-// =====================================
-
-function bindVisibilityEvents(){
-
-  document.addEventListener(
-    "visibilitychange",
-    handleVisibilityChange
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UI RAF
-// =====================================
-
-function requestUIAnimationFrame(
-  callback
-){
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof requestAnimationFrame !==
-    "function"
-  ){
-
-    try{
-
-      callback();
-
-      return true;
-
-    }
-
-    catch(error){
-
-      safeLogError(
-        error
-      );
+    if(
+      !environmentValid
+    ){
 
       return false;
 
     }
 
-  }
-
-  cancelUIAnimationFrame();
-
-  uiState.activeAnimationFrame =
-  requestAnimationFrame(() => {
-
-    uiState.activeAnimationFrame =
-    null;
-
-    try{
-
-      callback();
-
-    }
-
-    catch(error){
-
-      safeLogError(
-        error
-      );
-
-    }
-
-  });
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CANCEL RAF
-// =====================================
-
-function cancelUIAnimationFrame(){
-
-  if(
-
-    typeof cancelAnimationFrame !==
-    "function"
-
-  ){
-
-    uiState.activeAnimationFrame =
-    null;
-
-    return false;
-
-  }
-
-  if(
-    uiState.activeAnimationFrame
-  ){
-
-    cancelAnimationFrame(
-
-      uiState
-      .activeAnimationFrame
-
-    );
-
-    uiState.activeAnimationFrame =
-    null;
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// TOAST
-// =====================================
-
-function showToast(
-  message,
-  duration = 3000
-){
-
-  if(
-    !uiElements.toastContainer
-  ){
-
-    return false;
-
-  }
-
-  const activeToasts =
-
-    uiElements
-    .toastContainer
-    .children;
-
-  if(
-
-    activeToasts.length >=
-
-    UI_CONFIG
-    .MAX_TOASTS
-
-  ){
-
-    const oldestToast =
-    activeToasts[0];
-
-    if(oldestToast){
-
-      const existingTimeout =
-
-        uiEventState
-        .toastTimeouts
-        .get(
-          oldestToast
-        );
-
-      if(existingTimeout){
-
-        clearTimeout(
-          existingTimeout
-        );
-
-      }
-
-      uiEventState
-      .toastTimeouts
-      .delete(
-        oldestToast
-      );
-
-      oldestToast.remove();
-
-    }
-
-  }
-
-  const toast =
-  document.createElement(
-    "div"
-  );
-
-  toast.classList.add(
-    "toast"
-  );
-
-  toast.textContent =
-  String(message);
-
-  uiElements
-  .toastContainer
-  .appendChild(
-    toast
-  );
-
-  uiState.activeToast =
-  toast;
-
-  const timeoutId =
-  setTimeout(() => {
-
-    requestUIAnimationFrame(
-      () => {
-
-        toast.remove();
-
-      }
-    );
-
-    uiEventState
-    .toastTimeouts
-    .delete(
-      toast
-    );
+    const modulesReady =
+    initializeUIModules();
 
     if(
-      uiState.activeToast ===
-      toast
+      !modulesReady
     ){
 
-      uiState.activeToast =
-      null;
+      return false;
 
     }
 
-  },duration);
+    const containersReady =
+    initializeUIContainers();
 
-  uiEventState
-  .toastTimeouts
-  .set(
-    toast,
-    timeoutId
-  );
+    if(
+      !containersReady
+    ){
 
-  return true;
+      return false;
 
-}
+    }
 
+    initializeResponsiveUI();
 
+    initializeUITheme();
 
-// =====================================
-// CLEAR TOASTS
-// =====================================
+    uiState.initialized =
+    true;
 
-function clearAllToasts(){
+    uiState.destroyed =
+    false;
 
-  if(
-    !uiElements.toastContainer
-  ){
+    uiState.hydrated =
+    true;
+
+    uiState.initializedAt =
+    Date.now();
+
+    uiRuntimeState
+    .initialized =
+    true;
+
+    uiRuntimeState
+    .initializedAt =
+    Date.now();
+
+    safeLogInfo(
+      "UI SYSTEM READY"
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    uiRuntimeState
+    .crashed =
+    true;
+
+    uiRuntimeState
+    .lastError =
+    error;
+
+    safeLogError(
+
+      "UI INITIALIZATION FAILED",
+
+      error
+
+    );
 
     return false;
 
   }
 
-  const toasts = [
+  finally{
 
-    ...uiElements
-    .toastContainer
-    .children
-
-  ];
-
-  toasts.forEach((toast) => {
-
-    const timeoutId =
-
-      uiEventState
-      .toastTimeouts
-      .get(
-        toast
-      );
-
-    if(timeoutId){
-
-      clearTimeout(
-        timeoutId
-      );
-
-    }
-
-    uiEventState
-    .toastTimeouts
-    .delete(
-      toast
-    );
-
-    toast.remove();
-
-  });
-
-  uiState.activeToast =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// MODAL
-// =====================================
-
-function openModal(
-  content
-){
-
-  if(
-    !uiElements
-    .modalContainer
-  ){
-
-    return false;
+    uiRuntimeState
+    .initializing =
+    false;
 
   }
-
-  closeModal();
-
-  const modal =
-  document.createElement(
-    "div"
-  );
-
-  modal.classList.add(
-    "modal"
-  );
-
-  modal.setAttribute(
-    "role",
-    "dialog"
-  );
-
-  modal.setAttribute(
-    "aria-modal",
-    "true"
-  );
-
-  modal.setAttribute(
-    "tabindex",
-    "-1"
-  );
-
-  if(
-    content instanceof Node
-  ){
-
-    modal.appendChild(
-      content
-    );
-
-  }
-
-  else{
-
-    modal.textContent =
-    String(content);
-
-  }
-
-  uiElements
-  .modalContainer
-  .appendChild(
-    modal
-  );
-
-  modal.focus();
-
-  uiState.activeModal =
-  modal;
-
-  return true;
 
 }
 
@@ -755,35 +446,82 @@ function openModal(
 
 function resetUIState(){
 
-  cancelUIAnimationFrame();
+  try{
 
-  closeSidebar();
+    if(
+      typeof UIRenderer !==
+      "undefined"
+    ){
 
-  closeModal();
+      UIRenderer
+      .cancelFrame();
 
-  hideLoadingScreen();
+      UIRenderer
+      .clearQueue();
+    }
 
-  clearAllToasts();
+    if(
+      typeof closeSidebar ===
+      "function"
+    ){
 
-  clearTimeout(
-    uiEventState
-    .resizeTimeout
-  );
+      closeSidebar();
 
-  uiEventState
-  .resizeTimeout =
-  null;
+    }
 
-  uiState.loading =
-  false;
+    if(
+      typeof closeModal ===
+      "function"
+    ){
 
-  uiState.rendering =
-  false;
+      closeModal();
 
-  uiState.typing =
-  false;
+    }
 
-  return true;
+    if(
+      typeof hideLoadingScreen ===
+      "function"
+    ){
+
+      hideLoadingScreen();
+
+    }
+
+    if(
+      typeof clearAllToasts ===
+      "function"
+    ){
+
+      clearAllToasts();
+
+    }
+
+    uiState.loading =
+    false;
+
+    uiState.rendering =
+    false;
+
+    uiState.typing =
+    false;
+
+    uiState.resizing =
+    false;
+
+    return true;
+
+  }
+
+  catch(error){
+
+    safeLogError(
+      "UI RESET FAILED",
+      error
+    );
+
+    return false;
+
+  }
 
 }
 
@@ -795,67 +533,161 @@ function resetUIState(){
 
 function destroyUI(){
 
-  cancelUIAnimationFrame();
-
-  closeSidebar();
-
-  closeModal();
-
-  hideLoadingScreen();
-
-  clearAllToasts();
-
-  clearTimeout(
-    uiEventState
-    .resizeTimeout
-  );
-
-  uiEventState
-  .resizeTimeout =
-  null;
-
   if(
-    typeof window !==
-    "undefined"
+    uiRuntimeState
+    .destroying
   ){
 
-    window.removeEventListener(
-      "resize",
-      handleWindowResize
-    );
+    return false;
 
   }
 
-  document.removeEventListener(
-    "visibilitychange",
-    handleVisibilityChange
-  );
+  uiRuntimeState
+  .destroying =
+  true;
 
-  document.removeEventListener(
-    "keydown",
-    handleGlobalKeyboard
-  );
+  try{
 
-  uiState.loading =
-  false;
+    resetUIState();
 
-  uiState.rendering =
-  false;
+    if(
+      typeof UIEvents !==
+      "undefined"
+    ){
 
-  uiState.typing =
-  false;
+      UIEvents
+      .unbind();
 
-  uiState.initialized =
-  false;
+    }
 
-  uiEventState.eventsBound =
-  false;
+    if(
+      typeof UIElements !==
+      "undefined"
+    ){
 
-  safeLogInfo(
-    "UI DESTROYED"
-  );
+      UIElements
+      .cleanup();
 
-  return true;
+      UIElements
+      .clearModal();
+    }
+
+    uiState.initialized =
+    false;
+
+    uiState.destroyed =
+    true;
+
+    uiState.hydrated =
+    false;
+
+    uiState.destroyedAt =
+    Date.now();
+
+    uiRuntimeState
+    .initialized =
+    false;
+
+    uiRuntimeState
+    .destroyedAt =
+    Date.now();
+
+    safeLogInfo(
+      "UI DESTROYED"
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    uiRuntimeState
+    .lastError =
+    error;
+
+    safeLogError(
+      "UI DESTROY FAILED",
+      error
+    );
+
+    return false;
+
+  }
+
+  finally{
+
+    uiRuntimeState
+    .destroying =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// UI DIAGNOSTICS
+// =====================================
+
+function getUIRuntimeDiagnostics(){
+
+  return Object.freeze({
+
+    initialized:
+    uiRuntimeState
+    .initialized,
+
+    initializing:
+    uiRuntimeState
+    .initializing,
+
+    destroying:
+    uiRuntimeState
+    .destroying,
+
+    crashed:
+    uiRuntimeState
+    .crashed,
+
+    initializedAt:
+    uiRuntimeState
+    .initializedAt,
+
+    destroyedAt:
+    uiRuntimeState
+    .destroyedAt,
+
+    lastError:
+
+      uiRuntimeState
+      .lastError
+
+      ?
+
+      String(
+        uiRuntimeState
+        .lastError
+      )
+
+      :
+
+      null,
+
+    trackedElements:
+
+      uiState
+      .trackedElements
+      .size,
+
+    activeListeners:
+
+      uiState
+      .activeListeners
+      .size
+
+  });
 
 }
 
@@ -877,16 +709,7 @@ Object.freeze({
   destroy:
   destroyUI,
 
-  toast:
-  showToast,
-
-  modal:
-  openModal,
-
-  requestFrame:
-  requestUIAnimationFrame,
-
-  cancelFrame:
-  cancelUIAnimationFrame
+  diagnostics:
+  getUIRuntimeDiagnostics
 
 });
