@@ -1432,3 +1432,47 @@ Object.freeze({
   resetSystemEvents
 
 });
+// =====================================
+// INITIALIZE
+// =====================================
+
+function initializeSystemEvents(){
+
+  if(
+    systemEventsState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  systemEventsState
+  .initialized =
+  true;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.SystemEvents =
+  SystemEvents;
+
+  window.emitSystemEvent =
+  emitSystemEvent;
+
+  window.initializeSystemEvents =
+  initializeSystemEvents;
+
+}
