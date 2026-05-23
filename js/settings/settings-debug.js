@@ -64,7 +64,10 @@ function getSettingsDiagnostics(){
 
     currentState:
     settingsState
-    .currentState
+    .currentState,
+
+    settingsVersion:
+    SETTINGS_VERSION
 
   };
 
