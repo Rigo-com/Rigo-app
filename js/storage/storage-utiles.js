@@ -8,6 +8,7 @@ function isHostStorageObject(
 
   if(
     !value ||
+
     typeof value !==
     "object"
   ){
@@ -16,17 +17,65 @@ function isHostStorageObject(
 
   }
 
-  return (
+  try{
 
-    value instanceof Element ||
+    return (
 
-    value instanceof Node ||
+      (
+        typeof Element !==
+        "undefined"
 
-    value instanceof Window ||
+        &&
 
-    value instanceof Document
+        value instanceof
+        Element
+      )
 
-  );
+      ||
+
+      (
+        typeof Node !==
+        "undefined"
+
+        &&
+
+        value instanceof
+        Node
+      )
+
+      ||
+
+      (
+        typeof Window !==
+        "undefined"
+
+        &&
+
+        value instanceof
+        Window
+      )
+
+      ||
+
+      (
+        typeof Document !==
+        "undefined"
+
+        &&
+
+        value instanceof
+        Document
+      )
+
+    );
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
 
 }
 
@@ -52,6 +101,19 @@ function safeJSONParse(
 
   if(
     value.length <= 0
+  ){
+
+    return fallback;
+
+  }
+
+  if(
+
+    value.length >
+
+    STORAGE_RUNTIME_CONFIG
+    .MAX_STORAGE_SIZE
+
   ){
 
     return fallback;
@@ -94,7 +156,7 @@ function safeStorageSerialize(
 
       value,
 
-      (_,nestedValue) => {
+      (key,nestedValue) => {
 
         if(
           typeof nestedValue ===
@@ -106,9 +168,47 @@ function safeStorageSerialize(
         }
 
         if(
+          typeof nestedValue ===
+          "symbol"
+        ){
+
+          return undefined;
+
+        }
+
+        if(
+          typeof nestedValue ===
+          "bigint"
+        ){
+
+          return String(
+            nestedValue
+          );
+
+        }
+
+        if(
           isHostStorageObject(
             nestedValue
           )
+        ){
+
+          return undefined;
+
+        }
+
+        if(
+
+          key === "__proto__"
+
+          ||
+
+          key === "prototype"
+
+          ||
+
+          key === "constructor"
+
         ){
 
           return undefined;
@@ -130,7 +230,8 @@ function safeStorageSerialize(
             )
           ){
 
-            return "[Circular]";
+            return undefined;
+
           }
 
           visited.add(
@@ -221,7 +322,9 @@ function deepClone(data){
       data
     );
 
-    if(!serialized){
+    if(
+      !serialized
+    ){
 
       return null;
 
@@ -234,7 +337,7 @@ function deepClone(data){
 
   }
 
-  catch(cloneError){
+  catch(error){
 
     return null;
 
