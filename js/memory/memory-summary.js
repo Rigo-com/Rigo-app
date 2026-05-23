@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY SUMMARY
-// ENTERPRISE GOD FINAL
+// ENTERPRISE INFINITY ULTRA FINAL
 // =====================================
 
 
@@ -38,7 +38,56 @@ Object.freeze({
   20,
 
   KEYWORD_LIMIT:
-  25
+  25,
+
+  REDUNDANCY_THRESHOLD:
+  0.85,
+
+  CACHE_LIMIT:
+  500,
+
+  ENABLE_SEMANTIC_SCORING:true,
+
+  ENABLE_REDUNDANCY_FILTER:true,
+
+  ENABLE_PRIORITY_SCORING:true,
+
+  ENABLE_INCREMENTAL_SUMMARY:true,
+
+  ENABLE_SUMMARY_CACHE:true
+
+});
+
+
+
+// =====================================
+// SUMMARY STATE
+// =====================================
+
+const memorySummaryState =
+Object.seal({
+
+  initialized:false,
+
+  generatedSummaries:0,
+
+  cachedSummaries:0,
+
+  failedSummaries:0,
+
+  semanticScores:0,
+
+  redundancyRemovals:0,
+
+  cache:new Map(),
+
+  dirtySummaryIds:
+  new Set(),
+
+  summaryMetadata:
+  new Map(),
+
+  lastSummaryAt:null
 
 });
 
@@ -136,6 +185,32 @@ function sanitizeSummaryText(
 
 
 // =====================================
+// CACHE KEY
+// =====================================
+
+function createSummaryCacheKey(
+  text,
+  options = {}
+){
+
+  return createMemoryHash(
+    JSON.stringify({
+
+      text:
+      sanitizeSummaryText(
+        text
+      ),
+
+      options
+
+    })
+  );
+
+}
+
+
+
+// =====================================
 // TRUNCATE
 // =====================================
 
@@ -193,16 +268,23 @@ function splitSummarySentences(
     /[.!?\n]+/
   )
 
-  .map((sentence) => {
+  .map((sentence,index) => {
 
-    return sentence.trim();
+    return {
+
+      index,
+
+      sentence:
+      sentence.trim()
+
+    };
 
   })
 
-  .filter((sentence) => {
+  .filter((item) => {
 
     return (
-      sentence.length >=
+      item.sentence.length >=
       MEMORY_SUMMARY_CONFIG
       .MIN_SENTENCE_LENGTH
     );
@@ -316,12 +398,98 @@ function extractSummaryKeywords(
 
 
 // =====================================
+// SEMANTIC SCORING
+// =====================================
+
+function calculateSemanticSentenceScore(
+  sentence,
+  fullText
+){
+
+  if(
+
+    !MEMORY_SUMMARY_CONFIG
+    .ENABLE_SEMANTIC_SCORING
+
+  ){
+
+    return 0;
+
+  }
+
+  const sentenceVector =
+  createTextEmbedding(
+    sentence
+  );
+
+  const fullVector =
+  createTextEmbedding(
+    fullText
+  );
+
+  memorySummaryState
+  .semanticScores++;
+
+  return calculateCosineSimilarity(
+    sentenceVector,
+    fullVector
+  );
+
+}
+
+
+
+// =====================================
+// PRIORITY SCORE
+// =====================================
+
+function calculatePrioritySummaryScore(
+  sentence
+){
+
+  let score = 0;
+
+  const normalized =
+  sentence.toLowerCase();
+
+  if(
+    normalized.includes("important")
+  ){
+
+    score += 2;
+
+  }
+
+  if(
+    normalized.includes("critical")
+  ){
+
+    score += 3;
+
+  }
+
+  if(
+    normalized.includes("urgent")
+  ){
+
+    score += 3;
+
+  }
+
+  return score;
+
+}
+
+
+
+// =====================================
 // SENTENCE SCORING
 // =====================================
 
 function scoreSummarySentence(
   sentence,
-  keywords = []
+  keywords = [],
+  fullText = ""
 ){
 
   if(!sentence){
@@ -359,7 +527,90 @@ function scoreSummarySentence(
 
   }
 
+  score +=
+  calculateSemanticSentenceScore(
+    sentence,
+    fullText
+  ) * 5;
+
+  score +=
+  calculatePrioritySummaryScore(
+    sentence
+  );
+
   return score;
+
+}
+
+
+
+// =====================================
+// REDUNDANCY FILTER
+// =====================================
+
+function removeRedundantSentences(
+  sentences = []
+){
+
+  if(
+
+    !MEMORY_SUMMARY_CONFIG
+    .ENABLE_REDUNDANCY_FILTER
+
+  ){
+
+    return sentences;
+
+  }
+
+  const filtered = [];
+
+  sentences.forEach((current) => {
+
+    const duplicate =
+    filtered.some((existing) => {
+
+      const similarity =
+      calculateCosineSimilarity(
+
+        createTextEmbedding(
+          existing.sentence
+        ),
+
+        createTextEmbedding(
+          current.sentence
+        )
+
+      );
+
+      return (
+
+        similarity >=
+
+        MEMORY_SUMMARY_CONFIG
+        .REDUNDANCY_THRESHOLD
+
+      );
+
+    });
+
+    if(
+      duplicate
+    ){
+
+      memorySummaryState
+      .redundancyRemovals++;
+
+      return;
+    }
+
+    filtered.push(
+      current
+    );
+
+  });
+
+  return filtered;
 
 }
 
@@ -384,18 +635,23 @@ function getBestSummarySentences(
     text
   );
 
-  return sentences
+  const scored = sentences
 
-  .map((sentence) => {
+  .map((item) => {
 
     return {
 
-      sentence,
+      ...item,
 
       score:
       scoreSummarySentence(
-        sentence,
-        keywords
+
+        item.sentence,
+
+        keywords,
+
+        text
+
       )
 
     };
@@ -408,7 +664,26 @@ function getBestSummarySentences(
 
   })
 
-  .slice(0,limit)
+  .slice(0,limit);
+
+  const filtered =
+  removeRedundantSentences(
+    scored
+  );
+
+
+
+  // ===================================
+  // PRESERVE ORIGINAL ORDER
+  // ===================================
+
+  return filtered
+
+  .sort((a,b) => {
+
+    return a.index - b.index;
+
+  })
 
   .map((item) => {
 
@@ -447,6 +722,43 @@ function buildTextSummary(
 
   }
 
+  const cacheKey =
+  createSummaryCacheKey(
+    safeText,
+    options
+  );
+
+
+
+  // ===================================
+  // CACHE
+  // ===================================
+
+  if(
+
+    MEMORY_SUMMARY_CONFIG
+    .ENABLE_SUMMARY_CACHE
+
+  ){
+
+    const cached =
+    memorySummaryState
+    .cache
+    .get(cacheKey);
+
+    if(
+      cached
+    ){
+
+      memorySummaryState
+      .cachedSummaries++;
+
+      return cached;
+
+    }
+
+  }
+
   const sentenceLimit =
   Math.min(
 
@@ -465,11 +777,59 @@ function buildTextSummary(
     sentenceLimit
   );
 
-  return truncateSummaryText(
+  const summary =
+  truncateSummaryText(
 
     bestSentences.join(". ")
 
   );
+
+  memorySummaryState
+  .cache
+  .set(
+    cacheKey,
+    summary
+  );
+
+
+
+  // ===================================
+  // CACHE LIMIT
+  // ===================================
+
+  while(
+
+    memorySummaryState
+    .cache
+    .size >
+
+    MEMORY_SUMMARY_CONFIG
+    .CACHE_LIMIT
+
+  ){
+
+    const firstKey =
+
+      memorySummaryState
+      .cache
+      .keys()
+      .next()
+      .value;
+
+    memorySummaryState
+    .cache
+    .delete(firstKey);
+
+  }
+
+  memorySummaryState
+  .generatedSummaries++;
+
+  memorySummaryState
+  .lastSummaryAt =
+  Date.now();
+
+  return summary;
 
 }
 
@@ -519,6 +879,20 @@ function summarizeMemory(
 
     sections.push(
       memory.content
+    );
+
+  }
+
+  if(
+
+    Array.isArray(
+      memory.tags
+    )
+
+  ){
+
+    sections.push(
+      memory.tags.join(" ")
     );
 
   }
@@ -678,6 +1052,70 @@ function createBulletSummary(
 
 
 // =====================================
+// MULTI LEVEL SUMMARIES
+// =====================================
+
+function createTinySummary(
+  text
+){
+
+  return buildTextSummary(
+    text,
+    {
+      limit:1
+    }
+  );
+
+}
+
+
+
+function createShortSummary(
+  text
+){
+
+  return buildTextSummary(
+    text,
+    {
+      limit:3
+    }
+  );
+
+}
+
+
+
+function createMediumSummary(
+  text
+){
+
+  return buildTextSummary(
+    text,
+    {
+      limit:6
+    }
+  );
+
+}
+
+
+
+function createFullSummary(
+  text
+){
+
+  return buildTextSummary(
+    text,
+    {
+      limit:10
+    }
+  );
+
+}
+
+
+
+// =====================================
 // MEMORY GROUP SUMMARY
 // =====================================
 
@@ -721,7 +1159,7 @@ function summarizeMemoryGroup(
 
 
 // =====================================
-// COMPRESS MEMORY
+// CONTEXT COMPRESSION
 // =====================================
 
 function compressMemoryContent(
@@ -731,14 +1169,70 @@ function compressMemoryContent(
 ){
 
   return truncateSummaryText(
-    buildTextSummary(
-      content,
-      {
-        limit:5
-      }
+    createShortSummary(
+      content
     ),
     maxLength
   );
+
+}
+
+
+
+// =====================================
+// INCREMENTAL SUMMARY
+// =====================================
+
+function markSummaryDirty(
+  memoryId
+){
+
+  memorySummaryState
+  .dirtySummaryIds
+  .add(
+    normalizeMemoryString(
+      memoryId
+    )
+  );
+
+  return true;
+
+}
+
+
+
+function rebuildDirtySummaries(){
+
+  const dirtyIds = [
+
+    ...memorySummaryState
+    .dirtySummaryIds
+
+  ];
+
+  dirtyIds.forEach((memoryId) => {
+
+    const memory =
+    getMemoryById(
+      memoryId
+    );
+
+    if(!memory){
+
+      return;
+    }
+
+    summarizeMemory(
+      memory
+    );
+
+  });
+
+  memorySummaryState
+  .dirtySummaryIds
+  .clear();
+
+  return true;
 
 }
 
@@ -818,6 +1312,58 @@ function createSummaryObject(
 
     createdAt:
     Date.now()
+
+  };
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getMemorySummaryDiagnostics(){
+
+  return {
+
+    initialized:
+    memorySummaryState
+    .initialized,
+
+    generatedSummaries:
+    memorySummaryState
+    .generatedSummaries,
+
+    cachedSummaries:
+    memorySummaryState
+    .cachedSummaries,
+
+    failedSummaries:
+    memorySummaryState
+    .failedSummaries,
+
+    semanticScores:
+    memorySummaryState
+    .semanticScores,
+
+    redundancyRemovals:
+    memorySummaryState
+    .redundancyRemovals,
+
+    cacheSize:
+    memorySummaryState
+    .cache
+    .size,
+
+    dirtySummaries:
+    memorySummaryState
+    .dirtySummaryIds
+    .size,
+
+    lastSummaryAt:
+    memorySummaryState
+    .lastSummaryAt
 
   };
 
