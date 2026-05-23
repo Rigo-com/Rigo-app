@@ -45,7 +45,11 @@ Object.freeze({
 
   ENABLE_PERMISSION_VALIDATION:true,
 
-  ENABLE_RUNTIME_LOCKS:true
+  ENABLE_RUNTIME_LOCKS:true,
+
+  MAX_RUNTIME_LOCKS:500,
+
+  MAX_FEATURES:1000
 
 });
 
@@ -79,6 +83,120 @@ Object.seal({
   lastUpdatedAt:null
 
 });
+
+
+
+// =====================================
+// NORMALIZE FEATURE
+// =====================================
+
+function normalizePolicyFeature(
+  value
+){
+
+  try{
+
+    return String(
+      value || ""
+    )
+    .trim()
+    .toLowerCase()
+    .slice(0,200);
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
+
+// =====================================
+// ENFORCE LIMITS
+// =====================================
+
+function enforcePolicyLimits(){
+
+  while(
+
+    securityPolicyState
+    .runtimeLocks
+    .size >
+
+    SECURITY_POLICY_CONFIG
+    .MAX_RUNTIME_LOCKS
+
+  ){
+
+    const first =
+
+      securityPolicyState
+      .runtimeLocks
+      .values()
+      .next()
+      .value;
+
+    securityPolicyState
+    .runtimeLocks
+    .delete(first);
+
+  }
+
+  while(
+
+    securityPolicyState
+    .trustedFeatures
+    .size >
+
+    SECURITY_POLICY_CONFIG
+    .MAX_FEATURES
+
+  ){
+
+    const first =
+
+      securityPolicyState
+      .trustedFeatures
+      .values()
+      .next()
+      .value;
+
+    securityPolicyState
+    .trustedFeatures
+    .delete(first);
+
+  }
+
+  while(
+
+    securityPolicyState
+    .blockedFeatures
+    .size >
+
+    SECURITY_POLICY_CONFIG
+    .MAX_FEATURES
+
+  ){
+
+    const first =
+
+      securityPolicyState
+      .blockedFeatures
+      .values()
+      .next()
+      .value;
+
+    securityPolicyState
+    .blockedFeatures
+    .delete(first);
+
+  }
+
+}
 
 
 
@@ -131,7 +249,11 @@ Object.freeze({
 
     allowInlineScripts:false,
 
-    allowWorkers:false
+    allowWorkers:false,
+
+    allowDynamicImport:false,
+
+    allowRemoteScripts:false
 
   }
 
@@ -171,12 +293,19 @@ function setSecurityLevel(
   level
 ){
 
+  const normalizedLevel =
+  normalizePolicyFeature(
+    level
+  );
+
   if(
 
     !Object.values(
       SECURITY_LEVELS
     )
-    .includes(level)
+    .includes(
+      normalizedLevel
+    )
 
   ){
 
@@ -186,7 +315,7 @@ function setSecurityLevel(
 
   securityPolicyState
   .activeLevel =
-  level;
+  normalizedLevel;
 
   securityPolicyState
   .lastUpdatedAt =
@@ -196,7 +325,10 @@ function setSecurityLevel(
 
     "SECURITY LEVEL CHANGED",
 
-    { level }
+    {
+      level:
+      normalizedLevel
+    }
 
   );
 
@@ -215,8 +347,9 @@ function validateFeatureAccess(
 ){
 
   const normalized =
-  safeString(feature)
-  .toLowerCase();
+  normalizePolicyFeature(
+    feature
+  );
 
   if(!normalized){
 
@@ -234,6 +367,17 @@ function validateFeatureAccess(
 
     securityPolicyState
     .blockedActions++;
+
+    logSecurityEvent(
+
+      "FEATURE BLOCKED",
+
+      {
+        feature:
+        normalized
+      }
+
+    );
 
     return false;
 
@@ -254,8 +398,9 @@ function blockSecurityFeature(
 ){
 
   const normalized =
-  safeString(feature)
-  .toLowerCase();
+  normalizePolicyFeature(
+    feature
+  );
 
   if(!normalized){
 
@@ -266,6 +411,8 @@ function blockSecurityFeature(
   securityPolicyState
   .blockedFeatures
   .add(normalized);
+
+  enforcePolicyLimits();
 
   securityPolicyState
   .lastUpdatedAt =
@@ -286,8 +433,9 @@ function trustSecurityFeature(
 ){
 
   const normalized =
-  safeString(feature)
-  .toLowerCase();
+  normalizePolicyFeature(
+    feature
+  );
 
   if(!normalized){
 
@@ -298,6 +446,8 @@ function trustSecurityFeature(
   securityPolicyState
   .trustedFeatures
   .add(normalized);
+
+  enforcePolicyLimits();
 
   securityPolicyState
   .lastUpdatedAt =
@@ -318,7 +468,9 @@ function addRuntimeLock(
 ){
 
   const normalized =
-  safeString(lockName);
+  normalizePolicyFeature(
+    lockName
+  );
 
   if(!normalized){
 
@@ -329,6 +481,8 @@ function addRuntimeLock(
   securityPolicyState
   .runtimeLocks
   .add(normalized);
+
+  enforcePolicyLimits();
 
   return true;
 
@@ -348,7 +502,7 @@ function removeRuntimeLock(
   .runtimeLocks
   .delete(
 
-    safeString(
+    normalizePolicyFeature(
       lockName
     )
 
@@ -372,7 +526,13 @@ function buildCSPPolicy(){
 
     "base-uri 'self'",
 
-    "frame-ancestors 'none'"
+    "frame-ancestors 'none'",
+
+    "form-action 'self'",
+
+    "img-src 'self' data: blob:",
+
+    "style-src 'self' 'unsafe-inline'"
 
   ];
 
@@ -392,6 +552,19 @@ function buildCSPPolicy(){
 
   }
 
+  if(
+    !activePolicy
+    .allowWorkers
+  ){
+
+    policy.push(
+
+      "worker-src 'none'"
+
+    );
+
+  }
+
   return policy.join("; ");
 
 }
@@ -406,31 +579,68 @@ function validateRuntimeExecution(
   type
 ){
 
+  const normalizedType =
+  normalizePolicyFeature(
+    type
+  );
+
   const activePolicy =
   getActiveSecurityPolicy();
 
-  switch(type){
+  let allowed =
+  false;
+
+  switch(normalizedType){
 
     case "eval":
 
-      return activePolicy
+      allowed =
+      activePolicy
       .allowEval;
+
+      break;
 
     case "inline-script":
 
-      return activePolicy
+      allowed =
+      activePolicy
       .allowInlineScripts;
+
+      break;
 
     case "worker":
 
-      return activePolicy
+      allowed =
+      activePolicy
       .allowWorkers;
+
+      break;
 
     default:
 
-      return false;
+      allowed = false;
 
   }
+
+  if(!allowed){
+
+    securityPolicyState
+    .blockedActions++;
+
+    logSecurityEvent(
+
+      "RUNTIME EXECUTION BLOCKED",
+
+      {
+        type:
+        normalizedType
+      }
+
+    );
+
+  }
+
+  return allowed;
 
 }
 
