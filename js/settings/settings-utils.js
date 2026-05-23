@@ -32,6 +32,18 @@ function safeSettingValue(
 
   try{
 
+    if(
+
+      value == null ||
+
+      typeof value !==
+      "object"
+
+    ){
+
+      return value;
+    }
+
     return cloneMemoryObject(
       value
     );
