@@ -335,29 +335,34 @@ function safeStorageSerialize(
 
 function deepClone(data){
 
-  try{
-
-    return structuredClone(
-      data
-    );
-
-  }
-
-  catch(error){
+  if(
+    typeof structuredClone ===
+    "function"
+  ){
 
     try{
 
-      return JSON.parse(
-        JSON.stringify(data)
+      return structuredClone(
+        data
       );
 
     }
 
-    catch(cloneError){
+    catch(error){}
 
-      return null;
+  }
 
-    }
+  try{
+
+    return JSON.parse(
+      JSON.stringify(data)
+    );
+
+  }
+
+  catch(cloneError){
+
+    return null;
 
   }
 
@@ -396,6 +401,9 @@ function initializeStorageRuntime(){
   storageState.hydrated =
   true;
 
+  storageState.destroyed =
+  false;
+
   storageState.lastSyncAt =
   Date.now();
 
@@ -418,6 +426,15 @@ function destroyStorageRuntime(){
   storageState.writeQueue =
   [];
 
+  storageState.writeTimer =
+  null;
+
+  storageState.available =
+  null;
+
+  storageState.lastSyncAt =
+  null;
+
   storageState.destroyed =
   true;
 
@@ -425,6 +442,9 @@ function destroyStorageRuntime(){
   false;
 
   storageState.hydrated =
+  false;
+
+  storageState.writing =
   false;
 
   storageState.cache.chats =
@@ -464,6 +484,15 @@ function hydrateStorageCache(){
 function enqueueStorageWrite(
   callback
 ){
+
+  if(
+    typeof callback !==
+    "function"
+  ){
+
+    return false;
+
+  }
 
   storageState.writeQueue
   .push(callback);
@@ -515,9 +544,22 @@ function processStorageQueue(){
           .writeQueue
           .shift();
 
-        await Promise.resolve(
-          callback()
-        );
+        try{
+
+          await Promise.resolve(
+            callback()
+          );
+
+        }
+
+        catch(error){
+
+          handleStorageError(
+            "STORAGE QUEUE ERROR",
+            error
+          );
+
+        }
 
       }
 
@@ -547,6 +589,14 @@ function processStorageQueue(){
 // =====================================
 
 function saveChats(chats){
+
+  if(
+    !storageState.initialized
+  ){
+
+    return false;
+
+  }
 
   if(
     !Array.isArray(chats)
@@ -618,8 +668,7 @@ function saveChats(chats){
 
           STORAGE_KEYS.VERSION,
 
-          STORAGE_CONFIG
-          .VERSION
+          "1.0.0"
 
         );
 
@@ -676,7 +725,7 @@ function loadChats(){
   storageState.cache.chats =
   deepClone(chats) || [];
 
-  return chats;
+  return deepClone(chats) || [];
 
 }
 
@@ -918,6 +967,14 @@ function getChatById(
 function saveMemory(memory){
 
   if(
+    !storageState.initialized
+  ){
+
+    return false;
+
+  }
+
+  if(
     !validateMemoryObject(
       memory
     )
@@ -1019,7 +1076,7 @@ function loadMemory(){
   storageState.cache.memory =
   deepClone(memory) || {};
 
-  return memory;
+  return deepClone(memory) || {};
 
 }
 
