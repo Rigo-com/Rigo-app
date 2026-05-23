@@ -27,6 +27,40 @@ Object.seal({
 
 
 // =====================================
+// SAFE QUERY
+// =====================================
+
+function queryDOMElement(
+  id
+){
+
+  try{
+
+    if(
+      typeof document ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return document
+    .getElementById(id);
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // VALIDATE ELEMENT
 // =====================================
 
@@ -35,8 +69,56 @@ function validateDOMElement(
 ){
 
   return Boolean(
-    element
+
+    element &&
+
+    typeof element ===
+    "object"
+
   );
+
+}
+
+
+
+// =====================================
+// LEGACY GLOBALS
+// =====================================
+
+function syncLegacyDOMGlobals(){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return false;
+
+    }
+
+    window.messageInput =
+    DOMReferences
+    .messageInput;
+
+    window.sendButton =
+    DOMReferences
+    .sendButton;
+
+    window.chatContainer =
+    DOMReferences
+    .chatContainer;
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
 
 }
 
@@ -46,7 +128,7 @@ function validateDOMElement(
 // INITIALIZE DOM ELEMENTS
 // =====================================
 
-function initializeDOMElements(){
+async function initializeDOMElements(){
 
   if(
     typeof document ===
@@ -57,49 +139,49 @@ function initializeDOMElements(){
 
   }
 
+
+
+  // ================================
+  // CLEAN PREVIOUS
+  // ================================
+
+  resetDOMReferences();
+
+
+
+  // ================================
+  // REFERENCES
+  // ================================
+
   DOMReferences
   .messageInput =
-  document.getElementById(
+  queryDOMElement(
     "messageInput"
   );
 
   DOMReferences
   .sendButton =
-  document.getElementById(
+  queryDOMElement(
     "sendButton"
   );
 
   DOMReferences
   .chatContainer =
-  document.getElementById(
+  queryDOMElement(
     "chatContainer"
   );
 
   DOMReferences
   .loadingScreen =
-  document.getElementById(
+  queryDOMElement(
     "loadingScreen"
   );
 
 
 
   // ================================
-  // LEGACY GLOBAL REFERENCES
+  // VALIDATION
   // ================================
-
-  messageInput =
-  DOMReferences
-  .messageInput;
-
-  sendButton =
-  DOMReferences
-  .sendButton;
-
-  chatContainer =
-  DOMReferences
-  .chatContainer;
-
-
 
   const valid =
 
@@ -121,6 +203,39 @@ function initializeDOMElements(){
   DOMReferences
   .initialized =
   valid;
+
+
+
+  // ================================
+  // GLOBALS
+  // ================================
+
+  syncLegacyDOMGlobals();
+
+
+
+  // ================================
+  // DIAGNOSTICS
+  // ================================
+
+  if(
+    typeof logDiagnosticInfo ===
+    "function"
+  ){
+
+    await logDiagnosticInfo(
+
+      "DOM INITIALIZED",
+
+      {
+
+        valid
+
+      }
+
+    );
+
+  }
 
   return valid;
 
@@ -167,6 +282,55 @@ function validateDOMElements(){
 
 
 // =====================================
+// SNAPSHOT
+// =====================================
+
+function createDOMSnapshot(){
+
+  return Object.freeze({
+
+    initialized:
+    DOMReferences
+    .initialized,
+
+    messageInput:
+
+      Boolean(
+        DOMReferences
+        .messageInput
+      ),
+
+    sendButton:
+
+      Boolean(
+        DOMReferences
+        .sendButton
+      ),
+
+    chatContainer:
+
+      Boolean(
+        DOMReferences
+        .chatContainer
+      ),
+
+    loadingScreen:
+
+      Boolean(
+        DOMReferences
+        .loadingScreen
+      ),
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
 // RESET DOM
 // =====================================
 
@@ -195,17 +359,30 @@ function resetDOMReferences(){
 
 
   // ================================
-  // RESET LEGACY GLOBAL REFERENCES
+  // RESET GLOBALS
   // ================================
 
-  messageInput =
-  null;
+  try{
 
-  sendButton =
-  null;
+    if(
+      typeof window !==
+      "undefined"
+    ){
 
-  chatContainer =
-  null;
+      window.messageInput =
+      null;
+
+      window.sendButton =
+      null;
+
+      window.chatContainer =
+      null;
+
+    }
+
+  }
+
+  catch(error){}
 
   return true;
 
@@ -251,7 +428,10 @@ function getDOMDiagnostics(){
       Boolean(
         DOMReferences
         .loadingScreen
-      )
+      ),
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -278,7 +458,44 @@ Object.freeze({
   diagnostics:
   getDOMDiagnostics,
 
+  snapshot:
+  createDOMSnapshot,
+
   refs:
   DOMReferences
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.AppDOM =
+  AppDOM;
+
+  window.DOMReferences =
+  DOMReferences;
+
+  window.initializeDOMElements =
+  initializeDOMElements;
+
+  window.validateDOMElements =
+  validateDOMElements;
+
+  window.resetDOMReferences =
+  resetDOMReferences;
+
+  window.getDOMDiagnostics =
+  getDOMDiagnostics;
+
+  window.createDOMSnapshot =
+  createDOMSnapshot;
+
+}
