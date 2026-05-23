@@ -13,21 +13,57 @@
 const SECURITY_PATTERNS =
 Object.freeze({
 
+
+
+  // ===================================
+  // XSS
+  // ===================================
+
   XSS:[
 
     /<script/i,
 
+    /<\/script/i,
+
     /javascript:/i,
+
+    /vbscript:/i,
+
+    /data:/i,
 
     /onerror\s*=/i,
 
     /onload\s*=/i,
 
+    /onclick\s*=/i,
+
+    /onmouseover\s*=/i,
+
+    /srcdoc\s*=/i,
+
     /<iframe/i,
 
-    /document\.cookie/i
+    /<object/i,
+
+    /<embed/i,
+
+    /<svg/i,
+
+    /<link/i,
+
+    /<meta/i,
+
+    /document\.cookie/i,
+
+    /data:text\/html/i
 
   ],
+
+
+
+  // ===================================
+  // SQL INJECTION
+  // ===================================
 
   SQL_INJECTION:[
 
@@ -37,7 +73,29 @@ Object.freeze({
 
     /insert\s+into/i,
 
-    /delete\s+from/i
+    /delete\s+from/i,
+
+    /update\s+.*set/i,
+
+    /or\s+1=1/i
+
+  ],
+
+
+
+  // ===================================
+  // PROTOTYPE POLLUTION
+  // ===================================
+
+  PROTOTYPE_POLLUTION:[
+
+    /^__proto__$/i,
+
+    /^prototype$/i,
+
+    /^constructor$/i,
+
+    /^constructor\.prototype$/i
 
   ]
 
@@ -60,8 +118,36 @@ function safeString(
     return "";
   }
 
-  let normalized =
-  String(value);
+  let normalized = "";
+
+  try{
+
+    normalized =
+    String(value);
+
+  }
+
+  catch(error){
+
+    logSecurityEvent(
+      "SAFE_STRING_FAILED"
+    );
+
+    return "";
+
+  }
+
+  if(
+    typeof normalized.normalize ===
+    "function"
+  ){
+
+    normalized =
+    normalized.normalize(
+      "NFKC"
+    );
+
+  }
 
   if(
 
@@ -75,7 +161,58 @@ function safeString(
 
   }
 
+  if(
+
+    normalized.length >
+
+    SECURITY_CONFIG
+    .MAX_STRING_LENGTH
+
+  ){
+
+    normalized =
+    normalized.slice(
+
+      0,
+
+      SECURITY_CONFIG
+      .MAX_STRING_LENGTH
+
+    );
+
+  }
+
   return normalized;
+
+}
+
+
+
+// =====================================
+// MATCH SECURITY PATTERNS
+// =====================================
+
+function matchSecurityPatterns(
+  input,
+  patterns = []
+){
+
+  return patterns.some((pattern) => {
+
+    return (
+
+      pattern instanceof
+      RegExp
+
+      &&
+
+      pattern.test(
+        input
+      )
+
+    );
+
+  });
 
 }
 
@@ -88,6 +225,37 @@ function safeString(
 function detectPromptInjection(
   input
 ){
+
+  if(
+    typeof SecurityPolicy !==
+    "undefined"
+
+    &&
+
+    typeof SecurityPolicy
+    .validateExecution ===
+    "function"
+  ){
+
+    const allowed =
+    SecurityPolicy
+    .validateExecution(
+      "prompt"
+    );
+
+    if(!allowed){
+
+      return {
+
+        detected:true,
+
+        score:100
+
+      };
+
+    }
+
+  }
 
   const suspiciousPatterns = [
 
@@ -108,7 +276,8 @@ function detectPromptInjection(
   let score = 0;
 
   const normalized =
-  input.toLowerCase();
+  safeString(input)
+  .toLowerCase();
 
   suspiciousPatterns
   .forEach((pattern) => {
@@ -214,51 +383,19 @@ function validateSecureInput(
   // ===================================
 
   const hasXSS =
+  matchSecurityPatterns(
+
+    normalized,
 
     SECURITY_PATTERNS
     .XSS
-    .some((pattern) => {
 
-      return (
-
-        pattern instanceof
-        RegExp
-
-        &&
-
-        pattern.test(
-          normalized
-        )
-
-      );
-
-    });
+  );
 
   if(hasXSS){
 
-    if(
-
-      Number.isFinite(
-
-        securityState
-        .blockedRequests
-
-      )
-
-    ){
-
-      securityState
-      .blockedRequests++;
-
-    }
-
-    else{
-
-      securityState
-      .blockedRequests =
-      1;
-
-    }
+    securityState
+    .blockedRequests++;
 
     logSecurityEvent(
       "XSS PAYLOAD BLOCKED"
@@ -269,6 +406,45 @@ function validateSecureInput(
       valid:false,
 
       reason:"XSS",
+
+      checkedAt:
+      Date.now()
+
+    });
+
+  }
+
+
+
+  // ===================================
+  // SQL INJECTION
+  // ===================================
+
+  const hasSQLInjection =
+  matchSecurityPatterns(
+
+    normalized,
+
+    SECURITY_PATTERNS
+    .SQL_INJECTION
+
+  );
+
+  if(hasSQLInjection){
+
+    securityState
+    .blockedRequests++;
+
+    logSecurityEvent(
+      "SQL INJECTION BLOCKED"
+    );
+
+    return deepFreezeSecurity({
+
+      valid:false,
+
+      reason:
+      "SQL_INJECTION",
 
       checkedAt:
       Date.now()
@@ -291,6 +467,15 @@ function validateSecureInput(
   if(
     promptAnalysis.detected
   ){
+
+    securityState
+    .blockedPrompts++;
+
+    logSecurityEvent(
+
+      "PROMPT INJECTION BLOCKED"
+
+    );
 
     return deepFreezeSecurity({
 
@@ -435,15 +620,87 @@ function validateObjectKeys(
 
   }
 
-  return (
+  const keys =
+  Object.keys(object);
 
-    Object.keys(object)
-    .length <=
+  if(
+
+    keys.length >
 
     SECURITY_CONFIG
     .MAX_OBJECT_KEYS
 
+  ){
+
+    return false;
+
+  }
+
+  const polluted =
+  keys.some((key) => {
+
+    return matchSecurityPatterns(
+
+      key,
+
+      SECURITY_PATTERNS
+      .PROTOTYPE_POLLUTION
+
+    );
+
+  });
+
+  return !polluted;
+
+}
+
+
+
+// =====================================
+// VALIDATE PAYLOAD
+// =====================================
+
+function validatePayload(
+  payload
+){
+
+  const validDepth =
+  validateJSONDepth(
+    payload
   );
+
+  if(!validDepth){
+
+    return false;
+
+  }
+
+  if(
+    Array.isArray(payload)
+  ){
+
+    return validateArraySize(
+      payload
+    );
+
+  }
+
+  if(
+
+    payload &&
+
+    typeof payload ===
+    "object"
+
+  ){
+
+    return validateObjectKeys(
+      payload
+    );
+
+  }
+
+  return true;
 
 }
 
@@ -464,6 +721,8 @@ Object.freeze({
   validateArraySize,
 
   validateObjectKeys,
+
+  validatePayload,
 
   detectPromptInjection
 
