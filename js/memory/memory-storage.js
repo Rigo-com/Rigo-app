@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY STORAGE
 // ENTERPRISE INFINITY FINAL
+// PATCHED + HARDENED
 // =====================================
 
 
@@ -96,12 +97,24 @@ function getPerformanceNow(){
 
 
 
-function waitForStorageUnlock(){
+function waitForStorageUnlock(
+  timeout = 10000
+){
 
   return new Promise((resolve) => {
 
+    const startedAt =
+    Date.now();
+
     const interval =
     setInterval(() => {
+
+      const expired =
+
+        (
+          Date.now() -
+          startedAt
+        ) >= timeout;
 
       if(
         !memoryStorageLocked
@@ -112,6 +125,21 @@ function waitForStorageUnlock(){
         );
 
         resolve(true);
+
+        return;
+
+      }
+
+      if(expired){
+
+        clearInterval(
+          interval
+        );
+
+        memoryStorageLocked =
+        false;
+
+        resolve(false);
 
       }
 
@@ -170,6 +198,10 @@ function serializeMemoryData(
 
   catch(error){
 
+    registerMemoryRuntimeError(
+      error
+    );
+
     return null;
 
   }
@@ -200,6 +232,10 @@ function deserializeMemoryData(
   }
 
   catch(error){
+
+    registerMemoryRuntimeError(
+      error
+    );
 
     return null;
 
@@ -282,6 +318,16 @@ function createStorageSnapshot(
   memories = []
 ){
 
+  const safeMemories =
+
+    Array.isArray(
+      memories
+    )
+
+    ? memories
+
+    : [];
+
   return freezeStorageObject({
 
     snapshotId:
@@ -291,10 +337,12 @@ function createStorageSnapshot(
     Date.now(),
 
     memoryCount:
-    memories.length,
+    safeMemories.length,
 
     memories:
-    deepClone(memories)
+    deepClone(
+      safeMemories
+    )
 
   });
 
@@ -310,6 +358,16 @@ function createMemoryStoragePayload(
   memories = []
 ){
 
+  const safeMemories =
+
+    Array.isArray(
+      memories
+    )
+
+    ? memories
+
+    : [];
+
   return freezeStorageObject({
 
     version:
@@ -319,10 +377,12 @@ function createMemoryStoragePayload(
     Date.now(),
 
     memoryCount:
-    memories.length,
+    safeMemories.length,
 
     memories:
-    deepClone(memories)
+    deepClone(
+      safeMemories
+    )
 
   });
 
@@ -362,8 +422,8 @@ function validateStoragePayload(
   }
 
   if(
-    payload.version !==
-    MEMORY_VERSION
+    typeof payload.version !==
+    "string"
   ){
 
     return false;
@@ -439,9 +499,20 @@ function removeDuplicateMemories(
 
     }
 
+    const normalizedId =
+    normalizeMemoryString(
+      memory.id
+    );
+
+    if(!normalizedId){
+
+      return false;
+
+    }
+
     if(
       uniqueIds.has(
-        memory.id
+        normalizedId
       )
     ){
 
@@ -450,7 +521,7 @@ function removeDuplicateMemories(
     }
 
     uniqueIds.add(
-      memory.id
+      normalizedId
     );
 
     return true;
@@ -532,6 +603,10 @@ function atomicStorageWrite(
   }
 
   catch(error){
+
+    registerMemoryRuntimeError(
+      error
+    );
 
     return false;
 
@@ -687,12 +762,9 @@ async function saveMemories(
 
   catch(error){
 
-    memoryState.metrics
-    .failedOperations++;
-
-    memoryState.metrics
-    .lastErrorAt =
-    Date.now();
+    registerMemoryRuntimeError(
+      error
+    );
 
     if(
       isQuotaExceededError(
@@ -885,12 +957,9 @@ async function loadAllMemories(){
 
   catch(error){
 
-    memoryState.metrics
-    .failedOperations++;
-
-    memoryState.metrics
-    .lastErrorAt =
-    Date.now();
+    registerMemoryRuntimeError(
+      error
+    );
 
     console.error(
       "LOAD MEMORIES ERROR:",
@@ -1083,6 +1152,10 @@ async function clearMemoryStorage(){
 
   catch(error){
 
+    registerMemoryRuntimeError(
+      error
+    );
+
     console.error(
       "CLEAR STORAGE ERROR:",
       error
@@ -1156,6 +1229,10 @@ async function backupMemoryStorage(){
   }
 
   catch(error){
+
+    registerMemoryRuntimeError(
+      error
+    );
 
     console.error(
       "BACKUP STORAGE ERROR:",
@@ -1261,6 +1338,10 @@ async function restoreMemoryBackup(){
   }
 
   catch(error){
+
+    registerMemoryRuntimeError(
+      error
+    );
 
     console.error(
       "RESTORE BACKUP ERROR:",
