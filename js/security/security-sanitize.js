@@ -67,7 +67,7 @@ function safeString(
 
   normalized =
   normalized.replace(
-    /\u0000/g,
+    /[\u0000-\u001F\u007F]/g,
     ""
   );
 
@@ -197,13 +197,34 @@ function sanitizeURL(
     return "";
   }
 
+  if(
+
+    normalized.length >
+
+    SECURITY_CONFIG
+    .MAX_URL_LENGTH
+
+  ){
+
+    securityState
+    .blockedURLs++;
+
+    logSecurityEvent(
+      "URL LENGTH BLOCKED"
+    );
+
+    return "";
+  }
+
   const blockedProtocols = [
 
     "javascript:",
 
     "data:",
 
-    "vbscript:"
+    "vbscript:",
+
+    "file:"
 
   ];
 
@@ -234,7 +255,70 @@ function sanitizeURL(
     return "";
   }
 
+  if(
+
+    SECURITY_CONFIG
+    .ENABLE_HTTP_PROTOCOL ===
+    false
+
+    &&
+
+    lowered.startsWith(
+      "http:"
+    )
+
+  ){
+
+    securityState
+    .blockedURLs++;
+
+    logSecurityEvent(
+      "INSECURE HTTP BLOCKED",
+      { url }
+    );
+
+    return "";
+  }
+
   return normalized;
+
+}
+
+
+
+// =====================================
+// SANITIZE ARRAY
+// =====================================
+
+function sanitizeArray(
+  values = [],
+  visited = new WeakSet()
+){
+
+  if(
+    !Array.isArray(values)
+  ){
+
+    return [];
+  }
+
+  return values
+  .slice(
+
+    0,
+
+    SECURITY_CONFIG
+    .MAX_ARRAY_LENGTH
+
+  )
+  .map((item) => {
+
+    return sanitizeObject(
+      item,
+      visited
+    );
+
+  });
 
 }
 
@@ -246,11 +330,25 @@ function sanitizeURL(
 
 function sanitizeObject(
   object,
-  visited = new WeakSet()
+  visited = new WeakSet(),
+  depth = 0
 ){
 
   if(
     object == null
+  ){
+
+    return null;
+
+  }
+
+  if(
+
+    depth >
+
+    SECURITY_CONFIG
+    .MAX_JSON_DEPTH
+
   ){
 
     return null;
@@ -274,7 +372,7 @@ function sanitizeObject(
     visited.has(object)
   ){
 
-    return null;
+    return "[Circular]";
 
   }
 
@@ -286,22 +384,28 @@ function sanitizeObject(
     Array.isArray(object)
   ){
 
-    return object.map((item) => {
-
-      return sanitizeObject(
-        item,
-        visited
-      );
-
-    });
+    return sanitizeArray(
+      object,
+      visited
+    );
 
   }
+
+  const keys =
+  Object.keys(object)
+  .slice(
+
+    0,
+
+    SECURITY_CONFIG
+    .MAX_OBJECT_KEYS
+
+  );
 
   const cleanObject =
   Object.create(null);
 
-  Object.entries(object)
-  .forEach(([key,value]) => {
+  keys.forEach((key) => {
 
     if(
 
@@ -317,12 +421,29 @@ function sanitizeObject(
 
     }
 
-    cleanObject[
-      safeString(key)
-    ] = sanitizeObject(
-      value,
-      visited
-    );
+    try{
+
+      cleanObject[
+        safeString(key)
+      ] = sanitizeObject(
+
+        object[key],
+
+        visited,
+
+        depth + 1
+
+      );
+
+    }
+
+    catch(error){
+
+      cleanObject[
+        safeString(key)
+      ] = null;
+
+    }
 
   });
 
@@ -343,10 +464,16 @@ function sanitizePrompt(
   const normalized =
   safeString(prompt);
 
-  return normalized
+  const sanitized =
+  normalized
 
   .replace(
     /ignore previous instructions/gi,
+    ""
+  )
+
+  .replace(
+    /ignore all previous instructions/gi,
     ""
   )
 
@@ -358,10 +485,76 @@ function sanitizePrompt(
   .replace(
     /developer message/gi,
     ""
+  )
 
+  .replace(
+    /reveal hidden prompt/gi,
+    ""
+  )
+
+  .replace(
+    /show internal instructions/gi,
+    ""
   )
 
   .trim();
+
+  if(
+    sanitized !== normalized
+  ){
+
+    securityState
+    .blockedPrompts++;
+
+    logSecurityEvent(
+      "PROMPT SANITIZED"
+    );
+
+  }
+
+  return sanitized;
+
+}
+
+
+
+// =====================================
+// SAFE JSON STRINGIFY
+// =====================================
+
+function safeJSONStringify(
+  value
+){
+
+  try{
+
+    const sanitized =
+    sanitizeObject(
+      value
+    );
+
+    return JSON.stringify(
+      sanitized
+    );
+
+  }
+
+  catch(error){
+
+    logSecurityEvent(
+
+      "JSON_STRINGIFY_FAILED",
+
+      {
+        error:
+        String(error)
+      }
+
+    );
+
+    return "{}";
+
+  }
 
 }
 
@@ -386,7 +579,13 @@ Object.freeze({
   object:
   sanitizeObject,
 
+  array:
+  sanitizeArray,
+
   prompt:
-  sanitizePrompt
+  sanitizePrompt,
+
+  stringify:
+  safeJSONStringify
 
 });
