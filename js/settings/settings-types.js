@@ -207,7 +207,7 @@ Object.freeze({
 
 function createSettingsObject(){
 
-  return deepFreeze({
+  return {
 
     version:
     SETTINGS_VERSION,
@@ -223,6 +223,6 @@ function createSettingsObject(){
     updatedAt:
     Date.now()
 
-  });
+  };
 
 }
