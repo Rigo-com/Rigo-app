@@ -114,6 +114,9 @@ async function updateSetting(
 
     await syncSettingsSystem();
 
+    settingsState.dirty =
+    false;
+
     settingsState.currentState =
     SETTINGS_STATES.READY;
 
