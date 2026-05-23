@@ -24,6 +24,10 @@ Object.freeze({
 
   ENABLE_DIAGNOSTICS:true,
 
+  ENABLE_RECOVERY:true,
+
+  ENABLE_PARALLEL_LOADING:false,
+
   MAX_MODULES:
   1000,
 
@@ -31,7 +35,16 @@ Object.freeze({
   3,
 
   MAX_BOOT_DEPTH:
-  50
+  50,
+
+  MODULE_TIMEOUT:
+  15000,
+
+  ACTIVATION_TIMEOUT:
+  10000,
+
+  RETRY_DELAY:
+  1000
 
 });
 
@@ -47,6 +60,9 @@ Object.freeze({
   REGISTERED:
   "registered",
 
+  INITIALIZING:
+  "initializing",
+
   LOADING:
   "loading",
 
@@ -57,7 +73,13 @@ Object.freeze({
   "failed",
 
   DISABLED:
-  "disabled"
+  "disabled",
+
+  UNLOADING:
+  "unloading",
+
+  UNLOADED:
+  "unloaded"
 
 });
 
@@ -73,6 +95,9 @@ Object.freeze({
   REGISTERED:
   "module.registered",
 
+  INITIALIZED:
+  "module.initialized",
+
   LOADED:
   "module.loaded",
 
@@ -82,7 +107,41 @@ Object.freeze({
   FAILED:
   "module.failed",
 
+  RECOVERED:
+  "module.recovered",
+
+  UNLOADING:
+  "module.unloading",
+
   UNLOADED:
-  "module.unloaded"
+  "module.unloaded",
+
+  HEALTHCHECK:
+  "module.healthcheck",
+
+  DEPENDENCIES_RESOLVED:
+  "module.dependencies.resolved"
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MODULE_LOADER_CONFIG =
+  MODULE_LOADER_CONFIG;
+
+  window.MODULE_STATES =
+  MODULE_STATES;
+
+  window.MODULE_EVENTS =
+  MODULE_EVENTS;
+
+}
