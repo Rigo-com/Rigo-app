@@ -5,20 +5,37 @@
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function normalizeDependencyName(
+  dependencyName
+){
+
+  return String(
+    dependencyName || ""
+  )
+  .trim()
+  .toLowerCase();
+
+}
+
+
+
+// =====================================
 // REGISTER
 // =====================================
 
 function registerDependency(
   dependencyName,
-  resolver = null
+  resolver = null,
+  dependencies = []
 ){
 
   const normalizedName =
-  String(
-    dependencyName || ""
-  )
-  .trim()
-  .toLowerCase();
+  normalizeDependencyName(
+    dependencyName
+  );
 
   if(!normalizedName){
 
@@ -39,12 +56,91 @@ function registerDependency(
 
       resolver,
 
+      dependencies:
+
+        Array.isArray(
+          dependencies
+        )
+
+        ? dependencies
+
+        : [],
+
       registeredAt:
       Date.now()
 
     }
 
   );
+
+
+
+  // ===================================
+  // GRAPH
+  // ===================================
+
+  appDependencyRegistry
+  .dependencyGraph
+  .set(
+
+    normalizedName,
+
+    new Set(
+      dependencies
+    )
+
+  );
+
+  dependencies
+  .forEach((dependency) => {
+
+    const normalizedDependency =
+    normalizeDependencyName(
+      dependency
+    );
+
+    if(
+
+      !appDependencyRegistry
+      .reverseDependencies
+      .has(
+        normalizedDependency
+      )
+
+    ){
+
+      appDependencyRegistry
+      .reverseDependencies
+      .set(
+
+        normalizedDependency,
+
+        new Set()
+
+      );
+
+    }
+
+    appDependencyRegistry
+    .reverseDependencies
+    .get(
+      normalizedDependency
+    )
+    .add(
+      normalizedName
+    );
+
+  });
+
+
+
+  // ===================================
+  // DIAGNOSTICS
+  // ===================================
+
+  appDependencyRegistry
+  .diagnostics
+  .registered++;
 
   return true;
 
@@ -61,11 +157,9 @@ function resolveDependency(
 ){
 
   const normalizedName =
-  String(
-    dependencyName || ""
-  )
-  .trim()
-  .toLowerCase();
+  normalizeDependencyName(
+    dependencyName
+  );
 
   if(!normalizedName){
 
@@ -78,6 +172,20 @@ function resolveDependency(
   .add(
     normalizedName
   );
+
+  appDependencyRegistry
+  .failed
+  .delete(
+    normalizedName
+  );
+
+  appDependencyRegistry
+  .lastResolvedAt =
+  Date.now();
+
+  appDependencyRegistry
+  .diagnostics
+  .resolved++;
 
   const waitingResolvers =
 
@@ -125,11 +233,9 @@ function failDependency(
 ){
 
   const normalizedName =
-  String(
-    dependencyName || ""
-  )
-  .trim()
-  .toLowerCase();
+  normalizeDependencyName(
+    dependencyName
+  );
 
   if(!normalizedName){
 
@@ -142,6 +248,16 @@ function failDependency(
   .add(
     normalizedName
   );
+
+  appDependencyRegistry
+  .resolved
+  .delete(
+    normalizedName
+  );
+
+  appDependencyRegistry
+  .diagnostics
+  .failed++;
 
   return true;
 
@@ -161,12 +277,89 @@ function isDependencyResolved(
   .resolved
   .has(
 
-    String(
-      dependencyName || ""
+    normalizeDependencyName(
+      dependencyName
     )
-    .trim()
-    .toLowerCase()
 
   );
+
+}
+
+
+
+// =====================================
+// GET DEPENDENCY
+// =====================================
+
+function getDependency(
+  dependencyName
+){
+
+  return (
+
+    appDependencyRegistry
+    .dependencies
+    .get(
+
+      normalizeDependencyName(
+        dependencyName
+      )
+
+    )
+
+    ||
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// GET ALL
+// =====================================
+
+function getAllDependencies(){
+
+  return [
+
+    ...appDependencyRegistry
+    .dependencies
+    .values()
+
+  ];
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.registerDependency =
+  registerDependency;
+
+  window.resolveDependency =
+  resolveDependency;
+
+  window.failDependency =
+  failDependency;
+
+  window.isDependencyResolved =
+  isDependencyResolved;
+
+  window.getDependency =
+  getDependency;
+
+  window.getAllDependencies =
+  getAllDependencies;
 
 }
