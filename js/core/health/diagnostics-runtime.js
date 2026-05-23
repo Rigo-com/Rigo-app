@@ -680,6 +680,36 @@ function startDiagnosticsQueueProcessor(){
 
 
 // =====================================
+// STOP QUEUE PROCESSOR
+// =====================================
+
+function stopDiagnosticsQueueProcessor(){
+
+  if(
+    diagnosticsState
+    .flushTimer
+  ){
+
+    clearInterval(
+
+      diagnosticsState
+      .flushTimer
+
+    );
+
+    diagnosticsState
+    .flushTimer =
+    null;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
 // RETENTION CLEANUP
 // =====================================
 
@@ -1490,6 +1520,36 @@ function startAutomaticSnapshots(){
 
 
 // =====================================
+// STOP SNAPSHOTS
+// =====================================
+
+function stopAutomaticSnapshots(){
+
+  if(
+    diagnosticsState
+    .snapshotTimer
+  ){
+
+    clearInterval(
+
+      diagnosticsState
+      .snapshotTimer
+
+    );
+
+    diagnosticsState
+    .snapshotTimer =
+    null;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
 // MONITORING
 // =====================================
 
@@ -1519,6 +1579,36 @@ function startDiagnosticsMonitoring(){
 
   DIAGNOSTICS_CONFIG
   .HEALTH_MONITOR_INTERVAL);
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STOP MONITORING
+// =====================================
+
+function stopDiagnosticsMonitoring(){
+
+  if(
+    diagnosticsState
+    .monitoringTimer
+  ){
+
+    clearInterval(
+
+      diagnosticsState
+      .monitoringTimer
+
+    );
+
+    diagnosticsState
+    .monitoringTimer =
+    null;
+
+  }
 
   return true;
 
@@ -1723,10 +1813,93 @@ async function exportDiagnosticsBundle(){
 
 
 // =====================================
+// DIAGNOSTICS SNAPSHOT
+// =====================================
+
+function getDiagnosticsSnapshot(){
+
+  return deepFreezeDiagnostics({
+
+    initialized:
+    diagnosticsState
+    .initialized,
+
+    runtimeHealthy:
+
+      diagnosticsState
+      .runtimeHealthy,
+
+    healthScore:
+
+      diagnosticsState
+      .globalHealthScore,
+
+    logs:
+
+      diagnosticsState
+      .logs
+      .length,
+
+    warnings:
+
+      diagnosticsState
+      .warnings
+      .length,
+
+    errors:
+
+      diagnosticsState
+      .errors
+      .length,
+
+    performance:
+
+      diagnosticsState
+      .performance
+      .length,
+
+    snapshots:
+
+      diagnosticsState
+      .snapshots
+      .length,
+
+    queue:
+
+      diagnosticsState
+      .queue
+      .length,
+
+    startedAt:
+    diagnosticsState
+    .startedAt,
+
+    lastHealthCheckAt:
+
+      diagnosticsState
+      .lastHealthCheckAt
+
+  });
+
+}
+
+
+
+// =====================================
 // RESET
 // =====================================
 
 function resetDiagnosticsSystem(){
+
+  stopDiagnosticsMonitoring();
+
+  stopAutomaticSnapshots();
+
+  stopDiagnosticsQueueProcessor();
+
+  diagnosticsState
+  .processingQueue =
+  false;
 
   diagnosticsState.logs =
   [];
@@ -1862,13 +2035,59 @@ Object.freeze({
   snapshot:
   createRuntimeSnapshot,
 
+  snapshotState:
+  getDiagnosticsSnapshot,
+
   export:
   exportDiagnosticsBundle,
 
   recover:
   recoverRuntimeHealth,
 
+  stopMonitoring:
+  stopDiagnosticsMonitoring,
+
+  stopSnapshots:
+  stopAutomaticSnapshots,
+
+  stopQueue:
+  stopDiagnosticsQueueProcessor,
+
   reset:
   resetDiagnosticsSystem
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.DiagnosticsRuntime =
+  DiagnosticsRuntime;
+
+  window.initializeDiagnosticsSystem =
+  initializeDiagnosticsSystem;
+
+  window.resetDiagnosticsSystem =
+  resetDiagnosticsSystem;
+
+  window.logDiagnosticInfo =
+  logDiagnosticInfo;
+
+  window.logDiagnosticWarning =
+  logDiagnosticWarning;
+
+  window.logDiagnosticError =
+  logDiagnosticError;
+
+  window.logCriticalError =
+  logCriticalError;
+
+}
