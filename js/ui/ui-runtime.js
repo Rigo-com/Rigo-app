@@ -236,6 +236,15 @@ function handleWindowResize(){
 
 function bindResizeEvents(){
 
+  if(
+    typeof window ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
   window.addEventListener(
     "resize",
     handleWindowResize,
@@ -243,6 +252,8 @@ function bindResizeEvents(){
       passive:true
     }
   );
+
+  return true;
 
 }
 
@@ -257,6 +268,41 @@ function handleGlobalKeyboard(
 ){
 
   if(
+    !event
+  ){
+
+    return false;
+
+  }
+
+  const activeElement =
+  document.activeElement;
+
+  const typingTarget =
+
+    activeElement?.tagName ===
+    "INPUT"
+
+    ||
+
+    activeElement?.tagName ===
+    "TEXTAREA"
+
+    ||
+
+    activeElement
+    ?.isContentEditable ===
+    true;
+
+  if(
+    typingTarget
+  ){
+
+    return false;
+
+  }
+
+  if(
     event.key ===
     "Escape"
   ){
@@ -266,6 +312,8 @@ function handleGlobalKeyboard(
     closeSidebar();
 
   }
+
+  return true;
 
 }
 
@@ -281,6 +329,8 @@ function bindKeyboardEvents(){
     "keydown",
     handleGlobalKeyboard
   );
+
+  return true;
 
 }
 
@@ -315,6 +365,8 @@ function bindVisibilityEvents(){
     handleVisibilityChange
   );
 
+  return true;
+
 }
 
 
@@ -333,6 +385,31 @@ function requestUIAnimationFrame(
   ){
 
     return false;
+
+  }
+
+  if(
+    typeof requestAnimationFrame !==
+    "function"
+  ){
+
+    try{
+
+      callback();
+
+      return true;
+
+    }
+
+    catch(error){
+
+      safeLogError(
+        error
+      );
+
+      return false;
+
+    }
 
   }
 
@@ -359,6 +436,48 @@ function requestUIAnimationFrame(
     }
 
   });
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CANCEL RAF
+// =====================================
+
+function cancelUIAnimationFrame(){
+
+  if(
+
+    typeof cancelAnimationFrame !==
+    "function"
+
+  ){
+
+    uiState.activeAnimationFrame =
+    null;
+
+    return false;
+
+  }
+
+  if(
+    uiState.activeAnimationFrame
+  ){
+
+    cancelAnimationFrame(
+
+      uiState
+      .activeAnimationFrame
+
+    );
+
+    uiState.activeAnimationFrame =
+    null;
+
+  }
 
   return true;
 
@@ -418,6 +537,12 @@ function showToast(
         );
 
       }
+
+      uiEventState
+      .toastTimeouts
+      .delete(
+        oldestToast
+      );
 
       oldestToast.remove();
 
@@ -489,6 +614,65 @@ function showToast(
 
 
 // =====================================
+// CLEAR TOASTS
+// =====================================
+
+function clearAllToasts(){
+
+  if(
+    !uiElements.toastContainer
+  ){
+
+    return false;
+
+  }
+
+  const toasts = [
+
+    ...uiElements
+    .toastContainer
+    .children
+
+  ];
+
+  toasts.forEach((toast) => {
+
+    const timeoutId =
+
+      uiEventState
+      .toastTimeouts
+      .get(
+        toast
+      );
+
+    if(timeoutId){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+    uiEventState
+    .toastTimeouts
+    .delete(
+      toast
+    );
+
+    toast.remove();
+
+  });
+
+  uiState.activeToast =
+  null;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // MODAL
 // =====================================
 
@@ -531,8 +715,22 @@ function openModal(
     "-1"
   );
 
-  modal.textContent =
-  String(content);
+  if(
+    content instanceof Node
+  ){
+
+    modal.appendChild(
+      content
+    );
+
+  }
+
+  else{
+
+    modal.textContent =
+    String(content);
+
+  }
 
   uiElements
   .modalContainer
@@ -565,33 +763,7 @@ function resetUIState(){
 
   hideLoadingScreen();
 
-  if(
-    uiState.activeToast
-  ){
-
-    const timeoutId =
-
-      uiEventState
-      .toastTimeouts
-      .get(
-        uiState.activeToast
-      );
-
-    if(timeoutId){
-
-      clearTimeout(
-        timeoutId
-      );
-
-    }
-
-    uiState.activeToast
-    .remove();
-
-    uiState.activeToast =
-    null;
-
-  }
+  clearAllToasts();
 
   clearTimeout(
     uiEventState
@@ -631,33 +803,7 @@ function destroyUI(){
 
   hideLoadingScreen();
 
-  if(
-    uiState.activeToast
-  ){
-
-    const timeoutId =
-
-      uiEventState
-      .toastTimeouts
-      .get(
-        uiState.activeToast
-      );
-
-    if(timeoutId){
-
-      clearTimeout(
-        timeoutId
-      );
-
-    }
-
-    uiState.activeToast
-    .remove();
-
-    uiState.activeToast =
-    null;
-
-  }
+  clearAllToasts();
 
   clearTimeout(
     uiEventState
@@ -668,10 +814,17 @@ function destroyUI(){
   .resizeTimeout =
   null;
 
-  window.removeEventListener(
-    "resize",
-    handleWindowResize
-  );
+  if(
+    typeof window !==
+    "undefined"
+  ){
+
+    window.removeEventListener(
+      "resize",
+      handleWindowResize
+    );
+
+  }
 
   document.removeEventListener(
     "visibilitychange",
@@ -705,3 +858,35 @@ function destroyUI(){
   return true;
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const UIRuntime =
+Object.freeze({
+
+  initialize:
+  initializeUI,
+
+  reset:
+  resetUIState,
+
+  destroy:
+  destroyUI,
+
+  toast:
+  showToast,
+
+  modal:
+  openModal,
+
+  requestFrame:
+  requestUIAnimationFrame,
+
+  cancelFrame:
+  cancelUIAnimationFrame
+
+});
