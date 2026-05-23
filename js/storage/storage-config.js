@@ -1,4 +1,12 @@
 // =====================================
+// RIGO AI
+// STORAGE CONFIG
+// ENTERPRISE STORAGE FOUNDATION
+// =====================================
+
+
+
+// =====================================
 // STORAGE CONFIG
 // =====================================
 
@@ -8,19 +16,123 @@ Object.freeze({
   VERSION:
   "1.0.0",
 
+
+
+  // ================================
+  // STORAGE LIMITS
+  // ================================
+
   MAX_STORAGE_SIZE:
   5 * 1024 * 1024,
-
-  WRITE_DEBOUNCE_MS:
-  120,
 
   MAX_CACHE_CHATS:
   200,
 
-  ENABLE_ENCRYPTION:
-  false
+
+
+  // ================================
+  // PERFORMANCE
+  // ================================
+
+  WRITE_DEBOUNCE_MS:
+  120,
+
+
+
+  // ================================
+  // FEATURES
+  // ================================
+
+  ENABLE_ENCRYPTION:false,
+
+  ENABLE_COMPRESSION:false,
+
+  ENABLE_CACHE:true,
+
+  ENABLE_RECOVERY:true,
+
+  ENABLE_DIAGNOSTICS:true
 
 });
+
+
+
+// =====================================
+// SAFE APP CONFIG ACCESS
+// =====================================
+
+function getStorageConfigValue(
+  key,
+  fallback
+){
+
+  try{
+
+    if(
+
+      typeof APP_CONFIG ===
+      "undefined"
+
+      ||
+
+      !APP_CONFIG
+
+      ||
+
+      typeof APP_CONFIG !==
+      "object"
+
+    ){
+
+      return fallback;
+
+    }
+
+    const storageConfig =
+    APP_CONFIG.STORAGE;
+
+    if(
+
+      !storageConfig ||
+
+      typeof storageConfig !==
+      "object"
+
+    ){
+
+      return fallback;
+
+    }
+
+    const value =
+    storageConfig[key];
+
+    if(
+      typeof value !==
+      "string"
+    ){
+
+      return fallback;
+
+    }
+
+    const normalized =
+    value.trim();
+
+    return (
+      normalized ||
+      fallback
+    );
+
+  }
+
+  catch(error){
+
+    return fallback;
+
+  }
+
+}
 
 
 
@@ -32,35 +144,66 @@ const STORAGE_KEYS =
 Object.freeze({
 
   CHATS:
+  getStorageConfigValue(
 
-    APP_CONFIG
-    ?.STORAGE
-    ?.CHAT_KEY ||
+    "CHAT_KEY",
 
-    "rigo-ai:v1:chat-data",
+    "rigo-ai:v1:chat-data"
+
+  ),
+
+
 
   MEMORY:
+  getStorageConfigValue(
 
-    APP_CONFIG
-    ?.STORAGE
-    ?.APP_KEY ||
+    "APP_KEY",
 
-    "rigo-ai:v1:memory",
+    "rigo-ai:v1:memory"
+
+  ),
+
+
 
   SETTINGS:
+  getStorageConfigValue(
 
-    APP_CONFIG
-    ?.STORAGE
-    ?.SETTINGS_KEY ||
+    "SETTINGS_KEY",
 
-    "rigo-ai:v1:settings",
+    "rigo-ai:v1:settings"
+
+  ),
+
+
 
   VERSION:
+  getStorageConfigValue(
 
-    APP_CONFIG
-    ?.STORAGE
-    ?.VERSION_KEY ||
+    "VERSION_KEY",
 
     "rigo-ai:v1:version"
+
+  )
+
+});
+
+
+
+// =====================================
+// STORAGE NAMESPACES
+// =====================================
+
+const STORAGE_NAMESPACES =
+Object.freeze({
+
+  CHAT:"chat",
+
+  MEMORY:"memory",
+
+  SETTINGS:"settings",
+
+  CACHE:"cache",
+
+  RUNTIME:"runtime"
 
 });
