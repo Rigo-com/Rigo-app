@@ -35,6 +35,8 @@ Object.freeze({
 
   MAX_SNAPSHOTS:50,
 
+  MAX_BENCHMARKS:1000,
+
   MAX_REPORT_WARNINGS:100,
 
   LOG_TRUNCATE_LENGTH:2000,
@@ -110,6 +112,38 @@ function isDebugEnabled(){
 function createDebugTimestamp(){
 
   return Date.now();
+
+}
+
+
+
+function createDebugId(
+  prefix = "debug"
+){
+
+  if(
+    typeof createMemoryId ===
+    "function"
+  ){
+
+    return createMemoryId();
+  }
+
+  return (
+
+    String(prefix) +
+
+    "_" +
+
+    Date.now() +
+
+    "_" +
+
+    Math.random()
+    .toString(36)
+    .slice(2,10)
+
+  );
 
 }
 
@@ -239,12 +273,26 @@ function addMemoryDebugLog(
 
   const log = {
 
-    id:createMemoryId(),
+    id:createDebugId(
+      "log"
+    ),
 
     level:
-    normalizeMemoryString(
-      level
-    ),
+
+      typeof normalizeMemoryString ===
+      "function"
+
+      ?
+
+      normalizeMemoryString(
+        level
+      )
+
+      :
+
+      String(level || "")
+      .trim()
+      .toLowerCase(),
 
     message:
     truncateDebugText(
@@ -312,9 +360,14 @@ function addMemoryTrace(
 
   const trace = {
 
-    id:createMemoryId(),
+    id:createDebugId(
+      "trace"
+    ),
 
-    operation,
+    operation:
+    String(
+      operation || ""
+    ),
 
     metadata:
     safeDebugSerialize(
@@ -363,12 +416,34 @@ function startMemoryProfile(
   operation
 ){
 
+  if(
+    !MEMORY_DEBUG
+    .ENABLE_PROFILING
+  ){
+
+    return null;
+
+  }
+
   const profile = {
 
-    operation,
+    operation:
+    String(
+      operation || ""
+    ),
 
     startedAt:
-    performance.now()
+
+      typeof performance !==
+      "undefined"
+
+      ?
+
+      performance.now()
+
+      :
+
+      Date.now()
 
   };
 
@@ -403,10 +478,22 @@ function endMemoryProfile(
 
   }
 
-  const duration =
+  const endedAt =
 
-    performance.now() -
-    profile.startedAt;
+    typeof performance !==
+    "undefined"
+
+    ?
+
+    performance.now()
+
+    :
+
+    Date.now();
+
+  const duration =
+  endedAt -
+  profile.startedAt;
 
   memoryDebugState
   .activeProfiles
@@ -488,6 +575,32 @@ function analyzeMemoryHealth(){
 
   const critical = [];
 
+  if(
+    typeof memoryState !==
+    "object"
+  ){
+
+    return {
+
+      score:0,
+
+      warnings:[
+
+        {
+          type:"memory-state-missing"
+        }
+
+      ],
+
+      critical:[],
+
+      analyzedAt:
+      Date.now()
+
+    };
+
+  }
+
 
 
   // ===================================
@@ -496,9 +609,10 @@ function analyzeMemoryHealth(){
 
   if(
 
-    memoryState.tracking
-    .corruptedIds
-    .size > 0
+    memoryState
+    ?.tracking
+    ?.corruptedIds
+    ?.size > 0
 
   ){
 
@@ -526,19 +640,25 @@ function analyzeMemoryHealth(){
   const indexedIds =
   new Set(
 
-    memoryState.indexes
-    .byId
-    .keys()
+    memoryState
+    ?.indexes
+    ?.byId
+    ?.keys?.()
+
+    ||
+
+    []
 
   );
 
   indexedIds.forEach((id) => {
 
     const exists =
-    memoryState.memories
-    .some((memory) => {
+    memoryState
+    ?.memories
+    ?.some?.((memory) => {
 
-      return memory.id === id;
+      return memory?.id === id;
 
     });
 
@@ -565,8 +685,14 @@ function analyzeMemoryHealth(){
   const duplicateCheck =
   new Set();
 
-  memoryState.memories
-  .forEach((memory) => {
+  memoryState
+  ?.memories
+  ?.forEach?.((memory) => {
+
+    if(!memory?.id){
+
+      return;
+    }
 
     if(
       duplicateCheck.has(
@@ -598,9 +724,10 @@ function analyzeMemoryHealth(){
 
   if(
 
-    memoryState.cache
-    .memories
-    .size >
+    memoryState
+    ?.cache
+    ?.memories
+    ?.size >
 
     MEMORY_DEBUG
     .MEMORY_WARNING_THRESHOLD
@@ -613,7 +740,8 @@ function analyzeMemoryHealth(){
 
       size:
 
-      memoryState.cache
+      memoryState
+      .cache
       .memories
       .size
 
@@ -658,9 +786,25 @@ function analyzeMemoryHealth(){
 
       ),
 
-    warnings,
+    warnings:
+    warnings.slice(
 
-    critical,
+      0,
+
+      MEMORY_DEBUG
+      .MAX_REPORT_WARNINGS
+
+    ),
+
+    critical:
+    critical.slice(
+
+      0,
+
+      MEMORY_DEBUG
+      .MAX_REPORT_WARNINGS
+
+    ),
 
     analyzedAt:
     Date.now()
@@ -696,15 +840,45 @@ function attemptMemoryRepair(){
 
   try{
 
-    cleanupOrphanIndexes();
+    if(
+      typeof cleanupOrphanIndexes ===
+      "function"
+    ){
 
-    repairMemoryIndexes();
+      cleanupOrphanIndexes();
+    }
 
-    rebuildDirtySummaries();
+    if(
+      typeof repairMemoryIndexes ===
+      "function"
+    ){
 
-    rebuildMemoryEmbeddings();
+      repairMemoryIndexes();
+    }
 
-    updateMemoryMetrics();
+    if(
+      typeof rebuildDirtySummaries ===
+      "function"
+    ){
+
+      rebuildDirtySummaries();
+    }
+
+    if(
+      typeof rebuildMemoryEmbeddings ===
+      "function"
+    ){
+
+      rebuildMemoryEmbeddings();
+    }
+
+    if(
+      typeof updateMemoryMetrics ===
+      "function"
+    ){
+
+      updateMemoryMetrics();
+    }
 
     memoryDebugState
     .lastRepairAt =
@@ -735,7 +909,7 @@ function attemptMemoryRepair(){
 
       {
         error:
-        error.message
+        error?.message
       }
 
     );
@@ -767,37 +941,56 @@ function createMemorySnapshot(){
 
   const snapshot = {
 
-    id:createMemoryId(),
+    id:createDebugId(
+      "snapshot"
+    ),
 
     createdAt:
     Date.now(),
 
     state:
-    cloneMemoryObject({
 
-      memories:
-      memoryState.memories,
+      typeof cloneMemoryObject ===
+      "function"
 
-      metrics:
-      memoryState.metrics,
+      ?
 
-      health:
-      memoryState.health,
+      cloneMemoryObject({
 
-      tracking:
-      {
+        memories:
+        memoryState
+        ?.memories,
 
-        corruptedIds:[
+        metrics:
+        memoryState
+        ?.metrics,
 
-          ...memoryState
-          .tracking
-          .corruptedIds
+        health:
+        memoryState
+        ?.health,
 
-        ]
+        tracking:
+        {
 
-      }
+          corruptedIds:[
 
-    })
+            ...(memoryState
+            ?.tracking
+            ?.corruptedIds
+
+            ||
+
+            [])
+
+          ]
+
+        }
+
+      })
+
+      :
+
+      null
 
   };
 
@@ -844,7 +1037,17 @@ async function benchmarkMemoryOperation(
 ){
 
   const startedAt =
-  performance.now();
+
+    typeof performance !==
+    "undefined"
+
+    ?
+
+    performance.now()
+
+    :
+
+    Date.now();
 
   try{
 
@@ -855,12 +1058,27 @@ async function benchmarkMemoryOperation(
 
     const duration =
 
-      performance.now() -
+      (
+        typeof performance !==
+        "undefined"
+
+        ?
+
+        performance.now()
+
+        :
+
+        Date.now()
+
+      ) -
+
       startedAt;
 
     const benchmark = {
 
-      id:createMemoryId(),
+      id:createDebugId(
+        "benchmark"
+      ),
 
       operation,
 
@@ -879,6 +1097,23 @@ async function benchmarkMemoryOperation(
       benchmark
     );
 
+    while(
+
+      memoryDebugState
+      .benchmarks
+      .length >
+
+      MEMORY_DEBUG
+      .MAX_BENCHMARKS
+
+    ){
+
+      memoryDebugState
+      .benchmarks
+      .shift();
+
+    }
+
     return {
 
       result,
@@ -893,14 +1128,29 @@ async function benchmarkMemoryOperation(
 
     const duration =
 
-      performance.now() -
+      (
+        typeof performance !==
+        "undefined"
+
+        ?
+
+        performance.now()
+
+        :
+
+        Date.now()
+
+      ) -
+
       startedAt;
 
     memoryDebugState
     .benchmarks
     .push({
 
-      id:createMemoryId(),
+      id:createDebugId(
+        "benchmark"
+      ),
 
       operation,
 
@@ -909,7 +1159,7 @@ async function benchmarkMemoryOperation(
       success:false,
 
       error:
-      error.message,
+      error?.message,
 
       timestamp:
       Date.now()
@@ -951,25 +1201,95 @@ function generateMemoryDebugReport(){
     {
 
       memory:
-      getMemoryDiagnostics(),
+
+        typeof getMemoryDiagnostics ===
+        "function"
+
+        ?
+
+        getMemoryDiagnostics()
+
+        :
+
+        null,
 
       embeddings:
-      getMemoryEmbeddingDiagnostics(),
+
+        typeof getMemoryEmbeddingDiagnostics ===
+        "function"
+
+        ?
+
+        getMemoryEmbeddingDiagnostics()
+
+        :
+
+        null,
 
       summaries:
-      getMemorySummaryDiagnostics(),
+
+        typeof getMemorySummaryDiagnostics ===
+        "function"
+
+        ?
+
+        getMemorySummaryDiagnostics()
+
+        :
+
+        null,
 
       sync:
-      getMemorySyncDiagnostics(),
+
+        typeof getMemorySyncDiagnostics ===
+        "function"
+
+        ?
+
+        getMemorySyncDiagnostics()
+
+        :
+
+        null,
 
       export:
-      getMemoryExportDiagnostics(),
+
+        typeof getMemoryExportDiagnostics ===
+        "function"
+
+        ?
+
+        getMemoryExportDiagnostics()
+
+        :
+
+        null,
 
       security:
-      getMemorySecurityDiagnostics(),
+
+        typeof getMemorySecurityDiagnostics ===
+        "function"
+
+        ?
+
+        getMemorySecurityDiagnostics()
+
+        :
+
+        null,
 
       events:
-      getMemoryEventDiagnostics()
+
+        typeof getMemoryEventDiagnostics ===
+        "function"
+
+        ?
+
+        getMemoryEventDiagnostics()
+
+        :
+
+        null
 
     },
 
@@ -978,18 +1298,20 @@ function generateMemoryDebugReport(){
 
       activeOperations:
 
-        memoryState.runtime
-        .activeOperations,
+        memoryState
+        ?.runtime
+        ?.activeOperations,
 
       initialized:
 
         memoryState
-        .initialized,
+        ?.initialized,
 
       corrupted:
 
-        memoryState.runtime
-        .corrupted
+        memoryState
+        ?.runtime
+        ?.corrupted
 
     }
 
@@ -1043,7 +1365,7 @@ function clearMemoryDebugData(){
 
 function getMemoryDebugDiagnostics(){
 
-  return {
+  return Object.freeze({
 
     initialized:
     memoryDebugState
@@ -1107,6 +1429,6 @@ function getMemoryDebugDiagnostics(){
     memoryDebugState
     .lastSnapshotAt
 
-  };
+  });
 
 }
