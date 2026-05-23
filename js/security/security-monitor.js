@@ -7,6 +7,78 @@
 
 
 // =====================================
+// SAFE SECURITY KEY
+// =====================================
+
+function normalizeSecurityKey(
+  value
+){
+
+  try{
+
+    return String(
+      value || ""
+    )
+    .trim()
+    .slice(
+      0,
+      300
+    );
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE SECURITY METADATA
+// =====================================
+
+function normalizeSecurityMetadata(
+  metadata
+){
+
+  if(
+    !metadata ||
+    typeof metadata !==
+    "object"
+  ){
+
+    return {};
+  }
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(
+        metadata
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return {
+
+      invalidMetadata:true
+
+    };
+
+  }
+
+}
+
+
+
+// =====================================
 // RATE LIMIT CLEANUP
 // =====================================
 
@@ -54,6 +126,10 @@ function cleanupRateLimitTracker(){
         Number.isFinite(
           timestamp
         )
+
+        &&
+
+        timestamp > 0
 
         &&
 
@@ -141,9 +217,13 @@ function trackSecurityRequest(
   key
 ){
 
+  const normalizedKey =
+  normalizeSecurityKey(
+    key
+  );
+
   if(
-    typeof key !==
-    "string"
+    !normalizedKey
   ){
 
     return false;
@@ -151,9 +231,6 @@ function trackSecurityRequest(
   }
 
   cleanupRateLimitTracker();
-
-  const normalizedKey =
-  safeString(key);
 
   const now =
   Date.now();
@@ -171,6 +248,23 @@ function trackSecurityRequest(
     [];
 
   existing.push(now);
+
+
+
+  // ============================
+  // HARD LIMIT
+  // ============================
+
+  if(
+    existing.length > 1000
+  ){
+
+    existing.splice(
+      0,
+      existing.length - 1000
+    );
+
+  }
 
   securityState
   .requestTracker
@@ -205,7 +299,17 @@ function checkRateLimit(
   }
 
   const normalizedKey =
-  safeString(key);
+  normalizeSecurityKey(
+    key
+  );
+
+  if(
+    !normalizedKey
+  ){
+
+    return false;
+
+  }
 
   trackSecurityRequest(
     normalizedKey
@@ -274,9 +378,14 @@ function trackSuspiciousActivity(
 
     {
 
-      type,
+      type:
+      normalizeSecurityKey(
+        type
+      ),
 
-      ...metadata
+      ...normalizeSecurityMetadata(
+        metadata
+      )
 
     }
 
