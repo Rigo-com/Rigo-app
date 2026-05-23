@@ -40,7 +40,7 @@ function safeSettingValue(
 
   catch(error){
 
-    return null;
+    return undefined;
 
   }
 
