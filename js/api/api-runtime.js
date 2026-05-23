@@ -22,6 +22,12 @@ Object.freeze({
   MAX_RETRIES:
   3,
 
+  RETRY_BASE_DELAY:
+  1000,
+
+  MAX_RETRY_DELAY:
+  10000,
+
   ENABLE_DIAGNOSTICS:true,
 
   ENABLE_EVENTS:true,
@@ -32,7 +38,9 @@ Object.freeze({
 
   ENABLE_UPLOAD_TRACKING:true,
 
-  ENABLE_RESPONSE_NORMALIZATION:true
+  ENABLE_RESPONSE_NORMALIZATION:true,
+
+  ENABLE_PRIORITY_QUEUE:true
 
 });
 
@@ -76,6 +84,12 @@ Object.freeze({
   REQUEST_ABORTED:
   "api.request.aborted",
 
+  REQUEST_QUEUED:
+  "api.request.queued",
+
+  REQUEST_DEQUEUED:
+  "api.request.dequeued",
+
   UPLOAD_STARTED:
   "api.upload.started",
 
@@ -113,6 +127,10 @@ Object.seal({
   uploads:
   new Map(),
 
+  requestQueue:[],
+
+  processingQueue:false,
+
   diagnostics:{
 
     requests:0,
@@ -123,7 +141,11 @@ Object.seal({
 
     aborted:0,
 
-    uploads:0
+    uploads:0,
+
+    retries:0,
+
+    queued:0
 
   }
 
@@ -148,6 +170,50 @@ function createAPIRequestId(){
     Math.random()
     .toString(36)
     .slice(2,10)
+
+  );
+
+}
+
+
+
+function wait(
+  duration = 0
+){
+
+  return new Promise((resolve) => {
+
+    setTimeout(
+      resolve,
+      duration
+    );
+
+  });
+
+}
+
+
+
+function calculateRetryDelay(
+  attempt
+){
+
+  const delay =
+
+    API_RUNTIME_CONFIG
+    .RETRY_BASE_DELAY *
+
+    Math.pow(
+      2,
+      attempt - 1
+    );
+
+  return Math.min(
+
+    delay,
+
+    API_RUNTIME_CONFIG
+    .MAX_RETRY_DELAY
 
   );
 
@@ -247,108 +313,35 @@ function safeDeepClone(
 
 
 
-// =====================================
-// VALIDATE API STATE VALUE
-// =====================================
-
-function validateAPIStateValue(
-  key,
-  value
+function createAPIError(
+  options = {}
 ){
 
-  switch(key){
+  return Object.freeze({
 
-    case "status":
+    message:
 
-      return (
+      String(
+        options.message ||
+        "API ERROR"
+      ),
 
-        typeof value ===
-        "string"
+    code:
 
-        &&
+      String(
+        options.code ||
+        "API_ERROR"
+      )
 
-        VALID_API_STATUS
-        .includes(value)
-
-      );
-
-    case "pendingRequests":
-
-      return (
-
-        Number.isFinite(
-          value
-        ) &&
-
-        value >= 0
-
-      );
-
-    case "lastError":
-
-      return (
-
-        value === null ||
-
-        typeof value ===
-        "string"
-
-      );
-
-    case "lastRequestAt":
-
-      return (
-
-        value === null ||
-
-        Number.isFinite(
-          value
-        )
-
-      );
-
-    default:
-
-      return false;
-
-  }
+  });
 
 }
 
 
-
-// =====================================
-// VALIDATE RESULT
-// =====================================
-
-function validateAPIResult(
-  result
-){
-
-  return (
-
-    result &&
-
-    typeof result ===
-    "object"
-
-  );
-
-}
-
-
-
-// =====================================
-// NORMALIZE API RESPONSE
-// =====================================
 
 function normalizeAPIResult(
   result
 ){
-
-  validateAPIResult(
-    result
-  );
 
   const safeStatus =
   Number(
@@ -429,40 +422,6 @@ function normalizeAPIResult(
 
 
 
-// =====================================
-// CREATE API ERROR
-// =====================================
-
-function createAPIError(
-  options = {}
-){
-
-  return Object.freeze({
-
-    message:
-
-      String(
-        options.message ||
-        "API ERROR"
-      ),
-
-    code:
-
-      String(
-        options.code ||
-        "API_ERROR"
-      )
-
-  });
-
-}
-
-
-
-// =====================================
-// CREATE PAYLOAD
-// =====================================
-
 function createAPIPayload(
   data = {}
 ){
@@ -522,21 +481,254 @@ function createAPIPayload(
     !data ||
 
     typeof data !==
-    "object" ||
-
-    Array.isArray(
-      data
-    )
+    "object"
 
   ){
 
-    return {};
+    return null;
 
   }
 
   return safeDeepClone(
     data
-  ) || {};
+  );
+
+}
+
+
+
+function validateEndpoint(
+  endpoint
+){
+
+  return (
+
+    typeof endpoint ===
+    "string"
+
+    &&
+
+    endpoint.trim()
+    .length > 0
+
+  );
+
+}
+
+
+
+function isAbortError(
+  error
+){
+
+  return (
+
+    error?.name ===
+    "AbortError"
+
+  );
+
+}
+
+
+
+async function parseAPIResponse(
+  response
+){
+
+  const contentType =
+
+    response.headers
+    .get(
+      "content-type"
+    ) || "";
+
+  try{
+
+    if(
+
+      contentType.includes(
+        "application/json"
+      )
+
+    ){
+
+      return await response.json();
+
+    }
+
+    if(
+
+      contentType.includes(
+        "text/"
+      )
+
+    ){
+
+      return await response.text();
+
+    }
+
+    return await response.blob();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+function updateAPIStatus(){
+
+  apiRuntimeState
+  .status =
+
+    apiRuntimeState
+    .pendingRequests > 0
+
+    ?
+
+    "loading"
+
+    :
+
+    "idle";
+
+}
+
+
+
+// =====================================
+// PRIORITY QUEUE
+// =====================================
+
+function enqueueAPIRequest(
+  task
+){
+
+  apiRuntimeState
+  .requestQueue
+  .push(task);
+
+  apiRuntimeState
+  .requestQueue
+  .sort((a,b) => {
+
+    return (
+      b.priority -
+      a.priority
+    );
+
+  });
+
+  apiRuntimeState
+  .diagnostics
+  .queued++;
+
+  emitAPIRuntimeEvent(
+
+    API_RUNTIME_EVENTS
+    .REQUEST_QUEUED,
+
+    {
+
+      requestId:
+      task.requestId
+
+    }
+
+  );
+
+  processAPIQueue();
+
+  return true;
+
+}
+
+
+
+async function processAPIQueue(){
+
+  if(
+    apiRuntimeState
+    .processingQueue
+  ){
+
+    return false;
+
+  }
+
+  apiRuntimeState
+  .processingQueue =
+  true;
+
+  try{
+
+    while(
+
+      apiRuntimeState
+      .requestQueue
+      .length > 0
+
+      &&
+
+      apiRuntimeState
+      .pendingRequests <
+
+      API_RUNTIME_CONFIG
+      .MAX_CONCURRENT_REQUESTS
+
+    ){
+
+      const task =
+
+        apiRuntimeState
+        .requestQueue
+        .shift();
+
+      if(!task){
+
+        continue;
+
+      }
+
+      await emitAPIRuntimeEvent(
+
+        API_RUNTIME_EVENTS
+        .REQUEST_DEQUEUED,
+
+        {
+
+          requestId:
+          task.requestId
+
+        }
+
+      );
+
+      task.resolve(
+        executeAPIRequest(
+          task.options,
+          task.requestId
+        )
+      );
+
+    }
+
+  }
+
+  finally{
+
+    apiRuntimeState
+    .processingQueue =
+    false;
+
+  }
 
 }
 
@@ -553,30 +745,103 @@ async function apiRequest(
   const requestId =
   createAPIRequestId();
 
-  const startedAt =
-  Date.now();
+  const priority =
+
+    Number.isFinite(
+      options.priority
+    )
+
+    ?
+
+    options.priority
+
+    :
+
+    0;
+
+  return new Promise((resolve,reject) => {
+
+    enqueueAPIRequest({
+
+      requestId,
+
+      priority,
+
+      options,
+
+      resolve,
+
+      reject
+
+    });
+
+  });
+
+}
+
+
+
+// =====================================
+// EXECUTE REQUEST
+// =====================================
+
+async function executeAPIRequest(
+  options = {},
+  requestId
+){
 
   if(
 
-    apiRuntimeState
-    .pendingRequests >=
-
-    API_RUNTIME_CONFIG
-    .MAX_CONCURRENT_REQUESTS
+    !validateEndpoint(
+      options.endpoint
+    )
 
   ){
 
     throw createAPIError({
 
       message:
-      "Too many requests",
+      "Invalid endpoint",
 
       code:
-      "REQUEST_LIMIT"
+      "INVALID_ENDPOINT"
 
     });
 
   }
+
+  const startedAt =
+  Date.now();
+
+  const retries =
+
+    Number.isFinite(
+      options.retries
+    )
+
+    ?
+
+    options.retries
+
+    :
+
+    API_RUNTIME_CONFIG
+    .MAX_RETRIES;
+
+  const timeout =
+
+    Number.isFinite(
+      options.timeout
+    )
+
+    ?
+
+    options.timeout
+
+    :
+
+    API_RUNTIME_CONFIG
+    .DEFAULT_TIMEOUT;
 
   const controller =
 
@@ -598,15 +863,20 @@ async function apiRequest(
   .lastRequestAt =
   Date.now();
 
-  apiRuntimeState
-  .status =
-  "loading";
+  updateAPIStatus();
 
   apiRuntimeState
   .activeRequests
   .set(
+
     requestId,
-    options
+
+    Object.freeze(
+      safeDeepClone(
+        options
+      ) || {}
+    )
+
   );
 
   if(controller){
@@ -638,153 +908,302 @@ async function apiRequest(
 
   try{
 
-    const response =
-    await fetch(
+    for(
 
-      options.endpoint,
+      let attempt = 1;
 
-      {
+      attempt <= retries;
 
-        method:
+      attempt++
 
-          options.method ||
-          "GET",
+    ){
 
-        headers:
+      let timeoutId =
+      null;
 
-          options.headers ||
-          {},
+      try{
 
-        body:
+        if(controller){
 
-          options.body ||
+          timeoutId =
+          setTimeout(() => {
 
-          null,
+            controller.abort();
 
-        signal:
+          },
 
-          controller
-          ?.signal
+          timeout);
+
+        }
+
+        let body =
+        options.body ?? null;
+
+        const payload =
+        createAPIPayload(
+          body
+        );
+
+        const headers = {
+
+          ...(options.headers || {})
+
+        };
+
+        const isFormData =
+
+          typeof FormData !==
+          "undefined"
+
+          &&
+
+          payload instanceof
+          FormData;
+
+        if(
+
+          payload &&
+
+          !isFormData
+
+        ){
+
+          body =
+          JSON.stringify(
+            payload
+          );
+
+          if(
+
+            !headers[
+              "Content-Type"
+            ]
+
+          ){
+
+            headers[
+              "Content-Type"
+            ] =
+            "application/json";
+
+          }
+
+        }
+
+        const response =
+        await fetch(
+
+          options.endpoint,
+
+          {
+
+            method:
+
+              options.method ||
+              "GET",
+
+            headers,
+
+            body,
+
+            signal:
+
+              controller
+              ?.signal
+
+          }
+
+        );
+
+        clearTimeout(
+          timeoutId
+        );
+
+        const data =
+        await parseAPIResponse(
+          response
+        );
+
+        const result =
+        normalizeAPIResult({
+
+          ok:
+          response.ok,
+
+          status:
+          response.status,
+
+          data,
+
+          headers:
+          response.headers,
+
+          requestId,
+
+          duration:
+
+            Date.now() -
+            startedAt,
+
+          attempt
+
+        });
+
+        apiRuntimeState
+        .diagnostics
+        .requests++;
+
+        if(response.ok){
+
+          apiRuntimeState
+          .diagnostics
+          .successful++;
+
+          apiRuntimeState
+          .status =
+          "success";
+
+          await emitAPIRuntimeEvent(
+
+            API_RUNTIME_EVENTS
+            .REQUEST_SUCCESS,
+
+            {
+
+              requestId,
+
+              endpoint:
+              options.endpoint
+
+            }
+
+          );
+
+          return result;
+
+        }
+
+        throw createAPIError({
+
+          message:
+          "HTTP ERROR",
+
+          code:
+          String(
+            response.status
+          )
+
+        });
 
       }
 
-    );
+      catch(error){
 
-    let data =
-    null;
+        clearTimeout(
+          timeoutId
+        );
 
-    try{
+        const aborted =
+        isAbortError(
+          error
+        );
 
-      data =
-      await response.json();
+        if(aborted){
+
+          apiRuntimeState
+          .diagnostics
+          .aborted++;
+
+          await emitAPIRuntimeEvent(
+
+            API_RUNTIME_EVENTS
+            .REQUEST_ABORTED,
+
+            {
+
+              requestId,
+
+              endpoint:
+              options.endpoint
+
+            }
+
+          );
+
+          throw createAPIError({
+
+            message:
+            "Request aborted",
+
+            code:
+            "REQUEST_ABORTED"
+
+          });
+
+        }
+
+        if(
+          attempt < retries
+        ){
+
+          apiRuntimeState
+          .diagnostics
+          .retries++;
+
+          await wait(
+            calculateRetryDelay(
+              attempt
+            )
+          );
+
+          continue;
+
+        }
+
+        apiRuntimeState
+        .diagnostics
+        .failed++;
+
+        apiRuntimeState
+        .lastError =
+        String(error);
+
+        apiRuntimeState
+        .status =
+        "error";
+
+        await emitAPIRuntimeEvent(
+
+          API_RUNTIME_EVENTS
+          .REQUEST_FAILED,
+
+          {
+
+            requestId,
+
+            endpoint:
+            options.endpoint,
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+        throw createAPIError({
+
+          message:
+          String(error),
+
+          code:
+          "REQUEST_FAILED"
+
+        });
+
+      }
 
     }
-
-    catch(error){
-
-      data = null;
-
-    }
-
-    const result =
-    normalizeAPIResult({
-
-      ok:
-      response.ok,
-
-      status:
-      response.status,
-
-      data,
-
-      headers:
-      response.headers,
-
-      requestId,
-
-      duration:
-
-        Date.now() -
-        startedAt,
-
-      attempt:1
-
-    });
-
-    apiRuntimeState
-    .diagnostics
-    .requests++;
-
-    apiRuntimeState
-    .diagnostics
-    .successful++;
-
-    apiRuntimeState
-    .status =
-    "success";
-
-    await emitAPIRuntimeEvent(
-
-      API_RUNTIME_EVENTS
-      .REQUEST_SUCCESS,
-
-      {
-
-        requestId,
-
-        endpoint:
-        options.endpoint
-
-      }
-
-    );
-
-    return result;
-
-  }
-
-  catch(error){
-
-    apiRuntimeState
-    .diagnostics
-    .failed++;
-
-    apiRuntimeState
-    .lastError =
-    String(error);
-
-    apiRuntimeState
-    .status =
-    "error";
-
-    await emitAPIRuntimeEvent(
-
-      API_RUNTIME_EVENTS
-      .REQUEST_FAILED,
-
-      {
-
-        requestId,
-
-        endpoint:
-        options.endpoint,
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    throw createAPIError({
-
-      message:
-      String(error),
-
-      code:
-      "REQUEST_FAILED"
-
-    });
 
   }
 
@@ -814,29 +1233,9 @@ async function apiRequest(
       requestId
     );
 
-  }
+    updateAPIStatus();
 
-}
-
-
-
-// =====================================
-// EXECUTE ACTION
-// =====================================
-
-async function executeAPIAction(
-  callback
-){
-
-  try{
-
-    return await callback();
-
-  }
-
-  catch(error){
-
-    throw error;
+    processAPIQueue();
 
   }
 
@@ -868,22 +1267,35 @@ function abortAPIRequest(
 
   controller.abort();
 
+  return true;
+
+}
+
+
+
+// =====================================
+// ABORT ALL REQUESTS
+// =====================================
+
+function abortAllAPIRequests(){
+
   apiRuntimeState
-  .diagnostics
-  .aborted++;
+  .abortControllers
+  .forEach((controller) => {
 
-  emitAPIRuntimeEvent(
+    try{
 
-    API_RUNTIME_EVENTS
-    .REQUEST_ABORTED,
-
-    {
-
-      requestId
+      controller.abort();
 
     }
 
-  );
+    catch(error){
+
+      safeLogError(error);
+
+    }
+
+  });
 
   return true;
 
@@ -899,181 +1311,219 @@ async function uploadFile(
   file
 ){
 
-  return executeAPIAction(
-    async () => {
+  const uploadId =
+  createAPIRequestId();
 
-      const hasFile =
+  try{
 
-        typeof File !==
-        "undefined";
+    const hasFile =
 
-      if(
+      typeof File !==
+      "undefined";
 
-        !hasFile ||
+    if(
 
-        !(file instanceof File)
+      !hasFile ||
 
-      ){
+      !(file instanceof File)
 
-        throw createAPIError({
+    ){
 
-          message:
-          "Invalid file",
+      throw createAPIError({
 
-          code:
-          "INVALID_FILE"
+        message:
+        "Invalid file",
 
-        });
-
-      }
-
-      const uploadId =
-      createAPIRequestId();
-
-      apiRuntimeState
-      .uploads
-      .set(
-
-        uploadId,
-
-        {
-
-          startedAt:
-          Date.now(),
-
-          fileName:
-          file.name
-
-        }
-
-      );
-
-      await emitAPIRuntimeEvent(
-
-        API_RUNTIME_EVENTS
-        .UPLOAD_STARTED,
-
-        {
-
-          uploadId,
-
-          fileName:
-          file.name
-
-        }
-
-      );
-
-      const maxFileSize =
-      10 * 1024 * 1024;
-
-      if(
-        file.size >
-        maxFileSize
-      ){
-
-        throw createAPIError({
-
-          message:
-          "File too large",
-
-          code:
-          "FILE_TOO_LARGE"
-
-        });
-
-      }
-
-      const allowedMimeTypes = [
-
-        "image/png",
-
-        "image/jpeg",
-
-        "image/webp",
-
-        "application/pdf",
-
-        "text/plain"
-
-      ];
-
-      if(
-
-        file.type &&
-
-        !allowedMimeTypes
-        .includes(
-          file.type
-        )
-
-      ){
-
-        throw createAPIError({
-
-          message:
-          "Unsupported file type",
-
-          code:
-          "INVALID_FILE_TYPE"
-
-        });
-
-      }
-
-      const formData =
-      new FormData();
-
-      formData.append(
-        "file",
-        file
-      );
-
-      const result =
-      await apiRequest({
-
-        endpoint:
-        "/files/upload",
-
-        method:"POST",
-
-        headers:{
-
-          Accept:
-          "application/json"
-
-        },
-
-        body:formData
+        code:
+        "INVALID_FILE"
 
       });
 
-      apiRuntimeState
-      .diagnostics
-      .uploads++;
+    }
 
-      await emitAPIRuntimeEvent(
+    const maxFileSize =
+    10 * 1024 * 1024;
 
-        API_RUNTIME_EVENTS
-        .UPLOAD_COMPLETED,
+    if(
+      file.size >
+      maxFileSize
+    ){
 
-        {
+      throw createAPIError({
 
-          uploadId,
+        message:
+        "File too large",
 
-          fileName:
-          file.name
+        code:
+        "FILE_TOO_LARGE"
 
-        }
-
-      );
-
-      return normalizeAPIResult(
-        result
-      );
+      });
 
     }
-  );
+
+    const allowedMimeTypes = [
+
+      "image/png",
+
+      "image/jpeg",
+
+      "image/webp",
+
+      "application/pdf",
+
+      "text/plain"
+
+    ];
+
+    if(
+
+      file.type &&
+
+      !allowedMimeTypes
+      .includes(
+        file.type
+      )
+
+    ){
+
+      throw createAPIError({
+
+        message:
+        "Unsupported file type",
+
+        code:
+        "INVALID_FILE_TYPE"
+
+      });
+
+    }
+
+    apiRuntimeState
+    .uploads
+    .set(
+
+      uploadId,
+
+      Object.freeze({
+
+        startedAt:
+        Date.now(),
+
+        fileName:
+        file.name,
+
+        size:
+        file.size
+
+      })
+
+    );
+
+    await emitAPIRuntimeEvent(
+
+      API_RUNTIME_EVENTS
+      .UPLOAD_STARTED,
+
+      {
+
+        uploadId,
+
+        fileName:
+        file.name
+
+      }
+
+    );
+
+    const formData =
+    new FormData();
+
+    formData.append(
+      "file",
+      file
+    );
+
+    const result =
+   await apiRequest({
+
+      endpoint:
+      "/files/upload",
+
+      method:"POST",
+
+      priority:10,
+
+      headers:{
+
+        Accept:
+        "application/json"
+
+      },
+
+      body:formData
+
+    });
+
+    apiRuntimeState
+    .diagnostics
+    .uploads++;
+
+    await emitAPIRuntimeEvent(
+
+      API_RUNTIME_EVENTS
+      .UPLOAD_COMPLETED,
+
+      {
+
+        uploadId,
+
+        fileName:
+        file.name
+
+      }
+
+    );
+
+    return result;
+
+  }
+
+  catch(error){
+
+    await emitAPIRuntimeEvent(
+
+      API_RUNTIME_EVENTS
+      .UPLOAD_FAILED,
+
+      {
+
+        uploadId,
+
+        fileName:
+        file?.name ||
+
+        "unknown",
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    throw error;
+
+  }
+
+  finally{
+
+    apiRuntimeState
+    .uploads
+    .delete(
+      uploadId
+    );
+
+  }
 
 }
 
@@ -1085,7 +1535,7 @@ async function uploadFile(
 
 function getAPIStatus(){
 
-  return safeDeepClone({
+  return Object.freeze({
 
     status:
     apiRuntimeState
@@ -1095,6 +1545,12 @@ function getAPIStatus(){
 
       apiRuntimeState
       .pendingRequests,
+
+    queuedRequests:
+
+      apiRuntimeState
+      .requestQueue
+      .length,
 
     lastError:
 
@@ -1106,10 +1562,26 @@ function getAPIStatus(){
       apiRuntimeState
       .lastRequestAt,
 
-    diagnostics:
+    activeRequests:
 
       apiRuntimeState
-      .diagnostics
+      .activeRequests
+      .size,
+
+    uploads:
+
+      apiRuntimeState
+      .uploads
+      .size,
+
+    diagnostics:
+
+      safeDeepClone(
+
+        apiRuntimeState
+        .diagnostics
+
+      )
 
   });
 
@@ -1122,6 +1594,8 @@ function getAPIStatus(){
 // =====================================
 
 function resetAPIRuntime(){
+
+  abortAllAPIRequests();
 
   apiRuntimeState
   .status =
@@ -1152,6 +1626,13 @@ function resetAPIRuntime(){
   .clear();
 
   apiRuntimeState
+  .requestQueue = [];
+
+  apiRuntimeState
+  .processingQueue =
+  false;
+
+  apiRuntimeState
   .diagnostics = {
 
     requests:0,
@@ -1162,7 +1643,11 @@ function resetAPIRuntime(){
 
     aborted:0,
 
-    uploads:0
+    uploads:0,
+
+    retries:0,
+
+    queued:0
 
   };
 
@@ -1187,6 +1672,9 @@ Object.freeze({
 
   abort:
   abortAPIRequest,
+
+  abortAll:
+  abortAllAPIRequests,
 
   status:
   getAPIStatus,
