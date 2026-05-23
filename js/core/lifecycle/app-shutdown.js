@@ -6,35 +6,196 @@
 
 
 // =====================================
+// CLEANUP UI
+// =====================================
+
+function cleanupApplicationUI(){
+
+  try{
+
+    if(
+      sendButton
+    ){
+
+      sendButton.disabled =
+      false;
+
+    }
+
+    if(
+      messageInput
+    ){
+
+      messageInput.disabled =
+      false;
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// CLEANUP MESSAGE RUNTIME
+// =====================================
+
+function cleanupMessageRuntime(){
+
+  try{
+
+    if(
+      typeof messageRuntimeState !==
+      "undefined"
+    ){
+
+      messageRuntimeState
+      .sending =
+      false;
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // CLEANUP APP
 // =====================================
 
-function cleanupApp(){
+async function cleanupApp(){
 
-  sendingMessage =
-  false;
+  try{
 
-  if(sendButton){
+    cleanupMessageRuntime();
 
-    sendButton.disabled =
-    false;
+    cleanupApplicationUI();
+
+    stopHealthchecks();
+
+
+
+    // ================================
+    // RUNTIME CLEANUP
+    // ================================
+
+    if(
+      typeof RuntimeManager !==
+      "undefined"
+    ){
+
+      await RuntimeManager
+      .shutdown();
+
+    }
+
+
+
+    // ================================
+    // STATE
+    // ================================
+
+    updateAppPhase(
+      APP_PHASES
+      .IDLE
+    );
+
+    return true;
 
   }
 
-  if(messageInput){
+  catch(error){
 
-    messageInput.disabled =
-    false;
+    appState.lastError =
+    error;
+
+    if(
+      typeof logDiagnosticError ===
+      "function"
+    ){
+
+      await logDiagnosticError(
+
+        "APP CLEANUP FAILED",
+
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
+
+    return false;
 
   }
 
-  stopHealthchecks();
+}
 
-  updateAppPhase(
-    APP_PHASES.IDLE
-  );
 
-  return true;
+
+// =====================================
+// SHUTDOWN SNAPSHOT
+// =====================================
+
+function createShutdownSnapshot(){
+
+  return Object.freeze({
+
+    shuttingDown:
+
+      Boolean(
+        appState
+        ?.shuttingDown
+      ),
+
+    started:
+
+      Boolean(
+        appState
+        ?.started
+      ),
+
+    phase:
+
+      String(
+        appState
+        ?.phase || ""
+      ),
+
+    shutdownAt:
+
+      appState
+      ?.shutdownAt ||
+
+      null,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -47,18 +208,21 @@ function cleanupApp(){
 async function shutdownApp(){
 
   if(
-    appState.shuttingDown
+    appState
+    .shuttingDown
   ){
 
     return false;
 
   }
 
-  appState.shuttingDown =
+  appState
+  .shuttingDown =
   true;
 
   updateAppPhase(
-    APP_PHASES.SHUTTING_DOWN
+    APP_PHASES
+    .SHUTTING_DOWN
   );
 
   await emitAppEvent(
@@ -67,15 +231,35 @@ async function shutdownApp(){
 
   try{
 
-    cleanupApp();
+    const cleaned =
+    await cleanupApp();
 
-    stopHealthchecks();
+    if(!cleaned){
+
+      throw new Error(
+        "APP CLEANUP FAILED"
+      );
+
+    }
 
     appState.started =
     false;
 
     appState.shutdownAt =
     Date.now();
+
+    if(
+      typeof logDiagnosticInfo ===
+      "function"
+    ){
+
+      await logDiagnosticInfo(
+
+        "APPLICATION SHUTDOWN COMPLETED"
+
+      );
+
+    }
 
     return true;
 
@@ -86,15 +270,58 @@ async function shutdownApp(){
     appState.lastError =
     error;
 
+    if(
+      typeof logCriticalError ===
+      "function"
+    ){
+
+      await logCriticalError(
+
+        "APPLICATION SHUTDOWN FAILED",
+
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
+
     return false;
 
   }
 
   finally{
 
-    appState.shuttingDown =
+    appState
+    .shuttingDown =
     false;
 
   }
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.cleanupApp =
+  cleanupApp;
+
+  window.shutdownApp =
+  shutdownApp;
+
+  window.createShutdownSnapshot =
+  createShutdownSnapshot;
 
 }
