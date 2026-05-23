@@ -53,14 +53,22 @@ async function saveSettingsToStorage(){
       return false;
     }
 
+    const serialized =
+    safeJsonStringify(
+      settings,
+      ""
+    );
+
+    if(!serialized){
+
+      return false;
+    }
+
     localStorage.setItem(
 
       SETTINGS_STORAGE_KEY,
 
-      safeJsonStringify(
-        settings,
-        ""
-      )
+      serialized
 
     );
 
