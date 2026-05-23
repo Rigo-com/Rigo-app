@@ -32,9 +32,6 @@ Object.freeze({
   MAX_PLANS:
   1000,
 
-  MAX_GOALS:
-  500,
-
   MAX_PLAN_STEPS:
   200,
 
@@ -42,7 +39,19 @@ Object.freeze({
   3,
 
   MAX_PARALLEL_PLANS:
-  50
+  50,
+
+  MAX_CONTEXT_SIZE:
+  100000,
+
+  PLAN_TIMEOUT:
+  300000,
+
+  RETRY_DELAY:
+  500,
+
+  MAX_EXECUTION_HISTORY:
+  500
 
 });
 
@@ -122,7 +131,10 @@ Object.freeze({
   "planner.completed",
 
   FAILED:
-  "planner.failed"
+  "planner.failed",
+
+  TERMINATED:
+  "planner.terminated"
 
 });
 
@@ -148,6 +160,8 @@ Object.seal({
   executionLocks:
   new Set(),
 
+  executionHistory:[],
+
   completedPlans:
   new Set(),
 
@@ -168,7 +182,9 @@ Object.seal({
 
     failed:0,
 
-    replans:0
+    replans:0,
+
+    rejected:0
 
   },
 
@@ -257,6 +273,47 @@ function freezePlannerObject(
 
 
 
+function clonePlannerObject(
+  value
+){
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+function safeClonePlannerObject(
+  value,
+  fallback = {}
+){
+
+  const cloned =
+  clonePlannerObject(
+    value
+  );
+
+  return cloned ??
+  fallback;
+
+}
+
+
+
 function clonePlannerDiagnostics(){
 
   return freezePlannerObject({
@@ -316,6 +373,21 @@ async function emitPlannerEvent(
 
 function createPlannerId(){
 
+  try{
+
+    if(
+      typeof createMemoryId ===
+      "function"
+    ){
+
+      return createMemoryId();
+
+    }
+
+  }
+
+  catch(error){}
+
   return (
 
     "plan_" +
@@ -334,12 +406,219 @@ function createPlannerId(){
 
 
 
+function delayPlannerExecution(
+  duration
+){
+
+  return new Promise((resolve) => {
+
+    setTimeout(
+      resolve,
+      duration
+    );
+
+  });
+
+}
+
+
+
+function serializePlannerContext(
+  value
+){
+
+  try{
+
+    return JSON.stringify(
+      value
+    );
+
+  }
+
+  catch(error){
+
+    return "";
+  }
+
+}
+
+
+
+function isPlannerContextValid(
+  value
+){
+
+  const serialized =
+  serializePlannerContext(
+    value
+  );
+
+  return (
+
+    serialized.length <=
+
+    PLANNER_ENGINE_CONFIG
+    .MAX_CONTEXT_SIZE
+
+  );
+
+}
+
+
+
+function trimPlannerHistory(){
+
+  if(
+
+    plannerEngineState
+    .executionHistory
+    .length >
+
+    PLANNER_ENGINE_CONFIG
+    .MAX_EXECUTION_HISTORY
+
+  ){
+
+    plannerEngineState
+    .executionHistory
+    .shift();
+
+  }
+
+  return true;
+
+}
+
+
+
+function createPlannerSnapshot(){
+
+  return freezePlannerObject({
+
+    initialized:
+    plannerEngineState
+    .initialized,
+
+    plans:
+
+      plannerEngineState
+      .plans
+      .size,
+
+    activePlans:
+
+      plannerEngineState
+      .activePlans
+      .size,
+
+    completedPlans:
+
+      plannerEngineState
+      .completedPlans
+      .size,
+
+    failedPlans:
+
+      plannerEngineState
+      .failedPlans
+      .size,
+
+    history:
+
+      plannerEngineState
+      .executionHistory
+      .length,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+async function executeWithPlanTimeout(
+  callback,
+  timeout
+){
+
+  let timeoutId = null;
+
+  try{
+
+    const timeoutPromise =
+    new Promise((_,reject) => {
+
+      timeoutId =
+      setTimeout(() => {
+
+        reject(
+
+          new Error(
+            "PLAN EXECUTION TIMEOUT"
+          )
+
+        );
+
+      },
+
+      timeout);
+
+    });
+
+    return await Promise.race([
+
+      Promise.resolve()
+      .then(callback),
+
+      timeoutPromise
+
+    ]);
+
+  }
+
+  finally{
+
+    if(
+      timeoutId
+    ){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+  }
+
+}
+
+
+
 function getRegisteredTools(){
 
   try{
 
     if(
       typeof ToolExecutor ===
+      "undefined"
+    ){
+
+      return [];
+    }
+
+    if(
+      typeof ToolExecutor
+      .diagnostics !==
+      "function"
+    ){
+
+      return [];
+    }
+
+    if(
+      typeof toolExecutorState ===
       "undefined"
     ){
 
@@ -378,6 +657,14 @@ function getAvailableAgents(){
       return [];
     }
 
+    if(
+      typeof agentManagerState ===
+      "undefined"
+    ){
+
+      return [];
+    }
+
     return [
 
       ...agentManagerState
@@ -406,7 +693,7 @@ function createPlanObject(
   config = {}
 ){
 
-  return freezePlannerObject({
+  return {
 
     id:
     normalizePlanId(
@@ -464,31 +751,26 @@ function createPlanObject(
         config.selectedTools
       )
 
-      ? freezePlannerObject([
-          ...config.selectedTools
-        ])
+      ? safeClonePlannerObject(
+          config.selectedTools,
+          []
+        )
 
       : [],
 
     steps:[],
 
     context:
-
-      freezePlannerObject(
-
-        config.context ||
-        {}
-
-      ),
+    safeClonePlannerObject(
+      config.context,
+      {}
+    ),
 
     metadata:
-
-      freezePlannerObject(
-
-        config.metadata ||
-        {}
-
-      ),
+    safeClonePlannerObject(
+      config.metadata,
+      {}
+    ),
 
     createdAt:
     Date.now(),
@@ -496,7 +778,7 @@ function createPlanObject(
     updatedAt:
     Date.now()
 
-  });
+  };
 
 }
 
@@ -521,12 +803,20 @@ function decomposeGoal(
 
   return normalizedGoal
   .split(".")
+  .slice(
+
+    0,
+
+    PLANNER_ENGINE_CONFIG
+    .MAX_PLAN_STEPS
+
+  )
   .map((segment,index) => {
 
-    return freezePlannerObject({
+    return {
 
       id:
-      createMemoryId(),
+      createPlannerId(),
 
       order:
       index + 1,
@@ -534,12 +824,14 @@ function decomposeGoal(
       objective:
       segment.trim(),
 
+      executable:true,
+
       state:
 
         PLAN_STEP_STATES
         .PENDING
 
-    });
+    };
 
   })
   .filter((step) => {
@@ -676,6 +968,24 @@ async function generateExecutionPlan(
 
   ){
 
+    plannerEngineState
+    .diagnostics
+    .rejected++;
+
+    return false;
+
+  }
+
+  if(
+    !isPlannerContextValid(
+      config.context || {}
+    )
+  ){
+
+    plannerEngineState
+    .diagnostics
+    .rejected++;
+
     return false;
 
   }
@@ -694,6 +1004,10 @@ async function generateExecutionPlan(
     )
 
   ){
+
+    plannerEngineState
+    .diagnostics
+    .rejected++;
 
     return false;
 
@@ -739,7 +1053,7 @@ async function generateExecutionPlan(
     const enrichedSteps =
     decomposedSteps.map((step) => {
 
-      return freezePlannerObject({
+      return {
 
         ...step,
 
@@ -760,7 +1074,7 @@ async function generateExecutionPlan(
           PLAN_STEP_STATES
           .READY
 
-      });
+      };
 
     });
 
@@ -834,10 +1148,6 @@ async function generateExecutionPlan(
 
   catch(error){
 
-    plannerEngineState
-    .diagnostics
-    .failed++;
-
     await emitPlannerEvent(
 
       PLAN_EVENTS
@@ -872,6 +1182,15 @@ async function executePlanStep(
   originalStep
 ){
 
+  const step = {
+
+    ...safeClonePlannerObject(
+      originalStep,
+      {}
+    )
+
+  };
+
   let attempts = 0;
 
   while(
@@ -888,19 +1207,37 @@ async function executePlanStep(
     try{
 
       if(
-        originalStep.assignedTool
+
+        step.executable ===
+        true
+
+        &&
+
+        !step.assignedTool
+
       ){
 
+        throw new Error(
+          "NO TOOL ASSIGNED"
+        );
+
+      }
+
+      if(
+        step.assignedTool
+      ){
+
+        const result =
         await ToolExecutor
         .execute(
 
-          originalStep
+          step
           .assignedTool,
 
           {
 
             objective:
-            originalStep
+            step
             .objective
 
           },
@@ -913,6 +1250,18 @@ async function executePlanStep(
           }
 
         );
+
+        if(
+          !result ||
+          result.success !==
+          true
+        ){
+
+          throw new Error(
+            "PLAN TOOL EXECUTION FAILED"
+          );
+
+        }
 
       }
 
@@ -927,7 +1276,7 @@ async function executePlanStep(
           plan.id,
 
           stepId:
-          originalStep.id
+          step.id
 
         }
 
@@ -935,7 +1284,7 @@ async function executePlanStep(
 
       return freezePlannerObject({
 
-        ...originalStep,
+        ...step,
 
         retries:
         attempts - 1,
@@ -961,7 +1310,7 @@ async function executePlanStep(
 
         return freezePlannerObject({
 
-          ...originalStep,
+          ...step,
 
           retries:
           attempts,
@@ -977,6 +1326,13 @@ async function executePlanStep(
       plannerEngineState
       .diagnostics
       .replans++;
+
+      await delayPlannerExecution(
+
+        PLANNER_ENGINE_CONFIG
+        .RETRY_DELAY
+
+      );
 
     }
 
@@ -1023,6 +1379,10 @@ async function executePlan(
 
   if(!originalPlan){
 
+    plannerEngineState
+    .diagnostics
+    .rejected++;
+
     return false;
 
   }
@@ -1037,6 +1397,10 @@ async function executePlan(
     .MAX_PARALLEL_PLANS
 
   ){
+
+    plannerEngineState
+    .diagnostics
+    .rejected++;
 
     return false;
 
@@ -1091,36 +1455,47 @@ async function executePlan(
 
         const completedSteps = [];
 
-        for(
-          const step
-          of originalPlan.steps
-        ){
+        await executeWithPlanTimeout(
 
-          const result =
-          await executePlanStep(
-            originalPlan,
-            step
-          );
+          async () => {
 
-          completedSteps.push(
-            result
-          );
+            for(
+              const step
+              of originalPlan.steps
+            ){
 
-          if(
+              const result =
+              await executePlanStep(
+                originalPlan,
+                step
+              );
 
-            result.state !==
-            PLAN_STEP_STATES
-            .COMPLETED
+              completedSteps.push(
+                result
+              );
 
-          ){
+              if(
 
-            throw new Error(
-              "PLAN STEP FAILED"
-            );
+                result.state !==
+                PLAN_STEP_STATES
+                .COMPLETED
 
-          }
+              ){
 
-        }
+                throw new Error(
+                  "PLAN STEP FAILED"
+                );
+
+              }
+
+            }
+
+          },
+
+          PLANNER_ENGINE_CONFIG
+          .PLAN_TIMEOUT
+
+        );
 
         const completedPlan =
         freezePlannerObject({
@@ -1154,6 +1529,22 @@ async function executePlan(
         .add(
           normalizedId
         );
+
+        plannerEngineState
+        .executionHistory
+        .push({
+
+          planId:
+          normalizedId,
+
+          success:true,
+
+          timestamp:
+          Date.now()
+
+        });
+
+        trimPlannerHistory();
 
         plannerEngineState
         .diagnostics
@@ -1239,6 +1630,25 @@ async function executePlan(
             normalizedId
           );
 
+          plannerEngineState
+          .executionHistory
+          .push({
+
+            planId:
+            normalizedId,
+
+            success:false,
+
+            error:
+            String(error),
+
+            timestamp:
+            Date.now()
+
+          });
+
+          trimPlannerHistory();
+
           return false;
 
         }
@@ -1246,6 +1656,13 @@ async function executePlan(
         plannerEngineState
         .diagnostics
         .replans++;
+
+        await delayPlannerExecution(
+
+          PLANNER_ENGINE_CONFIG
+          .RETRY_DELAY
+
+        );
 
       }
 
@@ -1336,7 +1753,7 @@ async function terminatePlan(
   await emitPlannerEvent(
 
     PLAN_EVENTS
-    .FAILED,
+    .TERMINATED,
 
     {
 
@@ -1350,6 +1767,51 @@ async function terminatePlan(
   );
 
   return true;
+
+}
+
+
+
+// =====================================
+// HEALTH REPORT
+// =====================================
+
+function getPlannerHealthReport(){
+
+  return freezePlannerObject({
+
+    initialized:
+    plannerEngineState
+    .initialized,
+
+    healthy:
+
+      plannerEngineState
+      .activePlans
+      .size <=
+
+      PLANNER_ENGINE_CONFIG
+      .MAX_PARALLEL_PLANS,
+
+    plans:
+
+      plannerEngineState
+      .plans
+      .size,
+
+    activePlans:
+
+      plannerEngineState
+      .activePlans
+      .size,
+
+    diagnostics:
+    clonePlannerDiagnostics(),
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -1391,6 +1853,12 @@ function getPlannerDiagnostics(){
       .failedPlans
       .size,
 
+    history:
+
+      plannerEngineState
+      .executionHistory
+      .length,
+
     diagnostics:
     clonePlannerDiagnostics(),
 
@@ -1424,6 +1892,10 @@ async function resetPlannerEngine(){
   .clear();
 
   plannerEngineState
+  .executionHistory =
+  [];
+
+  plannerEngineState
   .completedPlans
   .clear();
 
@@ -1446,7 +1918,9 @@ async function resetPlannerEngine(){
 
     failed:0,
 
-    replans:0
+    replans:0,
+
+    rejected:0
 
   };
 
@@ -1490,6 +1964,27 @@ async function initializePlannerEngine(){
     .initialized =
     true;
 
+
+
+    // ================================
+    // MODULE REGISTRATION
+    // ================================
+
+    if(
+      typeof registerModule ===
+      "function"
+    ){
+
+      await registerModule(
+
+        "planner-engine",
+
+        async () => PlannerEngine
+
+      );
+
+    }
+
     return true;
 
   }
@@ -1527,6 +2022,12 @@ Object.freeze({
 
   diagnostics:
   getPlannerDiagnostics,
+
+  health:
+  getPlannerHealthReport,
+
+  snapshot:
+  createPlannerSnapshot,
 
   reset:
   resetPlannerEngine
