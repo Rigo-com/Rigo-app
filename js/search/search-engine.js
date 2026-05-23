@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SEARCH ENGINE
-// ENTERPRISE FINAL
+// ENTERPRISE ULTRA FINAL
 // =====================================
 
 
@@ -22,6 +22,16 @@ async function executeMemorySearch(
     return [];
   }
 
+  const startedAt =
+  performance.now();
+
+  const searchToken =
+  createMemoryId();
+
+  searchState
+  .activeSearchToken =
+  searchToken;
+
   searchState.searching =
   true;
 
@@ -29,6 +39,8 @@ async function executeMemorySearch(
   SEARCH_STATES.SEARCHING;
 
   searchState.activeSearches++;
+
+  searchState.pendingSearches++;
 
   try{
 
@@ -43,6 +55,12 @@ async function executeMemorySearch(
       query,
       options
     );
+
+
+
+    // ================================
+    // CACHE
+    // ================================
 
     if(
 
@@ -63,15 +81,35 @@ async function executeMemorySearch(
 
     }
 
+    if(
+
+      searchState
+      .activeSearchToken !==
+      searchToken
+
+    ){
+
+      searchState
+      .abortedSearches++;
+
+      return [];
+
+    }
+
     let results = [];
 
 
 
     // ================================
-    // BASIC SEARCH
+    // INDEXED SEARCH
     // ================================
 
-    memoryState.memories
+    const indexedMemories =
+    searchIndexedMemories(
+      query
+    );
+
+    indexedMemories
     .forEach((memory) => {
 
       const score =
@@ -91,7 +129,17 @@ async function executeMemorySearch(
           memory,
           score,
           {
-            source:"basic"
+            source:"indexed",
+
+            snippet:
+            createSearchSnippet(
+
+              memory.content,
+
+              query
+
+            )
+
           }
         )
 
@@ -123,6 +171,21 @@ async function executeMemorySearch(
         options
       );
 
+      if(
+
+        searchState
+        .activeSearchToken !==
+        searchToken
+
+      ){
+
+        searchState
+        .abortedSearches++;
+
+        return [];
+
+      }
+
       semanticResults
       .forEach((item) => {
 
@@ -135,12 +198,105 @@ async function executeMemorySearch(
             item.similarity,
 
             {
-              source:"semantic"
+              source:"semantic",
+
+              snippet:
+              createSearchSnippet(
+
+                item.memory
+                ?.content,
+
+                query
+
+              )
+
             }
 
           )
 
         );
+
+      });
+
+    }
+
+
+
+    // ================================
+    // FUZZY SEARCH
+    // ================================
+
+    if(
+
+      SEARCH_CONFIG
+      .ENABLE_FUZZY_SEARCH
+
+    ){
+
+      const fuzzyTokens =
+      findFuzzyTokens(
+        normalizeSearchQuery(
+          query
+        )
+      );
+
+      fuzzyTokens
+      .forEach((item) => {
+
+        const indexed =
+
+          searchIndexState
+          .tokenIndex
+          .get(
+            item.token
+          );
+
+        if(!indexed){
+
+          return;
+        }
+
+        indexed.forEach((id) => {
+
+          const memory =
+          getMemoryById(id);
+
+          if(!memory){
+
+            return;
+          }
+
+          results.push(
+
+            createSearchResult(
+
+              memory,
+
+              item.score *
+              0.5,
+
+              {
+                source:"fuzzy",
+
+                fuzzyToken:
+                item.token,
+
+                snippet:
+                createSearchSnippet(
+
+                  memory.content,
+
+                  query
+
+                )
+
+              }
+
+            )
+
+          );
+
+        });
 
       });
 
@@ -200,6 +356,12 @@ async function executeMemorySearch(
 
     );
 
+
+
+    // ================================
+    // CACHE STORE
+    // ================================
+
     if(
 
       SEARCH_CONFIG
@@ -213,6 +375,47 @@ async function executeMemorySearch(
       );
 
     }
+
+
+
+    // ================================
+    // HISTORY
+    // ================================
+
+    storeSearchHistory(
+      query,
+      results.length > 0
+    );
+
+
+
+    // ================================
+    // LATENCY
+    // ================================
+
+    const latency =
+    performance.now() -
+    startedAt;
+
+    searchState
+    .lastSearchLatency =
+    latency;
+
+    searchState
+    .averageSearchLatency =
+
+    (
+      searchState
+      .averageSearchLatency +
+
+      latency
+    ) / 2;
+
+
+
+    // ================================
+    // STATE
+    // ================================
 
     searchState
     .lastQuery = query;
@@ -241,6 +444,11 @@ async function executeMemorySearch(
     .currentState =
     SEARCH_STATES.FAILED;
 
+    storeSearchHistory(
+      query,
+      false
+    );
+
     return [];
 
   }
@@ -259,6 +467,18 @@ async function executeMemorySearch(
 
       searchState
       .activeSearches - 1
+
+    );
+
+    searchState
+    .pendingSearches =
+
+    Math.max(
+
+      0,
+
+      searchState
+      .pendingSearches - 1
 
     );
 
