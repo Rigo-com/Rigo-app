@@ -8,9 +8,12 @@ function deepFreezeMemory(
 ){
 
   if(
+
     !value ||
+
     typeof value !==
     "object"
+
   ){
 
     return value;
@@ -25,14 +28,30 @@ function deepFreezeMemory(
 
   }
 
-  visited.add(value);
+  if(
+    Object.isFrozen(
+      value
+    )
+  ){
 
-  Object.keys(value)
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Reflect
+  .ownKeys(value)
   .forEach((key) => {
 
     deepFreezeMemory(
+
       value[key],
+
       visited
+
     );
 
   });
@@ -52,25 +71,24 @@ function deepFreezeMemory(
 function saveMemory(memory){
 
   if(
-    storageState.destroyed
-  ){
 
-    return false;
+    storageState.destroyed ||
 
-  }
-
-  if(
     !storageState.initialized
+
   ){
 
     return false;
 
   }
 
+  const validationResult =
+  validateMemoryObject(
+    memory
+  );
+
   if(
-    !validateMemoryObject(
-      memory
-    )
+    !validationResult?.valid
   ){
 
     return false;
@@ -82,7 +100,9 @@ function saveMemory(memory){
     const safeMemory =
     deepClone(memory);
 
-    if(!safeMemory){
+    if(
+      !safeMemory
+    ){
 
       return false;
 
@@ -93,10 +113,29 @@ function saveMemory(memory){
       safeMemory
     );
 
-    if(!serialized){
+    if(
+      !serialized
+    ){
 
       handleStorageError(
-        "MEMORY SERIALIZATION FAILED"
+        "MEMORY_SERIALIZATION_FAILED"
+      );
+
+      return false;
+
+    }
+
+    if(
+
+      serialized.length >
+
+      STORAGE_RUNTIME_CONFIG
+      .MAX_STORAGE_SIZE
+
+    ){
+
+      handleStorageError(
+        "MEMORY_STORAGE_LIMIT_EXCEEDED"
       );
 
       return false;
@@ -126,11 +165,30 @@ function saveMemory(memory){
       safeMemory
     );
 
+    const writeVersion =
+    Date.now();
+
+    storageState
+    .lastMemoryWriteVersion =
+    writeVersion;
+
     enqueueStorageWrite(
       () => {
 
         if(
           storageState.destroyed
+        ){
+
+          return false;
+
+        }
+
+        if(
+
+          storageState
+          .lastMemoryWriteVersion !==
+          writeVersion
+
         ){
 
           return false;
@@ -155,7 +213,7 @@ function saveMemory(memory){
   catch(error){
 
     handleStorageError(
-      "SAVE MEMORY ERROR",
+      "SAVE_MEMORY_ERROR",
       error
     );
 
@@ -178,6 +236,7 @@ function loadMemory(){
   ){
 
     return {};
+
   }
 
   try{
@@ -185,8 +244,8 @@ function loadMemory(){
     const cachedMemory =
 
       storageState
-      .cache
-      .memory;
+      ?.cache
+      ?.memory;
 
     if(
 
@@ -194,15 +253,26 @@ function loadMemory(){
 
       &&
 
-      Object.keys(
+      typeof cachedMemory ===
+      "object"
+
+      &&
+
+      Reflect
+      .ownKeys(
         cachedMemory
-      ).length > 0
+      )
+      .length > 0
 
     ){
 
-      return deepClone(
-        cachedMemory
-      ) || {};
+      return (
+
+        deepClone(
+          cachedMemory
+        ) || {}
+
+      );
 
     }
 
@@ -219,6 +289,7 @@ function loadMemory(){
     ){
 
       return {};
+
     }
 
     storageState.cache.memory =
@@ -226,16 +297,20 @@ function loadMemory(){
       clonedMemory
     );
 
-    return deepClone(
-      clonedMemory
-    ) || {};
+    return (
+
+      deepClone(
+        clonedMemory
+      ) || {}
+
+    );
 
   }
 
   catch(error){
 
     handleStorageError(
-      "LOAD MEMORY RUNTIME ERROR",
+      "LOAD_MEMORY_RUNTIME_ERROR",
       error
     );
 
@@ -258,6 +333,7 @@ function loadMemoryFromStorage(){
   ){
 
     return {};
+
   }
 
   if(
@@ -265,6 +341,7 @@ function loadMemoryFromStorage(){
   ){
 
     return {};
+
   }
 
   try{
@@ -276,21 +353,27 @@ function loadMemoryFromStorage(){
 
     );
 
-    if(!data){
+    if(
+      !data
+    ){
 
       return {};
+
     }
 
     const parsedData =
-    safeJSONParse(
+    safeJsonParse(
       data,
       {}
     );
 
+    const validationResult =
+    validateMemoryObject(
+      parsedData
+    );
+
     if(
-      !validateMemoryObject(
-        parsedData
-      )
+      !validationResult?.valid
     ){
 
       if(
@@ -303,6 +386,7 @@ function loadMemoryFromStorage(){
       }
 
       return {};
+
     }
 
     return parsedData;
@@ -321,7 +405,7 @@ function loadMemoryFromStorage(){
     }
 
     handleStorageError(
-      "LOAD MEMORY ERROR",
+      "LOAD_MEMORY_ERROR",
       error
     );
 
