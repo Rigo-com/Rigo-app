@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY SEARCH
 // ENTERPRISE INFINITY FINAL
+// PATCHED + STABILIZED
 // =====================================
 
 
@@ -76,12 +77,13 @@ function createSearchResult(
     deepClone(memory),
 
     score:
-    Number(score) || 0,
+    safeMemoryNumber(
+      score,
+      0
+    ),
 
     memoryId:
-    memory?.id ||
-
-    null
+    memory?.id || null
 
   });
 
@@ -312,17 +314,18 @@ function isSearchableMemory(
   options = {}
 ){
 
-  if(!memory){
+  if(
+    !memory ||
+    typeof memory !==
+    "object"
+  ){
 
     return false;
 
   }
 
   if(
-
-    typeof memory !==
-    "object"
-
+    !memory.id
   ){
 
     return false;
@@ -332,9 +335,9 @@ function isSearchableMemory(
   if(
 
     memoryState
-    .tracking
-    .corruptedIds
-    .has(memory.id)
+    ?.tracking
+    ?.corruptedIds
+    ?.has(memory.id)
 
   ){
 
@@ -406,7 +409,7 @@ function mergeSearchScores(
 
       scoreMap.set(
         memoryId,
-        result
+        deepClone(result)
       );
 
       return;
@@ -444,6 +447,14 @@ function calculateMemoryScore(
 
   if(
     !memory
+  ){
+
+    return 0;
+
+  }
+
+  if(
+    !normalizedQuery
   ){
 
     return 0;
@@ -612,9 +623,9 @@ function calculateMemoryScore(
   if(
 
     memoryState
-    .tracking
-    .pinnedMemoryIds
-    .has(memory.id)
+    ?.tracking
+    ?.pinnedMemoryIds
+    ?.has(memory.id)
 
   ){
 
@@ -647,9 +658,7 @@ function calculateMemoryScore(
       (
         Date.now() -
         updatedAt
-      ) /
-
-      86400000;
+      ) / 86400000;
 
     if(
       daysSinceUpdate <= 7
@@ -792,9 +801,9 @@ function getCachedSearchResults(
 
   const cachedResults =
   memoryState
-  .cache
-  .searchResults
-  .get(
+  ?.cache
+  ?.searchResults
+  ?.get(
     cacheKey
   )
 
@@ -843,10 +852,20 @@ function setCachedSearchResults(
 
   }
 
+  const cache =
   memoryState
-  .cache
-  .searchResults
-  .set(
+  ?.cache
+  ?.searchResults;
+
+  if(
+    !(cache instanceof Map)
+  ){
+
+    return false;
+
+  }
+
+  cache.set(
     cacheKey,
     freezeSearchObject(
       deepClone(results)
@@ -859,11 +878,7 @@ function setCachedSearchResults(
   // CACHE SIZE PROTECTION
   // ===================================
 
-  const cache =
-  memoryState.cache
-  .searchResults;
-
-  if(
+  while(
     cache.size >
 
     MEMORY_SEARCH_CONFIG
@@ -891,10 +906,20 @@ function setCachedSearchResults(
 
 function clearSearchCache(){
 
-  memoryState
-  .cache
-  .searchResults
-  .clear();
+  if(
+
+    memoryState
+    ?.cache
+    ?.searchResults instanceof Map
+
+  ){
+
+    memoryState
+    .cache
+    .searchResults
+    .clear();
+
+  }
 
   return true;
 
@@ -923,9 +948,10 @@ function searchById(
 
   const memory =
 
-    memoryState.indexes
-    .byId
-    .get(
+    memoryState
+    ?.indexes
+    ?.byId
+    ?.get(
       normalizedId
     )
 
@@ -944,21 +970,18 @@ function searchById(
 
 
 // =====================================
-// SEARCH BY TYPE
+// GENERIC INDEX SEARCH
 // =====================================
 
-function searchByType(
-  type,
+function searchByIndex(
+  index,
+  key,
   options = {}
 ){
 
   return getIndexedMemoryIds(
-
-    memoryState.indexes
-    .byType,
-
-    type
-
+    index,
+    key
   )
   .map((memoryId) => {
 
@@ -975,6 +998,30 @@ function searchByType(
     );
 
   });
+
+}
+
+
+
+// =====================================
+// SEARCH BY TYPE
+// =====================================
+
+function searchByType(
+  type,
+  options = {}
+){
+
+  return searchByIndex(
+
+    memoryState.indexes
+    .byType,
+
+    type,
+
+    options
+
+  );
 
 }
 
@@ -989,29 +1036,16 @@ function searchByCategory(
   options = {}
 ){
 
-  return getIndexedMemoryIds(
+  return searchByIndex(
 
     memoryState.indexes
     .byCategory,
 
-    category
+    category,
 
-  )
-  .map((memoryId) => {
+    options
 
-    return searchById(
-      memoryId
-    );
-
-  })
-  .filter((memory) => {
-
-    return isSearchableMemory(
-      memory,
-      options
-    );
-
-  });
+  );
 
 }
 
@@ -1026,29 +1060,16 @@ function searchByTag(
   options = {}
 ){
 
-  return getIndexedMemoryIds(
+  return searchByIndex(
 
     memoryState.indexes
     .byTag,
 
-    tag
+    tag,
 
-  )
-  .map((memoryId) => {
+    options
 
-    return searchById(
-      memoryId
-    );
-
-  })
-  .filter((memory) => {
-
-    return isSearchableMemory(
-      memory,
-      options
-    );
-
-  });
+  );
 
 }
 
@@ -1063,29 +1084,16 @@ function searchByPriority(
   options = {}
 ){
 
-  return getIndexedMemoryIds(
+  return searchByIndex(
 
     memoryState.indexes
     .byPriority,
 
-    priority
+    priority,
 
-  )
-  .map((memoryId) => {
+    options
 
-    return searchById(
-      memoryId
-    );
-
-  })
-  .filter((memory) => {
-
-    return isSearchableMemory(
-      memory,
-      options
-    );
-
-  });
+  );
 
 }
 
@@ -1100,29 +1108,16 @@ function searchByState(
   options = {}
 ){
 
-  return getIndexedMemoryIds(
+  return searchByIndex(
 
     memoryState.indexes
     .byState,
 
-    state
+    state,
 
-  )
-  .map((memoryId) => {
+    options
 
-    return searchById(
-      memoryId
-    );
-
-  })
-  .filter((memory) => {
-
-    return isSearchableMemory(
-      memory,
-      options
-    );
-
-  });
+  );
 
 }
 
@@ -1408,8 +1403,14 @@ function searchMemories(
   )
   .slice(0,limit);
 
-  memoryState.stats
-  .searches++;
+  if(
+    memoryState?.stats
+  ){
+
+    memoryState.stats
+    .searches++;
+
+  }
 
   setCachedSearchResults(
     cacheKey,
@@ -1447,13 +1448,46 @@ function advancedMemorySearch(
     options
   );
 
+  let semanticResults = [];
+
+  if(
+    typeof semanticMemorySearch ===
+    "function"
+  ){
+
+    try{
+
+      semanticResults =
+      semanticMemorySearch(
+        query,
+        options
+      )
+      .map((item) => {
+
+        return createSearchResult(
+          item.memory,
+          Math.round(
+            item.similarity * 100
+          )
+        );
+
+      });
+
+    }
+
+    catch(error){}
+
+  }
+
   const mergedResults =
 
     mergeSearchScores([
 
       ...tokenResults,
 
-      ...directResults
+      ...directResults,
+
+      ...semanticResults
 
     ]);
 
@@ -1514,7 +1548,9 @@ function searchMemoriesByDateRange(
 
     deepClone(
 
-      memoryState.memories
+      safeMemoryArray(
+        memoryState.memories
+      )
       .filter((memory) => {
 
         if(
@@ -1583,7 +1619,9 @@ function sortMemories(
 
   const sortedMemories = [
 
-    ...memories
+    ...safeMemoryArray(
+      memories
+    )
 
   ];
 
