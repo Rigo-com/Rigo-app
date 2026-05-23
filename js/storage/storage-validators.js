@@ -17,6 +17,9 @@ Object.freeze({
   MAX_MEMORY_DEPTH:
   10,
 
+  MAX_STRING_LENGTH:
+  50000,
+
   MAX_TIMESTAMP:
   9999999999999
 
@@ -34,6 +37,7 @@ function isPlainStorageObject(
 
   if(
     !value ||
+
     typeof value !==
     "object"
   ){
@@ -80,7 +84,14 @@ function isValidTimestamp(
 
   return (
 
-    Number.isFinite(value)
+    typeof value ===
+    "number"
+
+    &&
+
+    Number.isFinite(
+      value
+    )
 
     &&
 
@@ -123,12 +134,55 @@ function validateMemoryDepth(
   }
 
   if(
-    !value ||
+    value == null
+  ){
+
+    return true;
+
+  }
+
+  if(
+    typeof value ===
+    "string"
+  ){
+
+    return (
+
+      value.length <=
+
+      STORAGE_VALIDATION_LIMITS
+      .MAX_STRING_LENGTH
+
+    );
+
+  }
+
+  if(
     typeof value !==
     "object"
   ){
 
     return true;
+
+  }
+
+  if(
+    Array.isArray(value)
+  ){
+
+    return value.every((item) => {
+
+      return validateMemoryDepth(
+
+        item,
+
+        depth + 1,
+
+        visited
+
+      );
+
+    });
 
   }
 
@@ -142,12 +196,41 @@ function validateMemoryDepth(
 
   visited.add(value);
 
-  return Object.values(value)
-  .every((nestedValue) => {
+  const keys =
+  Object.keys(value);
+
+  const polluted =
+  keys.some((key) => {
+
+    return (
+
+      key === "__proto__"
+
+      ||
+
+      key === "prototype"
+
+      ||
+
+      key === "constructor"
+
+    );
+
+  });
+
+  if(
+    polluted
+  ){
+
+    return false;
+
+  }
+
+  return keys.every((key) => {
 
     return validateMemoryDepth(
 
-      nestedValue,
+      value[key],
 
       depth + 1,
 
@@ -165,7 +248,9 @@ function validateMemoryDepth(
 // VALIDATE CHAT
 // =====================================
 
-function validateChatObject(chat){
+function validateChatObject(
+  chat
+){
 
   if(
     !isPlainStorageObject(
@@ -186,8 +271,11 @@ function validateChatObject(chat){
 
   }
 
+  const normalizedId =
+  chat.id.trim();
+
   if(
-    chat.id.length <= 0
+    normalizedId.length <= 0
   ){
 
     return false;
@@ -251,9 +339,16 @@ function validateChatObject(chat){
   }
 
   if(
+
+    typeof validateMessageObject ===
+    "function"
+
+    &&
+
     !chat.messages.every(
       validateMessageObject
     )
+
   ){
 
     return false;
@@ -290,7 +385,9 @@ function validateChatObject(chat){
 // VALIDATE MEMORY
 // =====================================
 
-function validateMemoryObject(memory){
+function validateMemoryObject(
+  memory
+){
 
   if(
     !isPlainStorageObject(
