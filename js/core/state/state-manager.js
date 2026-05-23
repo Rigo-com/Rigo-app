@@ -353,6 +353,45 @@ function getStateValue(
 
 
 // =====================================
+// GET FULL STATE
+// =====================================
+
+function getFullState(){
+
+  return createImmutableState({
+
+    ...stateManagerState
+    .currentState
+
+  });
+
+}
+
+
+
+// =====================================
+// HAS STATE VALUE
+// =====================================
+
+function hasStateValue(
+  path
+){
+
+  return (
+
+    getStateValue(path)
+
+    !==
+
+    undefined
+
+  );
+
+}
+
+
+
+// =====================================
 // SET STATE VALUE
 // =====================================
 
@@ -422,6 +461,97 @@ function setNestedStateValue(
 
 
 // =====================================
+// REMOVE STATE VALUE
+// =====================================
+
+async function removeStateValue(
+  path
+){
+
+  const normalizedPath =
+  normalizeStatePath(
+    path
+  );
+
+  if(!normalizedPath){
+
+    return false;
+
+  }
+
+  const stateCopy =
+  cloneStateValue(
+
+    stateManagerState
+    .currentState
+
+  );
+
+  const segments =
+  normalizedPath
+  .split(".");
+
+  let current =
+  stateCopy;
+
+  for(
+
+    let i = 0;
+
+    i < segments.length - 1;
+
+    i++
+
+  ){
+
+    const segment =
+    segments[i];
+
+    if(
+
+      !current[segment] ||
+
+      typeof current[
+        segment
+      ] !== "object"
+
+    ){
+
+      return false;
+
+    }
+
+    current =
+    current[segment];
+
+  }
+
+  delete current[
+
+    segments[
+      segments.length - 1
+    ]
+
+  ];
+
+  stateManagerState
+  .currentState =
+  stateCopy;
+
+  stateManagerState
+  .version++;
+
+  stateManagerState
+  .lastUpdatedAt =
+  Date.now();
+
+  return true;
+
+}
+
+
+
+// =====================================
 // HISTORY
 // =====================================
 
@@ -476,6 +606,23 @@ function storeStateHistory(
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// GET STATE HISTORY
+// =====================================
+
+function getStateHistory(){
+
+  return createImmutableState(
+
+    stateManagerState
+    .history
+
+  );
 
 }
 
@@ -1266,8 +1413,17 @@ Object.freeze({
   get:
   getStateValue,
 
+  getAll:
+  getFullState,
+
+  has:
+  hasStateValue,
+
   update:
   updateState,
+
+  remove:
+  removeStateValue,
 
   reset:
   resetStateManager,
@@ -1277,6 +1433,9 @@ Object.freeze({
 
   snapshot:
   createStateSnapshot,
+
+  history:
+  getStateHistory,
 
   transaction:
   runStateTransaction,
@@ -1294,3 +1453,25 @@ Object.freeze({
   getStateDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.StateManager =
+  StateManager;
+
+  window.STATE_EVENTS =
+  STATE_EVENTS;
+
+  window.STATE_MANAGER_CONFIG =
+  STATE_MANAGER_CONFIG;
+
+}
