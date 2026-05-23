@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY RANKING
-// ENTERPRISE INFINITY GOD FINAL
+// ENTERPRISE INFINITY ULTRA FINAL
 // =====================================
 
 
@@ -24,6 +24,16 @@ Object.freeze({
   ENABLE_RELEVANCE_BOOST:true,
 
   ENABLE_DECAY:true,
+
+  ENABLE_SEMANTIC_RANKING:true,
+
+  ENABLE_BEHAVIOR_LEARNING:true,
+
+  ENABLE_HYBRID_RANKING:true,
+
+  ENABLE_CONTEXTUAL_SCORING:true,
+
+  ENABLE_WORKER_PREPARATION:true,
 
   MAX_SCORE:1000,
 
@@ -49,11 +59,19 @@ Object.freeze({
 
   SUMMARY_MATCH_BOOST:60,
 
+  SEMANTIC_MATCH_BOOST:180,
+
+  CONTEXT_MATCH_BOOST:90,
+
+  LEARNING_BOOST:70,
+
   DECAY_PER_DAY:0.35,
 
   MAX_ACCESS_COUNT:100000,
 
-  MAX_RANKED_RESULTS:500
+  MAX_RANKED_RESULTS:500,
+
+  MAX_BEHAVIOR_HISTORY:5000
 
 });
 
@@ -70,7 +88,17 @@ Object.seal({
 
   rankings:new Map(),
 
+  semanticScores:new Map(),
+
+  contextualScores:new Map(),
+
   accessCounts:new Map(),
+
+  behaviorScores:new Map(),
+
+  rankingHistory:[],
+
+  workerQueue:[],
 
   lastRankAt:null,
 
@@ -85,7 +113,7 @@ Object.seal({
 
 
 // =====================================
-// RANK HELPERS
+// QUERY HELPERS
 // =====================================
 
 function normalizeRankingQuery(
@@ -119,6 +147,10 @@ function clampRankingScore(
 }
 
 
+
+// =====================================
+// ACCESS TRACKING
+// =====================================
 
 function getMemoryAccessCount(
   memoryId
@@ -360,7 +392,7 @@ function calculateAccessScore(
 
 
 // =====================================
-// DECAY SCORE
+// DECAY PENALTY
 // =====================================
 
 function calculateDecayPenalty(
@@ -404,6 +436,226 @@ function calculateDecayPenalty(
 
     MEMORY_RANKING_CONFIG
     .DECAY_PER_DAY
+
+  );
+
+}
+
+
+
+// =====================================
+// SEMANTIC TOKEN SIMILARITY
+// =====================================
+
+function calculateSemanticSimilarity(
+  memory,
+  query
+){
+
+  if(
+
+    !MEMORY_RANKING_CONFIG
+    .ENABLE_SEMANTIC_RANKING
+
+  ){
+
+    return 0;
+
+  }
+
+  const queryTokens =
+  tokenizeMemoryText(
+    query
+  );
+
+  if(
+    queryTokens.length <= 0
+  ){
+
+    return 0;
+
+  }
+
+  const memoryTokens =
+  tokenizeMemoryText(
+
+    [
+
+      memory.title,
+
+      memory.summary,
+
+      memory.content,
+
+      ...safeMemoryArray(
+        memory.tags
+      )
+
+    ]
+    .join(" ")
+
+  );
+
+  if(
+    memoryTokens.length <= 0
+  ){
+
+    return 0;
+
+  }
+
+  let matches = 0;
+
+  queryTokens.forEach((token) => {
+
+    if(
+      memoryTokens.includes(
+        token
+      )
+    ){
+
+      matches++;
+
+    }
+
+  });
+
+  const similarity =
+
+    matches /
+
+    queryTokens.length;
+
+  return Math.round(
+
+    similarity *
+
+    MEMORY_RANKING_CONFIG
+    .SEMANTIC_MATCH_BOOST
+
+  );
+
+}
+
+
+
+// =====================================
+// CONTEXTUAL SCORE
+// =====================================
+
+function calculateContextualScore(
+  memory,
+  context = {}
+){
+
+  if(
+
+    !MEMORY_RANKING_CONFIG
+    .ENABLE_CONTEXTUAL_SCORING
+
+  ){
+
+    return 0;
+
+  }
+
+  let score = 0;
+
+  if(
+    context.activeCategory
+  ){
+
+    if(
+
+      normalizeMemoryString(
+        memory.category
+      )
+
+      ===
+
+      normalizeMemoryString(
+        context.activeCategory
+      )
+
+    ){
+
+      score +=
+
+        MEMORY_RANKING_CONFIG
+        .CONTEXT_MATCH_BOOST;
+
+    }
+
+  }
+
+  if(
+    context.activeType
+  ){
+
+    if(
+
+      normalizeMemoryString(
+        memory.type
+      )
+
+      ===
+
+      normalizeMemoryString(
+        context.activeType
+      )
+
+    ){
+
+      score += 40;
+
+    }
+
+  }
+
+  return score;
+
+}
+
+
+
+// =====================================
+// LEARNING SCORE
+// =====================================
+
+function calculateBehaviorLearningScore(
+  memory
+){
+
+  if(
+
+    !MEMORY_RANKING_CONFIG
+    .ENABLE_BEHAVIOR_LEARNING
+
+  ){
+
+    return 0;
+
+  }
+
+  const behaviorScore =
+  safeMemoryNumber(
+
+    memoryRankingState
+    .behaviorScores
+    .get(
+      memory.id
+    ),
+
+    0
+
+  );
+
+  return Math.min(
+
+    behaviorScore,
+
+    MEMORY_RANKING_CONFIG
+    .LEARNING_BOOST
 
   );
 
@@ -463,12 +715,6 @@ function calculateRankingRelevance(
 
     });
 
-
-
-  // ===================================
-  // EXACT MATCH
-  // ===================================
-
   if(
     title === normalizedQuery
   ){
@@ -479,12 +725,6 @@ function calculateRankingRelevance(
       .EXACT_MATCH_BOOST;
 
   }
-
-
-
-  // ===================================
-  // TITLE MATCH
-  // ===================================
 
   if(
     title.includes(
@@ -499,12 +739,6 @@ function calculateRankingRelevance(
 
   }
 
-
-
-  // ===================================
-  // SUMMARY MATCH
-  // ===================================
-
   if(
     summary.includes(
       normalizedQuery
@@ -518,12 +752,6 @@ function calculateRankingRelevance(
 
   }
 
-
-
-  // ===================================
-  // CONTENT MATCH
-  // ===================================
-
   if(
     content.includes(
       normalizedQuery
@@ -536,12 +764,6 @@ function calculateRankingRelevance(
       .CONTENT_MATCH_BOOST;
 
   }
-
-
-
-  // ===================================
-  // TAG MATCH
-  // ===================================
 
   tags.forEach((tag) => {
 
@@ -567,64 +789,33 @@ function calculateRankingRelevance(
 
 
 // =====================================
-// MEMORY RANK SCORE
+// HYBRID SCORE
 // =====================================
 
-function calculateMemoryRank(
+function calculateHybridRankingScore(
   memory,
-  query = ""
+  query,
+  context = {}
 ){
-
-  if(
-    !memory
-  ){
-
-    return 0;
-
-  }
 
   let score =
   MEMORY_RANKING_CONFIG
   .DEFAULT_SCORE;
-
-
-
-  // ===================================
-  // PINNED
-  // ===================================
 
   score +=
   calculatePinnedScore(
     memory
   );
 
-
-
-  // ===================================
-  // RECENCY
-  // ===================================
-
   score +=
   calculateRecencyScore(
     memory
   );
 
-
-
-  // ===================================
-  // ACCESS
-  // ===================================
-
   score +=
   calculateAccessScore(
     memory
   );
-
-
-
-  // ===================================
-  // RELEVANCE
-  // ===================================
 
   score +=
   calculateRankingRelevance(
@@ -632,11 +823,22 @@ function calculateMemoryRank(
     query
   );
 
+  score +=
+  calculateSemanticSimilarity(
+    memory,
+    query
+  );
 
+  score +=
+  calculateContextualScore(
+    memory,
+    context
+  );
 
-  // ===================================
-  // DECAY
-  // ===================================
+  score +=
+  calculateBehaviorLearningScore(
+    memory
+  );
 
   score -=
   calculateDecayPenalty(
@@ -652,7 +854,7 @@ function calculateMemoryRank(
 
 
 // =====================================
-// STORE RANK
+// RANK STORAGE
 // =====================================
 
 function storeMemoryRank(
@@ -686,10 +888,6 @@ function storeMemoryRank(
 
 
 
-// =====================================
-// GET RANK
-// =====================================
-
 function getMemoryRank(
   memoryId
 ){
@@ -722,12 +920,89 @@ function getMemoryRank(
 
 
 // =====================================
+// LEARNING ENGINE
+// =====================================
+
+function learnMemoryBehavior(
+  memoryId,
+  weight = 1
+){
+
+  const normalizedId =
+  normalizeMemoryString(
+    memoryId
+  );
+
+  if(!normalizedId){
+
+    return false;
+
+  }
+
+  const current =
+  safeMemoryNumber(
+
+    memoryRankingState
+    .behaviorScores
+    .get(
+      normalizedId
+    ),
+
+    0
+
+  );
+
+  memoryRankingState
+  .behaviorScores
+  .set(
+
+    normalizedId,
+
+    current + weight
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// WORKER QUEUE
+// =====================================
+
+function enqueueRankingTask(
+  task
+){
+
+  memoryRankingState
+  .workerQueue
+  .push({
+
+    id:createMemoryId(),
+
+    createdAt:
+    Date.now(),
+
+    task
+
+  });
+
+  return true;
+
+}
+
+
+
+// =====================================
 // RANK MEMORY
 // =====================================
 
 function rankMemory(
   memory,
-  query = ""
+  query = "",
+  context = {}
 ){
 
   try{
@@ -739,9 +1014,12 @@ function rankMemory(
     }
 
     const score =
-    calculateMemoryRank(
+    calculateHybridRankingScore(
+
       memory,
-      query
+      query,
+      context
+
     );
 
     storeMemoryRank(
@@ -779,7 +1057,8 @@ function rankMemory(
 
 function rankMemoryResults(
   memories = [],
-  query = ""
+  query = "",
+  context = {}
 ){
 
   const rankedResults =
@@ -795,8 +1074,11 @@ function rankMemoryResults(
 
         score:
         rankMemory(
+
           memory,
-          query
+          query,
+          context
+
         )
 
       };
@@ -872,8 +1154,23 @@ function clearMemoryRankings(){
   .clear();
 
   memoryRankingState
+  .semanticScores
+  .clear();
+
+  memoryRankingState
+  .contextualScores
+  .clear();
+
+  memoryRankingState
   .accessCounts
   .clear();
+
+  memoryRankingState
+  .behaviorScores
+  .clear();
+
+  memoryRankingState
+  .workerQueue = [];
 
   return true;
 
@@ -882,7 +1179,7 @@ function clearMemoryRankings(){
 
 
 // =====================================
-// TOP RANKED MEMORIES
+// TOP MEMORIES
 // =====================================
 
 function getTopRankedMemories(
@@ -957,11 +1254,35 @@ function getMemoryRankingDiagnostics(){
       .rankings
       .size,
 
+    semanticScores:
+
+      memoryRankingState
+      .semanticScores
+      .size,
+
+    contextualScores:
+
+      memoryRankingState
+      .contextualScores
+      .size,
+
     trackedAccesses:
 
       memoryRankingState
       .accessCounts
       .size,
+
+    learnedBehaviors:
+
+      memoryRankingState
+      .behaviorScores
+      .size,
+
+    queuedWorkerTasks:
+
+      memoryRankingState
+      .workerQueue
+      .length,
 
     lastRankAt:
     memoryRankingState
