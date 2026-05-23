@@ -1,8 +1,34 @@
 // =====================================
 // RIGO AI
 // MEMORY STATE
-// ENTERPRISE GOD FINAL
+// ENTERPRISE INFINITY ULTRA FINAL
 // =====================================
+
+
+
+// =====================================
+// STATE CONFIG
+// =====================================
+
+const MEMORY_STATE_CONFIG =
+Object.freeze({
+
+  MAX_QUEUE_SIZE:1000,
+
+  MAX_TRACKING_IDS:50000,
+
+  MAX_RUNTIME_ERRORS:100,
+
+  ENABLE_RUNTIME_PROTECTION:true,
+
+  ENABLE_AUTO_CLEANUP:true,
+
+  ENABLE_CONSISTENCY_CHECKS:true,
+
+  SESSION_TIMEOUT:
+  1000 * 60 * 30
+
+});
 
 
 
@@ -167,9 +193,13 @@ function createMemoryRuntime(){
 
     migrating:false,
 
+    resetting:false,
+
     locked:false,
 
     corrupted:false,
+
+    panicMode:false,
 
     startupAt:
     Date.now(),
@@ -177,6 +207,8 @@ function createMemoryRuntime(){
     shutdownAt:null,
 
     lastError:null,
+
+    runtimeErrors:[],
 
     activeOperations:0,
 
@@ -501,6 +533,52 @@ function setMemoryStateInitialized(
 
 
 // =====================================
+// SAFE SNAPSHOT
+// =====================================
+
+function createMemoryStateSnapshot(){
+
+  return deepFreeze({
+
+    initialized:
+    memoryState.initialized,
+
+    activeMemoryId:
+    memoryState.activeMemoryId,
+
+    memoryCount:
+    memoryState.memories.length,
+
+    metrics:
+    deepClone(
+      memoryState.metrics
+    ),
+
+    runtime:
+    deepClone(
+      memoryState.runtime
+    ),
+
+    health:
+    deepClone(
+      memoryState.health
+    ),
+
+    stats:
+    deepClone(
+      memoryState.stats
+    ),
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
 // RUNTIME HELPERS
 // =====================================
 
@@ -516,6 +594,15 @@ function isMemoryLocked(){
 
 
 function lockMemoryState(){
+
+  if(
+    memoryState.runtime
+    .locked
+  ){
+
+    return false;
+
+  }
 
   memoryState.runtime
   .locked = true;
@@ -582,6 +669,68 @@ function decrementMemoryOperations(){
 
 
 // =====================================
+// RUNTIME ERROR
+// =====================================
+
+function registerMemoryRuntimeError(
+  error
+){
+
+  const safeError = {
+
+    id:createMemoryId(),
+
+    message:String(
+      error?.message ||
+      error
+    ),
+
+    timestamp:
+    Date.now()
+
+  };
+
+  memoryState.runtime
+  .runtimeErrors
+  .push(
+    safeError
+  );
+
+  if(
+
+    memoryState.runtime
+    .runtimeErrors
+    .length >
+
+    MEMORY_STATE_CONFIG
+    .MAX_RUNTIME_ERRORS
+
+  ){
+
+    memoryState.runtime
+    .runtimeErrors
+    .shift();
+
+  }
+
+  memoryState.runtime
+  .lastError =
+  safeError;
+
+  memoryState.metrics
+  .failedOperations++;
+
+  memoryState.metrics
+  .lastErrorAt =
+  Date.now();
+
+  return true;
+
+}
+
+
+
+// =====================================
 // MEMORY LOOKUP
 // =====================================
 
@@ -635,6 +784,47 @@ function hasMemory(
       memoryId
     )
   );
+
+}
+
+
+
+// =====================================
+// ACTIVE MEMORY
+// =====================================
+
+function setActiveMemory(
+  memoryId
+){
+
+  if(
+    !memoryId
+  ){
+
+    memoryState
+    .activeMemoryId =
+    null;
+
+    return true;
+
+  }
+
+  const memory =
+  getMemoryById(
+    memoryId
+  );
+
+  if(!memory){
+
+    return false;
+
+  }
+
+  memoryState
+  .activeMemoryId =
+  memory.id;
+
+  return true;
 
 }
 
@@ -746,6 +936,58 @@ function updateMemoryMetrics(){
   memoryState.health
   .lastHealthCheckAt =
   Date.now();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// TRACKING CLEANUP
+// =====================================
+
+function cleanupTrackingState(){
+
+  const validIds =
+  new Set(
+
+    memoryState.memories
+    .map((memory) => {
+
+      return memory.id;
+
+    })
+
+  );
+
+  Object.values(
+    memoryState.tracking
+  )
+  .forEach((trackingSet) => {
+
+    if(
+      !(trackingSet instanceof Set)
+    ){
+
+      return;
+    }
+
+    trackingSet.forEach((id) => {
+
+      if(
+        !validIds.has(id)
+      ){
+
+        trackingSet.delete(
+          id
+        );
+
+      }
+
+    });
+
+  });
 
   return true;
 
@@ -880,6 +1122,9 @@ function markMemoryAccessed(
   .lastActivityAt =
   Date.now();
 
+  memoryState.session
+  .interactionCount++;
+
   return true;
 
 }
@@ -919,7 +1164,7 @@ function clearMemoryCache(){
 // INDEX HELPERS
 // =====================================
 
-function clearMemoryIndexes(){
+function resetRuntimeMemoryIndexes(){
 
   Object.values(
     memoryState.indexes
@@ -945,10 +1190,146 @@ function clearMemoryIndexes(){
 
 
 // =====================================
+// CONSISTENCY CHECK
+// =====================================
+
+function validateMemoryStateConsistency(){
+
+  if(
+
+    memoryState.metrics
+    .indexedMemories !==
+
+    memoryState.indexes
+    .byId
+    .size
+
+  ){
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SESSION REFRESH
+// =====================================
+
+function refreshMemorySession(){
+
+  const now =
+  Date.now();
+
+  const expired =
+
+    (
+      now -
+
+      memoryState.session
+      .lastActivityAt
+    ) >
+
+    MEMORY_STATE_CONFIG
+    .SESSION_TIMEOUT;
+
+  if(!expired){
+
+    return false;
+
+  }
+
+  memoryState.session =
+  createMemorySession();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// EMERGENCY RESET
+// =====================================
+
+function emergencyResetMemoryRuntime(){
+
+  memoryState.runtime =
+  createMemoryRuntime();
+
+  memoryState.runtime
+  .panicMode = false;
+
+  clearMemoryCache();
+
+  cleanupTrackingState();
+
+  return true;
+
+}
+
+
+
+// =====================================
 // RESET MEMORY STATE
 // =====================================
 
 function resetMemoryState(){
+
+
+
+  // ===================================
+  // SAFE SHUTDOWN
+  // ===================================
+
+  try{
+
+    if(
+
+      typeof stopAutoMemorySync ===
+      "function"
+
+    ){
+
+      stopAutoMemorySync();
+
+    }
+
+    if(
+
+      typeof clearMemoryEventListeners ===
+      "function"
+
+    ){
+
+      clearMemoryEventListeners();
+
+    }
+
+    if(
+
+      typeof clearMemoryEventHistory ===
+      "function"
+
+    ){
+
+      clearMemoryEventHistory();
+
+    }
+
+  }
+
+  catch(error){
+
+    registerMemoryRuntimeError(
+      error
+    );
+
+  }
 
   memoryState.initialized =
   false;
@@ -959,19 +1340,7 @@ function resetMemoryState(){
   memoryState.activeMemoryId =
   null;
 
-  memoryState.tracking
-  .pinnedMemoryIds
-  .clear();
-
-  memoryState.tracking
-  .sessionMemoryIds
-  .clear();
-
-  memoryState.tracking
-  .temporaryMemoryIds
-  .clear();
-
-  clearMemoryIndexes();
+  resetRuntimeMemoryIndexes();
 
   clearMemoryCache();
 
