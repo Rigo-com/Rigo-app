@@ -129,7 +129,57 @@ function removePromptInjectionPatterns(
   )
 
   .replace(
+    /assistant\s*:/gi,
+    ""
+  )
+
+  .replace(
+    /system\s*:/gi,
+    ""
+  )
+
+  .replace(
+    /developer\s*:/gi,
+    ""
+  )
+
+  .replace(
+    /tool\s*:/gi,
+    ""
+  )
+
+  .replace(
+    /function_call/gi,
+    ""
+  )
+
+  .replace(
     /you\s+are\s+chatgpt/gi,
+    ""
+  )
+
+  .replace(
+    /<\s*system\s*>/gi,
+    ""
+  )
+
+  .replace(
+    /<\s*assistant\s*>/gi,
+    ""
+  )
+
+  .replace(
+    /<\s*developer\s*>/gi,
+    ""
+  )
+
+  .replace(
+    /```system/gi,
+    ""
+  )
+
+  .replace(
+    /```assistant/gi,
     ""
   );
 
@@ -402,15 +452,27 @@ function calculateContextScore(
   normalizedQuery = ""
 ){
 
+  if(!memory){
+
+    return 0;
+
+  }
+
   let score = 0;
 
   const searchableText = [
 
-    memory.title,
+    normalizeMemoryContent(
+      memory.title
+    ),
 
-    memory.summary,
+    normalizeMemoryContent(
+      memory.summary
+    ),
 
-    memory.content,
+    normalizeMemoryContent(
+      memory.content
+    ),
 
     ...(Array.isArray(memory.tags)
       ? memory.tags
@@ -451,7 +513,9 @@ function calculateContextScore(
 
   if(
 
-    memoryState.pinnedMemoryIds
+    memoryState
+    .tracking
+    .pinnedMemoryIds
     .has(memory.id)
 
   ){
@@ -750,6 +814,50 @@ function deduplicateContextMemories(
 
 
 
+function deduplicateContextSections(
+  sections = []
+){
+
+  const uniqueSections =
+  new Set();
+
+  return sections.filter((section) => {
+
+    const normalized =
+    sanitizeContextText(
+      section
+    );
+
+    if(
+      !normalized
+    ){
+
+      return false;
+
+    }
+
+    if(
+      uniqueSections.has(
+        normalized
+      )
+    ){
+
+      return false;
+
+    }
+
+    uniqueSections.add(
+      normalized
+    );
+
+    return true;
+
+  });
+
+}
+
+
+
 // =====================================
 // BUILD RELEVANT CONTEXT
 // =====================================
@@ -763,6 +871,17 @@ function buildRelevantContext(
   clampContextLimit(
     options.limit
   );
+
+  if(
+
+    typeof advancedMemorySearch !==
+    "function"
+
+  ){
+
+    return [];
+
+  }
 
   const searchResults =
   advancedMemorySearch(
@@ -835,11 +954,45 @@ function buildMemoryContext(
     options
   );
 
-  const blocks =
-  memories.map((memory) => {
+  const blocks = [];
 
-    return buildMemoryContextBlock(
+  let currentLength = 0;
+
+  memories.forEach((memory) => {
+
+    const block =
+    buildMemoryContextBlock(
       memory
+    );
+
+    if(!block){
+
+      return;
+    }
+
+    const nextLength =
+
+      currentLength +
+
+      block.length;
+
+    if(
+
+      nextLength >
+
+      MEMORY_CONTEXT_CONFIG
+      .MAX_CONTEXT_LENGTH
+
+    ){
+
+      return;
+    }
+
+    currentLength =
+    nextLength;
+
+    blocks.push(
+      block
     );
 
   });
@@ -888,6 +1041,8 @@ function buildConversationContext(
 
   const lines = [];
 
+  let currentLength = 0;
+
   trimmedMessages
   .forEach((message) => {
 
@@ -915,8 +1070,32 @@ function buildConversationContext(
       return;
     }
 
+    const line =
+    `${role}: ${content}`;
+
+    const nextLength =
+
+      currentLength +
+
+      line.length;
+
+    if(
+
+      nextLength >
+
+      MEMORY_CONTEXT_CONFIG
+      .MAX_CONTEXT_LENGTH
+
+    ){
+
+      return;
+    }
+
+    currentLength =
+    nextLength;
+
     lines.push(
-      `${role}: ${content}`
+      line
     );
 
   });
@@ -941,6 +1120,17 @@ function buildSystemContext(){
 
     !MEMORY_DEBUG
     ?.ENABLE_LOGS
+
+  ){
+
+    return "";
+
+  }
+
+  if(
+
+    typeof getMemoryDiagnostics !==
+    "function"
 
   ){
 
@@ -1003,7 +1193,7 @@ function buildFullAIContext(
   const systemContext =
   buildSystemContext();
 
-  const sections = [];
+  let sections = [];
 
   if(
     systemContext
@@ -1049,6 +1239,11 @@ function buildFullAIContext(
     );
 
   }
+
+  sections =
+  deduplicateContextSections(
+    sections
+  );
 
   return trimContextLength(
 
