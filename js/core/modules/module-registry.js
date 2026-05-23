@@ -17,6 +17,9 @@ Object.seal({
   modules:
   new Map(),
 
+  instances:
+  new Map(),
+
   activeModules:
   new Set(),
 
@@ -141,6 +144,68 @@ function freezeModuleObject(
 
 
 // =====================================
+// CREATE MODULE DEFINITION
+// =====================================
+
+function createModuleDefinition(
+  normalizedName,
+  factory,
+  options = {}
+){
+
+  return {
+
+    // ================================
+    // IMMUTABLE
+    // ================================
+
+    metadata:
+    freezeModuleObject({
+
+      name:
+      normalizedName,
+
+      dependencies:
+
+        Array.isArray(
+          options.dependencies
+        )
+
+        ? options.dependencies
+
+        : [],
+
+      lazy:
+
+        options.lazy !==
+        false,
+
+      createdAt:
+      Date.now()
+
+    }),
+
+
+
+    // ================================
+    // MUTABLE
+    // ================================
+
+    factory,
+
+    retries:0,
+
+    state:
+    MODULE_STATES
+    .REGISTERED
+
+  };
+
+}
+
+
+
+// =====================================
 // REGISTER MODULE
 // =====================================
 
@@ -186,39 +251,30 @@ async function registerModule(
 
   }
 
-  const moduleDefinition =
-  freezeModuleObject({
+  if(
 
-    name:
+    moduleLoaderState
+    .modules
+    .has(
+      normalizedName
+    )
+
+  ){
+
+    return false;
+
+  }
+
+  const moduleDefinition =
+  createModuleDefinition(
+
     normalizedName,
 
     factory,
 
-    dependencies:
+    options
 
-      Array.isArray(
-        options.dependencies
-      )
-
-      ? options.dependencies
-
-      : [],
-
-    lazy:
-
-      options.lazy !==
-      false,
-
-    retries:0,
-
-    state:
-    MODULE_STATES
-    .REGISTERED,
-
-    createdAt:
-    Date.now()
-
-  });
+  );
 
   moduleLoaderState
   .modules
@@ -237,6 +293,7 @@ async function registerModule(
     normalizedName,
 
     moduleDefinition
+    .metadata
     .dependencies
 
   );
