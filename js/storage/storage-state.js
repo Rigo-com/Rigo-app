@@ -11,22 +11,30 @@ Object.seal({
 
   hydrated:false,
 
+  pendingHydration:false,
+
   writing:false,
 
   destroyed:false,
 
   lastSyncAt:null,
 
+  lastWriteAt:null,
+
   writeQueue:[],
 
   writeTimer:null,
 
-  cache:{
+  quotaRecoveries:0,
+
+  failedWrites:0,
+
+  cache:Object.seal({
 
     chats:[],
 
-    memory:{}
+    memory:Object.seal({})
 
-  }
+  })
 
 });
