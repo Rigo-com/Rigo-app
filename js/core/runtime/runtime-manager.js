@@ -42,175 +42,6 @@ Object.freeze({
 
 
 // =====================================
-// RUNTIME STATE
-// =====================================
-
-const runtimeManagerState =
-Object.seal({
-
-  initialized:false,
-
-  booting:false,
-
-  shuttingDown:false,
-
-  recovering:false,
-
-  runtimeState:
-  RUNTIME_STATES
-  .IDLE,
-
-  startupQueue:[],
-
-  runtimeErrors:[],
-
-  bootRetries:0,
-
-  diagnostics:{
-
-    boots:0,
-
-    recoveries:0,
-
-    shutdowns:0,
-
-    failures:0,
-
-    synchronizedSystems:0
-
-  },
-
-  startedAt:null,
-
-  bootCompletedAt:null,
-
-  lastRecoveryAt:null,
-
-  lastShutdownAt:null
-
-});
-
-
-
-// =====================================
-// HELPERS
-// =====================================
-
-function freezeRuntimeObject(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezeRuntimeObject(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
-
-}
-
-
-
-function setRuntimeState(
-  runtimeState
-){
-
-  runtimeManagerState
-  .runtimeState =
-  runtimeState;
-
-  return true;
-
-}
-
-
-
-function addRuntimeError(
-  error
-){
-
-  runtimeManagerState
-  .runtimeErrors
-  .push({
-
-    error:
-    String(error),
-
-    timestamp:
-    Date.now()
-
-  });
-
-  if(
-
-    runtimeManagerState
-    .runtimeErrors
-    .length >
-
-    RUNTIME_MANAGER_CONFIG
-    .MAX_RUNTIME_ERRORS
-
-  ){
-
-    runtimeManagerState
-    .runtimeErrors
-    .shift();
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
 // EXECUTE BOOT STEP
 // =====================================
 
@@ -857,3 +688,22 @@ Object.freeze({
   getRuntimeHealthReport
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.RuntimeManager =
+  RuntimeManager;
+
+  window.initializeRuntimeManager =
+  initializeRuntimeManager;
+
+}
