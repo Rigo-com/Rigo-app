@@ -22,42 +22,101 @@ function isHostObject(
 
   }
 
-  return (
+  try{
 
-    value instanceof
-    Element
+    return (
 
-    ||
+      (
+        typeof Element !==
+        "undefined"
 
-    value instanceof
-    EventTarget
+        &&
 
-    ||
+        value instanceof
+        Element
+      )
 
-    value instanceof
-    Blob
+      ||
 
-    ||
+      (
+        typeof EventTarget !==
+        "undefined"
 
-    value instanceof
-    File
+        &&
 
-    ||
+        value instanceof
+        EventTarget
+      )
 
-    value instanceof
-    Response
+      ||
 
-    ||
+      (
+        typeof Blob !==
+        "undefined"
 
-    value instanceof
-    Request
+        &&
 
-    ||
+        value instanceof
+        Blob
+      )
 
-    value instanceof
-    Headers
+      ||
 
-  );
+      (
+        typeof File !==
+        "undefined"
+
+        &&
+
+        value instanceof
+        File
+      )
+
+      ||
+
+      (
+        typeof Response !==
+        "undefined"
+
+        &&
+
+        value instanceof
+        Response
+      )
+
+      ||
+
+      (
+        typeof Request !==
+        "undefined"
+
+        &&
+
+        value instanceof
+        Request
+      )
+
+      ||
+
+      (
+        typeof Headers !==
+        "undefined"
+
+        &&
+
+        value instanceof
+        Headers
+      )
+
+    );
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
 
 }
 
@@ -96,9 +155,55 @@ function safeFreezeValue(
 
     );
 
-    return null;
+    return value;
 
   }
+
+}
+
+
+
+// =====================================
+// SAFE DESCRIPTOR
+// =====================================
+
+function createSafeDescriptor(
+  descriptor
+){
+
+  const safeDescriptor = {
+
+    enumerable:
+    descriptor.enumerable === true,
+
+    configurable:false
+
+  };
+
+  if(
+    "value" in descriptor
+  ){
+
+    safeDescriptor.value =
+    descriptor.value;
+
+    safeDescriptor.writable =
+    false;
+
+    return safeDescriptor;
+
+  }
+
+  return {
+
+    ...safeDescriptor,
+
+    value:
+    ACCESSOR_BLOCKED_MARKER,
+
+    writable:false
+
+  };
 
 }
 
@@ -146,17 +251,7 @@ function deepFreezeSecurity(
 
   if(cached){
 
-    if(
-      cached.state ===
-      FREEZE_STATES.FROZEN
-    ){
-
-      return cached.value;
-
-    }
-
-    return cached.clone;
-
+    return cached;
   }
 
   const clone =
@@ -175,116 +270,51 @@ function deepFreezeSecurity(
       )
     );
 
-  visited.set(object,{
+  visited.set(
+    object,
+    clone
+  );
 
-    clone,
+  Reflect
+  .ownKeys(object)
+  .forEach((key) => {
 
-    state:
-    FREEZE_STATES.PENDING
+    try{
 
-  });
+      const descriptor =
 
-  let freezeSucceeded =
-  false;
-
-  try{
-
-    Reflect
-    .ownKeys(object)
-    .forEach((key) => {
-
-      try{
-
-        const descriptor =
-
-          Object
-          .getOwnPropertyDescriptor(
-            object,
-            key
-          );
-
-        if(
-          !descriptor
-        ){
-
-          return;
-        }
-
-
-
-        // ============================
-        // BLOCK ACCESSORS
-        // ============================
-
-        if(
-          descriptor.get ||
-          descriptor.set
-        ){
-
-          logSecurityEvent(
-
-            "FREEZE_ACCESSOR_SKIPPED",
-
-            {
-
-              key:
-              typeof key ===
-              "symbol"
-
-              ?
-
-              "[SYMBOL_KEY]"
-
-              :
-
-              String(key)
-
-            }
-
-          );
-
-          return;
-        }
-
-        descriptor.value =
-        safeFreezeValue(
-
-          descriptor.value,
-
-          visited
-
+        Object
+        .getOwnPropertyDescriptor(
+          object,
+          key
         );
 
-        if(
-          descriptor.writable !==
-          undefined
-        ){
+      if(
+        !descriptor
+      ){
 
-          descriptor.writable =
-          false;
-
-          descriptor.configurable =
-          false;
-
-        }
-
-        Object.defineProperty(
-
-          clone,
-
-          key,
-
-          descriptor
-
-        );
-
+        return;
       }
 
-      catch(error){
+      const safeDescriptor =
+      createSafeDescriptor(
+        descriptor
+      );
+
+
+
+      // ============================
+      // ACCESSORS
+      // ============================
+
+      if(
+        descriptor.get ||
+        descriptor.set
+      ){
 
         logSecurityEvent(
 
-          "FREEZE_PROPERTY_FAILED",
+          "FREEZE_ACCESSOR_BLOCKED",
 
           {
 
@@ -306,40 +336,68 @@ function deepFreezeSecurity(
 
       }
 
-    });
 
-    const frozen =
-    Object.freeze(
-      clone
-    );
 
-    visited.set(object,{
+      // ============================
+      // VALUES
+      // ============================
 
-      value:frozen,
+      else{
 
-      state:
-      FREEZE_STATES.FROZEN
+        safeDescriptor.value =
+        safeFreezeValue(
 
-    });
+          descriptor.value,
 
-    freezeSucceeded =
-    true;
+          visited
 
-    return frozen;
+        );
 
-  }
+      }
 
-  finally{
+      Object.defineProperty(
 
-    if(!freezeSucceeded){
+        clone,
 
-      visited.delete(
-        object
+        key,
+
+        safeDescriptor
+
       );
 
     }
 
-  }
+    catch(error){
+
+      logSecurityEvent(
+
+        "FREEZE_PROPERTY_FAILED",
+
+        {
+
+          key:
+          typeof key ===
+          "symbol"
+
+          ?
+
+          "[SYMBOL_KEY]"
+
+          :
+
+          String(key)
+
+        }
+
+      );
+
+    }
+
+  });
+
+  return Object.freeze(
+    clone
+  );
 
 }
 
@@ -393,13 +451,23 @@ function isDeepFrozen(
   .ownKeys(object)
   .every((key) => {
 
-    return isDeepFrozen(
+    try{
 
-      object[key],
+      return isDeepFrozen(
 
-      visited
+        object[key],
 
-    );
+        visited
+
+      );
+
+    }
+
+    catch(error){
+
+      return false;
+
+    }
 
   });
 
