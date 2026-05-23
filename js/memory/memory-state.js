@@ -38,7 +38,7 @@ Object.freeze({
 
 function createMemoryIndex(){
 
-  return {
+  return Object.seal({
 
 
 
@@ -90,7 +90,7 @@ function createMemoryIndex(){
 
     byRelation:new Map()
 
-  };
+  });
 
 }
 
@@ -257,7 +257,7 @@ function createMemoryQueues(){
 
 function createMemoryCache(){
 
-  return {
+  return Object.seal({
 
     memories:new Map(),
 
@@ -275,7 +275,7 @@ function createMemoryCache(){
 
     tokens:new Map()
 
-  };
+  });
 
 }
 
@@ -287,7 +287,7 @@ function createMemoryCache(){
 
 function createMemoryTracking(){
 
-  return {
+  return Object.seal({
 
     corruptedIds:
     new Set(),
@@ -319,7 +319,7 @@ function createMemoryTracking(){
     temporaryMemoryIds:
     new Set()
 
-  };
+  });
 
 }
 
@@ -749,20 +749,24 @@ function getMemoryById(
 
   }
 
-  return (
+  const indexedMemory =
 
     memoryState
     .indexes
     .byId
     .get(
       normalizedMemoryId
-    )
+    );
 
-    ||
+  if(
+    !indexedMemory
+  ){
 
-    null
+    return null;
 
-  );
+  }
+
+  return indexedMemory;
 
 }
 
@@ -776,13 +780,22 @@ function hasMemory(
   memoryId
 ){
 
+  const normalizedMemoryId =
+  normalizeMemoryString(
+    memoryId
+  );
+
+  if(!normalizedMemoryId){
+
+    return false;
+
+  }
+
   return memoryState
   .indexes
   .byId
   .has(
-    normalizeMemoryString(
-      memoryId
-    )
+    normalizedMemoryId
   );
 
 }
@@ -873,7 +886,14 @@ function getSessionMemoryCount(){
 function updateMemoryMetrics(){
 
   const memories =
-  memoryState.memories;
+
+    Array.isArray(
+      memoryState.memories
+    )
+
+    ? memoryState.memories
+
+    : [];
 
   memoryState.metrics
   .totalMemories =
@@ -900,38 +920,41 @@ function updateMemoryMetrics(){
     .byId
     .size;
 
+  let active = 0;
+  let archived = 0;
+  let deleted = 0;
+
+  memories.forEach((memory) => {
+
+    switch(memory?.state){
+
+      case "active":
+        active++;
+      break;
+
+      case "archived":
+        archived++;
+      break;
+
+      case "deleted":
+        deleted++;
+      break;
+
+    }
+
+  });
+
   memoryState.metrics
   .activeMemories =
-  memories.filter((memory) => {
-
-    return (
-      memory?.state ===
-      "active"
-    );
-
-  }).length;
+  active;
 
   memoryState.metrics
   .archivedMemories =
-  memories.filter((memory) => {
-
-    return (
-      memory?.state ===
-      "archived"
-    );
-
-  }).length;
+  archived;
 
   memoryState.metrics
   .deletedMemories =
-  memories.filter((memory) => {
-
-    return (
-      memory?.state ===
-      "deleted"
-    );
-
-  }).length;
+  deleted;
 
   memoryState.health
   .lastHealthCheckAt =
@@ -1195,22 +1218,77 @@ function resetRuntimeMemoryIndexes(){
 
 function validateMemoryStateConsistency(){
 
-  if(
+  try{
 
-    memoryState.metrics
-    .indexedMemories !==
+    if(
 
-    memoryState.indexes
-    .byId
-    .size
+      memoryState.metrics
+      .indexedMemories !==
 
-  ){
+      memoryState.indexes
+      .byId
+      .size
+
+    ){
+
+      return false;
+
+    }
+
+    const memoryIds =
+    new Set();
+
+    for(
+      const memory
+      of memoryState.memories
+    ){
+
+      if(
+        !memory ||
+        !memory.id
+      ){
+
+        return false;
+      }
+
+      if(
+        memoryIds.has(
+          memory.id
+        )
+      ){
+
+        return false;
+      }
+
+      memoryIds.add(
+        memory.id
+      );
+
+      if(
+
+        !memoryState
+        .indexes
+        .byId
+        .has(
+          memory.id
+        )
+
+      ){
+
+        return false;
+      }
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
 
     return false;
 
   }
-
-  return true;
 
 }
 
@@ -1264,9 +1342,14 @@ function emergencyResetMemoryRuntime(){
   memoryState.runtime
   .panicMode = false;
 
+  memoryState.runtime
+  .corrupted = false;
+
   clearMemoryCache();
 
   cleanupTrackingState();
+
+  updateMemoryMetrics();
 
   return true;
 
