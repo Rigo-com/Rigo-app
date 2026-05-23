@@ -362,8 +362,6 @@ function expandSemanticTokens(
 
     }
 
-
-
     const learned =
 
       memoryEmbeddingsState
@@ -435,6 +433,40 @@ function normalizeVector(
     );
 
   });
+
+}
+
+
+
+// =====================================
+// VECTOR VALIDATION
+// =====================================
+
+function isValidEmbeddingVector(
+  vector
+){
+
+  return (
+
+    Array.isArray(vector)
+
+    &&
+
+    vector.length ===
+    MEMORY_EMBEDDINGS_CONFIG
+    .VECTOR_DIMENSIONS
+
+    &&
+
+    vector.every((value) => {
+
+      return Number.isFinite(
+        value
+      );
+
+    })
+
+  );
 
 }
 
@@ -613,8 +645,18 @@ function createMemoryEmbeddingVector(
     memory.id
   );
 
-  memoryEmbeddingsState
-  .totalEmbeddings++;
+  if(
+
+    !memoryEmbeddingsState
+    .embeddingIndex
+    .has(memory.id)
+
+  ){
+
+    memoryEmbeddingsState
+    .totalEmbeddings++;
+
+  }
 
   pruneEmbeddingCache();
 
@@ -657,19 +699,16 @@ function calculateCosineSimilarity(
 
   if(
 
-    !Array.isArray(vectorA) ||
+    !isValidEmbeddingVector(
+      vectorA
+    )
 
-    !Array.isArray(vectorB)
+    ||
 
-  ){
+    !isValidEmbeddingVector(
+      vectorB
+    )
 
-    return 0;
-
-  }
-
-  if(
-    vectorA.length !==
-    vectorB.length
   ){
 
     return 0;
@@ -900,6 +939,15 @@ function findRelatedMemories(
       return;
     }
 
+    if(
+      candidate.state ===
+      "deleted"
+    ){
+
+      return;
+
+    }
+
     const similarity =
     calculateMemorySimilarity(
       memory,
@@ -947,6 +995,14 @@ function semanticMemorySearch(
   options = {}
 ){
 
+  if(
+    !query
+  ){
+
+    return [];
+
+  }
+
   const queryVector =
   createTextEmbedding(
     query
@@ -955,12 +1011,18 @@ function semanticMemorySearch(
   const results = [];
 
   const tokenCandidates =
-  searchByTokens(
-    query,
-    {
-      limit:200
-    }
-  );
+
+    typeof searchByTokens ===
+    "function"
+
+    ? searchByTokens(
+        query,
+        {
+          limit:200
+        }
+      )
+
+    : [];
 
   const candidateIds =
   new Set(
@@ -1047,6 +1109,10 @@ function semanticMemorySearch(
 
 function autoLinkRelatedMemories(){
 
+  memoryEmbeddingsState
+  .relationCache
+  .clear();
+
   const memories =
   memoryState.memories;
 
@@ -1114,10 +1180,20 @@ function learnSemanticAssociation(
 
   }
 
+  const associations =
   memoryEmbeddingsState
   .learnedAssociations
-  .get(key)
-  .add(target);
+  .get(key);
+
+  if(
+    associations.size >= 50
+  ){
+
+    return false;
+
+  }
+
+  associations.add(target);
 
   return true;
 
@@ -1173,6 +1249,9 @@ function rebuildDirtyEmbeddings(){
 function rebuildMemoryEmbeddings(){
 
   memoryEmbeddingsState
+  .totalEmbeddings = 0;
+
+  memoryEmbeddingsState
   .embeddingIndex
   .clear();
 
@@ -1191,6 +1270,8 @@ function rebuildMemoryEmbeddings(){
 
   autoLinkRelatedMemories();
 
+  cleanupEmbeddingRelations();
+
   persistEmbeddingCache();
 
   return true;
@@ -1206,6 +1287,21 @@ function rebuildMemoryEmbeddings(){
 function persistEmbeddingCache(){
 
   try{
+
+    if(
+
+      memoryEmbeddingsState
+      .embeddingIndex
+      .size >
+
+      MEMORY_EMBEDDINGS_CONFIG
+      .MAX_CACHE_SIZE
+
+    ){
+
+      pruneEmbeddingCache();
+
+    }
 
     const serialized =
     JSON.stringify(
@@ -1255,7 +1351,29 @@ function restoreEmbeddingCache(){
 
     memoryEmbeddingsState
     .embeddingIndex =
-    new Map(parsed);
+    new Map(
+
+      parsed.filter((entry) => {
+
+        return (
+
+          Array.isArray(entry)
+
+          &&
+
+          entry.length === 2
+
+          &&
+
+          isValidEmbeddingVector(
+            entry[1]
+          )
+
+        );
+
+      })
+
+    );
 
     return true;
 
@@ -1321,6 +1439,63 @@ function clearEmbeddingCache(){
   memoryEmbeddingsState
   .relationCache
   .clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// RELATION CLEANUP
+// =====================================
+
+function cleanupEmbeddingRelations(){
+
+  const validIds =
+  new Set(
+
+    memoryState.memories
+    .map((memory) => {
+
+      return memory.id;
+
+    })
+
+  );
+
+  memoryEmbeddingsState
+  .relationCache
+  .forEach((relations,id) => {
+
+    if(
+      !validIds.has(id)
+    ){
+
+      memoryEmbeddingsState
+      .relationCache
+      .delete(id);
+
+      return;
+    }
+
+    memoryEmbeddingsState
+    .relationCache
+    .set(
+
+      id,
+
+      relations.filter((relationId) => {
+
+        return validIds.has(
+          relationId
+        );
+
+      })
+
+    );
+
+  });
 
   return true;
 
