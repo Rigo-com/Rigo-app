@@ -64,60 +64,82 @@ async function updateSetting(
   value
 ){
 
-  if(
-    !validateSettingPath(
-      path
-    )
-  ){
+  try{
 
-    return false;
-  }
+    if(
+      !validateSettingPath(
+        path
+      )
+    ){
 
-  createSettingsBackup();
+      return false;
+    }
 
-  const safeValue =
-  safeSettingValue(
-    value
-  );
+    createSettingsBackup();
 
-  if(
-    safeValue === undefined
-  ){
+    const safeValue =
+    safeSettingValue(
+      value
+    );
 
-    return false;
-  }
+    if(
+      safeValue === undefined
+    ){
 
-  setNestedSetting(
+      return false;
+    }
+
+    settingsState.currentState =
+    SETTINGS_STATES.SAVING;
+
+    setNestedSetting(
+
+      settingsState
+      .runtimeSettings
+      .settings,
+
+      path,
+
+      safeValue
+
+    );
 
     settingsState
     .runtimeSettings
-    .settings,
+    .updatedAt =
+    Date.now();
 
-    path,
+    settingsState.dirty =
+    true;
 
-    safeValue
+    await syncSettingsSystem();
 
-  );
+    settingsState.currentState =
+    SETTINGS_STATES.READY;
 
-  settingsState
-  .runtimeSettings
-  .updatedAt =
-  Date.now();
+    await emitSettingsEvent(
+      "updated",
+      {
+        path,
+        value:safeValue
+      }
+    );
 
-  settingsState.dirty =
-  true;
+    return true;
 
-  await syncSettingsSystem();
+  }
 
-  await emitSettingsEvent(
-    "updated",
-    {
-      path,
-      value:safeValue
-    }
-  );
+  catch(error){
 
-  return true;
+    settingsState.currentState =
+    SETTINGS_STATES.FAILED;
+
+    settingsState.lastError =
+    error;
+
+    return false;
+
+  }
 
 }
 
@@ -128,6 +150,10 @@ async function resetSettingsSystem(){
   settingsState
   .runtimeSettings =
   createSettingsObject();
+
+  settingsState
+  .backupSettings =
+  null;
 
   await syncSettingsSystem();
 
