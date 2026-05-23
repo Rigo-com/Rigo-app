@@ -42,12 +42,6 @@ Object.freeze({
 const MEMORY_EVENT_TYPES =
 Object.freeze({
 
-
-
-  // ===================================
-  // MEMORY EVENTS
-  // ===================================
-
   MEMORY_CREATED:
   "memory.created",
 
@@ -74,12 +68,6 @@ Object.freeze({
 
   MEMORY_SEARCHED:
   "memory.search",
-
-
-
-  // ===================================
-  // SYSTEM EVENTS
-  // ===================================
 
   SYSTEM_INITIALIZED:
   "system.initialized",
@@ -143,20 +131,28 @@ function normalizeEventName(
   eventName
 ){
 
+  if(
+    eventName === "*"
+  ){
+
+    return "*";
+  }
+
   const normalizedEvent =
   String(
-
     normalizeMemoryString(
       eventName
-    )
-
-    ||
-
-    ""
-
+    ) || ""
   )
   .toLowerCase()
   .trim();
+
+  if(
+    !normalizedEvent
+  ){
+
+    return "";
+  }
 
   if(
 
@@ -169,7 +165,6 @@ function normalizeEventName(
   ){
 
     return "";
-
   }
 
   return normalizedEvent;
@@ -185,19 +180,6 @@ function isValidEventListener(
   return (
     typeof listener ===
     "function"
-  );
-
-}
-
-
-
-function isEmittingEvent(){
-
-  return (
-
-    memoryEventsState
-    .activeEmits > 0
-
   );
 
 }
@@ -236,11 +218,8 @@ function incrementEventDepth(
   memoryEventsState
   .eventDepthMap
   .set(
-
     eventName,
-
     currentDepth + 1
-
   );
 
 }
@@ -272,11 +251,8 @@ function decrementEventDepth(
   memoryEventsState
   .eventDepthMap
   .set(
-
     eventName,
-
     currentDepth - 1
-
   );
 
 }
@@ -293,16 +269,46 @@ function safeCloneEventPayload(
 ){
 
   if(
-
     value === null ||
-
-    typeof value !==
-    "object"
-
+    value === undefined
   ){
 
     return value;
+  }
 
+  if(
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+  }
+
+  if(
+    value instanceof Date
+  ){
+
+    return new Date(
+      value.getTime()
+    );
+  }
+
+  if(
+    value instanceof Set
+  ){
+
+    return [
+      ...value
+    ];
+  }
+
+  if(
+    value instanceof Map
+  ){
+
+    return Object.fromEntries(
+      value.entries()
+    );
   }
 
   if(
@@ -333,10 +339,8 @@ function safeCloneEventPayload(
 
     clone[key] =
     safeCloneEventPayload(
-
       value[key],
       visited
-
     );
 
   });
@@ -357,16 +361,12 @@ function deepFreezeEventObject(
 ){
 
   if(
-
     !value ||
-
     typeof value !==
     "object"
-
   ){
 
     return value;
-
   }
 
   if(
@@ -374,7 +374,6 @@ function deepFreezeEventObject(
   ){
 
     return value;
-
   }
 
   visited.add(
@@ -385,18 +384,13 @@ function deepFreezeEventObject(
     value
   );
 
-  Object.values(
-    value
-  )
+  Object.values(value)
   .forEach((nestedValue) => {
 
     if(
-
       nestedValue &&
-
       typeof nestedValue ===
       "object"
-
     ){
 
       deepFreezeEventObject(
@@ -415,7 +409,7 @@ function deepFreezeEventObject(
 
 
 // =====================================
-// EVENT PAYLOAD VALIDATION
+// PAYLOAD VALIDATION
 // =====================================
 
 function validateEventPayload(
@@ -424,12 +418,22 @@ function validateEventPayload(
 
   try{
 
-    const serialized =
-    JSON.stringify(
+    const safePayload =
+    safeCloneEventPayload(
       payload
     );
 
+    const serialized =
+    JSON.stringify(
+      safePayload
+    );
+
     return (
+
+      typeof serialized ===
+      "string"
+
+      &&
 
       serialized.length <=
 
@@ -486,7 +490,7 @@ function storeEventHistory(
     compactEvent
   );
 
-  if(
+  while(
 
     memoryEventsState
     .eventHistory
@@ -518,11 +522,6 @@ function createMemoryEvent(
   payload = {}
 ){
 
-  const safePayload =
-  safeCloneEventPayload(
-    payload
-  );
-
   return deepFreezeEventObject({
 
     id:
@@ -534,7 +533,9 @@ function createMemoryEvent(
     ),
 
     payload:
-    safePayload,
+    safeCloneEventPayload(
+      payload
+    ),
 
     timestamp:
     Date.now()
@@ -564,7 +565,6 @@ function subscribeMemoryEvent(
   ){
 
     return false;
-
   }
 
   if(
@@ -574,14 +574,7 @@ function subscribeMemoryEvent(
   ){
 
     return false;
-
   }
-
-
-
-  // ===================================
-  // WILDCARD LISTENERS
-  // ===================================
 
   if(
     normalizedEvent === "*"
@@ -635,16 +628,6 @@ function subscribeMemoryEvent(
 
   }
 
-  if(
-    listeners.has(
-      listener
-    )
-  ){
-
-    return true;
-
-  }
-
   listeners.add(
     listener
   );
@@ -674,7 +657,6 @@ function onceMemoryEvent(
   ){
 
     return false;
-
   }
 
   if(
@@ -684,7 +666,6 @@ function onceMemoryEvent(
   ){
 
     return false;
-
   }
 
   if(
@@ -727,16 +708,6 @@ function onceMemoryEvent(
 
   }
 
-  if(
-    listeners.has(
-      listener
-    )
-  ){
-
-    return true;
-
-  }
-
   listeners.add(
     listener
   );
@@ -766,10 +737,7 @@ function unsubscribeMemoryEvent(
   ){
 
     return false;
-
   }
-
-  let removed = false;
 
   if(
     normalizedEvent === "*"
@@ -783,7 +751,9 @@ function unsubscribeMemoryEvent(
 
   }
 
-  const normalListeners =
+  let removed = false;
+
+  const listeners =
 
     memoryEventsState
     .listeners
@@ -800,16 +770,16 @@ function unsubscribeMemoryEvent(
     );
 
   if(
-    normalListeners
+    listeners
   ){
 
     removed =
-    normalListeners.delete(
+    listeners.delete(
       listener
     ) || removed;
 
     if(
-      normalListeners.size <= 0
+      listeners.size <= 0
     ){
 
       memoryEventsState
@@ -852,29 +822,6 @@ function unsubscribeMemoryEvent(
 
 
 // =====================================
-// LISTENER TIMEOUT
-// =====================================
-
-function createListenerTimeout(){
-
-  return new Promise((resolve) => {
-
-    setTimeout(() => {
-
-      resolve(false);
-
-    },
-
-    MEMORY_EVENTS_CONFIG
-    .EVENT_LISTENER_TIMEOUT);
-
-  });
-
-}
-
-
-
-// =====================================
 // LISTENER EXECUTION
 // =====================================
 
@@ -883,7 +830,24 @@ async function executeEventListener(
   event
 ){
 
+  let timeoutId = null;
+
   try{
+
+    const timeoutPromise =
+    new Promise((resolve) => {
+
+      timeoutId =
+      setTimeout(() => {
+
+        resolve(false);
+
+      },
+
+      MEMORY_EVENTS_CONFIG
+      .EVENT_LISTENER_TIMEOUT);
+
+    });
 
     const result =
     await Promise.race([
@@ -892,7 +856,7 @@ async function executeEventListener(
         listener(event)
       ),
 
-      createListenerTimeout()
+      timeoutPromise
 
     ]);
 
@@ -919,6 +883,18 @@ async function executeEventListener(
 
   }
 
+  finally{
+
+    if(timeoutId){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+  }
+
 }
 
 
@@ -942,14 +918,7 @@ async function emitMemoryEvent(
   ){
 
     return false;
-
   }
-
-
-
-  // ===================================
-  // RECURSION PROTECTION
-  // ===================================
 
   const currentDepth =
   getEventDepth(
@@ -972,12 +941,6 @@ async function emitMemoryEvent(
 
   }
 
-
-
-  // ===================================
-  // PAYLOAD VALIDATION
-  // ===================================
-
   if(
     !validateEventPayload(
       payload
@@ -999,9 +962,9 @@ async function emitMemoryEvent(
 
 
 
-  // ================================
+  // ===================================
   // SYSTEM EVENTS BRIDGE
-  // ================================
+  // ===================================
 
   if(
 
@@ -1012,44 +975,34 @@ async function emitMemoryEvent(
 
     try{
 
-      const bridgeResult =
-      emitSystemEvent(
+      await Promise.resolve(
 
-        normalizedEvent,
+        emitSystemEvent(
 
-        {
+          normalizedEvent,
 
-          source:"memory",
+          {
 
-          memoryEvent:true,
+            source:"memory",
 
-          payload:
-          safeCloneEventPayload(
-            payload
-          )
+            memoryEvent:true,
 
-        }
+            payload:
+            safeCloneEventPayload(
+              payload
+            )
+
+          }
+
+        )
 
       );
 
-      if(
-
-        bridgeResult &&
-
-        typeof bridgeResult
-        .catch ===
-        "function"
-
-      ){
-
-        bridgeResult
-        .catch(() => {});
-
-      }
-
     }
 
-    catch(error){}
+    catch(error){
+
+    }
 
   }
 
@@ -1078,7 +1031,7 @@ async function emitMemoryEvent(
 
       ||
 
-      new Set())
+      [])
 
     ];
 
@@ -1092,7 +1045,7 @@ async function emitMemoryEvent(
 
       ||
 
-      new Set())
+      [])
 
     ];
 
@@ -1103,74 +1056,38 @@ async function emitMemoryEvent(
 
     ];
 
-    const executionPromises = [];
+    for(
+      const listener of listeners
+    ){
 
-
-
-    // ================================
-    // NORMAL LISTENERS
-    // ================================
-
-    listeners.forEach((listener) => {
-
-      executionPromises.push(
-
-        executeEventListener(
-          listener,
-          event
-        )
-
+      await executeEventListener(
+        listener,
+        event
       );
 
-    });
+    }
 
+    for(
+      const listener of onceListeners
+    ){
 
-
-    // ================================
-    // ONCE LISTENERS
-    // ================================
-
-    onceListeners.forEach((listener) => {
-
-      executionPromises.push(
-
-        executeEventListener(
-          listener,
-          event
-        )
-
+      await executeEventListener(
+        listener,
+        event
       );
 
-    });
+    }
 
+    for(
+      const listener of wildcardListeners
+    ){
 
-
-    // ================================
-    // WILDCARD LISTENERS
-    // ================================
-
-    wildcardListeners.forEach((listener) => {
-
-      executionPromises.push(
-
-        executeEventListener(
-          listener,
-          event
-        )
-
+      await executeEventListener(
+        listener,
+        event
       );
 
-    });
-
-    await Promise.allSettled(
-      executionPromises
-    );
-
-
-
-    // ================================
-    // CLEAN ONCE LISTENERS
-    // ================================
+    }
 
     if(
       onceListeners.length > 0
@@ -1247,7 +1164,7 @@ async function emitMemoryEvent(
 
 
 // =====================================
-// CLEAR EVENT HISTORY
+// CLEAR HISTORY
 // =====================================
 
 function clearMemoryEventHistory(){
@@ -1263,7 +1180,7 @@ function clearMemoryEventHistory(){
 
 
 // =====================================
-// CLEAR EVENT LISTENERS
+// CLEAR LISTENERS
 // =====================================
 
 function clearMemoryEventListeners(){
@@ -1307,7 +1224,7 @@ function clearMemoryEventListeners(){
 
 
 // =====================================
-// EVENT DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getMemoryEventDiagnostics(){
