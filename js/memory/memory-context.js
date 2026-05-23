@@ -39,6 +39,48 @@ Object.freeze({
 
 
 // =====================================
+// CONSTANTS
+// =====================================
+
+const SAFE_CONVERSATION_ROLES =
+Object.freeze(
+  new Set([
+    "user",
+    "assistant",
+    "system"
+  ])
+);
+
+
+
+const PROMPT_INJECTION_PATTERNS =
+Object.freeze([
+
+  /ignore\s+previous\s+instructions/gi,
+
+  /disregard\s+all\s+prior\s+messages/gi,
+
+  /system\s*prompt/gi,
+
+  /developer\s*message/gi,
+
+  /function_call/gi,
+
+  /<\s*system\s*>/gi,
+
+  /<\s*assistant\s*>/gi,
+
+  /<\s*developer\s*>/gi,
+
+  /```system/gi,
+
+  /```assistant/gi
+
+]);
+
+
+
+// =====================================
 // CONTEXT HELPERS
 // =====================================
 
@@ -46,8 +88,12 @@ function normalizeContextQuery(
   query
 ){
 
-  return normalizeMemoryContent(
-    query
+  return String(
+
+    normalizeMemoryContent?.(
+      query
+    ) ?? ""
+
   )
   .toLowerCase()
   .trim();
@@ -81,7 +127,9 @@ function clampContextLimit(
 
     Math.max(
       1,
-      numericLimit
+      Math.floor(
+        numericLimit
+      )
     )
 
   );
@@ -106,82 +154,21 @@ function removePromptInjectionPatterns(
     return "";
   }
 
-  return text
+  let cleanedText =
+  text;
 
-  .replace(
-    /ignore\s+previous\s+instructions/gi,
-    ""
-  )
+  PROMPT_INJECTION_PATTERNS
+  .forEach((pattern) => {
 
-  .replace(
-    /disregard\s+all\s+prior\s+messages/gi,
-    ""
-  )
+    cleanedText =
+    cleanedText.replace(
+      pattern,
+      ""
+    );
 
-  .replace(
-    /system\s*prompt/gi,
-    ""
-  )
+  });
 
-  .replace(
-    /developer\s*message/gi,
-    ""
-  )
-
-  .replace(
-    /assistant\s*:/gi,
-    ""
-  )
-
-  .replace(
-    /system\s*:/gi,
-    ""
-  )
-
-  .replace(
-    /developer\s*:/gi,
-    ""
-  )
-
-  .replace(
-    /tool\s*:/gi,
-    ""
-  )
-
-  .replace(
-    /function_call/gi,
-    ""
-  )
-
-  .replace(
-    /you\s+are\s+chatgpt/gi,
-    ""
-  )
-
-  .replace(
-    /<\s*system\s*>/gi,
-    ""
-  )
-
-  .replace(
-    /<\s*assistant\s*>/gi,
-    ""
-  )
-
-  .replace(
-    /<\s*developer\s*>/gi,
-    ""
-  )
-
-  .replace(
-    /```system/gi,
-    ""
-  )
-
-  .replace(
-    /```assistant/gi,
-    ""
-  );
+  return cleanedText;
 
 }
 
@@ -221,7 +208,7 @@ function sanitizeContextText(
 
 
   // ===============================
-  // NORMALIZE SPACES/TABS ONLY
+  // NORMALIZE SPACES/TABS
   // ===============================
 
   .replace(
@@ -243,11 +230,11 @@ function sanitizeContextText(
 
 
   // ===============================
-  // REMOVE PROMPT LABELS
+  // REMOVE CONTEXT LABELS
   // ===============================
 
   .replace(
-    /\[\s*(SYSTEM|USER|ASSISTANT)\s*CONTEXT\s*\]/gi,
+    /\[\s*(SYSTEM|USER|ASSISTANT)\s+CONTEXT\s*\]/gi,
     ""
   )
 
@@ -271,19 +258,10 @@ function sanitizeConversationRole(
   )
   .toLowerCase();
 
-  const allowedRoles = [
-
-    "user",
-
-    "assistant",
-
-    "system"
-
-  ];
-
   if(
 
-    allowedRoles.includes(
+    SAFE_CONVERSATION_ROLES
+    .has(
       normalizedRole
     )
 
@@ -313,9 +291,27 @@ function safelyTruncateText(
     text
   );
 
+  const safeMaxLength =
+  Number(maxLength);
+
+  if(
+
+    !Number.isFinite(
+      safeMaxLength
+    )
+
+    ||
+
+    safeMaxLength <= 0
+
+  ){
+
+    return "";
+  }
+
   if(
     normalizedText.length <=
-    maxLength
+    safeMaxLength
   ){
 
     return normalizedText;
@@ -324,7 +320,7 @@ function safelyTruncateText(
 
   const safeLength =
 
-    maxLength -
+    safeMaxLength -
 
     MEMORY_CONTEXT_CONFIG
     .TRUNCATION_MARKER
@@ -392,7 +388,14 @@ function isContextEligibleMemory(
   options = {}
 ){
 
-  if(!memory){
+  if(
+
+    !memory ||
+
+    typeof memory !==
+    "object"
+
+  ){
 
     return false;
 
@@ -400,9 +403,11 @@ function isContextEligibleMemory(
 
   if(
 
-    memoryState.tracking
-    .corruptedIds
-    .has(memory.id)
+    memoryState?.tracking
+    ?.corruptedIds
+    ?.has?.(
+      memory.id
+    )
 
   ){
 
@@ -452,7 +457,9 @@ function calculateContextScore(
   normalizedQuery = ""
 ){
 
-  if(!memory){
+  if(
+    !memory
+  ){
 
     return 0;
 
@@ -460,25 +467,29 @@ function calculateContextScore(
 
   let score = 0;
 
-  const searchableText = [
+  const searchableParts = [
 
-    normalizeMemoryContent(
-      memory.title
-    ),
+    memory.title,
 
-    normalizeMemoryContent(
-      memory.summary
-    ),
+    memory.summary,
 
-    normalizeMemoryContent(
-      memory.content
-    ),
+    memory.content,
 
     ...(Array.isArray(memory.tags)
       ? memory.tags
       : [])
 
-  ]
+  ];
+
+  const searchableText =
+  searchableParts
+  .map((value) => {
+
+    return normalizeMemoryContent(
+      value
+    );
+
+  })
   .join(" ")
   .toLowerCase();
 
@@ -514,9 +525,11 @@ function calculateContextScore(
   if(
 
     memoryState
-    .tracking
-    .pinnedMemoryIds
-    .has(memory.id)
+    ?.tracking
+    ?.pinnedMemoryIds
+    ?.has?.(
+      memory.id
+    )
 
   ){
 
@@ -616,7 +629,11 @@ function formatContextSection(
   .trim();
 
   if(
+
+    !normalizedTitle ||
+
     !normalizedContent
+
   ){
 
     return "";
@@ -739,13 +756,20 @@ function buildMemoryContextBlock(
           tag
         );
 
-      });
+      })
+      .filter(Boolean);
 
-    lines.push(
+    if(
+      limitedTags.length > 0
+    ){
 
-      `Tags: ${limitedTags.join(", ")}`
+      lines.push(
 
-    );
+        `Tags: ${limitedTags.join(", ")}`
+
+      );
+
+    }
 
   }
 
@@ -784,8 +808,13 @@ function deduplicateContextMemories(
 
   return memories.filter((memory) => {
 
+    const normalizedId =
+    normalizeMemoryString(
+      memory?.id
+    );
+
     if(
-      !memory?.id
+      !normalizedId
     ){
 
       return false;
@@ -794,7 +823,7 @@ function deduplicateContextMemories(
 
     if(
       seenIds.has(
-        memory.id
+        normalizedId
       )
     ){
 
@@ -803,7 +832,7 @@ function deduplicateContextMemories(
     }
 
     seenIds.add(
-      memory.id
+      normalizedId
     );
 
     return true;
@@ -894,11 +923,13 @@ function buildRelevantContext(
   );
 
   const memories =
-  searchResults.map((result) => {
+  searchResults
+  .map((result) => {
 
-    return result.memory;
+    return result?.memory;
 
-  });
+  })
+  .filter(Boolean);
 
   return deduplicateContextMemories(
 
@@ -970,9 +1001,16 @@ function buildMemoryContext(
       return;
     }
 
+    const separatorLength =
+    blocks.length > 0
+      ? 2
+      : 0;
+
     const nextLength =
 
       currentLength +
+
+      separatorLength +
 
       block.length;
 
@@ -997,14 +1035,12 @@ function buildMemoryContext(
 
   });
 
-  const context =
+  return trimContextLength(
 
     blocks.join(
       "\n\n"
-    );
+    )
 
-  return trimContextLength(
-    context
   );
 
 }
@@ -1073,9 +1109,16 @@ function buildConversationContext(
     const line =
     `${role}: ${content}`;
 
+    const separatorLength =
+    lines.length > 0
+      ? 1
+      : 0;
+
     const nextLength =
 
       currentLength +
+
+      separatorLength +
 
       line.length;
 
