@@ -11,7 +11,7 @@
 // =====================================
 
 const FILE_CONFIG =
-deepFreeze({
+Object.freeze({
 
   MAX_FILE_SIZE:
   10 * 1024 * 1024,
@@ -1202,7 +1202,7 @@ function enqueueUpload(
 // INITIALIZE
 // =====================================
 
-function initializeFileRuntime(){
+async function initializeFileRuntime(){
 
   if(
     fileRuntimeState
@@ -1218,6 +1218,13 @@ function initializeFileRuntime(){
   true;
 
   setFileError(null);
+
+  await emitFileRuntimeEvent(
+
+    FILE_RUNTIME_EVENTS
+    .FILE_CLEARED
+
+  );
 
   return true;
 
@@ -1350,6 +1357,9 @@ Object.freeze({
   cleanupURLs:
   cleanupObjectURLs,
 
+  enqueue:
+  enqueueUpload,
+
   snapshot:
   createFileRuntimeSnapshot,
 
@@ -1360,3 +1370,22 @@ Object.freeze({
   getFileRuntimeDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.FileRuntime =
+  FileRuntime;
+
+  window.initializeFileRuntime =
+  initializeFileRuntime;
+
+}
