@@ -112,6 +112,8 @@ Object.seal({
 
   initialized:false,
 
+  initializing:false,
+
   synchronizing:false,
 
   recovering:false,
@@ -125,9 +127,6 @@ Object.seal({
 
   registeredHooks:
   new Set(),
-
-  activeSyncs:
-  new Map(),
 
   syncQueue:[],
 
@@ -177,12 +176,9 @@ function freezeBridgeObject(
 ){
 
   if(
-
     !value ||
-
     typeof value !==
     "object"
-
   ){
 
     return value;
@@ -197,24 +193,17 @@ function freezeBridgeObject(
 
   }
 
-  visited.add(
-    value
-  );
+  visited.add(value);
 
-  Object.freeze(
-    value
-  );
+  Object.freeze(value);
 
   Object.values(value)
   .forEach((nestedValue) => {
 
     if(
-
       nestedValue &&
-
       typeof nestedValue ===
       "object"
-
     ){
 
       freezeBridgeObject(
@@ -227,6 +216,19 @@ function freezeBridgeObject(
   });
 
   return value;
+
+}
+
+
+
+function cloneBridgeDiagnostics(){
+
+  return freezeBridgeObject({
+
+    ...aiRuntimeBridgeState
+    .diagnostics
+
+  });
 
 }
 
@@ -319,16 +321,19 @@ function validateBridgeSystems(){
 
   return (
 
-    typeof RuntimeManager !==
-    "undefined" &&
+    typeof RuntimeManager
+    ?.health ===
+    "function"
 
-    typeof AIKernel !==
-    "undefined" &&
+    &&
+
+    typeof AIKernel
+    ?.health ===
+    "function"
+
+    &&
 
     typeof SystemEvents !==
-    "undefined" &&
-
-    typeof diagnosticsState !==
     "undefined"
 
   );
@@ -346,24 +351,20 @@ function enqueueBridgeSync(
 ){
 
   if(
-
     typeof callback !==
     "function"
-
   ){
 
     return false;
 
   }
 
-  const syncId =
-  createBridgeSyncId();
-
   aiRuntimeBridgeState
   .syncQueue
   .push({
 
-    syncId,
+    syncId:
+    createBridgeSyncId(),
 
     callback
 
@@ -384,10 +385,8 @@ function enqueueBridgeSync(
 async function processBridgeSyncQueue(){
 
   if(
-
     aiRuntimeBridgeState
     .processingQueue
-
   ){
 
     return false;
@@ -459,10 +458,8 @@ async function processBridgeSyncQueue(){
 async function synchronizeBridgeEvents(){
 
   if(
-
     !AI_RUNTIME_BRIDGE_CONFIG
     .ENABLE_EVENT_SYNC
-
   ){
 
     return false;
@@ -472,11 +469,9 @@ async function synchronizeBridgeEvents(){
   try{
 
     if(
-
       aiRuntimeBridgeState
       .registeredHooks
       .has("events")
-
     ){
 
       return true;
@@ -510,7 +505,6 @@ async function synchronizeBridgeEvents(){
 
               eventType:
               event?.type ||
-
               "unknown"
 
             }
@@ -535,15 +529,11 @@ async function synchronizeBridgeEvents(){
 
     aiRuntimeBridgeState
     .registeredHooks
-    .add(
-      "events"
-    );
+    .add("events");
 
     aiRuntimeBridgeState
     .synchronizedSystems
-    .add(
-      "events"
-    );
+    .add("events");
 
     return true;
 
@@ -570,10 +560,8 @@ async function synchronizeBridgeEvents(){
 async function synchronizeBridgeState(){
 
   if(
-
     !AI_RUNTIME_BRIDGE_CONFIG
     .ENABLE_STATE_SYNC
-
   ){
 
     return false;
@@ -582,24 +570,16 @@ async function synchronizeBridgeState(){
 
   try{
 
-    const runtimeHealth =
-
-      RuntimeManager
-      ?.health?.();
-
-    const aiHealth =
-
-      AIKernel
-      ?.health?.();
-
     const synchronizedState =
     freezeBridgeObject({
 
       runtime:
-      runtimeHealth,
+      RuntimeManager
+      ?.health?.(),
 
       ai:
-      aiHealth,
+      AIKernel
+      ?.health?.(),
 
       synchronizedAt:
       Date.now()
@@ -628,15 +608,11 @@ async function synchronizeBridgeState(){
 
     aiRuntimeBridgeState
     .synchronizedSystems
-    .add(
-      "state"
-    );
+    .add("state");
 
     await emitBridgeEvent(
-
       AI_RUNTIME_BRIDGE_EVENTS
       .STATE_SYNCED
-
     );
 
     return true;
@@ -664,10 +640,8 @@ async function synchronizeBridgeState(){
 async function synchronizeBridgeMemory(){
 
   if(
-
     !AI_RUNTIME_BRIDGE_CONFIG
     .ENABLE_MEMORY_SYNC
-
   ){
 
     return false;
@@ -692,15 +666,11 @@ async function synchronizeBridgeMemory(){
 
     aiRuntimeBridgeState
     .synchronizedSystems
-    .add(
-      "memory"
-    );
+    .add("memory");
 
     await emitBridgeEvent(
-
       AI_RUNTIME_BRIDGE_EVENTS
       .MEMORY_SYNCED
-
     );
 
     return true;
@@ -728,10 +698,8 @@ async function synchronizeBridgeMemory(){
 async function synchronizeBridgeWorkflows(){
 
   if(
-
     !AI_RUNTIME_BRIDGE_CONFIG
     .ENABLE_WORKFLOW_SYNC
-
   ){
 
     return false;
@@ -741,9 +709,8 @@ async function synchronizeBridgeWorkflows(){
   try{
 
     const diagnostics =
-
-      WorkflowEngine
-      ?.diagnostics?.();
+    WorkflowEngine
+    ?.diagnostics?.();
 
     if(
       typeof StateManager !==
@@ -767,15 +734,11 @@ async function synchronizeBridgeWorkflows(){
 
     aiRuntimeBridgeState
     .synchronizedSystems
-    .add(
-      "workflows"
-    );
+    .add("workflows");
 
     await emitBridgeEvent(
-
       AI_RUNTIME_BRIDGE_EVENTS
       .WORKFLOW_SYNCED
-
     );
 
     return true;
@@ -803,10 +766,8 @@ async function synchronizeBridgeWorkflows(){
 async function registerRuntimeHooks(){
 
   if(
-
     !AI_RUNTIME_BRIDGE_CONFIG
     .ENABLE_RUNTIME_HOOKS
-
   ){
 
     return false;
@@ -816,11 +777,9 @@ async function registerRuntimeHooks(){
   try{
 
     if(
-
       aiRuntimeBridgeState
       .registeredHooks
       .has("runtime-hooks")
-
     ){
 
       return true;
@@ -829,33 +788,7 @@ async function registerRuntimeHooks(){
 
     aiRuntimeBridgeState
     .registeredHooks
-    .add(
-      "runtime"
-    );
-
-    aiRuntimeBridgeState
-    .registeredHooks
-    .add(
-      "ai"
-    );
-
-    aiRuntimeBridgeState
-    .registeredHooks
-    .add(
-      "events"
-    );
-
-    aiRuntimeBridgeState
-    .registeredHooks
-    .add(
-      "memory"
-    );
-
-    aiRuntimeBridgeState
-    .registeredHooks
-    .add(
-      "runtime-hooks"
-    );
+    .add("runtime-hooks");
 
     return true;
 
@@ -890,7 +823,6 @@ async function monitorBridgeHealth(){
     const healthy = (
 
       runtimeHealth &&
-
       aiHealth
 
     );
@@ -913,17 +845,6 @@ async function monitorBridgeHealth(){
     .diagnostics
     .failures++;
 
-    if(
-
-      AI_RUNTIME_BRIDGE_CONFIG
-      .ENABLE_RECOVERY_SYNC
-
-    ){
-
-      await recoverBridgeSystems();
-
-    }
-
     return false;
 
   }
@@ -933,21 +854,21 @@ async function monitorBridgeHealth(){
 
 
 // =====================================
-// SYNCHRONIZATION CYCLE
+// SYNCHRONIZATION
 // =====================================
 
 async function synchronizeBridgeSystems(){
 
   if(
-
     AI_RUNTIME_BRIDGE_CONFIG
     .ENABLE_SYNC_QUEUE
-
   ){
 
-    return enqueueBridgeSync(
+    enqueueBridgeSync(
       executeBridgeSynchronization
     );
+
+    return true;
 
   }
 
@@ -987,7 +908,16 @@ async function executeBridgeSynchronization(){
 
     await synchronizeBridgeWorkflows();
 
+    const healthy =
     await monitorBridgeHealth();
+
+    if(!healthy){
+
+      throw new Error(
+        "BRIDGE HEALTH FAILED"
+      );
+
+    }
 
     aiRuntimeBridgeState
     .diagnostics
@@ -1003,10 +933,8 @@ async function executeBridgeSynchronization(){
     );
 
     await emitBridgeEvent(
-
       AI_RUNTIME_BRIDGE_EVENTS
       .SYNCHRONIZED
-
     );
 
     return true;
@@ -1052,10 +980,8 @@ function startBridgeSynchronizationLoop(){
   ){
 
     clearInterval(
-
       aiRuntimeBridgeState
       .syncTimer
-
     );
 
   }
@@ -1064,7 +990,18 @@ function startBridgeSynchronizationLoop(){
   .syncTimer =
   setInterval(() => {
 
-    synchronizeBridgeSystems();
+    if(
+
+      aiRuntimeBridgeState
+      .state !==
+      AI_RUNTIME_BRIDGE_STATES
+      .FAILED
+
+    ){
+
+      synchronizeBridgeSystems();
+
+    }
 
   },
 
@@ -1106,13 +1043,14 @@ async function recoverBridgeSystems(){
   .recoveries++;
 
   await emitBridgeEvent(
-
     AI_RUNTIME_BRIDGE_EVENTS
     .RECOVERY_STARTED
-
   );
 
   try{
+
+    aiRuntimeBridgeState
+    .syncQueue = [];
 
     await RuntimeManager
     ?.recover?.();
@@ -1120,7 +1058,16 @@ async function recoverBridgeSystems(){
     await AIKernel
     ?.recover?.();
 
+    const synchronized =
     await executeBridgeSynchronization();
+
+    if(!synchronized){
+
+      throw new Error(
+        "BRIDGE RECOVERY FAILED"
+      );
+
+    }
 
     setBridgeState(
       AI_RUNTIME_BRIDGE_STATES
@@ -1128,10 +1075,8 @@ async function recoverBridgeSystems(){
     );
 
     await emitBridgeEvent(
-
       AI_RUNTIME_BRIDGE_EVENTS
       .RECOVERY_COMPLETED
-
     );
 
     return true;
@@ -1182,14 +1127,12 @@ function getBridgeDiagnostics(){
     .state,
 
     synchronizing:
-
-      aiRuntimeBridgeState
-      .synchronizing,
+    aiRuntimeBridgeState
+    .synchronizing,
 
     recovering:
-
-      aiRuntimeBridgeState
-      .recovering,
+    aiRuntimeBridgeState
+    .recovering,
 
     synchronizedSystems:[
 
@@ -1212,9 +1155,7 @@ function getBridgeDiagnostics(){
       .length,
 
     diagnostics:
-
-      aiRuntimeBridgeState
-      .diagnostics,
+    cloneBridgeDiagnostics(),
 
     startedAt:
     aiRuntimeBridgeState
@@ -1245,10 +1186,6 @@ async function resetAIRuntimeBridge(){
   .clear();
 
   aiRuntimeBridgeState
-  .activeSyncs
-  .clear();
-
-  aiRuntimeBridgeState
   .syncQueue = [];
 
   aiRuntimeBridgeState
@@ -1256,11 +1193,9 @@ async function resetAIRuntimeBridge(){
   false;
 
   if(
-
     typeof aiRuntimeBridgeState
     .eventUnsubscribe ===
     "function"
-
   ){
 
     try{
@@ -1290,10 +1225,8 @@ async function resetAIRuntimeBridge(){
   ){
 
     clearInterval(
-
       aiRuntimeBridgeState
       .syncTimer
-
     );
 
     aiRuntimeBridgeState
@@ -1327,6 +1260,10 @@ async function resetAIRuntimeBridge(){
 
   aiRuntimeBridgeState
   .initialized =
+  false;
+
+  aiRuntimeBridgeState
+  .initializing =
   false;
 
   aiRuntimeBridgeState
@@ -1371,55 +1308,90 @@ async function initializeAIRuntimeBridge(){
 
   }
 
-  setBridgeState(
-    AI_RUNTIME_BRIDGE_STATES
-    .INITIALIZING
-  );
-
   if(
-    !validateBridgeSystems()
+    aiRuntimeBridgeState
+    .initializing
   ){
-
-    setBridgeState(
-      AI_RUNTIME_BRIDGE_STATES
-      .FAILED
-    );
 
     return false;
 
   }
 
-  await registerRuntimeHooks();
-
-  await executeBridgeSynchronization();
-
-  startBridgeSynchronizationLoop();
-
   aiRuntimeBridgeState
-  .initialized =
+  .initializing =
   true;
-
-  aiRuntimeBridgeState
-  .startedAt =
-  Date.now();
-
-  aiRuntimeBridgeState
-  .diagnostics
-  .initialized++;
 
   setBridgeState(
     AI_RUNTIME_BRIDGE_STATES
-    .READY
+    .INITIALIZING
   );
 
-  await emitBridgeEvent(
+  try{
 
-    AI_RUNTIME_BRIDGE_EVENTS
-    .INITIALIZED
+    if(
+      !validateBridgeSystems()
+    ){
 
-  );
+      setBridgeState(
+        AI_RUNTIME_BRIDGE_STATES
+        .FAILED
+      );
 
-  return true;
+      return false;
+
+    }
+
+    await registerRuntimeHooks();
+
+    const synchronized =
+    await executeBridgeSynchronization();
+
+    if(!synchronized){
+
+      setBridgeState(
+        AI_RUNTIME_BRIDGE_STATES
+        .FAILED
+      );
+
+      return false;
+
+    }
+
+    startBridgeSynchronizationLoop();
+
+    aiRuntimeBridgeState
+    .initialized =
+    true;
+
+    aiRuntimeBridgeState
+    .startedAt =
+    Date.now();
+
+    aiRuntimeBridgeState
+    .diagnostics
+    .initialized++;
+
+    setBridgeState(
+      AI_RUNTIME_BRIDGE_STATES
+      .READY
+    );
+
+    await emitBridgeEvent(
+      AI_RUNTIME_BRIDGE_EVENTS
+      .INITIALIZED
+    );
+
+    return true;
+
+  }
+
+  finally{
+
+    aiRuntimeBridgeState
+    .initializing =
+    false;
+
+  }
 
 }
 
