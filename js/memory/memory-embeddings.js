@@ -23,7 +23,15 @@ Object.freeze({
 
   ENABLE_VECTOR_CACHE:true,
 
-  VECTOR_DIMENSIONS:128,
+  ENABLE_INCREMENTAL_REBUILD:true,
+
+  ENABLE_PERSISTENCE_CACHE:true,
+
+  ENABLE_ADAPTIVE_LEARNING:true,
+
+  ENABLE_MULTI_STAGE_SEARCH:true,
+
+  VECTOR_DIMENSIONS:384,
 
   MAX_EMBEDDING_TEXT:
   5000,
@@ -50,6 +58,15 @@ Object.freeze({
 
 
 // =====================================
+// STORAGE KEYS
+// =====================================
+
+const MEMORY_EMBEDDING_STORAGE_KEY =
+"rigo_memory_embeddings";
+
+
+
+// =====================================
 // EMBEDDING STATE
 // =====================================
 
@@ -57,6 +74,8 @@ const memoryEmbeddingsState =
 Object.seal({
 
   initialized:false,
+
+  workerEnabled:false,
 
   totalEmbeddings:0,
 
@@ -77,6 +96,12 @@ Object.seal({
 
   semanticTokens:
   new Map(),
+
+  learnedAssociations:
+  new Map(),
+
+  dirtyEmbeddings:
+  new Set(),
 
   lastEmbeddingAt:null,
 
@@ -198,7 +223,7 @@ function tokenizeEmbeddingText(
 
 
 // =====================================
-// VECTOR CREATION
+// VECTOR HELPERS
 // =====================================
 
 function createEmptyVector(){
@@ -210,6 +235,30 @@ function createEmptyVector(){
 
   )
   .fill(0);
+
+}
+
+
+
+function repeatEmbeddingText(
+  text,
+  weight = 1
+){
+
+  const safeWeight =
+  Math.max(
+    1,
+    Math.round(weight)
+  );
+
+  return (
+    normalizeMemoryString(
+      text
+    ) + " "
+  )
+  .repeat(
+    safeWeight
+  );
 
 }
 
@@ -313,6 +362,26 @@ function expandSemanticTokens(
 
     }
 
+
+
+    const learned =
+
+      memoryEmbeddingsState
+      .learnedAssociations
+      .get(token);
+
+    if(
+      learned
+    ){
+
+      learned.forEach((item) => {
+
+        expanded.add(item);
+
+      });
+
+    }
+
   });
 
   return [
@@ -366,6 +435,30 @@ function normalizeVector(
     );
 
   });
+
+}
+
+
+
+// =====================================
+// WORKER EXECUTION
+// =====================================
+
+async function executeEmbeddingTask(
+  callback
+){
+
+  if(
+
+    memoryEmbeddingsState
+    .workerEnabled
+
+  ){
+
+    // FUTURE WEB WORKER
+  }
+
+  return callback();
 
 }
 
@@ -468,43 +561,35 @@ function createMemoryEmbeddingVector(
 
   const weightedText = [
 
-    (
-      normalizeMemoryString(
-        memory.title
-      ) + " "
-    )
-    .repeat(
-
+    repeatEmbeddingText(
+      memory.title,
       MEMORY_EMBEDDINGS_CONFIG
       .TITLE_BOOST
-
     ),
 
-    (
-      normalizeMemoryString(
-        memory.summary
-      ) + " "
-    )
-    .repeat(
-
+    repeatEmbeddingText(
+      memory.summary,
       MEMORY_EMBEDDINGS_CONFIG
       .SUMMARY_BOOST
-
     ),
 
-    (
-      Array.isArray(
-        memory.tags
-      )
+    repeatEmbeddingText(
+
+      Array.isArray(memory.tags)
 
       ? memory.tags.join(" ")
 
-      : ""
+      : "",
 
-    ) + " ",
+      MEMORY_EMBEDDINGS_CONFIG
+      .TAG_BOOST
 
-    normalizeMemoryContent(
-      memory.content
+    ),
+
+    repeatEmbeddingText(
+      memory.content,
+      MEMORY_EMBEDDINGS_CONFIG
+      .CONTENT_BOOST
     )
 
   ]
@@ -523,9 +608,39 @@ function createMemoryEmbeddingVector(
   );
 
   memoryEmbeddingsState
+  .dirtyEmbeddings
+  .delete(
+    memory.id
+  );
+
+  memoryEmbeddingsState
   .totalEmbeddings++;
 
+  pruneEmbeddingCache();
+
   return vector;
+
+}
+
+
+
+// =====================================
+// DIRTY TRACKING
+// =====================================
+
+function markEmbeddingDirty(
+  memoryId
+){
+
+  memoryEmbeddingsState
+  .dirtyEmbeddings
+  .add(
+    normalizeMemoryString(
+      memoryId
+    )
+  );
+
+  return true;
 
 }
 
@@ -697,6 +812,54 @@ function calculateMemorySimilarity(
 
 
 // =====================================
+// MULTI STAGE RERANK
+// =====================================
+
+function rerankSemanticResults(
+  results = []
+){
+
+  return results.sort((a,b) => {
+
+    const scoreA =
+
+      (
+        a.similarity * 0.7
+      )
+
+      +
+
+      (
+        calculateMemoryScore(
+          a.memory,
+          ""
+        ) * 0.3
+      );
+
+    const scoreB =
+
+      (
+        b.similarity * 0.7
+      )
+
+      +
+
+      (
+        calculateMemoryScore(
+          b.memory,
+          ""
+        ) * 0.3
+      );
+
+    return scoreB - scoreA;
+
+  });
+
+}
+
+
+
+// =====================================
 // RELATED MEMORIES
 // =====================================
 
@@ -766,17 +929,9 @@ function findRelatedMemories(
 
   });
 
-  return related
-
-  .sort((a,b) => {
-
-    return (
-      b.similarity -
-      a.similarity
-    );
-
-  })
-
+  return rerankSemanticResults(
+    related
+  )
   .slice(0,limit);
 
 }
@@ -799,8 +954,40 @@ function semanticMemorySearch(
 
   const results = [];
 
+  const tokenCandidates =
+  searchByTokens(
+    query,
+    {
+      limit:200
+    }
+  );
+
+  const candidateIds =
+  new Set(
+
+    tokenCandidates.map((item) => {
+
+      return item.memory.id;
+
+    })
+
+  );
+
   memoryState.memories
   .forEach((memory) => {
+
+    if(
+
+      candidateIds.size > 0 &&
+
+      !candidateIds.has(
+        memory.id
+      )
+
+    ){
+
+      return;
+    }
 
     const vector =
 
@@ -846,16 +1033,9 @@ function semanticMemorySearch(
 
   });
 
-  return results
-
-  .sort((a,b) => {
-
-    return (
-      b.similarity -
-      a.similarity
-    );
-
-  });
+  return rerankSemanticResults(
+    results
+  );
 
 }
 
@@ -903,6 +1083,90 @@ function autoLinkRelatedMemories(){
 
 
 // =====================================
+// ADAPTIVE LEARNING
+// =====================================
+
+function learnSemanticAssociation(
+  source,
+  target
+){
+
+  const key =
+
+    normalizeMemoryString(
+      source
+    );
+
+  if(
+
+    !memoryEmbeddingsState
+    .learnedAssociations
+    .has(key)
+
+  ){
+
+    memoryEmbeddingsState
+    .learnedAssociations
+    .set(
+      key,
+      new Set()
+    );
+
+  }
+
+  memoryEmbeddingsState
+  .learnedAssociations
+  .get(key)
+  .add(target);
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DIRTY REBUILD
+// =====================================
+
+function rebuildDirtyEmbeddings(){
+
+  const dirtyIds = [
+
+    ...memoryEmbeddingsState
+    .dirtyEmbeddings
+
+  ];
+
+  dirtyIds.forEach((memoryId) => {
+
+    const memory =
+    getMemoryById(
+      memoryId
+    );
+
+    if(!memory){
+
+      return;
+    }
+
+    createMemoryEmbeddingVector(
+      memory
+    );
+
+  });
+
+  memoryEmbeddingsState
+  .dirtyEmbeddings
+  .clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
 // REBUILD EMBEDDINGS
 // =====================================
 
@@ -927,6 +1191,8 @@ function rebuildMemoryEmbeddings(){
 
   autoLinkRelatedMemories();
 
+  persistEmbeddingCache();
+
   return true;
 
 }
@@ -934,7 +1200,116 @@ function rebuildMemoryEmbeddings(){
 
 
 // =====================================
-// EMBEDDING CACHE
+// CACHE PERSISTENCE
+// =====================================
+
+function persistEmbeddingCache(){
+
+  try{
+
+    const serialized =
+    JSON.stringify(
+
+      [...memoryEmbeddingsState
+      .embeddingIndex]
+
+    );
+
+    localStorage.setItem(
+      MEMORY_EMBEDDING_STORAGE_KEY,
+      serialized
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+function restoreEmbeddingCache(){
+
+  try{
+
+    const serialized =
+    localStorage.getItem(
+      MEMORY_EMBEDDING_STORAGE_KEY
+    );
+
+    if(!serialized){
+
+      return false;
+    }
+
+    const parsed =
+    JSON.parse(
+      serialized
+    );
+
+    memoryEmbeddingsState
+    .embeddingIndex =
+    new Map(parsed);
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// CACHE PRUNING
+// =====================================
+
+function pruneEmbeddingCache(){
+
+  const maxSize =
+
+    MEMORY_EMBEDDINGS_CONFIG
+    .MAX_CACHE_SIZE;
+
+  const index =
+  memoryEmbeddingsState
+  .embeddingIndex;
+
+  while(
+    index.size > maxSize
+  ){
+
+    const firstKey =
+
+      index.keys()
+      .next()
+      .value;
+
+    index.delete(
+      firstKey
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CACHE HELPERS
 // =====================================
 
 function clearEmbeddingCache(){
@@ -954,7 +1329,7 @@ function clearEmbeddingCache(){
 
 
 // =====================================
-// EMBEDDING DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getMemoryEmbeddingDiagnostics(){
@@ -1005,6 +1380,23 @@ function getMemoryEmbeddingDiagnostics(){
       memoryEmbeddingsState
       .relationCache
       .size,
+
+    dirtyEmbeddings:
+
+      memoryEmbeddingsState
+      .dirtyEmbeddings
+      .size,
+
+    learnedAssociations:
+
+      memoryEmbeddingsState
+      .learnedAssociations
+      .size,
+
+    workerEnabled:
+
+      memoryEmbeddingsState
+      .workerEnabled,
 
     vectorDimensions:
 
