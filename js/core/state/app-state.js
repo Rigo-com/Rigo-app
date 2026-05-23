@@ -196,6 +196,18 @@ function createAppStateSnapshot(){
 
 
 // =====================================
+// GET APP STATE
+// =====================================
+
+function getAppState(){
+
+  return createAppStateSnapshot();
+
+}
+
+
+
+// =====================================
 // OBSERVERS
 // =====================================
 
@@ -518,7 +530,7 @@ const AppState =
 Object.freeze({
 
   get:
-  createAppStateSnapshot,
+  getAppState,
 
   subscribe:
   subscribeAppState,
@@ -545,3 +557,28 @@ Object.freeze({
   resetAppState
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.appState =
+  appState;
+
+  window.AppState =
+  AppState;
+
+  window.updateAppPhase =
+  updateAppPhase;
+
+  window.resetAppState =
+  resetAppState;
+
+}
