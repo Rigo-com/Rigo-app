@@ -2,6 +2,7 @@
 // RIGO AI
 // AI SERVICE
 // ENTERPRISE AI ORCHESTRATOR
+// FINAL STABLE EDITION
 // =====================================
 
 
@@ -10,14 +11,30 @@
 // AI STATE
 // =====================================
 
-let isGenerating =
-false;
+const aiServiceState =
+Object.seal({
 
-let activeAIRequestId =
-0;
+  initialized:false,
 
-let activeAIRequestController =
-null;
+  generating:false,
+
+  activeRequestId:0,
+
+  activeController:null,
+
+  totalRequests:0,
+
+  successfulRequests:0,
+
+  failedRequests:0,
+
+  abortedRequests:0,
+
+  lastGeneratedAt:null,
+
+  lastError:null
+
+});
 
 
 
@@ -88,6 +105,21 @@ function safeLogInfo(
 
 
 // =====================================
+// IS GENERATING
+// =====================================
+
+function isAIGenerating(){
+
+  return (
+    aiServiceState
+    .generating === true
+  );
+
+}
+
+
+
+// =====================================
 // ABORT ACTIVE REQUEST
 // =====================================
 
@@ -96,11 +128,16 @@ function abortActiveAIRequest(){
   try{
 
     if(
-      activeAIRequestController
+      aiServiceState
+      .activeController
     ){
 
-      activeAIRequestController
+      aiServiceState
+      .activeController
       .abort();
+
+      aiServiceState
+      .abortedRequests++;
 
     }
 
@@ -114,10 +151,13 @@ function abortActiveAIRequest(){
 
   finally{
 
-    activeAIRequestController =
+    aiServiceState
+    .activeController =
     null;
 
   }
+
+  return true;
 
 }
 
@@ -153,18 +193,70 @@ function safelyProcessAIQueue(){
 
 
 // =====================================
+// CREATE AI MESSAGE
+// =====================================
+
+function createAIMessage(
+  content
+){
+
+  return {
+
+    id:createMessageId(),
+
+    role:"assistant",
+
+    content,
+
+    timestamp:
+    Date.now()
+
+  };
+
+}
+
+
+
+// =====================================
+// INSERT AI MESSAGE
+// =====================================
+
+function insertAIMessage(
+  content
+){
+
+  return addMessage(
+
+    createAIMessage(
+      content
+    )
+
+  );
+
+}
+
+
+
+// =====================================
 // GENERATE AI RESPONSE
 // =====================================
 
 async function generateAIResponse(){
 
-  if(isGenerating){
+  if(
+    aiServiceState
+    .generating
+  ){
 
     return false;
 
   }
 
-  isGenerating = true;
+  aiServiceState
+  .generating = true;
+
+  aiServiceState
+  .totalRequests++;
 
   clearTypingIndicator();
 
@@ -173,14 +265,18 @@ async function generateAIResponse(){
 
   if(!typingShown){
 
-    isGenerating = false;
+    aiServiceState
+    .generating =
+    false;
 
     return false;
 
   }
 
   const requestId =
-  ++activeAIRequestId;
+
+    ++aiServiceState
+    .activeRequestId;
 
   const startedAt =
   Date.now();
@@ -191,8 +287,12 @@ async function generateAIResponse(){
     await generateAIText();
 
     if(
+
       requestId !==
-      activeAIRequestId
+
+      aiServiceState
+      .activeRequestId
+
     ){
 
       abortActiveAIRequest();
@@ -201,21 +301,9 @@ async function generateAIResponse(){
 
     }
 
-    const aiMessage = {
-
-      id:createMessageId(),
-
-      role:"assistant",
-
-      content:response,
-
-      timestamp:Date.now()
-
-    };
-
     const inserted =
-    addMessage(
-      aiMessage
+    insertAIMessage(
+      response
     );
 
     if(!inserted){
@@ -227,6 +315,13 @@ async function generateAIResponse(){
       return false;
 
     }
+
+    aiServiceState
+    .successfulRequests++;
+
+    aiServiceState
+    .lastGeneratedAt =
+    Date.now();
 
     safeLogInfo(
 
@@ -250,6 +345,13 @@ async function generateAIResponse(){
   }
 
   catch(error){
+
+    aiServiceState
+    .failedRequests++;
+
+    aiServiceState
+    .lastError =
+    error;
 
     await DiagnosticsRuntime
     ?.error?.(
@@ -275,29 +377,21 @@ async function generateAIResponse(){
     }
 
     safeLogError(
+
       error?.message ||
+
       error
+
     );
 
-    const fallbackMessage = {
+    const inserted =
+    insertAIMessage(
 
-      id:createMessageId(),
+      getAIErrorMessage()
 
-      role:"assistant",
-
-      content:
-      getAIErrorMessage(),
-
-      timestamp:Date.now()
-
-    };
-
-    const fallbackInserted =
-    addMessage(
-      fallbackMessage
     );
 
-    if(!fallbackInserted){
+    if(!inserted){
 
       safeLogError(
 
@@ -315,7 +409,9 @@ async function generateAIResponse(){
 
     removeTypingIndicator();
 
-    isGenerating = false;
+    aiServiceState
+    .generating =
+    false;
 
     safelyProcessAIQueue();
 
@@ -332,17 +428,19 @@ async function generateAIResponse(){
 async function generateAIText(){
 
   const messages =
-  Array.isArray(
-    currentChat?.messages
-  )
 
-  ?
+    Array.isArray(
+      currentChat?.messages
+    )
 
-  currentChat.messages
+    ?
 
-  :
+    currentChat
+    .messages
 
-  [];
+    :
+
+    [];
 
   const limitedMessages =
   messages.slice(
@@ -365,7 +463,8 @@ async function generateAIText(){
   const context =
   buildFullAIContext(
 
-    latestMessage?.content || "",
+    latestMessage
+    ?.content || "",
 
     limitedMessages
 
@@ -432,9 +531,9 @@ async function executeAIRequestWithRetry(
 
       const isLastAttempt =
 
-      attempt ===
-      AI_CONFIG
-      .MAX_RETRIES;
+        attempt ===
+        AI_CONFIG
+        .MAX_RETRIES;
 
       if(
         isLastAttempt
@@ -482,7 +581,8 @@ async function executeAIRequest(
   const controller =
   new AbortController();
 
-  activeAIRequestController =
+  aiServiceState
+  .activeController =
   controller;
 
   const signal =
@@ -568,8 +668,11 @@ async function executeAIRequest(
     ){
 
       throw new DOMException(
+
         "Request timeout",
+
         "TimeoutError"
+
       );
 
     }
@@ -589,11 +692,15 @@ async function executeAIRequest(
     }
 
     if(
-      activeAIRequestController ===
+
+      aiServiceState
+      .activeController ===
       controller
+
     ){
 
-      activeAIRequestController =
+      aiServiceState
+      .activeController =
       null;
 
     }
@@ -635,14 +742,13 @@ function sanitizeAIResponse(
   truncatedResponse;
 
   if(
-    typeof truncatedResponse
+    typeof normalized
     .normalize ===
     "function"
   ){
 
     normalized =
-    truncatedResponse
-    .normalize(
+    normalized.normalize(
       "NFKC"
     );
 
@@ -650,19 +756,19 @@ function sanitizeAIResponse(
 
   const cleaned =
 
-  normalized
+    normalized
 
-  .replace(
-    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
-    ""
-  )
+    .replace(
+      /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
+      ""
+    )
 
-  .replace(
-    /[\u202A-\u202E\u2066-\u2069]/g,
-    ""
-  )
+    .replace(
+      /[\u202A-\u202E\u2066-\u2069]/g,
+      ""
+    )
 
-  .trim();
+    .trim();
 
   if(!cleaned){
 
@@ -682,11 +788,18 @@ function sanitizeAIResponse(
 
 function resetAIService(){
 
-  activeAIRequestId++;
+  aiServiceState
+  .activeRequestId++;
 
   abortActiveAIRequest();
 
-  isGenerating = false;
+  aiServiceState
+  .generating =
+  false;
+
+  aiServiceState
+  .lastError =
+  null;
 
   safeLogInfo(
     "AI SERVICE RESET"
@@ -699,10 +812,88 @@ function resetAIService(){
 
 
 // =====================================
+// AI DIAGNOSTICS
+// =====================================
+
+function getAIDiagnostics(){
+
+  return Object.freeze({
+
+    initialized:
+    aiServiceState
+    .initialized,
+
+    generating:
+    aiServiceState
+    .generating,
+
+    totalRequests:
+    aiServiceState
+    .totalRequests,
+
+    successfulRequests:
+    aiServiceState
+    .successfulRequests,
+
+    failedRequests:
+    aiServiceState
+    .failedRequests,
+
+    abortedRequests:
+    aiServiceState
+    .abortedRequests,
+
+    lastGeneratedAt:
+    aiServiceState
+    .lastGeneratedAt,
+
+    activeRequestId:
+    aiServiceState
+    .activeRequestId,
+
+    hasActiveController:
+
+      Boolean(
+        aiServiceState
+        .activeController
+      ),
+
+    lastError:
+
+      aiServiceState
+      .lastError
+
+      ?
+
+      String(
+        aiServiceState
+        .lastError
+      )
+
+      :
+
+      null
+
+  });
+
+}
+
+
+
+// =====================================
 // INITIALIZE AI SERVICE
 // =====================================
 
 function initializeAIService(){
+
+  if(
+    aiServiceState
+    .initialized
+  ){
+
+    return true;
+
+  }
 
   registerService(
     "ai",
@@ -711,6 +902,14 @@ function initializeAIService(){
 
   activateService(
     "ai"
+  );
+
+  aiServiceState
+  .initialized =
+  true;
+
+  safeLogInfo(
+    "AI SERVICE READY"
   );
 
   return true;
@@ -732,10 +931,19 @@ Object.freeze({
   generate:
   generateAIResponse,
 
+  generateText:
+  generateAIText,
+
   reset:
   resetAIService,
 
   abort:
-  abortActiveAIRequest
+  abortActiveAIRequest,
+
+  diagnostics:
+  getAIDiagnostics,
+
+  isGenerating:
+  isAIGenerating
 
 });
