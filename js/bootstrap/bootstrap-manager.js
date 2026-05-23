@@ -154,7 +154,9 @@ Object.seal({
 
   completedAt:null,
 
-  lastError:null
+  lastError:null,
+
+  bootRetries:0
 
 });
 
@@ -755,6 +757,17 @@ async function bootRigoPlatform(){
 
     buildDependencyGraph();
 
+    const systemsValid =
+    validateBootstrapSystems();
+
+    if(!systemsValid){
+
+      throw new Error(
+        "INVALID_BOOTSTRAP_SYSTEMS"
+      );
+
+    }
+
     await executeBootPreloads();
 
     setBootstrapState(
@@ -810,6 +823,10 @@ async function bootRigoPlatform(){
     bootstrapState
     .initialized =
     true;
+
+    bootstrapState
+    .bootRetries =
+    0;
 
     setBootstrapState(
       BOOTSTRAP_STATES
@@ -908,6 +925,32 @@ async function recoverBootstrap(){
   bootstrapState
   .diagnostics
   .recoveries++;
+
+  bootstrapState
+  .bootRetries++;
+
+  if(
+
+    bootstrapState
+    .bootRetries >
+
+    BOOTSTRAP_CONFIG
+    .MAX_BOOT_RETRIES
+
+  ){
+
+    setBootstrapState(
+      BOOTSTRAP_STATES
+      .FAILED
+    );
+
+    bootstrapState
+    .recovering =
+    false;
+
+    return false;
+
+  }
 
   setBootstrapState(
     BOOTSTRAP_STATES
@@ -1031,6 +1074,31 @@ async function shutdownRigoPlatform(){
     bootstrapState
     .initializedSystems
     .clear();
+
+    bootstrapState
+    .initialized =
+    false;
+
+    bootstrapState
+    .completedAt =
+    null;
+
+    bootstrapState
+    .startedAt =
+    null;
+
+    bootstrapState
+    .lastError =
+    null;
+
+    bootstrapState
+    .failedSystems
+    .clear();
+
+    setBootstrapState(
+      BOOTSTRAP_STATES
+      .IDLE
+    );
 
     await emitBootstrapEvent(
 
@@ -1177,6 +1245,34 @@ async function resetBootstrapManager(){
   bootstrapState
   .lastError =
   null;
+
+  bootstrapState
+  .initialized =
+  false;
+
+  bootstrapState
+  .booting =
+  false;
+
+  bootstrapState
+  .shuttingDown =
+  false;
+
+  bootstrapState
+  .recovering =
+  false;
+
+  bootstrapState
+  .startedAt =
+  null;
+
+  bootstrapState
+  .completedAt =
+  null;
+
+  bootstrapState
+  .bootRetries =
+  0;
 
   setBootstrapState(
     BOOTSTRAP_STATES
