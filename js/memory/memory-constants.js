@@ -11,7 +11,27 @@
 // =====================================
 
 const MEMORY_VERSION =
-"1.0.0";
+Object.freeze(
+  "1.0.0"
+);
+
+
+
+// =====================================
+// NORMALIZE VALUE
+// =====================================
+
+function normalizeMemoryValue(
+  value
+){
+
+  return String(
+    value ?? ""
+  )
+  .trim()
+  .toLowerCase();
+
+}
 
 
 
@@ -53,8 +73,10 @@ deepFreeze([
 
 
 const MEMORY_TYPE_SET =
-new Set(
-  MEMORY_TYPES
+Object.freeze(
+  new Set(
+    MEMORY_TYPES
+  )
 );
 
 
@@ -82,6 +104,17 @@ deepFreeze({
 
 
 
+const MEMORY_PRIORITY_SET =
+Object.freeze(
+  new Set(
+    Object.values(
+      MEMORY_PRIORITIES
+    )
+  )
+);
+
+
+
 // =====================================
 // MEMORY PRIORITY WEIGHTS
 // =====================================
@@ -89,16 +122,16 @@ deepFreeze({
 const MEMORY_PRIORITY_WEIGHTS =
 deepFreeze({
 
-  LOW:
+  low:
   0.2,
 
-  NORMAL:
+  normal:
   0.4,
 
-  HIGH:
+  high:
   0.7,
 
-  CRITICAL:
+  critical:
   1.0
 
 });
@@ -128,6 +161,17 @@ deepFreeze({
   "permanent"
 
 });
+
+
+
+const MEMORY_EXPIRATION_SET =
+Object.freeze(
+  new Set(
+    Object.values(
+      MEMORY_EXPIRATION
+    )
+  )
+);
 
 
 
@@ -198,10 +242,10 @@ deepFreeze({
   false,
 
   TAGS:
-  deepFreeze([]),
+  [],
 
   METADATA:
-  deepFreeze({})
+  {}
 
 });
 
@@ -379,8 +423,10 @@ deepFreeze([
 
 
 const MEMORY_STATE_SET =
-new Set(
-  MEMORY_STATES
+Object.freeze(
+  new Set(
+    MEMORY_STATES
+  )
 );
 
 
@@ -417,8 +463,10 @@ deepFreeze([
 
 
 const MEMORY_CATEGORY_SET =
-new Set(
-  MEMORY_CATEGORIES
+Object.freeze(
+  new Set(
+    MEMORY_CATEGORIES
+  )
 );
 
 
@@ -447,8 +495,10 @@ deepFreeze([
 
 
 const RESERVED_MEMORY_TAG_SET =
-new Set(
-  RESERVED_MEMORY_TAGS
+Object.freeze(
+  new Set(
+    RESERVED_MEMORY_TAGS
+  )
 );
 
 
@@ -477,8 +527,10 @@ deepFreeze([
 
 
 const MEMORY_SORT_OPTION_SET =
-new Set(
-  MEMORY_SORT_OPTIONS
+Object.freeze(
+  new Set(
+    MEMORY_SORT_OPTIONS
+  )
 );
 
 
@@ -503,8 +555,10 @@ deepFreeze([
 
 
 const MEMORY_SEARCH_MODE_SET =
-new Set(
-  MEMORY_SEARCH_MODES
+Object.freeze(
+  new Set(
+    MEMORY_SEARCH_MODES
+  )
 );
 
 
@@ -635,27 +689,11 @@ deepFreeze([
 
 
 const MEMORY_EXPORT_FORMAT_SET =
-new Set(
-  MEMORY_EXPORT_FORMATS
-);
-
-
-
-// =====================================
-// NORMALIZE VALUE
-// =====================================
-
-function normalizeMemoryValue(
-  value
-){
-
-  return String(
-    value || ""
+Object.freeze(
+  new Set(
+    MEMORY_EXPORT_FORMATS
   )
-  .trim()
-  .toLowerCase();
-
-}
+);
 
 
 
@@ -671,6 +709,36 @@ function isValidMemoryType(
   .has(
     normalizeMemoryValue(
       type
+    )
+  );
+
+}
+
+
+
+function isValidMemoryPriority(
+  priority
+){
+
+  return MEMORY_PRIORITY_SET
+  .has(
+    normalizeMemoryValue(
+      priority
+    )
+  );
+
+}
+
+
+
+function isValidMemoryExpiration(
+  expiration
+){
+
+  return MEMORY_EXPIRATION_SET
+  .has(
+    normalizeMemoryValue(
+      expiration
     )
   );
 
@@ -764,7 +832,7 @@ deepFreeze({
   MEMORY_VERSION,
 
   TYPES:
-  MEMORY_TYPES,
+  [...MEMORY_TYPES],
 
   PRIORITIES:
   MEMORY_PRIORITIES,
@@ -797,15 +865,15 @@ deepFreeze({
   MEMORY_CLEANUP_RULES,
 
   STATES:
-  MEMORY_STATES,
+  [...MEMORY_STATES],
 
   CATEGORIES:
-  MEMORY_CATEGORIES,
+  [...MEMORY_CATEGORIES],
 
   SEARCH_MODES:
-  MEMORY_SEARCH_MODES,
+  [...MEMORY_SEARCH_MODES],
 
   EXPORT_FORMATS:
-  MEMORY_EXPORT_FORMATS
+  [...MEMORY_EXPORT_FORMATS]
 
 });
