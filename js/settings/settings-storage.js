@@ -57,8 +57,9 @@ async function saveSettingsToStorage(){
 
       SETTINGS_STORAGE_KEY,
 
-      JSON.stringify(
-        settings
+      safeJsonStringify(
+        settings,
+        ""
       )
 
     );
@@ -78,6 +79,10 @@ async function saveSettingsToStorage(){
 
     settingsState
     .failedSaves++;
+
+    settingsState
+    .lastError =
+    error;
 
     return false;
 
@@ -115,7 +120,16 @@ async function loadSettingsFromStorage(){
 
     );
 
-    if(!raw){
+    if(
+
+      typeof raw !==
+      "string"
+
+      ||
+
+      !raw.trim()
+
+    ){
 
       return false;
     }
@@ -158,6 +172,10 @@ async function loadSettingsFromStorage(){
 
     settingsState
     .failedLoads++;
+
+    settingsState
+    .lastError =
+    error;
 
     return false;
 
