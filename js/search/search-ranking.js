@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SEARCH RANKING
-// ENTERPRISE FINAL
+// ENTERPRISE ULTRA FINAL
 // =====================================
 
 
@@ -21,7 +21,11 @@ Object.freeze({
 
   PINNED_BOOST:0.2,
 
-  FAVORITE_BOOST:0.15
+  FAVORITE_BOOST:0.15,
+
+  RECENCY_BOOST:0.2,
+
+  USAGE_BOOST:0.15
 
 });
 
@@ -167,6 +171,50 @@ function calculateSearchRanking(
     .FAVORITE_BOOST;
 
   }
+
+
+
+  // ===================================
+  // RECENCY BOOST
+  // ===================================
+
+  const daysOld =
+  getDaysBetweenDates(
+
+    memory.updatedAt,
+
+    Date.now()
+
+  );
+
+  score += Math.max(
+
+    0,
+
+    SEARCH_RANKING_CONFIG
+    .RECENCY_BOOST -
+
+    daysOld * 0.01
+
+  );
+
+
+
+  // ===================================
+  // USAGE BOOST
+  // ===================================
+
+  score += Math.min(
+
+    SEARCH_RANKING_CONFIG
+    .USAGE_BOOST,
+
+    (
+      memory.stats
+      ?.usageCount || 0
+    ) * 0.01
+
+  );
 
   return normalizeMemoryScore(
     score
