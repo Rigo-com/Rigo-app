@@ -6,6 +6,100 @@
 
 
 // =====================================
+// STARTUP STATE
+// =====================================
+
+const startupRuntimeState =
+Object.seal({
+
+  starting:false,
+
+  lastStartedAt:null,
+
+  lastCompletedAt:null,
+
+  lastDuration:null,
+
+  lastError:null
+
+});
+
+
+
+// =====================================
+// SAFE LOADING SCREEN
+// =====================================
+
+function hideSafeLoadingScreen(){
+
+  try{
+
+    if(
+      typeof hideLoadingScreen ===
+      "function"
+    ){
+
+      hideLoadingScreen();
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// STARTUP SNAPSHOT
+// =====================================
+
+function createStartupSnapshot(){
+
+  return Object.freeze({
+
+    starting:
+    startupRuntimeState
+    .starting,
+
+    lastStartedAt:
+    startupRuntimeState
+    .lastStartedAt,
+
+    lastCompletedAt:
+    startupRuntimeState
+    .lastCompletedAt,
+
+    lastDuration:
+    startupRuntimeState
+    .lastDuration,
+
+    lastError:
+
+      startupRuntimeState
+      .lastError
+
+      ? String(
+          startupRuntimeState
+          .lastError
+        )
+
+      : null
+
+  });
+
+}
+
+
+
+// =====================================
 // START APP
 // =====================================
 
@@ -15,7 +109,10 @@ async function startApp(){
 
     appState.started ||
 
-    appState.starting
+    appState.starting ||
+
+    startupRuntimeState
+    .starting
 
   ){
 
@@ -23,14 +120,27 @@ async function startApp(){
 
   }
 
+  startupRuntimeState
+  .starting =
+  true;
+
   appState.starting =
   true;
 
   appState.startupStartedAt =
   Date.now();
 
+  startupRuntimeState
+  .lastStartedAt =
+  appState.startupStartedAt;
+
+  startupRuntimeState
+  .lastError =
+  null;
+
   updateAppPhase(
-    APP_PHASES.PREINIT
+    APP_PHASES
+    .PREINIT
   );
 
   await emitAppEvent(
@@ -39,13 +149,26 @@ async function startApp(){
 
   try{
 
+
+
+    // ================================
+    // BOOTING
+    // ================================
+
     updateAppPhase(
-      APP_PHASES.BOOTING
+      APP_PHASES
+      .BOOTING
     );
 
     await emitAppEvent(
       "app.booting"
     );
+
+
+
+    // ================================
+    // INITIALIZE
+    // ================================
 
     await Promise.race([
 
@@ -72,6 +195,57 @@ async function startApp(){
 
     ]);
 
+
+
+    // ================================
+    // RUNTIME MANAGER
+    // ================================
+
+    if(
+      typeof RuntimeManager !==
+      "undefined"
+    ){
+
+      const booted =
+      await RuntimeManager
+      .boot();
+
+      if(!booted){
+
+        throw new Error(
+          "RUNTIME BOOT FAILED"
+        );
+
+      }
+
+    }
+
+
+
+    // ================================
+    // HEALTH VALIDATION
+    // ================================
+
+    const healthReport =
+    await runAppHealthcheck();
+
+    if(
+      !healthReport
+      ?.healthy
+    ){
+
+      throw new Error(
+        "APPLICATION HEALTHCHECK FAILED"
+      );
+
+    }
+
+
+
+    // ================================
+    // COMPLETE
+    // ================================
+
     appState.started =
     true;
 
@@ -92,21 +266,72 @@ async function startApp(){
       appState
       .startupStartedAt;
 
+    startupRuntimeState
+    .lastCompletedAt =
+    appState
+    .startupCompletedAt;
+
+    startupRuntimeState
+    .lastDuration =
+    appState
+    .startupDuration;
+
     updateAppPhase(
-      APP_PHASES.READY
+      APP_PHASES
+      .READY
     );
 
     startHealthchecks();
 
-    hideLoadingScreen();
+    hideSafeLoadingScreen();
 
     await emitAppEvent(
       "app.ready"
     );
 
-    safeLogInfo(
-      "RIGO AI READY"
-    );
+
+
+    // ================================
+    // DIAGNOSTICS
+    // ================================
+
+    if(
+      typeof logDiagnosticInfo ===
+      "function"
+    ){
+
+      await logDiagnosticInfo(
+
+        "RIGO AI READY",
+
+        {
+
+          startupDuration:
+
+            appState
+            .startupDuration
+
+        }
+
+      );
+
+    }
+
+    if(
+      typeof trackPerformanceMetric ===
+      "function"
+    ){
+
+      trackPerformanceMetric(
+
+        "app.startup",
+
+        appState
+        .startupDuration
+
+      );
+
+    }
 
     return true;
 
@@ -119,11 +344,22 @@ async function startApp(){
     appState.lastError =
     error;
 
+    startupRuntimeState
+    .lastError =
+    error;
+
     updateAppPhase(
-      APP_PHASES.ERROR
+      APP_PHASES
+      .ERROR
     );
 
-    cleanupApp();
+
+
+    // ================================
+    // CLEANUP
+    // ================================
+
+    await cleanupApp();
 
     if(
       typeof document !==
@@ -138,15 +374,35 @@ async function startApp(){
 
     }
 
-    hideLoadingScreen();
+    hideSafeLoadingScreen();
 
-    safeLogError(
 
-      getSafeErrorMessage(
-        error
-      )
 
-    );
+    // ================================
+    // DIAGNOSTICS
+    // ================================
+
+    if(
+      typeof logCriticalError ===
+      "function"
+    ){
+
+      await logCriticalError(
+
+        "APPLICATION STARTUP FAILED",
+
+        {
+
+          error:
+          getSafeErrorMessage(
+            error
+          )
+
+        }
+
+      );
+
+    }
 
     await emitAppEvent(
 
@@ -163,10 +419,19 @@ async function startApp(){
 
     );
 
+
+
+    // ================================
+    // RECOVERY
+    // ================================
+
     if(
 
       APP_CORE_CONFIG
-      .ENABLE_RECOVERY
+      .ENABLE_RECOVERY &&
+
+      typeof recoverApplication ===
+      "function"
 
     ){
 
@@ -183,6 +448,29 @@ async function startApp(){
     appState.starting =
     false;
 
+    startupRuntimeState
+    .starting =
+    false;
+
   }
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.startApp =
+  startApp;
+
+  window.createStartupSnapshot =
+  createStartupSnapshot;
 
 }
