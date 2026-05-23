@@ -28,6 +28,12 @@ async function waitForDependency(
 
   }
 
+
+
+  // ===================================
+  // ALREADY RESOLVED
+  // ===================================
+
   if(
 
     isDependencyResolved(
@@ -39,6 +45,32 @@ async function waitForDependency(
     return true;
 
   }
+
+
+
+  // ===================================
+  // FAILED
+  // ===================================
+
+  if(
+
+    appDependencyRegistry
+    .failed
+    .has(
+      normalizedName
+    )
+
+  ){
+
+    return false;
+
+  }
+
+
+
+  // ===================================
+  // WAIT
+  // ===================================
 
   return new Promise((resolve) => {
 
@@ -64,23 +96,124 @@ async function waitForDependency(
 
     }
 
-    appDependencyRegistry
-    .waiting
-    .get(
-      normalizedName
-    )
+    const waitingResolvers =
+
+      appDependencyRegistry
+      .waiting
+      .get(
+        normalizedName
+      );
+
+    function resolver(
+      result
+    ){
+
+      clearTimeout(
+        timeoutId
+      );
+
+      waitingResolvers
+      .delete(
+        resolver
+      );
+
+      if(
+        waitingResolvers
+        .size <= 0
+      ){
+
+        appDependencyRegistry
+        .waiting
+        .delete(
+          normalizedName
+        );
+
+      }
+
+      appDependencyRegistry
+      .diagnostics
+      .waiting =
+
+      appDependencyRegistry
+      .waiting
+      .size;
+
+      resolve(result);
+
+    }
+
+    waitingResolvers
     .add(
-      resolve
+      resolver
     );
 
+    appDependencyRegistry
+    .diagnostics
+    .waiting =
+
+    appDependencyRegistry
+    .waiting
+    .size;
+
+    const timeoutId =
     setTimeout(() => {
 
-      resolve(false);
+      resolver(false);
 
     },
 
     timeout);
 
   });
+
+}
+
+
+
+// =====================================
+// WAIT FOR MULTIPLE
+// =====================================
+
+async function waitForDependencies(
+  dependencies = [],
+  timeout =
+  APP_CORE_CONFIG
+  .DEPENDENCY_TIMEOUT
+){
+
+  const results =
+  await Promise.all(
+
+    dependencies.map((dependency) => {
+
+      return waitForDependency(
+        dependency,
+        timeout
+      );
+
+    })
+
+  );
+
+  return results.every(Boolean);
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.waitForDependency =
+  waitForDependency;
+
+  window.waitForDependencies =
+  waitForDependencies;
 
 }
