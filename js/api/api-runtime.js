@@ -28,6 +28,12 @@ Object.freeze({
   MAX_RETRY_DELAY:
   10000,
 
+  MAX_QUEUE_RETRIES:
+  2,
+
+  UPLOAD_ENDPOINT:
+  "/files/upload",
+
   ENABLE_DIAGNOSTICS:true,
 
   ENABLE_EVENTS:true,
@@ -227,6 +233,17 @@ async function emitAPIRuntimeEvent(
 ){
 
   if(
+
+    !API_RUNTIME_CONFIG
+    .ENABLE_EVENTS
+
+  ){
+
+    return false;
+
+  }
+
+  if(
     typeof emitSystemEvent !==
     "function"
   ){
@@ -283,29 +300,28 @@ function safeDeepClone(
 
     }
 
-    return structuredClone(
-      value
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
     );
 
   }
 
   catch(error){
 
-    try{
-
-      return JSON.parse(
-        JSON.stringify(
-          value
-        )
-      );
-
-    }
-
-    catch(cloneError){
-
-      return null;
-
-    }
+    return null;
 
   }
 
@@ -317,23 +333,24 @@ function createAPIError(
   options = {}
 ){
 
-  return Object.freeze({
+  const error =
+  new Error(
 
-    message:
+    String(
+      options.message ||
+      "API ERROR"
+    )
 
-      String(
-        options.message ||
-        "API ERROR"
-      ),
+  );
 
-    code:
+  error.code =
 
-      String(
-        options.code ||
-        "API_ERROR"
-      )
+    String(
+      options.code ||
+      "API_ERROR"
+    );
 
-  });
+  return error;
 
 }
 
@@ -532,6 +549,17 @@ function isAbortError(
 
 
 
+function validateAPIEnvironment(){
+
+  return (
+    typeof fetch ===
+    "function"
+  );
+
+}
+
+
+
 async function parseAPIResponse(
   response
 ){
@@ -583,21 +611,66 @@ async function parseAPIResponse(
 
 
 
-function updateAPIStatus(){
+function setAPIStatus(
+  status
+){
+
+  if(
+
+    !VALID_API_STATUS
+    .includes(status)
+
+  ){
+
+    return false;
+
+  }
 
   apiRuntimeState
   .status =
+  status;
+
+  return true;
+
+}
+
+
+
+function updateAPIStatus(){
+
+  if(
 
     apiRuntimeState
     .pendingRequests > 0
 
-    ?
+  ){
 
-    "loading"
+    setAPIStatus(
+      "loading"
+    );
 
-    :
+    return true;
 
-    "idle";
+  }
+
+  if(
+    apiRuntimeState
+    .lastError
+  ){
+
+    setAPIStatus(
+      "error"
+    );
+
+    return true;
+
+  }
+
+  setAPIStatus(
+    "idle"
+  );
+
+  return true;
 
 }
 
@@ -613,11 +686,30 @@ function enqueueAPIRequest(
 
   apiRuntimeState
   .requestQueue
-  .push(task);
+  .push({
+
+    ...task,
+
+    queuedAt:
+    Date.now()
+
+  });
 
   apiRuntimeState
   .requestQueue
   .sort((a,b) => {
+
+    if(
+      b.priority ===
+      a.priority
+    ){
+
+      return (
+        a.queuedAt -
+        b.queuedAt
+      );
+
+    }
 
     return (
       b.priority -
@@ -711,14 +803,27 @@ async function processAPIQueue(){
 
       );
 
-      task.resolve(
-        executeAPIRequest(
+      Promise.resolve()
+
+      .then(() => {
+
+        return executeAPIRequest(
+
           task.options,
+
           task.requestId
-        )
-      );
+
+        );
+
+      })
+
+      .then(task.resolve)
+
+      .catch(task.reject);
 
     }
+
+    return true;
 
   }
 
@@ -741,6 +846,22 @@ async function processAPIQueue(){
 async function apiRequest(
   options = {}
 ){
+
+  if(
+    !validateAPIEnvironment()
+  ){
+
+    throw createAPIError({
+
+      message:
+      "Fetch unavailable",
+
+      code:
+      "FETCH_UNAVAILABLE"
+
+    });
+
+  }
 
   const requestId =
   createAPIRequestId();
@@ -1060,8 +1181,12 @@ async function executeAPIRequest(
           .successful++;
 
           apiRuntimeState
-          .status =
-          "success";
+          .lastError =
+          null;
+
+          setAPIStatus(
+            "success"
+          );
 
           await emitAPIRuntimeEvent(
 
@@ -1168,9 +1293,9 @@ async function executeAPIRequest(
         .lastError =
         String(error);
 
-        apiRuntimeState
-        .status =
-        "error";
+        setAPIStatus(
+          "error"
+        );
 
         await emitAPIRuntimeEvent(
 
@@ -1291,7 +1416,9 @@ function abortAllAPIRequests(){
 
     catch(error){
 
-      safeLogError(error);
+      safeLogError?.(
+        error
+      );
 
     }
 
@@ -1444,10 +1571,12 @@ async function uploadFile(
     );
 
     const result =
-   await apiRequest({
+    await apiRequest({
 
       endpoint:
-      "/files/upload",
+
+      API_RUNTIME_CONFIG
+      .UPLOAD_ENDPOINT,
 
       method:"POST",
 
@@ -1597,9 +1726,9 @@ function resetAPIRuntime(){
 
   abortAllAPIRequests();
 
-  apiRuntimeState
-  .status =
-  "idle";
+  setAPIStatus(
+    "idle"
+  );
 
   apiRuntimeState
   .pendingRequests =
