@@ -107,3 +107,20 @@ function freezeContainerObject(
   return value;
 
 }
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.dependencyContainerState =
+  dependencyContainerState;
+
+  window.freezeContainerObject =
+  freezeContainerObject;
+
+}
