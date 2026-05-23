@@ -2,7 +2,25 @@
 // RIGO AI
 // SERVICE REGISTRY
 // ENTERPRISE SERVICE CONTAINER
+// FINAL STABLE EDITION
 // =====================================
+
+
+
+// =====================================
+// SERVICE CONFIG
+// =====================================
+
+const SERVICE_REGISTRY_CONFIG =
+Object.freeze({
+
+  MAX_SERVICES:500,
+
+  ENABLE_FREEZE:true,
+
+  ENABLE_LOGGING:true
+
+});
 
 
 
@@ -14,6 +32,9 @@ const serviceRegistryState =
 Object.seal({
 
   initialized:false,
+
+  createdAt:
+  Date.now(),
 
   services:
   new Map(),
@@ -32,7 +53,7 @@ Object.seal({
 
 
 // =====================================
-// VALIDATE NAME
+// NORMALIZE NAME
 // =====================================
 
 function normalizeServiceName(
@@ -42,8 +63,161 @@ function normalizeServiceName(
   return String(
     serviceName || ""
   )
+  .normalize("NFKC")
   .trim()
   .toLowerCase();
+
+}
+
+
+
+// =====================================
+// SAFE METADATA
+// =====================================
+
+function sanitizeServiceMetadata(
+  metadata = {}
+){
+
+  if(
+    !metadata ||
+    typeof metadata !==
+    "object" ||
+    Array.isArray(metadata)
+  ){
+
+    return {};
+  }
+
+  try{
+
+    const cloned =
+    JSON.parse(
+      JSON.stringify(
+        metadata
+      )
+    );
+
+    return cloned;
+
+  }
+
+  catch(error){
+
+    return {};
+
+  }
+
+}
+
+
+
+// =====================================
+// LOG
+// =====================================
+
+function logServiceRegistryEvent(
+  message,
+  metadata = null
+){
+
+  if(
+
+    SERVICE_REGISTRY_CONFIG
+    .ENABLE_LOGGING !== true
+
+  ){
+
+    return false;
+
+  }
+
+  try{
+
+    if(
+      typeof logDiagnosticInfo ===
+      "function"
+    ){
+
+      logDiagnosticInfo(
+
+        "[SERVICE REGISTRY] " +
+        String(message),
+
+        metadata || null
+
+      );
+
+    }
+
+    else{
+
+      console.log(
+
+        "[SERVICE REGISTRY]",
+
+        message,
+
+        metadata || ""
+
+      );
+
+    }
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// VALIDATE SERVICE INSTANCE
+// =====================================
+
+function validateServiceInstance(
+  serviceInstance
+){
+
+  return (
+
+    serviceInstance !==
+    undefined
+
+    &&
+
+    serviceInstance !==
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// VALIDATE REGISTRY LIMIT
+// =====================================
+
+function validateRegistryLimit(){
+
+  return (
+
+    serviceRegistryState
+    .services
+    .size <
+
+    SERVICE_REGISTRY_CONFIG
+    .MAX_SERVICES
+
+  );
 
 }
 
@@ -72,6 +246,39 @@ function registerService(
 
   }
 
+  if(
+
+    !validateServiceInstance(
+      serviceInstance
+    )
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    !hasService(
+      normalizedName
+    )
+
+    &&
+
+    !validateRegistryLimit()
+
+  ){
+
+    return false;
+
+  }
+
+  const safeMetadata =
+  sanitizeServiceMetadata(
+    metadata
+  );
+
   serviceRegistryState
   .services
   .set(
@@ -93,9 +300,34 @@ function registerService(
       registeredAt:
       Date.now(),
 
-      ...metadata
+      updatedAt:
+      Date.now(),
+
+      name:
+      normalizedName,
+
+      ...safeMetadata
 
     })
+
+  );
+
+  serviceRegistryState
+  .failed
+  .delete(
+    normalizedName
+  );
+
+  logServiceRegistryEvent(
+
+    "SERVICE_REGISTERED",
+
+    {
+
+      service:
+      normalizedName
+
+    }
 
   );
 
@@ -118,10 +350,49 @@ function getService(
     serviceName
   );
 
+  if(
+    !normalizedName
+  ){
+
+    return null;
+
+  }
+
   return (
 
     serviceRegistryState
     .services
+    .get(
+      normalizedName
+    )
+
+    ||
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// GET SERVICE METADATA
+// =====================================
+
+function getServiceMetadata(
+  serviceName
+){
+
+  const normalizedName =
+  normalizeServiceName(
+    serviceName
+  );
+
+  return (
+
+    serviceRegistryState
+    .metadata
     .get(
       normalizedName
     )
@@ -150,11 +421,13 @@ function activateService(
   );
 
   if(
+
     !serviceRegistryState
     .services
     .has(
       normalizedName
     )
+
   ){
 
     return false;
@@ -165,6 +438,25 @@ function activateService(
   .active
   .add(
     normalizedName
+  );
+
+  serviceRegistryState
+  .failed
+  .delete(
+    normalizedName
+  );
+
+  logServiceRegistryEvent(
+
+    "SERVICE_ACTIVATED",
+
+    {
+
+      service:
+      normalizedName
+
+    }
+
   );
 
   return true;
@@ -186,10 +478,37 @@ function failService(
     serviceName
   );
 
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  serviceRegistryState
+  .active
+  .delete(
+    normalizedName
+  );
+
   serviceRegistryState
   .failed
   .add(
     normalizedName
+  );
+
+  logServiceRegistryEvent(
+
+    "SERVICE_FAILED",
+
+    {
+
+      service:
+      normalizedName
+
+    }
+
   );
 
   return true;
@@ -211,6 +530,14 @@ function removeService(
     serviceName
   );
 
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
   serviceRegistryState
   .active
   .delete(
@@ -229,11 +556,27 @@ function removeService(
     normalizedName
   );
 
-  return serviceRegistryState
+  const removed =
+  serviceRegistryState
   .services
   .delete(
     normalizedName
   );
+
+  logServiceRegistryEvent(
+
+    "SERVICE_REMOVED",
+
+    {
+
+      service:
+      normalizedName
+
+    }
+
+  );
+
+  return removed;
 
 }
 
@@ -280,6 +623,34 @@ function listServices(){
 
 
 // =====================================
+// CLEAR REGISTRY
+// =====================================
+
+function clearServiceRegistry(){
+
+  serviceRegistryState
+  .services
+  .clear();
+
+  serviceRegistryState
+  .active
+  .clear();
+
+  serviceRegistryState
+  .failed
+  .clear();
+
+  serviceRegistryState
+  .metadata
+  .clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
 // DIAGNOSTICS
 // =====================================
 
@@ -292,10 +663,27 @@ function getServiceRegistryDiagnostics(){
       serviceRegistryState
       .initialized,
 
+    createdAt:
+
+      serviceRegistryState
+      .createdAt,
+
     totalServices:
 
       serviceRegistryState
       .services
+      .size,
+
+    activeServices:
+
+      serviceRegistryState
+      .active
+      .size,
+
+    failedServices:
+
+      serviceRegistryState
+      .failed
       .size,
 
     active:[
@@ -310,7 +698,10 @@ function getServiceRegistryDiagnostics(){
       ...serviceRegistryState
       .failed
 
-    ]
+    ],
+
+    services:
+    listServices()
 
   });
 
@@ -337,6 +728,10 @@ function initializeServiceRegistry(){
   .initialized =
   true;
 
+  logServiceRegistryEvent(
+    "SERVICE_REGISTRY_READY"
+  );
+
   return true;
 
 }
@@ -359,6 +754,9 @@ Object.freeze({
   get:
   getService,
 
+  getMetadata:
+  getServiceMetadata,
+
   activate:
   activateService,
 
@@ -373,6 +771,9 @@ Object.freeze({
 
   list:
   listServices,
+
+  clear:
+  clearServiceRegistry,
 
   diagnostics:
   getServiceRegistryDiagnostics
