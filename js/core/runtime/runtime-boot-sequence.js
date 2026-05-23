@@ -6,12 +6,60 @@
 
 
 // =====================================
+// SAFE INITIALIZER
+// =====================================
+
+function resolveRuntimeInitializer(
+  initializer
+){
+
+  return (
+    typeof initializer ===
+    "function"
+  )
+
+  ? initializer
+
+  : null;
+
+}
+
+
+
+// =====================================
+// VALIDATE STEP
+// =====================================
+
+function isValidBootStep(
+  step
+){
+
+  return Boolean(
+
+    step &&
+
+    typeof step.name ===
+    "string" &&
+
+    typeof step.critical ===
+    "boolean" &&
+
+    typeof step.initialize ===
+    "function"
+
+  );
+
+}
+
+
+
+// =====================================
 // CREATE BOOT SEQUENCE
 // =====================================
 
 function createRuntimeBootSequence(){
 
-  return [
+  const sequence = [
 
 
 
@@ -26,7 +74,20 @@ function createRuntimeBootSequence(){
       critical:true,
 
       initialize:
-      initializeDiagnosticsSystem
+      resolveRuntimeInitializer(
+
+        typeof initializeDiagnosticsSystem ===
+        "function"
+
+        ?
+
+        initializeDiagnosticsSystem
+
+        :
+
+        null
+
+      )
 
     },
 
@@ -37,7 +98,20 @@ function createRuntimeBootSequence(){
       critical:true,
 
       initialize:
-      initializeSystemEvents
+      resolveRuntimeInitializer(
+
+        typeof initializeSystemEvents ===
+        "function"
+
+        ?
+
+        initializeSystemEvents
+
+        :
+
+        null
+
+      )
 
     },
 
@@ -48,7 +122,20 @@ function createRuntimeBootSequence(){
       critical:true,
 
       initialize:
-      initializeStateManager
+      resolveRuntimeInitializer(
+
+        typeof initializeStateManager ===
+        "function"
+
+        ?
+
+        initializeStateManager
+
+        :
+
+        null
+
+      )
 
     },
 
@@ -65,7 +152,20 @@ function createRuntimeBootSequence(){
       critical:true,
 
       initialize:
-      initializeDependencyContainer
+      resolveRuntimeInitializer(
+
+        typeof initializeDependencyContainer ===
+        "function"
+
+        ?
+
+        initializeDependencyContainer
+
+        :
+
+        null
+
+      )
 
     },
 
@@ -76,7 +176,20 @@ function createRuntimeBootSequence(){
       critical:true,
 
       initialize:
-      initializeModuleLoader
+      resolveRuntimeInitializer(
+
+        typeof initializeModuleLoader ===
+        "function"
+
+        ?
+
+        initializeModuleLoader
+
+        :
+
+        null
+
+      )
 
     },
 
@@ -87,7 +200,20 @@ function createRuntimeBootSequence(){
       critical:false,
 
       initialize:
-      initializeConfigRuntime
+      resolveRuntimeInitializer(
+
+        typeof initializeConfigRuntime ===
+        "function"
+
+        ?
+
+        initializeConfigRuntime
+
+        :
+
+        null
+
+      )
 
     },
 
@@ -104,8 +230,12 @@ function createRuntimeBootSequence(){
       critical:false,
 
       initialize:
-      MemoryAPI
-      ?.initialize
+      resolveRuntimeInitializer(
+
+        MemoryAPI
+        ?.initialize
+
+      )
 
     },
 
@@ -122,7 +252,20 @@ function createRuntimeBootSequence(){
       critical:false,
 
       initialize:
-      initializeUI
+      resolveRuntimeInitializer(
+
+        typeof initializeUI ===
+        "function"
+
+        ?
+
+        initializeUI
+
+        :
+
+        null
+
+      )
 
     },
 
@@ -139,8 +282,12 @@ function createRuntimeBootSequence(){
       critical:false,
 
       initialize:
-      NotificationRuntime
-      ?.initialize
+      resolveRuntimeInitializer(
+
+        NotificationRuntime
+        ?.initialize
+
+      )
 
     },
 
@@ -151,8 +298,12 @@ function createRuntimeBootSequence(){
       critical:false,
 
       initialize:
-      BackgroundSyncRuntime
-      ?.initialize
+      resolveRuntimeInitializer(
+
+        BackgroundSyncRuntime
+        ?.initialize
+
+      )
 
     },
 
@@ -163,8 +314,12 @@ function createRuntimeBootSequence(){
       critical:false,
 
       initialize:
-      VoiceRuntime
-      ?.initialize
+      resolveRuntimeInitializer(
+
+        VoiceRuntime
+        ?.initialize
+
+      )
 
     },
 
@@ -175,11 +330,52 @@ function createRuntimeBootSequence(){
       critical:false,
 
       initialize:
-      OfflineRuntime
-      ?.initialize
+      resolveRuntimeInitializer(
+
+        OfflineRuntime
+        ?.initialize
+
+      )
 
     }
 
   ];
+
+  return sequence.filter(
+    isValidBootStep
+  );
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const RuntimeBootSequence =
+Object.freeze({
+
+  create:
+  createRuntimeBootSequence
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.RuntimeBootSequence =
+  RuntimeBootSequence;
+
+  window.createRuntimeBootSequence =
+  createRuntimeBootSequence;
 
 }
