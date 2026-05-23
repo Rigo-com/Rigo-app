@@ -256,3 +256,69 @@ async function removeService(
   return true;
 
 }
+
+// =====================================
+// GET REGISTERED SERVICES
+// =====================================
+
+function getRegisteredServices(){
+
+  return [
+
+    ...dependencyContainerState
+    .services
+    .keys()
+
+  ];
+
+}
+
+
+
+// =====================================
+// SERVICE EXISTS
+// =====================================
+
+function hasRegisteredService(
+  serviceName
+){
+
+  const normalizedName =
+  normalizeServiceName(
+    serviceName
+  );
+
+  return (
+    dependencyContainerState
+    .services
+    .has(
+      normalizedName
+    )
+  );
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.registerService =
+  registerService;
+
+  window.removeService =
+  removeService;
+
+  window.getRegisteredServices =
+  getRegisteredServices;
+
+  window.hasRegisteredService =
+  hasRegisteredService;
+
+}
