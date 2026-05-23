@@ -204,6 +204,47 @@ function safeClone(
 
 
 
+function continueQueueProcessing(){
+
+  if(
+    chatRuntimeState.generating
+  ){
+
+    return;
+  }
+
+  if(
+
+    chatRuntimeState.queue
+    .length <= 0
+
+  ){
+
+    return;
+  }
+
+  Promise.resolve()
+  .then(() => {
+
+    return processAIQueue();
+
+  })
+  .catch((error) => {
+
+    safeLogError(
+
+      "QUEUE CONTINUE ERROR:",
+
+      error
+
+    );
+
+  });
+
+}
+
+
+
 // =====================================
 // CREATE QUEUE ITEM
 // =====================================
@@ -383,8 +424,7 @@ async function sendMessage(){
 
   );
 
-  processAIQueue()
-  .catch(safeLogError);
+  continueQueueProcessing();
 
   return true;
 
@@ -451,6 +491,10 @@ async function processAIQueue(){
   true;
 
   chatRuntimeState
+  .streaming =
+  true;
+
+  chatRuntimeState
   .activeMessageId =
   queueItem.id;
 
@@ -479,7 +523,19 @@ async function processAIQueue(){
 
     generated =
     await generateAIResponse(
-      queueItem.id
+
+      queueItem.id,
+
+      {
+
+        signal:
+
+          chatRuntimeState
+          .generationController
+          .signal
+
+      }
+
     );
 
     if(generated){
@@ -521,70 +577,115 @@ async function processAIQueue(){
 
   catch(error){
 
-    chatRuntimeState
-    .diagnostics
-    .failed++;
+    const aborted =
 
-    if(
+      error?.name ===
+      "AbortError";
 
-      queueItem.retries <
-
-      CHAT_RUNTIME_CONFIG
-      .MAX_RETRIES
-
-    ){
-
-      queueItem.retries++;
-
-      chatRuntimeState
-      .diagnostics
-      .retries++;
+    if(aborted){
 
       await emitChatRuntimeEvent(
 
         CHAT_RUNTIME_EVENTS
-        .MESSAGE_RETRY,
+        .GENERATION_ABORTED,
+
+        {
+
+          messageId:
+          queueItem.id
+
+        }
+
+      );
+
+    }
+
+    else{
+
+      chatRuntimeState
+      .diagnostics
+      .failed++;
+
+      if(
+
+        queueItem.retries <
+
+        CHAT_RUNTIME_CONFIG
+        .MAX_RETRIES
+
+      ){
+
+        queueItem.retries++;
+
+        chatRuntimeState
+        .diagnostics
+        .retries++;
+
+        await emitChatRuntimeEvent(
+
+          CHAT_RUNTIME_EVENTS
+          .MESSAGE_RETRY,
+
+          {
+
+            messageId:
+            queueItem.id,
+
+            retries:
+            queueItem.retries
+
+          }
+
+        );
+
+        chatRuntimeState
+        .generating =
+        false;
+
+        chatRuntimeState
+        .streaming =
+        false;
+
+        chatRuntimeState
+        .activeMessageId =
+        null;
+
+        chatRuntimeState
+        .generationController =
+        null;
+
+        continueQueueProcessing();
+
+        return false;
+
+      }
+
+      safeLogError(
+
+        "QUEUE PROCESS ERROR:",
+
+        error
+
+      );
+
+      await emitChatRuntimeEvent(
+
+        CHAT_RUNTIME_EVENTS
+        .MESSAGE_FAILED,
 
         {
 
           messageId:
           queueItem.id,
 
-          retries:
-          queueItem.retries
+          error:
+          String(error)
 
         }
 
       );
 
-      return processAIQueue();
-
     }
-
-    safeLogError(
-
-      "QUEUE PROCESS ERROR:",
-
-      error
-
-    );
-
-    await emitChatRuntimeEvent(
-
-      CHAT_RUNTIME_EVENTS
-      .MESSAGE_FAILED,
-
-      {
-
-        messageId:
-        queueItem.id,
-
-        error:
-        String(error)
-
-      }
-
-    );
 
   }
 
@@ -608,12 +709,18 @@ async function processAIQueue(){
     false;
 
     chatRuntimeState
+    .streaming =
+    false;
+
+    chatRuntimeState
     .activeMessageId =
     null;
 
     chatRuntimeState
     .generationController =
     null;
+
+    continueQueueProcessing();
 
   }
 
@@ -640,10 +747,30 @@ async function abortMessageGeneration(){
 
   }
 
-  controller.abort();
+  try{
+
+    controller.abort();
+
+  }
+
+  catch(error){
+
+    safeLogError(
+
+      "ABORT ERROR:",
+
+      error
+
+    );
+
+  }
 
   chatRuntimeState
   .generating =
+  false;
+
+  chatRuntimeState
+  .streaming =
   false;
 
   await emitChatRuntimeEvent(
@@ -815,9 +942,18 @@ function showTypingIndicator(){
 
     "RIGO AI is typing...";
 
-  chatContainer.appendChild(
-    typingIndicatorElement
-  );
+  if(
+
+    !typingIndicatorElement
+    .isConnected
+
+  ){
+
+    chatContainer.appendChild(
+      typingIndicatorElement
+    );
+
+  }
 
   scrollToBottom();
 
@@ -831,7 +967,9 @@ function showTypingIndicator(){
 // RESET CHAT
 // =====================================
 
-function resetCurrentChat(){
+async function resetCurrentChat(){
+
+  await abortMessageGeneration();
 
   chatRuntimeState
   .queue = [];
@@ -896,7 +1034,7 @@ function resetCurrentChat(){
   .diagnostics
   .resets++;
 
-  emitChatRuntimeEvent(
+  await emitChatRuntimeEvent(
 
     CHAT_RUNTIME_EVENTS
     .CHAT_RESET
@@ -997,12 +1135,42 @@ function debouncedSaveCurrentChat(){
 
 
 // =====================================
+// INITIALIZE
+// =====================================
+
+function initializeChatRuntime(){
+
+  if(
+    chatRuntimeState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  chatRuntimeState
+  .initialized =
+  true;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // GET STATUS
 // =====================================
 
 function getChatRuntimeStatus(){
 
   return safeClone({
+
+    initialized:
+
+      chatRuntimeState
+      .initialized,
 
     generating:
 
@@ -1045,7 +1213,9 @@ function getChatRuntimeStatus(){
 // RESET RUNTIME
 // =====================================
 
-function resetChatRuntime(){
+async function resetChatRuntime(){
+
+  await abortMessageGeneration();
 
   chatRuntimeState
   .generating =
@@ -1097,6 +1267,9 @@ function resetChatRuntime(){
 
 const ChatRuntime =
 Object.freeze({
+
+  initialize:
+  initializeChatRuntime,
 
   send:
   sendMessage,
