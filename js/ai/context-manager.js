@@ -45,6 +45,15 @@ Object.freeze({
   MAX_CONTEXT_AGE:
   1000 * 60 * 60 * 24,
 
+  MAX_CONTENT_SIZE:
+  100000,
+
+  MAX_QUERY_LENGTH:
+  500,
+
+  MAX_WINDOW_CONTEXTS:
+  50,
+
   COMPRESSION_PREVIEW_LENGTH:
   500
 
@@ -141,7 +150,9 @@ Object.seal({
 
     synchronized:0,
 
-    evicted:0
+    evicted:0,
+
+    rejected:0
 
   },
 
@@ -230,6 +241,30 @@ function freezeContextObject(
 
 
 
+function cloneContextObject(
+  value
+){
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return {};
+
+  }
+
+}
+
+
+
 function cloneContextDiagnostics(){
 
   return freezeContextObject({
@@ -238,6 +273,41 @@ function cloneContextDiagnostics(){
     .diagnostics
 
   });
+
+}
+
+
+
+function createContextId(){
+
+  try{
+
+    if(
+      typeof createMemoryId ===
+      "function"
+    ){
+
+      return createMemoryId();
+
+    }
+
+  }
+
+  catch(error){}
+
+  return (
+
+    "context_" +
+
+    Date.now() +
+
+    "_" +
+
+    Math.random()
+    .toString(36)
+    .slice(2,10)
+
+  );
 
 }
 
@@ -263,6 +333,49 @@ function estimateContextTokens(
     return 0;
 
   }
+
+}
+
+
+
+function serializeContextContent(
+  content
+){
+
+  try{
+
+    return JSON.stringify(
+      content
+    );
+
+  }
+
+  catch(error){
+
+    return "";
+  }
+
+}
+
+
+
+function isContextContentValid(
+  content
+){
+
+  const serialized =
+  serializeContextContent(
+    content
+  );
+
+  return (
+
+    serialized.length <=
+
+    CONTEXT_MANAGER_CONFIG
+    .MAX_CONTENT_SIZE
+
+  );
 
 }
 
@@ -421,6 +534,47 @@ async function emitContextEvent(
 
 
 
+function createContextSnapshot(){
+
+  return freezeContextObject({
+
+    initialized:
+    contextManagerState
+    .initialized,
+
+    contexts:
+
+      contextManagerState
+      .contexts
+      .size,
+
+    sessions:
+
+      contextManagerState
+      .sessions
+      .size,
+
+    runtimeContexts:
+
+      contextManagerState
+      .runtimeContexts
+      .size,
+
+    sharedContexts:
+
+      contextManagerState
+      .sharedContexts
+      .size,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
 // =====================================
 // CREATE CONTEXT
 // =====================================
@@ -429,19 +583,37 @@ function createContextObject(
   config = {}
 ){
 
-  const contextId =
-  normalizeContextId(
+  const content =
+  cloneContextObject(
 
-    config.id ||
-
-    createMemoryId()
+    config.content ||
+    {}
 
   );
 
-  return freezeContextObject({
+  const metadata =
+  cloneContextObject(
+
+    config.metadata ||
+    {}
+
+  );
+
+  const tokens =
+  estimateContextTokens(
+    content
+  );
+
+  return {
 
     id:
-    contextId,
+    normalizeContextId(
+
+      config.id ||
+
+      createContextId()
+
+    ),
 
     type:
 
@@ -458,25 +630,11 @@ function createContextObject(
 
     score:0,
 
-    tokens:0,
+    tokens,
 
-    content:
+    content,
 
-      freezeContextObject(
-
-        config.content ||
-        {}
-
-      ),
-
-    metadata:
-
-      freezeContextObject(
-
-        config.metadata ||
-        {}
-
-      ),
+    metadata,
 
     createdAt:
     Date.now(),
@@ -484,7 +642,7 @@ function createContextObject(
     updatedAt:
     Date.now()
 
-  });
+  };
 
 }
 
@@ -515,10 +673,43 @@ async function registerContext(
 
   }
 
+  if(
+
+    !isContextContentValid(
+      config.content
+    )
+
+  ){
+
+    contextManagerState
+    .diagnostics
+    .rejected++;
+
+    return false;
+
+  }
+
   const context =
   createContextObject(
     config
   );
+
+  if(
+
+    context.tokens >
+
+    CONTEXT_MANAGER_CONFIG
+    .MAX_CONTEXT_TOKENS
+
+  ){
+
+    contextManagerState
+    .diagnostics
+    .rejected++;
+
+    return false;
+
+  }
 
   if(
 
@@ -534,18 +725,16 @@ async function registerContext(
 
   }
 
-  context.tokens =
-  estimateContextTokens(
-    context.content
-  );
-
   contextManagerState
   .contexts
   .set(
+
     context.id,
+
     freezeContextObject(
       context
     )
+
   );
 
   contextManagerState
@@ -592,7 +781,7 @@ async function updateContext(
     contextId
   );
 
-  const context =
+  const existingContext =
 
     contextManagerState
     .contexts
@@ -600,34 +789,85 @@ async function updateContext(
       normalizedId
     );
 
-  if(!context){
+  if(!existingContext){
 
     return false;
 
   }
 
-  const updatedContext =
-  freezeContextObject({
+  const mergedContent = {
 
-    ...context,
+    ...cloneContextObject(
+      existingContext
+      .content
+    ),
+
+    ...cloneContextObject(
+      updates.content
+    )
+
+  };
+
+  const mergedMetadata = {
+
+    ...cloneContextObject(
+      existingContext
+      .metadata
+    ),
+
+    ...cloneContextObject(
+      updates.metadata
+    )
+
+  };
+
+  if(
+    !isContextContentValid(
+      mergedContent
+    )
+  ){
+
+    contextManagerState
+    .diagnostics
+    .rejected++;
+
+    return false;
+
+  }
+
+  const updatedTokens =
+  estimateContextTokens(
+    mergedContent
+  );
+
+  if(
+
+    updatedTokens >
+
+    CONTEXT_MANAGER_CONFIG
+    .MAX_CONTEXT_TOKENS
+
+  ){
+
+    contextManagerState
+    .diagnostics
+    .rejected++;
+
+    return false;
+
+  }
+
+  const updatedContext = {
+
+    ...cloneContextObject(
+      existingContext
+    ),
 
     content:
-    freezeContextObject({
-
-      ...context.content,
-
-      ...updates.content
-
-    }),
+    mergedContent,
 
     metadata:
-    freezeContextObject({
-
-      ...context.metadata,
-
-      ...updates.metadata
-
-    }),
+    mergedMetadata,
 
     priority:
 
@@ -637,17 +877,16 @@ async function updateContext(
 
       ||
 
-      context.priority,
+      existingContext
+      .priority,
+
+    tokens:
+    updatedTokens,
 
     updatedAt:
     Date.now()
 
-  });
-
-  updatedContext.tokens =
-  estimateContextTokens(
-    updatedContext.content
-  );
+  };
 
   contextManagerState
   .contexts
@@ -741,19 +980,30 @@ function calculateContextScore(
 
   try{
 
+    const normalizedQuery =
+    String(query)
+    .slice(
+
+      0,
+
+      CONTEXT_MANAGER_CONFIG
+      .MAX_QUERY_LENGTH
+
+    )
+    .toLowerCase();
+
     const serialized =
-    JSON.stringify(
+    serializeContextContent(
       context.content
     )
     .toLowerCase();
 
     if(
 
+      normalizedQuery &&
+
       serialized.includes(
-
-        String(query)
-        .toLowerCase()
-
+        normalizedQuery
       )
 
     ){
@@ -806,7 +1056,9 @@ async function rankContexts(
 
     return freezeContextObject({
 
-      ...context,
+      ...cloneContextObject(
+        context
+      ),
 
       score
 
@@ -873,15 +1125,13 @@ async function compressContext(
   }
 
   const serialized =
-  JSON.stringify(
+  serializeContextContent(
     context.content
   );
 
   if(
 
-    estimateContextTokens(
-      context.content
-    ) <=
+    context.tokens <=
 
     CONTEXT_MANAGER_CONFIG
     .MAX_CONTEXT_TOKENS
@@ -892,8 +1142,7 @@ async function compressContext(
 
   }
 
-  const compressedContent =
-  freezeContextObject({
+  const compressedContent = {
 
     compressed:true,
 
@@ -905,12 +1154,13 @@ async function compressContext(
     originalTokens:
     context.tokens
 
-  });
+  };
 
-  const compressedContext =
-  freezeContextObject({
+  const compressedContext = {
 
-    ...context,
+    ...cloneContextObject(
+      context
+    ),
 
     content:
     compressedContent,
@@ -923,7 +1173,7 @@ async function compressContext(
     updatedAt:
     Date.now()
 
-  });
+  };
 
   contextManagerState
   .contexts
@@ -931,7 +1181,9 @@ async function compressContext(
 
     normalizedId,
 
-    compressedContext
+    freezeContextObject(
+      compressedContext
+    )
 
   );
 
@@ -1102,6 +1354,19 @@ async function buildContextWindow(
 
     if(
 
+      windowContexts.length >=
+
+      CONTEXT_MANAGER_CONFIG
+      .MAX_WINDOW_CONTEXTS
+
+    ){
+
+      break;
+
+    }
+
+    if(
+
       (
         totalTokens +
         context.tokens
@@ -1117,7 +1382,9 @@ async function buildContextWindow(
 
     windowContexts.push(
       freezeContextObject(
-        context
+        cloneContextObject(
+          context
+        )
       )
     );
 
@@ -1199,6 +1466,51 @@ async function removeContext(
   );
 
   return true;
+
+}
+
+
+
+// =====================================
+// HEALTH REPORT
+// =====================================
+
+function getContextHealthReport(){
+
+  return freezeContextObject({
+
+    initialized:
+    contextManagerState
+    .initialized,
+
+    healthy:
+
+      contextManagerState
+      .contexts
+      .size <=
+
+      CONTEXT_MANAGER_CONFIG
+      .MAX_CONTEXTS,
+
+    contexts:
+
+      contextManagerState
+      .contexts
+      .size,
+
+    sessions:
+
+      contextManagerState
+      .sessions
+      .size,
+
+    diagnostics:
+    cloneContextDiagnostics(),
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -1291,7 +1603,9 @@ async function resetContextManager(){
 
     synchronized:0,
 
-    evicted:0
+    evicted:0,
+
+    rejected:0
 
   };
 
@@ -1336,6 +1650,27 @@ async function initializeContextManager(){
     contextManagerState
     .initialized =
     true;
+
+
+
+    // ================================
+    // MODULE REGISTRATION
+    // ================================
+
+    if(
+      typeof registerModule ===
+      "function"
+    ){
+
+      await registerModule(
+
+        "context-manager",
+
+        async () => ContextManager
+
+      );
+
+    }
 
     return true;
 
@@ -1386,6 +1721,12 @@ Object.freeze({
 
   diagnostics:
   getContextDiagnostics,
+
+  health:
+  getContextHealthReport,
+
+  snapshot:
+  createContextSnapshot,
 
   reset:
   resetContextManager
