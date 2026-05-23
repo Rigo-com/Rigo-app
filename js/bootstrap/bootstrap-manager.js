@@ -172,12 +172,9 @@ function freezeBootstrapObject(
 ){
 
   if(
-
     !value ||
-
     typeof value !==
     "object"
-
   ){
 
     return value;
@@ -192,24 +189,17 @@ function freezeBootstrapObject(
 
   }
 
-  visited.add(
-    value
-  );
+  visited.add(value);
 
-  Object.freeze(
-    value
-  );
+  Object.freeze(value);
 
   Object.values(value)
   .forEach((nestedValue) => {
 
     if(
-
       nestedValue &&
-
       typeof nestedValue ===
       "object"
-
     ){
 
       freezeBootstrapObject(
@@ -222,6 +212,19 @@ function freezeBootstrapObject(
   });
 
   return value;
+
+}
+
+
+
+function cloneBootstrapDiagnostics(){
+
+  return freezeBootstrapObject({
+
+    ...bootstrapState
+    .diagnostics
+
+  });
 
 }
 
@@ -291,10 +294,8 @@ function safeBootstrapLog(
 ){
 
   if(
-
     !BOOTSTRAP_CONFIG
     .ENABLE_BOOT_LOGS
-
   ){
 
     return false;
@@ -308,6 +309,8 @@ function safeBootstrapLog(
       ...args
     );
 
+    return true;
+
   }
 
   catch(error){
@@ -315,8 +318,6 @@ function safeBootstrapLog(
     return false;
 
   }
-
-  return true;
 
 }
 
@@ -327,6 +328,10 @@ function safeBootstrapLog(
 // =====================================
 
 function buildDependencyGraph(){
+
+  bootstrapState
+  .dependencyGraph
+  .clear();
 
   bootstrapState
   .dependencyGraph
@@ -391,23 +396,59 @@ function validateBootstrapSystems(){
 
   return (
 
-    typeof AIKernel
-    ?.initialize ===
-    "function" &&
+    typeof initializeDiagnosticsSystem ===
+    "function"
 
-    typeof AIRuntimeBridge
+    &&
+
+    typeof initializeSystemEvents ===
+    "function"
+
+    &&
+
+    typeof RuntimeManager
     ?.initialize ===
-    "function" &&
+    "function"
+
+    &&
+
+    typeof AgentManager
+    ?.initialize ===
+    "function"
+
+    &&
+
+    typeof ContextManager
+    ?.initialize ===
+    "function"
+
+    &&
+
+    typeof ToolExecutor
+    ?.initialize ===
+    "function"
+
+    &&
 
     typeof WorkflowEngine
     ?.initialize ===
-    "function" &&
+    "function"
+
+    &&
 
     typeof PlannerEngine
     ?.initialize ===
-    "function" &&
+    "function"
 
-    typeof ToolExecutor
+    &&
+
+    typeof AIKernel
+    ?.initialize ===
+    "function"
+
+    &&
+
+    typeof AIRuntimeBridge
     ?.initialize ===
     "function"
 
@@ -426,101 +467,71 @@ async function initializeBootstrapSystems(){
   const systems = [
 
     {
-
       name:"diagnostics",
-
       initialize:
       initializeDiagnosticsSystem
-
     },
 
     {
-
       name:"events",
-
       initialize:
       initializeSystemEvents
-
     },
 
     {
-
       name:"runtime",
-
       initialize:
-
-        RuntimeManager
-        ?.initialize
+      RuntimeManager
+      ?.initialize
     },
 
     {
-
       name:"agents",
-
       initialize:
       AgentManager
       ?.initialize
-
     },
 
     {
-
       name:"contexts",
-
       initialize:
       ContextManager
       ?.initialize
-
     },
 
     {
-
       name:"tools",
-
       initialize:
       ToolExecutor
       ?.initialize
-
     },
 
     {
-
       name:"planner",
-
       initialize:
       PlannerEngine
       ?.initialize
-
     },
 
     {
-
       name:"workflows",
-
       initialize:
       WorkflowEngine
       ?.initialize
-
     },
 
     {
-
       name:"kernel",
-
       initialize:
       AIKernel
       ?.initialize
-
     },
 
     {
-
       name:"bridge",
-
       initialize:
       AIRuntimeBridge
       ?.initialize
-
     }
 
   ];
@@ -545,9 +556,11 @@ async function initializeBootstrapSystems(){
 
       bootstrapState
       .initializedSystems
-      .add(
-        system.name
-      );
+      .add(system.name);
+
+      bootstrapState
+      .failedSystems
+      .delete(system.name);
 
       bootstrapState
       .diagnostics
@@ -559,20 +572,15 @@ async function initializeBootstrapSystems(){
         .SYSTEM_INITIALIZED,
 
         {
-
           system:
           system.name
-
         }
 
       );
 
       safeBootstrapLog(
-
         "INITIALIZED:",
-
         system.name
-
       );
 
     }
@@ -581,9 +589,7 @@ async function initializeBootstrapSystems(){
 
       bootstrapState
       .failedSystems
-      .add(
-        system.name
-      );
+      .add(system.name);
 
       bootstrapState
       .lastError =
@@ -608,10 +614,8 @@ async function initializeBootstrapSystems(){
 async function validateBootHealth(){
 
   if(
-
     !BOOTSTRAP_CONFIG
     .ENABLE_HEALTH_VALIDATION
-
   ){
 
     return true;
@@ -631,7 +635,6 @@ async function validateBootHealth(){
     const healthy = (
 
       kernelHealth &&
-
       bridgeHealth
 
     );
@@ -649,10 +652,8 @@ async function validateBootHealth(){
     .validations++;
 
     await emitBootstrapEvent(
-
       BOOTSTRAP_EVENTS
       .VALIDATION_COMPLETED
-
     );
 
     return true;
@@ -680,10 +681,8 @@ async function validateBootHealth(){
 async function executeBootPreloads(){
 
   if(
-
     !BOOTSTRAP_CONFIG
     .ENABLE_PRELOADS
-
   ){
 
     return true;
@@ -720,7 +719,13 @@ async function executeBootPreloads(){
 // BOOT SYSTEM
 // =====================================
 
-async function bootRigoPlatform(){
+async function bootRigoPlatform(
+  options = {}
+){
+
+  const recoveryMode =
+  options.recovery ===
+  true;
 
   if(
     bootstrapState.booting
@@ -730,7 +735,8 @@ async function bootRigoPlatform(){
 
   }
 
-  bootstrapState.booting =
+  bootstrapState
+  .booting =
   true;
 
   bootstrapState
@@ -747,11 +753,11 @@ async function bootRigoPlatform(){
   );
 
   await emitBootstrapEvent(
-
     BOOTSTRAP_EVENTS
     .BOOT_STARTED
-
   );
+
+  let timeoutId = null;
 
   try{
 
@@ -781,6 +787,7 @@ async function bootRigoPlatform(){
 
       new Promise((_,reject) => {
 
+        timeoutId =
         setTimeout(() => {
 
           reject(
@@ -834,10 +841,8 @@ async function bootRigoPlatform(){
     );
 
     await emitBootstrapEvent(
-
       BOOTSTRAP_EVENTS
       .BOOT_COMPLETED
-
     );
 
     safeBootstrapLog(
@@ -869,19 +874,17 @@ async function bootRigoPlatform(){
       .BOOT_FAILED,
 
       {
-
         error:
         String(error)
-
       }
 
     );
 
     if(
-
       BOOTSTRAP_CONFIG
       .ENABLE_RECOVERY
-
+      &&
+      !recoveryMode
     ){
 
       await recoverBootstrap();
@@ -893,6 +896,14 @@ async function bootRigoPlatform(){
   }
 
   finally{
+
+    if(timeoutId){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
 
     bootstrapState
     .booting =
@@ -952,16 +963,22 @@ async function recoverBootstrap(){
 
   }
 
+  bootstrapState
+  .initializedSystems
+  .clear();
+
+  bootstrapState
+  .failedSystems
+  .clear();
+
   setBootstrapState(
     BOOTSTRAP_STATES
     .RECOVERING
   );
 
   await emitBootstrapEvent(
-
     BOOTSTRAP_EVENTS
     .RECOVERY_STARTED
-
   );
 
   try{
@@ -973,7 +990,11 @@ async function recoverBootstrap(){
     ?.recover?.();
 
     const rebooted =
-    await bootRigoPlatform();
+    await bootRigoPlatform({
+
+      recovery:true
+
+    });
 
     if(!rebooted){
 
@@ -982,10 +1003,8 @@ async function recoverBootstrap(){
     }
 
     await emitBootstrapEvent(
-
       BOOTSTRAP_EVENTS
       .RECOVERY_COMPLETED
-
     );
 
     return true;
@@ -1048,10 +1067,8 @@ async function shutdownRigoPlatform(){
   );
 
   await emitBootstrapEvent(
-
     BOOTSTRAP_EVENTS
     .SHUTDOWN_STARTED
-
   );
 
   try{
@@ -1076,6 +1093,14 @@ async function shutdownRigoPlatform(){
     .clear();
 
     bootstrapState
+    .failedSystems
+    .clear();
+
+    bootstrapState
+    .dependencyGraph
+    .clear();
+
+    bootstrapState
     .initialized =
     false;
 
@@ -1091,20 +1116,14 @@ async function shutdownRigoPlatform(){
     .lastError =
     null;
 
-    bootstrapState
-    .failedSystems
-    .clear();
-
     setBootstrapState(
       BOOTSTRAP_STATES
       .IDLE
     );
 
     await emitBootstrapEvent(
-
       BOOTSTRAP_EVENTS
       .SHUTDOWN_COMPLETED
-
     );
 
     return true;
@@ -1116,6 +1135,11 @@ async function shutdownRigoPlatform(){
     bootstrapState
     .lastError =
     error;
+
+    setBootstrapState(
+      BOOTSTRAP_STATES
+      .FAILED
+    );
 
     return false;
 
@@ -1158,9 +1182,8 @@ function getBootstrapDiagnostics(){
     .recovering,
 
     shuttingDown:
-
-      bootstrapState
-      .shuttingDown,
+    bootstrapState
+    .shuttingDown,
 
     initializedSystems:[
 
@@ -1177,9 +1200,7 @@ function getBootstrapDiagnostics(){
     ],
 
     diagnostics:
-
-      bootstrapState
-      .diagnostics,
+    cloneBootstrapDiagnostics(),
 
     startedAt:
     bootstrapState
