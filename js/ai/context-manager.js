@@ -40,7 +40,13 @@ Object.freeze({
   100,
 
   MAX_RUNTIME_CONTEXTS:
-  200
+  200,
+
+  MAX_CONTEXT_AGE:
+  1000 * 60 * 60 * 24,
+
+  COMPRESSION_PREVIEW_LENGTH:
+  500
 
 });
 
@@ -107,6 +113,8 @@ Object.seal({
 
   initialized:false,
 
+  initializing:false,
+
   contexts:
   new Map(),
 
@@ -131,7 +139,9 @@ Object.seal({
 
     ranked:0,
 
-    synchronized:0
+    synchronized:0,
+
+    evicted:0
 
   },
 
@@ -220,6 +230,19 @@ function freezeContextObject(
 
 
 
+function cloneContextDiagnostics(){
+
+  return freezeContextObject({
+
+    ...contextManagerState
+    .diagnostics
+
+  });
+
+}
+
+
+
 function estimateContextTokens(
   value
 ){
@@ -238,6 +261,115 @@ function estimateContextTokens(
   catch(error){
 
     return 0;
+
+  }
+
+}
+
+
+
+function createCompressionPreview(
+  serialized
+){
+
+  if(
+    typeof serialized !==
+    "string"
+  ){
+
+    return "";
+  }
+
+  return serialized
+  .slice(
+
+    0,
+
+    CONTEXT_MANAGER_CONFIG
+    .COMPRESSION_PREVIEW_LENGTH
+
+  )
+  .trim();
+
+}
+
+
+
+function cleanupOrphanSessionReferences(
+  contextId
+){
+
+  for(
+
+    const sessionSet
+
+    of
+
+    contextManagerState
+    .sessions
+    .values()
+
+  ){
+
+    sessionSet.delete(
+      contextId
+    );
+
+  }
+
+}
+
+
+
+function evictOldContexts(){
+
+  const now =
+  Date.now();
+
+  for(
+
+    const [
+
+      contextId,
+      context
+
+    ]
+
+    of
+
+    contextManagerState
+    .contexts
+
+  ){
+
+    const age =
+    now -
+    context.updatedAt;
+
+    if(
+
+      age >
+
+      CONTEXT_MANAGER_CONFIG
+      .MAX_CONTEXT_AGE
+
+    ){
+
+      contextManagerState
+      .contexts
+      .delete(
+        contextId
+      );
+
+      cleanupOrphanSessionReferences(
+        contextId
+      );
+
+      contextManagerState
+      .diagnostics
+      .evicted++;
+
+    }
 
   }
 
@@ -306,7 +438,7 @@ function createContextObject(
 
   );
 
-  return {
+  return freezeContextObject({
 
     id:
     contextId,
@@ -352,7 +484,7 @@ function createContextObject(
     updatedAt:
     Date.now()
 
-  };
+  });
 
 }
 
@@ -365,6 +497,8 @@ function createContextObject(
 async function registerContext(
   config = {}
 ){
+
+  evictOldContexts();
 
   if(
 
@@ -386,6 +520,20 @@ async function registerContext(
     config
   );
 
+  if(
+
+    contextManagerState
+    .contexts
+    .has(
+      context.id
+    )
+
+  ){
+
+    return false;
+
+  }
+
   context.tokens =
   estimateContextTokens(
     context.content
@@ -395,7 +543,9 @@ async function registerContext(
   .contexts
   .set(
     context.id,
-    context
+    freezeContextObject(
+      context
+    )
   );
 
   contextManagerState
@@ -456,41 +606,60 @@ async function updateContext(
 
   }
 
-  context.content =
+  const updatedContext =
   freezeContextObject({
 
-    ...context.content,
+    ...context,
 
-    ...updates.content
+    content:
+    freezeContextObject({
+
+      ...context.content,
+
+      ...updates.content
+
+    }),
+
+    metadata:
+    freezeContextObject({
+
+      ...context.metadata,
+
+      ...updates.metadata
+
+    }),
+
+    priority:
+
+      Number(
+        updates.priority
+      )
+
+      ||
+
+      context.priority,
+
+    updatedAt:
+    Date.now()
 
   });
 
-  context.metadata =
-  freezeContextObject({
-
-    ...context.metadata,
-
-    ...updates.metadata
-
-  });
-
-  context.priority =
-
-    Number(
-      updates.priority
-    )
-
-    ||
-
-    context.priority;
-
-  context.tokens =
+  updatedContext.tokens =
   estimateContextTokens(
-    context.content
+    updatedContext.content
   );
 
-  context.updatedAt =
-  Date.now();
+  contextManagerState
+  .contexts
+  .set(
+
+    normalizedId,
+
+    freezeContextObject(
+      updatedContext
+    )
+
+  );
 
   contextManagerState
   .diagnostics
@@ -615,6 +784,8 @@ async function rankContexts(
   query = ""
 ){
 
+  evictOldContexts();
+
   const ranked = [
 
     ...contextManagerState
@@ -624,7 +795,7 @@ async function rankContexts(
   ]
   .map((context) => {
 
-    context.score =
+    const score =
     calculateContextScore(
 
       context,
@@ -633,7 +804,13 @@ async function rankContexts(
 
     );
 
-    return context;
+    return freezeContextObject({
+
+      ...context,
+
+      score
+
+    });
 
   })
   .sort((a,b) => {
@@ -662,13 +839,7 @@ async function rankContexts(
 
   );
 
-  return ranked.map((context) => {
-
-    return freezeContextObject(
-      context
-    );
-
-  });
+  return ranked;
 
 }
 
@@ -708,7 +879,9 @@ async function compressContext(
 
   if(
 
-    serialized.length <=
+    estimateContextTokens(
+      context.content
+    ) <=
 
     CONTEXT_MANAGER_CONFIG
     .MAX_CONTEXT_TOKENS
@@ -719,22 +892,47 @@ async function compressContext(
 
   }
 
-  context.content =
+  const compressedContent =
   freezeContextObject({
 
     compressed:true,
 
     preview:
-    serialized.slice(
-      0,
-      500
-    )
+    createCompressionPreview(
+      serialized
+    ),
+
+    originalTokens:
+    context.tokens
 
   });
 
-  context.tokens =
-  estimateContextTokens(
-    context.content
+  const compressedContext =
+  freezeContextObject({
+
+    ...context,
+
+    content:
+    compressedContent,
+
+    tokens:
+    estimateContextTokens(
+      compressedContent
+    ),
+
+    updatedAt:
+    Date.now()
+
+  });
+
+  contextManagerState
+  .contexts
+  .set(
+
+    normalizedId,
+
+    compressedContext
+
   );
 
   contextManagerState
@@ -783,6 +981,20 @@ async function attachSessionContext(
   if(
 
     !contextManagerState
+    .contexts
+    .has(
+      normalizedContext
+    )
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    !contextManagerState
     .sessions
     .has(
       normalizedSession
@@ -802,12 +1014,28 @@ async function attachSessionContext(
 
   }
 
-  contextManagerState
-  .sessions
-  .get(
-    normalizedSession
-  )
-  .add(
+  const sessionContexts =
+
+    contextManagerState
+    .sessions
+    .get(
+      normalizedSession
+    );
+
+  if(
+
+    sessionContexts.size >=
+
+    CONTEXT_MANAGER_CONFIG
+    .MAX_SESSION_CONTEXTS
+
+  ){
+
+    return false;
+
+  }
+
+  sessionContexts.add(
     normalizedContext
   );
 
@@ -888,7 +1116,9 @@ async function buildContextWindow(
     }
 
     windowContexts.push(
-      context
+      freezeContextObject(
+        context
+      )
     );
 
     totalTokens +=
@@ -945,6 +1175,10 @@ async function removeContext(
     return false;
 
   }
+
+  cleanupOrphanSessionReferences(
+    normalizedId
+  );
 
   contextManagerState
   .diagnostics
@@ -1007,9 +1241,7 @@ function getContextDiagnostics(){
       .size,
 
     diagnostics:
-
-      contextManagerState
-      .diagnostics,
+    cloneContextDiagnostics(),
 
     lastUpdatedAt:
 
@@ -1057,7 +1289,9 @@ async function resetContextManager(){
 
     ranked:0,
 
-    synchronized:0
+    synchronized:0,
+
+    evicted:0
 
   };
 
@@ -1082,11 +1316,38 @@ async function initializeContextManager(){
 
   }
 
+  if(
+    contextManagerState
+    .initializing
+  ){
+
+    return false;
+
+  }
+
   contextManagerState
-  .initialized =
+  .initializing =
   true;
 
-  return true;
+  try{
+
+    evictOldContexts();
+
+    contextManagerState
+    .initialized =
+    true;
+
+    return true;
+
+  }
+
+  finally{
+
+    contextManagerState
+    .initializing =
+    false;
+
+  }
 
 }
 
