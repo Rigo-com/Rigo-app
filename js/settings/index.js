@@ -28,6 +28,9 @@ Object.freeze({
   createSettingsBackup,
 
   restore:
-  restoreSettingsBackup
+  restoreSettingsBackup,
+
+  diagnostics:
+  getSettingsDiagnostics
 
 });
