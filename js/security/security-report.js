@@ -7,6 +7,42 @@
 
 
 // =====================================
+// SAFE SECURITY REPORT VALUE
+// =====================================
+
+function getSafeSecurityReportValue(
+  callback,
+  fallback = null
+){
+
+  try{
+
+    return callback();
+
+  }
+
+  catch(error){
+
+    logSecurityEvent(
+
+      "SECURITY REPORT SECTION FAILED",
+
+      {
+        error:
+        String(error)
+      }
+
+    );
+
+    return fallback;
+
+  }
+
+}
+
+
+
+// =====================================
 // GENERATE SECURITY REPORT
 // =====================================
 
@@ -29,7 +65,7 @@ function generateSecurityReport(){
 
     now;
 
-  return deepFreezeSecurity({
+  const report = {
 
     generatedAt:
     now,
@@ -41,7 +77,10 @@ function generateSecurityReport(){
     ),
 
     uptime:
-    now - createdAt,
+    Math.max(
+      0,
+      now - createdAt
+    ),
 
 
 
@@ -50,28 +89,40 @@ function generateSecurityReport(){
     // ================================
 
     blockedRequests:
-    securityState
-    .blockedRequests,
+    Number(
+      securityState
+      .blockedRequests || 0
+    ),
 
     suspiciousActivities:
-    securityState
-    .suspiciousActivities,
+    Number(
+      securityState
+      .suspiciousActivities || 0
+    ),
 
     sanitizedPayloads:
-    securityState
-    .sanitizedPayloads,
+    Number(
+      securityState
+      .sanitizedPayloads || 0
+    ),
 
     blockedURLs:
-    securityState
-    .blockedURLs,
+    Number(
+      securityState
+      .blockedURLs || 0
+    ),
 
     blockedPrompts:
-    securityState
-    .blockedPrompts,
+    Number(
+      securityState
+      .blockedPrompts || 0
+    ),
 
     rateLimitHits:
-    securityState
-    .rateLimitHits,
+    Number(
+      securityState
+      .rateLimitHits || 0
+    ),
 
 
 
@@ -82,20 +133,47 @@ function generateSecurityReport(){
     activeRateLimitKeys:
 
       securityState
+      .requestTracker instanceof Map
+
+      ?
+
+      securityState
       .requestTracker
-      .size,
+      .size
+
+      :
+
+      0,
 
     trustedOrigins:
 
       securityState
+      .trustedOrigins instanceof Set
+
+      ?
+
+      securityState
       .trustedOrigins
-      .size,
+      .size
+
+      :
+
+      0,
 
     blockedPatterns:
 
       securityState
+      .blockedPatterns instanceof Set
+
+      ?
+
+      securityState
       .blockedPatterns
-      .size,
+      .size
+
+      :
+
+      0,
 
 
 
@@ -104,24 +182,29 @@ function generateSecurityReport(){
     // ================================
 
     runtime:
+    getSafeSecurityReportValue(() => {
 
-      typeof SecurityRuntime !==
-      "undefined"
+      if(
 
-      &&
+        typeof SecurityRuntime ===
+        "undefined"
 
-      typeof SecurityRuntime
-      .diagnostics ===
-      "function"
+        ||
 
-      ?
+        typeof SecurityRuntime
+        .diagnostics !==
+        "function"
 
-      SecurityRuntime
-      .diagnostics()
+      ){
 
-      :
+        return null;
 
-      null,
+      }
+
+      return SecurityRuntime
+      .diagnostics();
+
+    }),
 
 
 
@@ -130,24 +213,29 @@ function generateSecurityReport(){
     // ================================
 
     monitor:
+    getSafeSecurityReportValue(() => {
 
-      typeof SecurityMonitor !==
-      "undefined"
+      if(
 
-      &&
+        typeof SecurityMonitor ===
+        "undefined"
 
-      typeof SecurityMonitor
-      .metrics ===
-      "function"
+        ||
 
-      ?
+        typeof SecurityMonitor
+        .metrics !==
+        "function"
 
-      SecurityMonitor
-      .metrics()
+      ){
 
-      :
+        return null;
 
-      null,
+      }
+
+      return SecurityMonitor
+      .metrics();
+
+    }),
 
 
 
@@ -156,24 +244,29 @@ function generateSecurityReport(){
     // ================================
 
     sandbox:
+    getSafeSecurityReportValue(() => {
 
-      typeof SecuritySandbox !==
-      "undefined"
+      if(
 
-      &&
+        typeof SecuritySandbox ===
+        "undefined"
 
-      typeof SecuritySandbox
-      .diagnostics ===
-      "function"
+        ||
 
-      ?
+        typeof SecuritySandbox
+        .diagnostics !==
+        "function"
 
-      SecuritySandbox
-      .diagnostics()
+      ){
 
-      :
+        return null;
 
-      null,
+      }
+
+      return SecuritySandbox
+      .diagnostics();
+
+    }),
 
 
 
@@ -182,26 +275,35 @@ function generateSecurityReport(){
     // ================================
 
     policy:
+    getSafeSecurityReportValue(() => {
 
-      typeof SecurityPolicy !==
-      "undefined"
+      if(
 
-      &&
+        typeof SecurityPolicy ===
+        "undefined"
 
-      typeof SecurityPolicy
-      .diagnostics ===
-      "function"
+        ||
 
-      ?
+        typeof SecurityPolicy
+        .diagnostics !==
+        "function"
 
-      SecurityPolicy
-      .diagnostics()
+      ){
 
-      :
+        return null;
 
-      null
+      }
 
-  });
+      return SecurityPolicy
+      .diagnostics();
+
+    })
+
+  };
+
+  return deepFreezeSecurity(
+    report
+  );
 
 }
 
@@ -215,10 +317,24 @@ function exportSecurityReport(){
 
   try{
 
-    return safeJSONStringify(
+    const report =
+    generateSecurityReport();
 
-      generateSecurityReport()
+    if(
+      typeof safeJSONStringify ===
+      "function"
+    ){
 
+      return safeJSONStringify(
+        report
+      );
+
+    }
+
+    return JSON.stringify(
+      report,
+      null,
+      2
     );
 
   }
@@ -230,10 +346,8 @@ function exportSecurityReport(){
       "SECURITY REPORT EXPORT FAILED",
 
       {
-
         error:
         String(error)
-
       }
 
     );
@@ -252,34 +366,60 @@ function exportSecurityReport(){
 
 function printSecurityReport(){
 
-  const report =
-  generateSecurityReport();
+  try{
 
-  if(
-    typeof console !==
-    "undefined"
+    const report =
+    generateSecurityReport();
 
-    &&
+    if(
 
-    typeof console.table ===
-    "function"
-  ){
+      typeof console !==
+      "undefined"
 
-    console.table(
-      report
-    );
+      &&
+
+      typeof console.table ===
+      "function"
+
+    ){
+
+      console.table(
+        report
+      );
+
+    }
+
+    else if(
+      typeof console !==
+      "undefined"
+    ){
+
+      console.log(
+        report
+      );
+
+    }
+
+    return true;
 
   }
 
-  else{
+  catch(error){
 
-    console.log(
-      report
+    logSecurityEvent(
+
+      "SECURITY REPORT PRINT FAILED",
+
+      {
+        error:
+        String(error)
+      }
+
     );
 
-  }
+    return false;
 
-  return true;
+  }
 
 }
 
