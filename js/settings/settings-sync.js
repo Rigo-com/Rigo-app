@@ -25,6 +25,10 @@ async function syncSettingsSystem(){
 
   catch(error){
 
+    settingsState
+    .lastError =
+    error;
+
     return false;
 
   }
@@ -33,6 +37,9 @@ async function syncSettingsSystem(){
 
     settingsState.syncing =
     false;
+
+    settingsState.currentState =
+    SETTINGS_STATES.READY;
 
   }
 
