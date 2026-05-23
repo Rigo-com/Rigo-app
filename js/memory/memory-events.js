@@ -19,8 +19,14 @@ Object.freeze({
 
   ENABLE_EVENT_HISTORY:true,
 
+  MAX_EVENT_PAYLOAD_SIZE:
+  500000,
+
+  MAX_RECURSIVE_EVENT_DEPTH:
+  10,
+
   EVENT_NAME_PATTERN:
-  /^[a-z0-9._-]+$/,
+  /^[a-z0-9._*-]+$/,
 
   EVENT_LISTENER_TIMEOUT:
   10000
@@ -107,6 +113,9 @@ Object.seal({
   onceListeners:
   new Map(),
 
+  wildcardListeners:
+  new Set(),
+
   eventHistory:[],
 
   activeEmits:0,
@@ -115,7 +124,12 @@ Object.seal({
 
   failedEvents:0,
 
-  lastEventAt:null
+  lastEventAt:null,
+
+  activeEventStack:[],
+
+  eventDepthMap:
+  new Map()
 
 });
 
@@ -183,6 +197,85 @@ function isEmittingEvent(){
 
     memoryEventsState
     .activeEmits > 0
+
+  );
+
+}
+
+
+
+function getEventDepth(
+  eventName
+){
+
+  return (
+
+    memoryEventsState
+    .eventDepthMap
+    .get(eventName)
+
+    ||
+
+    0
+
+  );
+
+}
+
+
+
+function incrementEventDepth(
+  eventName
+){
+
+  const currentDepth =
+  getEventDepth(
+    eventName
+  );
+
+  memoryEventsState
+  .eventDepthMap
+  .set(
+
+    eventName,
+
+    currentDepth + 1
+
+  );
+
+}
+
+
+
+function decrementEventDepth(
+  eventName
+){
+
+  const currentDepth =
+  getEventDepth(
+    eventName
+  );
+
+  if(
+    currentDepth <= 1
+  ){
+
+    memoryEventsState
+    .eventDepthMap
+    .delete(
+      eventName
+    );
+
+    return;
+  }
+
+  memoryEventsState
+  .eventDepthMap
+  .set(
+
+    eventName,
+
+    currentDepth - 1
 
   );
 
@@ -322,6 +415,42 @@ function deepFreezeEventObject(
 
 
 // =====================================
+// EVENT PAYLOAD VALIDATION
+// =====================================
+
+function validateEventPayload(
+  payload
+){
+
+  try{
+
+    const serialized =
+    JSON.stringify(
+      payload
+    );
+
+    return (
+
+      serialized.length <=
+
+      MEMORY_EVENTS_CONFIG
+      .MAX_EVENT_PAYLOAD_SIZE
+
+    );
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // EVENT HISTORY
 // =====================================
 
@@ -445,6 +574,24 @@ function subscribeMemoryEvent(
   ){
 
     return false;
+
+  }
+
+
+
+  // ===================================
+  // WILDCARD LISTENERS
+  // ===================================
+
+  if(
+    normalizedEvent === "*"
+  ){
+
+    memoryEventsState
+    .wildcardListeners
+    .add(listener);
+
+    return true;
 
   }
 
@@ -624,6 +771,18 @@ function unsubscribeMemoryEvent(
 
   let removed = false;
 
+  if(
+    normalizedEvent === "*"
+  ){
+
+    return memoryEventsState
+    .wildcardListeners
+    .delete(
+      listener
+    );
+
+  }
+
   const normalListeners =
 
     memoryEventsState
@@ -746,9 +905,15 @@ async function executeEventListener(
     memoryEventsState
     .failedEvents++;
 
-    memoryState.runtime
-    .lastError =
-    error;
+    if(
+      memoryState?.runtime
+    ){
+
+      memoryState.runtime
+      .lastError =
+      error;
+
+    }
 
     return false;
 
@@ -780,6 +945,52 @@ async function emitMemoryEvent(
 
   }
 
+
+
+  // ===================================
+  // RECURSION PROTECTION
+  // ===================================
+
+  const currentDepth =
+  getEventDepth(
+    normalizedEvent
+  );
+
+  if(
+
+    currentDepth >=
+
+    MEMORY_EVENTS_CONFIG
+    .MAX_RECURSIVE_EVENT_DEPTH
+
+  ){
+
+    memoryEventsState
+    .failedEvents++;
+
+    return false;
+
+  }
+
+
+
+  // ===================================
+  // PAYLOAD VALIDATION
+  // ===================================
+
+  if(
+    !validateEventPayload(
+      payload
+    )
+  ){
+
+    memoryEventsState
+    .failedEvents++;
+
+    return false;
+
+  }
+
   const event =
   createMemoryEvent(
     normalizedEvent,
@@ -799,30 +1010,61 @@ async function emitMemoryEvent(
 
   ){
 
-    emitSystemEvent(
+    try{
 
-      normalizedEvent,
+      const bridgeResult =
+      emitSystemEvent(
 
-      {
+        normalizedEvent,
 
-        source:"memory",
+        {
 
-        memoryEvent:true,
+          source:"memory",
 
-        payload:
-        safeCloneEventPayload(
-          payload
-        )
+          memoryEvent:true,
+
+          payload:
+          safeCloneEventPayload(
+            payload
+          )
+
+        }
+
+      );
+
+      if(
+
+        bridgeResult &&
+
+        typeof bridgeResult
+        .catch ===
+        "function"
+
+      ){
+
+        bridgeResult
+        .catch(() => {});
 
       }
 
-    )
-    .catch(() => {});
+    }
+
+    catch(error){}
 
   }
 
   memoryEventsState
   .activeEmits++;
+
+  incrementEventDepth(
+    normalizedEvent
+  );
+
+  memoryEventsState
+  .activeEventStack
+  .push(
+    normalizedEvent
+  );
 
   try{
 
@@ -854,6 +1096,13 @@ async function emitMemoryEvent(
 
     ];
 
+    const wildcardListeners = [
+
+      ...memoryEventsState
+      .wildcardListeners
+
+    ];
+
     const executionPromises = [];
 
 
@@ -882,6 +1131,25 @@ async function emitMemoryEvent(
     // ================================
 
     onceListeners.forEach((listener) => {
+
+      executionPromises.push(
+
+        executeEventListener(
+          listener,
+          event
+        )
+
+      );
+
+    });
+
+
+
+    // ================================
+    // WILDCARD LISTENERS
+    // ================================
+
+    wildcardListeners.forEach((listener) => {
 
       executionPromises.push(
 
@@ -936,15 +1204,29 @@ async function emitMemoryEvent(
     memoryEventsState
     .failedEvents++;
 
-    memoryState.runtime
-    .lastError =
-    error;
+    if(
+      memoryState?.runtime
+    ){
+
+      memoryState.runtime
+      .lastError =
+      error;
+
+    }
 
     return false;
 
   }
 
   finally{
+
+    decrementEventDepth(
+      normalizedEvent
+    );
+
+    memoryEventsState
+    .activeEventStack
+    .pop();
 
     memoryEventsState
     .activeEmits =
@@ -993,6 +1275,18 @@ function clearMemoryEventListeners(){
   memoryEventsState
   .onceListeners
   .clear();
+
+  memoryEventsState
+  .wildcardListeners
+  .clear();
+
+  memoryEventsState
+  .eventDepthMap
+  .clear();
+
+  memoryEventsState
+  .activeEventStack =
+  [];
 
   memoryEventsState
   .activeEmits = 0;
@@ -1059,6 +1353,12 @@ function getMemoryEventDiagnostics(){
       .onceListeners
       .size,
 
+    wildcardListeners:
+
+      memoryEventsState
+      .wildcardListeners
+      .size,
+
     historySize:
 
       memoryEventsState
@@ -1086,6 +1386,11 @@ function getMemoryEventDiagnostics(){
       .activeEmits,
 
     activeListeners,
+
+    activeEventStack:[
+      ...memoryEventsState
+      .activeEventStack
+    ],
 
     lastEventAt:
 
