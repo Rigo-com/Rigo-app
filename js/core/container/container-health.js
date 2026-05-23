@@ -28,19 +28,28 @@ async function resetDependencyContainer(){
   [];
 
   dependencyContainerState
-  .diagnostics = {
+  .diagnostics
+  .registered = 0;
 
-    registered:0,
+  dependencyContainerState
+  .diagnostics
+  .resolved = 0;
 
-    resolved:0,
+  dependencyContainerState
+  .diagnostics
+  .failed = 0;
 
-    failed:0,
+  dependencyContainerState
+  .diagnostics
+  .removed = 0;
 
-    removed:0,
+  dependencyContainerState
+  .diagnostics
+  .scopes = 0;
 
-    scopes:0
-
-  };
+  dependencyContainerState
+  .lastResolvedAt =
+  null;
 
   if(
     typeof emitSystemEvent ===
@@ -145,5 +154,27 @@ async function initializeDependencyContainer(){
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.resetDependencyContainer =
+  resetDependencyContainer;
+
+  window.getContainerDiagnostics =
+  getContainerDiagnostics;
+
+  window.initializeDependencyContainer =
+  initializeDependencyContainer;
 
 }
