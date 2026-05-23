@@ -29,35 +29,41 @@ function initializeStorageRuntime(){
 
   }
 
+  storageState.pendingHydration =
+  true;
+
   try{
 
     const available =
     isStorageAvailable();
 
-    if(!available){
+    if(
+      !available
+    ){
+
+      storageState.initialized =
+      false;
 
       return false;
 
     }
 
-    storageState.pendingHydration =
-    true;
+    const hydrated =
+    hydrateStorageCache();
 
-    try{
+    if(
+      !hydrated
+    ){
 
-      hydrateStorageCache();
-
-    }
-
-    catch(hydrationError){
-
-      handleStorageError(
-        "STORAGE HYDRATION ERROR",
-        hydrationError
+      storageState.cache.chats =
+      deepFreeze(
+        []
       );
 
-      storageState.pendingHydration =
-      false;
+      storageState.cache.memory =
+      deepFreezeMemory(
+        {}
+      );
 
       storageState.initialized =
       false;
@@ -88,8 +94,18 @@ function initializeStorageRuntime(){
   catch(error){
 
     handleStorageError(
-      "STORAGE INITIALIZATION ERROR",
+      "STORAGE_INITIALIZATION_ERROR",
       error
+    );
+
+    storageState.cache.chats =
+    deepFreeze(
+      []
+    );
+
+    storageState.cache.memory =
+    deepFreezeMemory(
+      {}
     );
 
     storageState.initialized =
@@ -139,7 +155,8 @@ function destroyStorageRuntime(){
 
     }
 
-    storageState.writeQueue
+    storageState
+    .writeQueue
     .length = 0;
 
     storageState.writeTimer =
@@ -152,6 +169,9 @@ function destroyStorageRuntime(){
     null;
 
     storageState.lastWriteAt =
+    null;
+
+    storageState.lastMemoryWriteVersion =
     null;
 
     storageState.pendingHydration =
@@ -170,10 +190,14 @@ function destroyStorageRuntime(){
     false;
 
     storageState.cache.chats =
-    Object.freeze([]);
+    deepFreeze(
+      []
+    );
 
     storageState.cache.memory =
-    Object.freeze({});
+    deepFreezeMemory(
+      {}
+    );
 
     return true;
 
@@ -182,7 +206,7 @@ function destroyStorageRuntime(){
   catch(error){
 
     handleStorageError(
-      "DESTROY STORAGE ERROR",
+      "DESTROY_STORAGE_ERROR",
       error
     );
 
@@ -216,14 +240,24 @@ function hydrateStorageCache(){
     const memory =
     loadMemoryFromStorage();
 
+    const safeChats =
+    deepClone(
+      chats
+    ) || [];
+
+    const safeMemory =
+    deepClone(
+      memory
+    ) || {};
+
     storageState.cache.chats =
-    Object.freeze(
-      deepClone(chats) || []
+    deepFreeze(
+      safeChats
     );
 
     storageState.cache.memory =
     deepFreezeMemory(
-      deepClone(memory) || {}
+      safeMemory
     );
 
     return true;
@@ -233,15 +267,19 @@ function hydrateStorageCache(){
   catch(error){
 
     handleStorageError(
-      "HYDRATE STORAGE CACHE ERROR",
+      "HYDRATE_STORAGE_CACHE_ERROR",
       error
     );
 
     storageState.cache.chats =
-    Object.freeze([]);
+    deepFreeze(
+      []
+    );
 
     storageState.cache.memory =
-    Object.freeze({});
+    deepFreezeMemory(
+      {}
+    );
 
     return false;
 
