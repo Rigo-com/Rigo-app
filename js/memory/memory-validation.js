@@ -539,7 +539,7 @@ function validateMemoryTags(
 
     const normalizedTag =
 
-      normalizeMemoryValue(
+      normalizeMemoryString(
         tag
       );
 
@@ -990,6 +990,69 @@ function validateMemoryEmbedding(
 
 
 // =====================================
+// VALIDATE MEMORY TIMESTAMPS
+// =====================================
+
+function validateMemoryTimestamps(
+  memory
+){
+
+  const result =
+  createValidationResult();
+
+  const timestamps = [
+
+    memory.createdAt,
+    memory.updatedAt
+
+  ];
+
+  timestamps.forEach((value) => {
+
+    if(
+      value == null
+    ){
+
+      return;
+
+    }
+
+    if(
+
+      typeof value !==
+      "number"
+
+      ||
+
+      !Number.isFinite(
+        value
+      )
+
+      ||
+
+      value < 0
+
+    ){
+
+      addValidationError(
+
+        result,
+
+        "Invalid memory timestamp"
+
+      );
+
+    }
+
+  });
+
+  return result;
+
+}
+
+
+
+// =====================================
 // VALIDATE MEMORY OBJECT
 // =====================================
 
@@ -1081,6 +1144,10 @@ function validateMemoryObject(
 
     validateMemoryEmbedding(
       memory.embedding
+    ),
+
+    validateMemoryTimestamps(
+      memory
     )
 
   );
@@ -1093,12 +1160,6 @@ function validateMemoryObject(
 
   result.warnings =
   validationResult.warnings;
-
-
-
-  // ===================================
-  // STRICT VALIDATION
-  // ===================================
 
   if(
     options.strict === true
@@ -1292,8 +1353,12 @@ function sanitizeMemoryInput(
 
     title:
 
-      normalizeMemoryString(
-        input.title
+      String(
+
+        normalizeMemoryString(
+          input.title
+        ) || ""
+
       )
       .slice(
         0,
@@ -1308,8 +1373,12 @@ function sanitizeMemoryInput(
 
     summary:
 
-      normalizeMemoryString(
-        input.summary
+      String(
+
+        normalizeMemoryString(
+          input.summary
+        ) || ""
+
       )
       .slice(
         0,
@@ -1360,6 +1429,14 @@ function createMemoryContentHash(
   normalizeMemoryContent(
     content
   );
+
+  if(
+    !normalizedContent
+  ){
+
+    return "empty_content_hash";
+
+  }
 
   let hash = 0;
 
