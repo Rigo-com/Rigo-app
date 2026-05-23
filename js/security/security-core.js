@@ -41,7 +41,9 @@ Object.freeze({
 
   ENABLE_HTTP_PROTOCOL:false,
 
-  AUTO_TRIM_STRINGS:false
+  AUTO_TRIM_STRINGS:false,
+
+  LOG_THROTTLE_MS:250
 
 });
 
@@ -97,6 +99,8 @@ function createSecurityState(){
     blockedPrompts:0,
 
     rateLimitHits:0,
+
+    lastLogAt:0,
 
     requestTracker:
     new Map(),
@@ -215,8 +219,7 @@ function sanitizeSecurityMetadata(
     metadata == null
   ){
 
-    return null;
-
+    return {};
   }
 
   try{
@@ -226,9 +229,20 @@ function sanitizeSecurityMetadata(
       "function"
     ){
 
-      return sanitizeObject(
+      const sanitized =
+      sanitizeObject(
         metadata
       );
+
+      if(
+        sanitized &&
+        typeof sanitized ===
+        "object"
+      ){
+
+        return sanitized;
+
+      }
 
     }
 
@@ -236,7 +250,46 @@ function sanitizeSecurityMetadata(
 
   catch(error){}
 
-  return null;
+  return {
+
+    sanitized:true
+
+  };
+
+}
+
+
+
+// =====================================
+// LOG THROTTLE
+// =====================================
+
+function shouldThrottleSecurityLog(){
+
+  const now =
+  Date.now();
+
+  if(
+
+    now -
+
+    securityState
+    .lastLogAt <
+
+    SECURITY_CONFIG
+    .LOG_THROTTLE_MS
+
+  ){
+
+    return true;
+
+  }
+
+  securityState
+  .lastLogAt =
+  now;
+
+  return false;
 
 }
 
@@ -256,6 +309,14 @@ function logSecurityEvent(
     !SECURITY_CONFIG
     .ENABLE_SECURITY_LOGGING
 
+  ){
+
+    return false;
+
+  }
+
+  if(
+    shouldThrottleSecurityLog()
   ){
 
     return false;
@@ -364,33 +425,90 @@ function registerSecurityPatterns(){
 
   }
 
+  const patternGroups =
   Object.values(
     SECURITY_PATTERNS
-  )
-  .flat()
-  .forEach((pattern) => {
+  );
+
+  patternGroups.forEach((group) => {
 
     if(
-      !(pattern instanceof RegExp)
+      !Array.isArray(group)
     ){
 
-      logSecurityEvent(
-        "INVALID SECURITY PATTERN"
-      );
-
       return;
-
     }
 
-    securityState
-    .blockedPatterns
-    .add(
-      pattern
-    );
+    group.forEach((pattern) => {
+
+      if(
+        !(pattern instanceof RegExp)
+      ){
+
+        logSecurityEvent(
+          "INVALID SECURITY PATTERN"
+        );
+
+        return;
+
+      }
+
+      securityState
+      .blockedPatterns
+      .add(
+        pattern
+      );
+
+    });
 
   });
 
   return true;
+
+}
+
+
+
+// =====================================
+// HARDEN SECURITY STATE
+// =====================================
+
+function hardenSecurityState(){
+
+  try{
+
+    Object.seal(
+      securityState.requestTracker
+    );
+
+    Object.seal(
+      securityState.blockedPatterns
+    );
+
+    Object.seal(
+      securityState.trustedOrigins
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    logSecurityEvent(
+
+      "SECURITY HARDEN FAILED",
+
+      {
+        error:
+        String(error)
+      }
+
+    );
+
+    return false;
+
+  }
 
 }
 
@@ -414,6 +532,14 @@ function freezeCriticalObjects(){
 
     Object.freeze(
       SECURITY_EVENTS
+    );
+
+    Object.freeze(
+      ACCESSOR_BLOCKED_MARKER
+    );
+
+    Object.freeze(
+      CIRCULAR_REFERENCE_MARKER
     );
 
     return true;
@@ -463,6 +589,15 @@ function initializeSecuritySystem(){
     registerSecurityPatterns();
 
     if(!patternsReady){
+
+      return false;
+
+    }
+
+    const hardened =
+    hardenSecurityState();
+
+    if(!hardened){
 
       return false;
 
