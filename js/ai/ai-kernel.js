@@ -40,7 +40,10 @@ Object.freeze({
   3,
 
   REQUEST_TIMEOUT:
-  60000
+  60000,
+
+  RECOVERY_COOLDOWN:
+  3000
 
 });
 
@@ -97,7 +100,10 @@ Object.freeze({
   "ai.kernel.recovery.started",
 
   RECOVERY_COMPLETED:
-  "ai.kernel.recovery.completed"
+  "ai.kernel.recovery.completed",
+
+  SHUTDOWN:
+  "ai.kernel.shutdown"
 
 });
 
@@ -112,9 +118,13 @@ Object.seal({
 
   initialized:false,
 
+  initializing:false,
+
   processing:false,
 
   recovering:false,
+
+  shuttingDown:false,
 
   state:
   AI_KERNEL_STATES
@@ -153,6 +163,10 @@ Object.seal({
     routedToAgents:0
 
   },
+
+  recoveryAttempts:0,
+
+  lastRecoveryAt:null,
 
   lastRequestAt:null,
 
@@ -300,6 +314,19 @@ function setKernelState(
   state;
 
   return true;
+
+}
+
+
+
+function cloneKernelDiagnostics(){
+
+  return freezeKernelObject({
+
+    ...aiKernelState
+    .diagnostics
+
+  });
 
 }
 
@@ -684,6 +711,22 @@ async function processKernelRequest(
 ){
 
   if(
+    aiKernelState.shuttingDown
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !aiKernelState.initialized
+  ){
+
+    return false;
+
+  }
+
+  if(
 
     aiKernelState
     .activeRequests
@@ -718,6 +761,10 @@ async function processKernelRequest(
   .lastRequestAt =
   Date.now();
 
+  aiKernelState
+  .processing =
+  true;
+
   setKernelState(
     AI_KERNEL_STATES
     .PROCESSING
@@ -736,6 +783,8 @@ async function processKernelRequest(
     }
 
   );
+
+  let timeoutId = null;
 
   try{
 
@@ -758,6 +807,27 @@ async function processKernelRequest(
 
     );
 
+    const timeoutPromise =
+    new Promise((_,reject) => {
+
+      timeoutId =
+      setTimeout(() => {
+
+        reject(
+
+          new Error(
+            "AI KERNEL REQUEST TIMEOUT"
+          )
+
+        );
+
+      },
+
+      AI_KERNEL_CONFIG
+      .REQUEST_TIMEOUT);
+
+    });
+
     const result =
     await Promise.race([
 
@@ -765,36 +835,13 @@ async function processKernelRequest(
         enrichedRequest
       ),
 
-      new Promise((_,reject) => {
-
-        setTimeout(() => {
-
-          reject(
-
-            new Error(
-              "AI KERNEL REQUEST TIMEOUT"
-            )
-
-          );
-
-        },
-
-        AI_KERNEL_CONFIG
-        .REQUEST_TIMEOUT);
-
-      })
+      timeoutPromise
 
     ]);
 
     aiKernelState
     .completedRequests
     .add(
-      request.id
-    );
-
-    aiKernelState
-    .activeRequests
-    .delete(
       request.id
     );
 
@@ -846,12 +893,6 @@ async function processKernelRequest(
     );
 
     aiKernelState
-    .activeRequests
-    .delete(
-      request.id
-    );
-
-    aiKernelState
     .diagnostics
     .failed++;
 
@@ -882,6 +923,14 @@ async function processKernelRequest(
       AI_KERNEL_CONFIG
       .ENABLE_RECOVERY
 
+      &&
+
+      aiKernelState
+      .recoveryAttempts <
+
+      AI_KERNEL_CONFIG
+      .MAX_RECOVERY_ATTEMPTS
+
     ){
 
       await recoverAIKernel();
@@ -905,6 +954,51 @@ async function processKernelRequest(
 
   }
 
+  finally{
+
+    if(
+      timeoutId
+    ){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+    aiKernelState
+    .activeRequests
+    .delete(
+      request.id
+    );
+
+    aiKernelState
+    .processing =
+    false;
+
+    if(
+
+      aiKernelState
+      .activeRequests
+      .size <= 0
+
+      &&
+
+      aiKernelState.state !==
+      AI_KERNEL_STATES
+      .FAILED
+
+    ){
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .READY
+      );
+
+    }
+
+  }
+
 }
 
 
@@ -924,9 +1018,40 @@ async function recoverAIKernel(){
 
   }
 
+  const now =
+  Date.now();
+
+  if(
+
+    aiKernelState
+    .lastRecoveryAt
+
+    &&
+
+    now -
+
+    aiKernelState
+    .lastRecoveryAt <
+
+    AI_KERNEL_CONFIG
+    .RECOVERY_COOLDOWN
+
+  ){
+
+    return false;
+
+  }
+
   aiKernelState
   .recovering =
   true;
+
+  aiKernelState
+  .recoveryAttempts++;
+
+  aiKernelState
+  .lastRecoveryAt =
+  now;
 
   setKernelState(
     AI_KERNEL_STATES
@@ -1011,6 +1136,10 @@ function getAIKernelHealthReport(){
     aiKernelState
     .recovering,
 
+    shuttingDown:
+    aiKernelState
+    .shuttingDown,
+
     activeRequests:
 
       aiKernelState
@@ -1037,9 +1166,7 @@ function getAIKernelHealthReport(){
     ],
 
     diagnostics:
-
-      aiKernelState
-      .diagnostics,
+    cloneKernelDiagnostics(),
 
     lastRequestAt:
     aiKernelState
@@ -1100,10 +1227,54 @@ async function resetAIKernel(){
 
   };
 
+  aiKernelState
+  .recoveryAttempts =
+  0;
+
+  aiKernelState
+  .lastRecoveryAt =
+  null;
+
   setKernelState(
     AI_KERNEL_STATES
     .IDLE
   );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownAIKernel(){
+
+  aiKernelState
+  .shuttingDown =
+  true;
+
+  setKernelState(
+    AI_KERNEL_STATES
+    .SHUTDOWN
+  );
+
+  aiKernelState
+  .activeRequests
+  .clear();
+
+  await emitKernelEvent(
+
+    AI_KERNEL_EVENTS
+    .SHUTDOWN
+
+  );
+
+  aiKernelState
+  .initialized =
+  false;
 
   return true;
 
@@ -1126,14 +1297,74 @@ async function initializeAIKernel(){
 
   }
 
+  if(
+    aiKernelState
+    .initializing
+  ){
+
+    return false;
+
+  }
+
+  aiKernelState
+  .initializing =
+  true;
+
   setKernelState(
     AI_KERNEL_STATES
     .INITIALIZING
   );
 
-  if(
-    !validateAISystems()
-  ){
+  try{
+
+    if(
+      !validateAISystems()
+    ){
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .FAILED
+      );
+
+      return false;
+
+    }
+
+    await synchronizeAISystems();
+
+    aiKernelState
+    .initialized =
+    true;
+
+    aiKernelState
+    .startedAt =
+    Date.now();
+
+    aiKernelState
+    .diagnostics
+    .initialized++;
+
+    aiKernelState
+    .recoveryAttempts =
+    0;
+
+    setKernelState(
+      AI_KERNEL_STATES
+      .READY
+    );
+
+    await emitKernelEvent(
+
+      AI_KERNEL_EVENTS
+      .INITIALIZED
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
 
     setKernelState(
       AI_KERNEL_STATES
@@ -1144,33 +1375,13 @@ async function initializeAIKernel(){
 
   }
 
-  await synchronizeAISystems();
+  finally{
 
-  aiKernelState
-  .initialized =
-  true;
+    aiKernelState
+    .initializing =
+    false;
 
-  aiKernelState
-  .startedAt =
-  Date.now();
-
-  aiKernelState
-  .diagnostics
-  .initialized++;
-
-  setKernelState(
-    AI_KERNEL_STATES
-    .READY
-  );
-
-  await emitKernelEvent(
-
-    AI_KERNEL_EVENTS
-    .INITIALIZED
-
-  );
-
-  return true;
+  }
 
 }
 
@@ -1191,6 +1402,9 @@ Object.freeze({
 
   recover:
   recoverAIKernel,
+
+  shutdown:
+  shutdownAIKernel,
 
   health:
   getAIKernelHealthReport,
