@@ -2,6 +2,19 @@
 // MANAGER STATE PATCH
 // =====================================
 
+const MEMORY_MANAGER_CONFIG =
+Object.freeze({
+
+  MAX_RECOVERY_ATTEMPTS:
+  3,
+
+  TRANSACTION_LOCK_TIMEOUT:
+  30000
+
+});
+
+
+
 const memoryManagerState =
 Object.seal({
 
@@ -23,6 +36,8 @@ Object.seal({
 
   syncTimer:null,
 
+  transactionLockStartedAt:null,
+
   lastHealthCheckAt:null,
 
   lastCleanupAt:null,
@@ -32,6 +47,76 @@ Object.seal({
   recoveryAttempts:0
 
 });
+
+
+
+// =====================================
+// STALE LOCK CLEANUP
+// =====================================
+
+function cleanupStaleMemoryLock(){
+
+  try{
+
+    if(
+      !isMemoryLocked()
+    ){
+
+      return false;
+
+    }
+
+    const startedAt =
+
+      memoryManagerState
+      .transactionLockStartedAt;
+
+    if(
+      !Number.isFinite(
+        startedAt
+      )
+    ){
+
+      unlockMemoryState();
+
+      return true;
+
+    }
+
+    const expired = (
+
+      Date.now() -
+
+      startedAt
+
+    ) >
+
+    MEMORY_MANAGER_CONFIG
+    .TRANSACTION_LOCK_TIMEOUT;
+
+    if(!expired){
+
+      return false;
+
+    }
+
+    unlockMemoryState();
+
+    memoryManagerState
+    .transactionLockStartedAt =
+    null;
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
 
 
 
@@ -52,11 +137,7 @@ async function runMemoryTransaction(
 
   }
 
-
-
-  // ===================================
-  // NESTED TRANSACTION PROTECTION
-  // ===================================
+  cleanupStaleMemoryLock();
 
   if(
     isMemoryLocked()
@@ -71,6 +152,10 @@ async function runMemoryTransaction(
     incrementMemoryOperations();
 
     lockMemoryState();
+
+    memoryManagerState
+    .transactionLockStartedAt =
+    Date.now();
 
     return await transaction();
 
@@ -92,6 +177,10 @@ async function runMemoryTransaction(
   finally{
 
     unlockMemoryState();
+
+    memoryManagerState
+    .transactionLockStartedAt =
+    null;
 
     decrementMemoryOperations();
 
@@ -146,6 +235,18 @@ function runMemoryHealthCheck(){
       memoryState.tracking
       .deletedIds instanceof Set;
 
+    const indexConsistency =
+
+      memoryState.memories
+      .every((memory) => {
+
+        return memoryState
+        .indexes
+        .byId
+        .has(memory.id);
+
+      });
+
     if(
 
       !validation.valid ||
@@ -156,7 +257,9 @@ function runMemoryHealthCheck(){
 
       !mapsHealthy ||
 
-      !setsHealthy
+      !setsHealthy ||
+
+      !indexConsistency
 
     ){
 
@@ -169,6 +272,8 @@ function runMemoryHealthCheck(){
     }
 
     cleanupOrphanIndexes();
+
+    clearSearchCache();
 
     updateMemoryMetrics();
 
@@ -188,7 +293,9 @@ function runMemoryHealthCheck(){
 
         mapsHealthy &&
 
-        setsHealthy,
+        setsHealthy &&
+
+        indexConsistency,
 
       errors:
       validation.errors,
@@ -260,6 +367,8 @@ function cleanupMemorySystem(){
 
     cleanupMemoryCaches();
 
+    clearSearchCache();
+
     memoryState.tracking
     .deletedIds
     .forEach((memoryId) => {
@@ -330,6 +439,20 @@ async function initializeMemorySystem(){
 
   }
 
+  if(
+
+    memoryManagerState
+    .recoveryAttempts >=
+
+    MEMORY_MANAGER_CONFIG
+    .MAX_RECOVERY_ATTEMPTS
+
+  ){
+
+    return false;
+
+  }
+
   memoryManagerState
   .initializing = true;
 
@@ -339,6 +462,9 @@ async function initializeMemorySystem(){
     await hydrateMemorySystem();
 
     if(!hydrated){
+
+      memoryManagerState
+      .recoveryAttempts++;
 
       const recovered =
       await recoverMemorySystem();
@@ -472,6 +598,15 @@ async function createMemory(
   memoryData = {}
 ){
 
+  if(
+    memoryManagerState
+    .shuttingDown
+  ){
+
+    return null;
+
+  }
+
   return runMemoryTransaction(
     async() => {
 
@@ -563,6 +698,15 @@ async function updateMemoryData(
   updates = {}
 ){
 
+  if(
+    memoryManagerState
+    .shuttingDown
+  ){
+
+    return null;
+
+  }
+
   return runMemoryTransaction(
     async() => {
 
@@ -578,6 +722,11 @@ async function updateMemoryData(
         return null;
 
       }
+
+      const previousMemory =
+      deepClone(
+        existingMemory
+      );
 
       const updatedMemory =
       sanitizeMemoryObject({
@@ -655,11 +804,11 @@ async function updateMemoryData(
 
         memoryState.memories[
           memoryIndex
-        ] = existingMemory;
+        ] = previousMemory;
 
         updateMemoryIndexes(
           updatedMemory,
-          existingMemory
+          previousMemory
         );
 
         memoryState.tracking
@@ -692,6 +841,15 @@ async function deleteMemoryData(
   memoryId
 ){
 
+  if(
+    memoryManagerState
+    .shuttingDown
+  ){
+
+    return false;
+
+  }
+
   return runMemoryTransaction(
     async() => {
 
@@ -706,22 +864,36 @@ async function deleteMemoryData(
 
       }
 
-      const previousMemories =
-      deepClone(
-        memoryState.memories
-      );
-
-      memoryState.memories =
+      const memoryIndex =
 
         memoryState.memories
-        .filter((item) => {
+        .findIndex((item) => {
 
           return (
-            item.id !==
+            item.id ===
             memoryId
           );
 
         });
+
+      if(
+        memoryIndex < 0
+      ){
+
+        return false;
+
+      }
+
+      const removedMemory =
+      memoryState.memories[
+        memoryIndex
+      ];
+
+      memoryState.memories
+      .splice(
+        memoryIndex,
+        1
+      );
 
       deindexMemory(
         memory
@@ -742,11 +914,15 @@ async function deleteMemoryData(
 
       if(!saved){
 
-        memoryState.memories =
-        previousMemories;
+        memoryState.memories
+        .splice(
+          memoryIndex,
+          0,
+          removedMemory
+        );
 
         indexMemory(
-          memory
+          removedMemory
         );
 
         memoryState.tracking
@@ -776,6 +952,24 @@ async function deleteMemoryData(
 // =====================================
 
 async function syncMemorySystem(){
+
+  if(
+    !memoryManagerState
+    .initialized
+  ){
+
+    return false;
+
+  }
+
+  if(
+    memoryManagerState
+    .shuttingDown
+  ){
+
+    return false;
+
+  }
 
   try{
 
