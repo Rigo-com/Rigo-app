@@ -92,3 +92,20 @@ function getScopeContainer(
   );
 
 }
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.detectCircularDependency =
+  detectCircularDependency;
+
+  window.getScopeContainer =
+  getScopeContainer;
+
+}
