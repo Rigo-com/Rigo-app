@@ -1,4 +1,27 @@
 // =====================================
+// RIGO AI
+// SECURITY URL
+// ENTERPRISE URL SECURITY LAYER
+// =====================================
+
+
+
+// =====================================
+// ALLOWED PROTOCOLS
+// =====================================
+
+const ALLOWED_URL_PROTOCOLS =
+Object.freeze([
+
+  "https:",
+
+  "http:"
+
+]);
+
+
+
+// =====================================
 // ADD TRUSTED ORIGIN
 // =====================================
 
@@ -29,6 +52,19 @@ function addTrustedOrigin(
     const protocol =
     parsed.protocol
     .toLowerCase();
+
+    if(
+
+      protocol === "http:" &&
+
+      !SECURITY_CONFIG
+      .ENABLE_HTTP_PROTOCOL
+
+    ){
+
+      return false;
+
+    }
 
     if(
 
@@ -168,6 +204,33 @@ function removeTrustedOrigin(
 
 
 // =====================================
+// IS TRUSTED ORIGIN
+// =====================================
+
+function isTrustedOrigin(
+  origin
+){
+
+  if(
+    typeof origin !==
+    "string"
+  ){
+
+    return false;
+
+  }
+
+  return securityState
+  .trustedOrigins
+  .has(
+    origin
+  );
+
+}
+
+
+
+// =====================================
 // SAFE URL
 // =====================================
 
@@ -237,6 +300,22 @@ function safeURL(
     const protocol =
     parsed.protocol
     .toLowerCase();
+
+    if(
+
+      protocol === "http:" &&
+
+      !SECURITY_CONFIG
+      .ENABLE_HTTP_PROTOCOL
+
+    ){
+
+      securityState
+      .blockedURLs++;
+
+      return null;
+
+    }
 
     if(
 
@@ -318,6 +397,46 @@ function safeURL(
 
 
 // =====================================
+// NORMALIZE URL
+// =====================================
+
+function normalizeURL(
+  url
+){
+
+  const safe =
+  safeURL(url);
+
+  if(!safe){
+
+    return null;
+
+  }
+
+  try{
+
+    const parsed =
+    new URL(safe);
+
+    parsed.hash =
+    "";
+
+    return parsed
+    .toString();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // VALIDATE TRUSTED URL
 // =====================================
 
@@ -373,3 +492,60 @@ function validateTrustedURL(
   }
 
 }
+
+
+
+// =====================================
+// URL DIAGNOSTICS
+// =====================================
+
+function getURLSecurityDiagnostics(){
+
+  return Object.freeze({
+
+    trustedOrigins:[
+
+      ...securityState
+      .trustedOrigins
+
+    ],
+
+    blockedURLs:
+    securityState
+    .blockedURLs
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SecurityURL =
+Object.freeze({
+
+  safe:
+  safeURL,
+
+  normalize:
+  normalizeURL,
+
+  validateTrusted:
+  validateTrustedURL,
+
+  addTrusted:
+  addTrustedOrigin,
+
+  removeTrusted:
+  removeTrustedOrigin,
+
+  isTrusted:
+  isTrustedOrigin,
+
+  diagnostics:
+  getURLSecurityDiagnostics
+
+});
