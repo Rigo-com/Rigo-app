@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY SUBSYSTEM
 // ENTERPRISE INFINITY ULTRA FINAL
+// PATCHED + STABILIZED
 // =====================================
 
 
@@ -130,6 +131,15 @@ async function safelyExecuteSubsystemTask(
 
   try{
 
+    if(
+      typeof task !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
     return await task();
 
   }
@@ -137,9 +147,7 @@ async function safelyExecuteSubsystemTask(
   catch(error){
 
     if(
-
       memoryState?.runtime
-
     ){
 
       memoryState.runtime
@@ -148,10 +156,16 @@ async function safelyExecuteSubsystemTask(
 
     }
 
-    emitSubsystemEvent(
+    registerMemoryRuntimeError(
+      error
+    );
+
+    await emitSubsystemEvent(
       "memory.subsystem.failed",
       {
-        error:error.message
+        error:
+        error?.message ||
+        "UNKNOWN_ERROR"
       }
     );
 
@@ -178,7 +192,12 @@ async function executeWithTimeout(
 
     new Promise((_,reject) => {
 
+      const timer =
       setTimeout(() => {
+
+        clearTimeout(
+          timer
+        );
 
         reject(
           new Error(
@@ -223,7 +242,13 @@ async function emitSubsystemEvent(
 
     }
 
-    catch(error){}
+    catch(error){
+
+      registerMemoryRuntimeError(
+        error
+      );
+
+    }
 
   }
 
@@ -362,10 +387,28 @@ async function initializeMemorySecurityLayer(){
   return safelyExecuteSubsystemTask(
     async() => {
 
+      if(
+        typeof memorySecurityState ===
+        "undefined"
+      ){
+
+        return false;
+
+      }
+
       memorySecurityState
       .initialized = true;
 
-      await runMemoryIntegrityCheck();
+      if(
+
+        MEMORY_SUBSYSTEM_CONFIG
+        .ENABLE_SECURITY_CHECKS
+
+      ){
+
+        await runMemoryIntegrityCheck();
+
+      }
 
       return true;
 
@@ -385,10 +428,26 @@ async function initializeMemoryEmbeddingsLayer(){
   return safelyExecuteSubsystemTask(
     async() => {
 
+      if(
+        typeof rebuildMemoryEmbeddings !==
+        "function"
+      ){
+
+        return false;
+
+      }
+
       rebuildMemoryEmbeddings();
 
-      memoryEmbeddingsState
-      .initialized = true;
+      if(
+        typeof memoryEmbeddingsState !==
+        "undefined"
+      ){
+
+        memoryEmbeddingsState
+        .initialized = true;
+
+      }
 
       return true;
 
@@ -408,13 +467,25 @@ async function initializeMemorySyncLayer(){
   return safelyExecuteSubsystemTask(
     async() => {
 
-      memorySyncState
-      .initialized = true;
+      if(
+        typeof memorySyncState !==
+        "undefined"
+      ){
+
+        memorySyncState
+        .initialized = true;
+
+      }
 
       if(
 
         MEMORY_SUBSYSTEM_CONFIG
         .ENABLE_AUTO_SYNC
+
+        &&
+
+        typeof startAutoMemorySync ===
+        "function"
 
       ){
 
@@ -474,7 +545,7 @@ function startMemoryHealthMonitor(){
       await runMemoryHealthCheck();
 
       if(
-        !diagnostics.valid
+        !diagnostics?.valid
       ){
 
         memorySubsystemState
@@ -502,6 +573,14 @@ function startMemoryHealthMonitor(){
 
       memorySubsystemState
       .healthy = true;
+
+    }
+
+    catch(error){
+
+      registerMemoryRuntimeError(
+        error
+      );
 
     }
 
@@ -595,6 +674,14 @@ function startMemoryCleanupService(){
 
     }
 
+    catch(error){
+
+      registerMemoryRuntimeError(
+        error
+      );
+
+    }
+
     finally{
 
       memorySubsystemState
@@ -669,7 +756,14 @@ async function recoverMemorySubsystem(){
         return false;
       }
 
-      rebuildMemoryEmbeddings();
+      if(
+        typeof rebuildMemoryEmbeddings ===
+        "function"
+      ){
+
+        rebuildMemoryEmbeddings();
+
+      }
 
       await runMemoryIntegrityCheck();
 
@@ -794,12 +888,21 @@ async function initializeMemorySubsystem(){
         // EMBEDDINGS
         // ============================
 
-        const embeddingsInitialized =
-        await initializeMemoryEmbeddingsLayer();
+        if(
 
-        if(!embeddingsInitialized){
+          MEMORY_SUBSYSTEM_CONFIG
+          .ENABLE_AUTO_EMBEDDINGS
 
-          return false;
+        ){
+
+          const embeddingsInitialized =
+          await initializeMemoryEmbeddingsLayer();
+
+          if(!embeddingsInitialized){
+
+            return false;
+          }
+
         }
 
 
@@ -843,6 +946,9 @@ async function initializeMemorySubsystem(){
         Date.now();
 
         memorySubsystemState
+        .healthy = true;
+
+        memorySubsystemState
         .currentStatus =
 
         MEMORY_SUBSYSTEM_STATUS
@@ -869,17 +975,9 @@ async function initializeMemorySubsystem(){
         MEMORY_SUBSYSTEM_STATUS
         .FAILED;
 
-        if(
-
-          memoryState?.runtime
-
-        ){
-
-          memoryState.runtime
-          .lastError =
-          error;
-
-        }
+        registerMemoryRuntimeError(
+          error
+        );
 
         return false;
 
@@ -953,9 +1051,23 @@ async function shutdownMemorySubsystem(){
 
     stopMemoryCleanupService();
 
-    stopAutoMemorySync();
+    if(
+      typeof stopAutoMemorySync ===
+      "function"
+    ){
 
-    await syncMemoryCloud();
+      stopAutoMemorySync();
+
+    }
+
+    if(
+      typeof syncMemoryCloud ===
+      "function"
+    ){
+
+      await syncMemoryCloud();
+
+    }
 
     cleanupMemorySystem();
 
@@ -972,8 +1084,16 @@ async function shutdownMemorySubsystem(){
     .initialized = false;
 
     memorySubsystemState
+    .healthy = false;
+
+    memorySubsystemState
     .shutdownCompletedAt =
     Date.now();
+
+    memorySubsystemState
+    .currentStatus =
+    MEMORY_SUBSYSTEM_STATUS
+    .IDLE;
 
     await emitSubsystemEvent(
 
@@ -986,6 +1106,10 @@ async function shutdownMemorySubsystem(){
   }
 
   catch(error){
+
+    registerMemoryRuntimeError(
+      error
+    );
 
     memorySubsystemState
     .currentStatus =
@@ -1043,6 +1167,10 @@ async function restartMemorySubsystem(){
   }
 
   catch(error){
+
+    registerMemoryRuntimeError(
+      error
+    );
 
     return false;
 
@@ -1150,6 +1278,14 @@ Object.freeze({
 
     await ensureSubsystemReady();
 
+    if(
+      typeof semanticMemorySearch !==
+      "function"
+    ){
+
+      return [];
+    }
+
     return semanticMemorySearch(
       ...args
     );
@@ -1159,6 +1295,14 @@ Object.freeze({
   async related(...args){
 
     await ensureSubsystemReady();
+
+    if(
+      typeof findRelatedMemories !==
+      "function"
+    ){
+
+      return [];
+    }
 
     return findRelatedMemories(
       ...args
@@ -1261,19 +1405,44 @@ function getFullMemoryDiagnostics(){
     },
 
     memory:
-    getMemoryDiagnostics(),
+    typeof getMemoryDiagnostics ===
+    "function"
+
+    ? getMemoryDiagnostics()
+
+    : {},
 
     events:
-    getMemoryEventDiagnostics(),
+    typeof getMemoryEventDiagnostics ===
+    "function"
+
+    ? getMemoryEventDiagnostics()
+
+    : {},
 
     embeddings:
-    getMemoryEmbeddingDiagnostics(),
+    typeof getMemoryEmbeddingDiagnostics ===
+    "function"
+
+    ? getMemoryEmbeddingDiagnostics()
+
+    : {},
 
     security:
-    getMemorySecurityDiagnostics(),
+    typeof getMemorySecurityDiagnostics ===
+    "function"
+
+    ? getMemorySecurityDiagnostics()
+
+    : {},
 
     sync:
-    getMemorySyncDiagnostics()
+    typeof getMemorySyncDiagnostics ===
+    "function"
+
+    ? getMemorySyncDiagnostics()
+
+    : {}
 
   };
 
