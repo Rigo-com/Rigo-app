@@ -36,7 +36,9 @@ Object.seal({
   new Set(),
 
   runtimeLocks:
-  new Set()
+  new Set(),
+
+  startupPromise:null
 
 });
 
@@ -55,7 +57,7 @@ Object.freeze([
 
     required:true,
 
-    initialize(){
+    async initialize(){
 
       return (
 
@@ -64,7 +66,13 @@ Object.freeze([
 
         &&
 
-        SecurityCore
+        typeof SecurityCore
+        .initialize ===
+        "function"
+
+        &&
+
+        await SecurityCore
         .initialize()
 
       );
@@ -81,7 +89,7 @@ Object.freeze([
 
     required:true,
 
-    initialize(){
+    async initialize(){
 
       return (
 
@@ -90,7 +98,13 @@ Object.freeze([
 
         &&
 
-        SecurityPolicy
+        typeof SecurityPolicy
+        .initialize ===
+        "function"
+
+        &&
+
+        await SecurityPolicy
         .initialize()
 
       );
@@ -109,9 +123,12 @@ Object.freeze([
 
     initialize(){
 
-      return typeof
-      SecurityMonitor !==
-      "undefined";
+      return (
+
+        typeof SecurityMonitor !==
+        "undefined"
+
+      );
 
     }
 
@@ -127,9 +144,12 @@ Object.freeze([
 
     initialize(){
 
-      return typeof
-      SecurityValidator !==
-      "undefined";
+      return (
+
+        typeof SecurityValidator !==
+        "undefined"
+
+      );
 
     }
 
@@ -145,9 +165,12 @@ Object.freeze([
 
     initialize(){
 
-      return typeof
-      SecuritySanitize !==
-      "undefined";
+      return (
+
+        typeof SecuritySanitize !==
+        "undefined"
+
+      );
 
     }
 
@@ -163,9 +186,12 @@ Object.freeze([
 
     initialize(){
 
-      return typeof
-      SecurityURL !==
-      "undefined";
+      return (
+
+        typeof SecurityURL !==
+        "undefined"
+
+      );
 
     }
 
@@ -181,9 +207,33 @@ Object.freeze([
 
     initialize(){
 
-      return typeof
-      SecurityFreeze !==
-      "undefined";
+      return (
+
+        typeof SecurityFreeze !==
+        "undefined"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"report",
+
+    required:false,
+
+    initialize(){
+
+      return (
+
+        typeof SecurityReport !==
+        "undefined"
+
+      );
 
     }
 
@@ -201,9 +251,13 @@ function registerSecurityRuntimeModule(
   moduleName
 ){
 
-  if(
-    !moduleName
-  ){
+  const normalizedName =
+  String(
+    moduleName || ""
+  )
+  .trim();
+
+  if(!normalizedName){
 
     return false;
 
@@ -212,13 +266,13 @@ function registerSecurityRuntimeModule(
   securityRuntimeState
   .activeModules
   .add(
-    String(moduleName)
+    normalizedName
   );
 
   securityRuntimeState
   .failedModules
   .delete(
-    String(moduleName)
+    normalizedName
   );
 
   return true;
@@ -235,9 +289,13 @@ function markSecurityModuleFailed(
   moduleName
 ){
 
-  if(
-    !moduleName
-  ){
+  const normalizedName =
+  String(
+    moduleName || ""
+  )
+  .trim();
+
+  if(!normalizedName){
 
     return false;
 
@@ -246,7 +304,13 @@ function markSecurityModuleFailed(
   securityRuntimeState
   .failedModules
   .add(
-    String(moduleName)
+    normalizedName
+  );
+
+  securityRuntimeState
+  .activeModules
+  .delete(
+    normalizedName
   );
 
   return true;
@@ -265,6 +329,10 @@ function validateSecurityRuntimeModules(){
   .every((module) => {
 
     return (
+
+      module
+
+      &&
 
       typeof module ===
       "object"
@@ -302,8 +370,11 @@ async function initializeSecurityModules(){
     try{
 
       const initialized =
-      await module
-      .initialize();
+      await Promise.resolve(
+
+        module.initialize()
+
+      );
 
       if(!initialized){
 
@@ -386,6 +457,10 @@ async function initializeSecurityModules(){
 
 function runSecurityHealthcheck(){
 
+  securityRuntimeState
+  .lastHealthcheckAt =
+  Date.now();
+
   if(
     !securityRuntimeState
     .initialized
@@ -395,15 +470,31 @@ function runSecurityHealthcheck(){
 
   }
 
-  securityRuntimeState
-  .lastHealthcheckAt =
-  Date.now();
+  const requiredModules =
+
+    SECURITY_RUNTIME_MODULES
+    .filter((module) => {
+
+      return module.required;
+    });
 
   const healthy =
+  requiredModules.every((module) => {
+
+    return securityRuntimeState
+    .activeModules
+    .has(
+      module.name
+    );
+
+  });
+
+  if(!healthy){
 
     securityRuntimeState
-    .failedModules
-    .size === 0;
+    .crashed = true;
+
+  }
 
   return healthy;
 
@@ -420,111 +511,156 @@ async function initializeSecurityRuntime(){
   if(
     securityRuntimeState
     .initialized
-
-    ||
-
-    securityRuntimeState
-    .starting
   ){
 
     return true;
 
   }
 
+  if(
+    securityRuntimeState
+    .startupPromise
+  ){
+
+    return securityRuntimeState
+    .startupPromise;
+
+  }
+
   securityRuntimeState
-  .starting =
-  true;
+  .startupPromise =
 
-  try{
-
-    const valid =
-    validateSecurityRuntimeModules();
-
-    if(!valid){
-
-      throw new Error(
-        "INVALID SECURITY MODULES"
-      );
-
-    }
-
-    const initialized =
-    await initializeSecurityModules();
-
-    if(!initialized){
-
-      throw new Error(
-        "SECURITY MODULE INIT FAILED"
-      );
-
-    }
-
-    securityRuntimeState
-    .initialized =
-    true;
-
-    securityRuntimeState
-    .initializedAt =
-    Date.now();
-
-    runSecurityHealthcheck();
+  (async() => {
 
     if(
-      typeof logSecurityEvent ===
-      "function"
+      securityRuntimeState
+      .starting
     ){
 
-      logSecurityEvent(
-        "SECURITY RUNTIME READY"
-      );
+      return false;
 
     }
-
-    return true;
-
-  }
-
-  catch(error){
-
-    securityRuntimeState
-    .crashed =
-    true;
-
-    securityRuntimeState
-    .lastError =
-    error;
-
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-
-        "SECURITY RUNTIME FAILED",
-
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-    }
-
-    return false;
-
-  }
-
-  finally{
 
     securityRuntimeState
     .starting =
-    false;
+    true;
 
-  }
+    try{
+
+      const valid =
+      validateSecurityRuntimeModules();
+
+      if(!valid){
+
+        throw new Error(
+          "INVALID SECURITY MODULES"
+        );
+
+      }
+
+      const initialized =
+      await initializeSecurityModules();
+
+      if(!initialized){
+
+        throw new Error(
+          "SECURITY MODULE INIT FAILED"
+        );
+
+      }
+
+      securityRuntimeState
+      .initialized =
+      true;
+
+      securityRuntimeState
+      .crashed =
+      false;
+
+      securityRuntimeState
+      .initializedAt =
+      Date.now();
+
+      const healthy =
+      runSecurityHealthcheck();
+
+      if(!healthy){
+
+        throw new Error(
+          "SECURITY HEALTHCHECK FAILED"
+        );
+
+      }
+
+      if(
+        typeof logSecurityEvent ===
+        "function"
+      ){
+
+        logSecurityEvent(
+          "SECURITY RUNTIME READY"
+        );
+
+      }
+
+      return true;
+
+    }
+
+    catch(error){
+
+      securityRuntimeState
+      .crashed =
+      true;
+
+      securityRuntimeState
+      .initialized =
+      false;
+
+      securityRuntimeState
+      .lastError =
+      error;
+
+      if(
+        typeof logSecurityEvent ===
+        "function"
+      ){
+
+        logSecurityEvent(
+
+          "SECURITY RUNTIME FAILED",
+
+          {
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+      }
+
+      return false;
+
+    }
+
+    finally{
+
+      securityRuntimeState
+      .starting =
+      false;
+
+      securityRuntimeState
+      .startupPromise =
+      null;
+
+    }
+
+  })();
+
+  return securityRuntimeState
+  .startupPromise;
 
 }
 
@@ -570,6 +706,14 @@ async function shutdownSecurityRuntime(){
     securityRuntimeState
     .initialized =
     false;
+
+    securityRuntimeState
+    .starting =
+    false;
+
+    securityRuntimeState
+    .startupPromise =
+    null;
 
     if(
       typeof logSecurityEvent ===
@@ -690,6 +834,12 @@ function getSecurityRuntimeDiagnostics(){
       .runtimeLocks
 
     ],
+
+    startupInProgress:
+    Boolean(
+      securityRuntimeState
+      .startupPromise
+    ),
 
     lastError:
 
