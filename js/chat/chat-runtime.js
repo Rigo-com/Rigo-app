@@ -19,6 +19,9 @@ Object.freeze({
   MAX_RETRIES:
   3,
 
+  RETRY_DELAY:
+  1000,
+
   SAVE_DEBOUNCE:
   300,
 
@@ -84,6 +87,8 @@ Object.seal({
 
   initialized:false,
 
+  processing:false,
+
   queue:[],
 
   activeMessageId:null,
@@ -116,6 +121,17 @@ async function emitChatRuntimeEvent(
   eventName,
   payload = {}
 ){
+
+  if(
+
+    !CHAT_RUNTIME_CONFIG
+    .ENABLE_EVENTS
+
+  ){
+
+    return false;
+
+  }
 
   if(
     typeof emitSystemEvent !==
@@ -174,29 +190,28 @@ function safeClone(
 
     }
 
-    return structuredClone(
-      value
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
     );
 
   }
 
   catch(error){
 
-    try{
-
-      return JSON.parse(
-        JSON.stringify(
-          value
-        )
-      );
-
-    }
-
-    catch(cloneError){
-
-      return null;
-
-    }
+    return null;
 
   }
 
@@ -204,7 +219,92 @@ function safeClone(
 
 
 
+function wait(
+  duration = 0
+){
+
+  return new Promise((resolve) => {
+
+    setTimeout(
+      resolve,
+      duration
+    );
+
+  });
+
+}
+
+
+
+function freezeChatObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeChatObject(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
 function continueQueueProcessing(){
+
+  if(
+    chatRuntimeState.processing
+  ){
+
+    return;
+  }
 
   if(
     chatRuntimeState.generating
@@ -231,7 +331,7 @@ function continueQueueProcessing(){
   })
   .catch((error) => {
 
-    safeLogError(
+    safeLogError?.(
 
       "QUEUE CONTINUE ERROR:",
 
@@ -253,7 +353,7 @@ function createQueueItem(
   messageId
 ){
 
-  return Object.freeze({
+  return {
 
     id:
     String(messageId),
@@ -263,7 +363,7 @@ function createQueueItem(
 
     retries:0
 
-  });
+  };
 
 }
 
@@ -298,12 +398,12 @@ async function sendMessage(){
     text.length >
 
     APP_CONFIG
-    .CHAT
-    .MAX_MESSAGE_LENGTH
+    ?.CHAT
+    ?.MAX_MESSAGE_LENGTH
 
   ){
 
-    safeLogError(
+    safeLogError?.(
       "MESSAGE TOO LONG"
     );
 
@@ -322,7 +422,7 @@ async function sendMessage(){
 
   ){
 
-    safeLogError(
+    safeLogError?.(
       "QUEUE LIMIT REACHED"
     );
 
@@ -331,7 +431,7 @@ async function sendMessage(){
   }
 
   if(
-    currentChat.title === ""
+    currentChat?.title === ""
   ){
 
     currentChat.title =
@@ -341,7 +441,8 @@ async function sendMessage(){
 
   }
 
-  const userMessage = {
+  const userMessage =
+  freezeChatObject({
 
     id:createMessageId(),
 
@@ -361,7 +462,7 @@ async function sendMessage(){
 
     }
 
-  };
+  });
 
   const added =
   addMessage(
@@ -385,13 +486,34 @@ async function sendMessage(){
 
   catch(error){
 
-    safeLogError(
+    safeLogError?.(
 
       "INPUT FOCUS ERROR:",
 
       error
 
     );
+
+  }
+
+  const duplicateQueueItem =
+
+    chatRuntimeState
+    .queue
+    .some((item) => {
+
+      return (
+        item.id ===
+        userMessage.id
+      );
+
+    });
+
+  if(
+    duplicateQueueItem
+  ){
+
+    return false;
 
   }
 
@@ -445,7 +567,7 @@ async function processAIQueue(){
 
   ){
 
-    safeLogError(
+    safeLogError?.(
       "AI SERVICE NOT AVAILABLE"
     );
 
@@ -454,8 +576,7 @@ async function processAIQueue(){
   }
 
   if(
-    chatRuntimeState
-    .generating
+    chatRuntimeState.processing
   ){
 
     return false;
@@ -463,8 +584,15 @@ async function processAIQueue(){
   }
 
   if(
-    chatRuntimeState
-    .queue
+    chatRuntimeState.generating
+  ){
+
+    return false;
+
+  }
+
+  if(
+    chatRuntimeState.queue
     .length <= 0
   ){
 
@@ -472,12 +600,20 @@ async function processAIQueue(){
 
   }
 
+  chatRuntimeState
+  .processing =
+  true;
+
   const queueItem =
 
     chatRuntimeState
     .queue[0];
 
   if(!queueItem){
+
+    chatRuntimeState
+    .processing =
+    false;
 
     return false;
 
@@ -521,6 +657,22 @@ async function processAIQueue(){
 
   try{
 
+    if(
+
+      chatRuntimeState
+      .generationController
+      .signal
+      .aborted
+
+    ){
+
+      throw new DOMException(
+        "Aborted",
+        "AbortError"
+      );
+
+    }
+
     generated =
     await generateAIResponse(
 
@@ -538,40 +690,36 @@ async function processAIQueue(){
 
     );
 
-    if(generated){
-
-      chatRuntimeState
-      .diagnostics
-      .successful++;
-
-      await emitChatRuntimeEvent(
-
-        CHAT_RUNTIME_EVENTS
-        .GENERATION_COMPLETED,
-
-        {
-
-          messageId:
-          queueItem.id,
-
-          duration:
-
-            Date.now() -
-            startedAt
-
-        }
-
-      );
-
-    }
-
-    else{
+    if(!generated){
 
       throw new Error(
         "GENERATION_FAILED"
       );
 
     }
+
+    chatRuntimeState
+    .diagnostics
+    .successful++;
+
+    await emitChatRuntimeEvent(
+
+      CHAT_RUNTIME_EVENTS
+      .GENERATION_COMPLETED,
+
+      {
+
+        messageId:
+        queueItem.id,
+
+        duration:
+
+          Date.now() -
+          startedAt
+
+      }
+
+    );
 
   }
 
@@ -638,29 +786,18 @@ async function processAIQueue(){
 
         );
 
-        chatRuntimeState
-        .generating =
-        false;
+        await wait(
 
-        chatRuntimeState
-        .streaming =
-        false;
+          CHAT_RUNTIME_CONFIG
+          .RETRY_DELAY
 
-        chatRuntimeState
-        .activeMessageId =
-        null;
-
-        chatRuntimeState
-        .generationController =
-        null;
-
-        continueQueueProcessing();
+        );
 
         return false;
 
       }
 
-      safeLogError(
+      safeLogError?.(
 
         "QUEUE PROCESS ERROR:",
 
@@ -713,6 +850,10 @@ async function processAIQueue(){
     false;
 
     chatRuntimeState
+    .processing =
+    false;
+
+    chatRuntimeState
     .activeMessageId =
     null;
 
@@ -749,13 +890,19 @@ async function abortMessageGeneration(){
 
   try{
 
-    controller.abort();
+    if(
+      !controller.signal.aborted
+    ){
+
+      controller.abort();
+
+    }
 
   }
 
   catch(error){
 
-    safeLogError(
+    safeLogError?.(
 
       "ABORT ERROR:",
 
@@ -773,22 +920,6 @@ async function abortMessageGeneration(){
   .streaming =
   false;
 
-  await emitChatRuntimeEvent(
-
-    CHAT_RUNTIME_EVENTS
-    .GENERATION_ABORTED,
-
-    {
-
-      messageId:
-
-        chatRuntimeState
-        .activeMessageId
-
-    }
-
-  );
-
   return true;
 
 }
@@ -803,14 +934,24 @@ function addMessage(
   messageData
 ){
 
-  if(!chatContainer){
+  if(
+    !chatContainer
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !currentChat
+  ){
 
     return false;
 
   }
 
   const validMessage =
-  validateMessage(
+  validateMessage?.(
     messageData
   );
 
@@ -858,6 +999,12 @@ function addMessage(
       safeMessage
     );
 
+    if(!messageElement){
+
+      return false;
+
+    }
+
     chatContainer.appendChild(
       messageElement
     );
@@ -877,7 +1024,7 @@ function addMessage(
 
     debouncedSaveCurrentChat();
 
-    scrollToBottom();
+    scrollToBottom?.();
 
     return true;
 
@@ -885,7 +1032,7 @@ function addMessage(
 
   catch(error){
 
-    safeLogError(
+    safeLogError?.(
 
       "ADD MESSAGE ERROR:",
 
@@ -916,11 +1063,17 @@ function showTypingIndicator(){
   if(!typingIndicatorElement){
 
     typingIndicatorElement =
-    createTypingIndicatorElement();
+    createTypingIndicatorElement?.();
 
   }
 
-  removeTypingIndicator(
+  if(!typingIndicatorElement){
+
+    return false;
+
+  }
+
+  removeTypingIndicator?.(
     false
   );
 
@@ -955,7 +1108,7 @@ function showTypingIndicator(){
 
   }
 
-  scrollToBottom();
+  scrollToBottom?.();
 
   return true;
 
@@ -1007,13 +1160,12 @@ async function resetCurrentChat(){
 
   }
 
-  removeTypingIndicator();
+  removeTypingIndicator?.();
 
   if(chatContainer){
 
     chatContainer
     .replaceChildren();
-
   }
 
   if(
@@ -1041,7 +1193,7 @@ async function resetCurrentChat(){
 
   );
 
-  scrollToBottom();
+  scrollToBottom?.();
 
   return true;
 
@@ -1096,20 +1248,9 @@ function debouncedSaveCurrentChat(){
     Promise.resolve(
       saveCurrentChat()
     )
-    .then((saveResult) => {
-
-      if(!saveResult){
-
-        safeLogError(
-          "CHAT SAVE FAILED"
-        );
-
-      }
-
-    })
     .catch((error) => {
 
-      safeLogError(
+      safeLogError?.(
 
         "CHAT SAVE ERROR:",
 
@@ -1165,7 +1306,7 @@ function initializeChatRuntime(){
 
 function getChatRuntimeStatus(){
 
-  return safeClone({
+  return freezeChatObject({
 
     initialized:
 
@@ -1187,6 +1328,11 @@ function getChatRuntimeStatus(){
       chatRuntimeState
       .syncing,
 
+    processing:
+
+      chatRuntimeState
+      .processing,
+
     queueSize:
 
       chatRuntimeState
@@ -1200,8 +1346,12 @@ function getChatRuntimeStatus(){
 
     diagnostics:
 
-      chatRuntimeState
-      .diagnostics
+      safeClone(
+
+        chatRuntimeState
+        .diagnostics
+
+      )
 
   });
 
@@ -1218,6 +1368,10 @@ async function resetChatRuntime(){
   await abortMessageGeneration();
 
   chatRuntimeState
+  .initialized =
+  false;
+
+  chatRuntimeState
   .generating =
   false;
 
@@ -1227,6 +1381,10 @@ async function resetChatRuntime(){
 
   chatRuntimeState
   .syncing =
+  false;
+
+  chatRuntimeState
+  .processing =
   false;
 
   chatRuntimeState
