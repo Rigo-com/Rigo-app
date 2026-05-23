@@ -80,3 +80,23 @@ Object.freeze({
   "container.error"
 
 });
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.DEPENDENCY_CONTAINER_CONFIG =
+  DEPENDENCY_CONTAINER_CONFIG;
+
+  window.SERVICE_LIFECYCLE =
+  SERVICE_LIFECYCLE;
+
+  window.CONTAINER_EVENTS =
+  CONTAINER_EVENTS;
+
+}
