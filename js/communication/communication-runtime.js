@@ -44,6 +44,12 @@ Object.freeze({
   MAX_QUEUE_SIZE:
   1000,
 
+  MAX_CONVERSATIONS:
+  500,
+
+  MAX_HASH_CACHE:
+  5000,
+
   MAX_RETRIES:
   3,
 
@@ -181,7 +187,10 @@ Object.seal({
   new Map(),
 
   processedHashes:
-  new Set(),
+  new Map(),
+
+  runtimeRecoveryUnsubscribe:
+  null,
 
   healthTimer:null,
 
@@ -278,6 +287,41 @@ function wait(
 
 
 
+function safeCommunicationClone(
+  value
+){
+
+  try{
+
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
 function createMessageHash(
   message
 ){
@@ -286,9 +330,15 @@ function createMessageHash(
 
     return btoa(
 
-      JSON.stringify(
-        message
-      )
+      JSON.stringify({
+
+        content:
+        message?.content,
+
+        metadata:
+        message?.metadata
+
+      })
 
     );
 
@@ -298,6 +348,104 @@ function createMessageHash(
 
     return createCommunicationId(
       "hash"
+    );
+
+  }
+
+}
+
+
+
+function cleanupProcessedHashes(){
+
+  if(
+
+    communicationRuntimeState
+    .processedHashes
+    .size <=
+
+    COMMUNICATION_RUNTIME_CONFIG
+    .MAX_HASH_CACHE
+
+  ){
+
+    return;
+  }
+
+  const keys = [
+
+    ...communicationRuntimeState
+    .processedHashes
+    .keys()
+
+  ];
+
+  const overflow =
+
+    keys.length -
+
+    COMMUNICATION_RUNTIME_CONFIG
+    .MAX_HASH_CACHE;
+
+  for(
+    let index = 0;
+    index < overflow;
+    index++
+  ){
+
+    communicationRuntimeState
+    .processedHashes
+    .delete(
+      keys[index]
+    );
+
+  }
+
+}
+
+
+
+function trimConversationHistory(){
+
+  if(
+
+    communicationRuntimeState
+    .conversations
+    .size <=
+
+    COMMUNICATION_RUNTIME_CONFIG
+    .MAX_CONVERSATIONS
+
+  ){
+
+    return;
+  }
+
+  const keys = [
+
+    ...communicationRuntimeState
+    .conversations
+    .keys()
+
+  ];
+
+  const overflow =
+
+    keys.length -
+
+    COMMUNICATION_RUNTIME_CONFIG
+    .MAX_CONVERSATIONS;
+
+  for(
+    let index = 0;
+    index < overflow;
+    index++
+  ){
+
+    communicationRuntimeState
+    .conversations
+    .delete(
+      keys[index]
     );
 
   }
@@ -373,6 +521,24 @@ function freezeCommunicationObject(
 
     typeof value !==
     "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof AbortController ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet
 
   ){
 
@@ -518,22 +684,32 @@ function persistCommunicationState(){
 
   try{
 
+    const safeQueue =
+    communicationRuntimeState
+    .messageQueue
+    .map((item) => {
+
+      return {
+
+        id:item.id,
+
+        content:item.content,
+
+        metadata:item.metadata,
+
+        createdAt:item.createdAt
+
+      };
+
+    });
+
     localStorage.setItem(
 
       "rigo_communication_state",
 
       JSON.stringify({
 
-        queue:
-        communicationRuntimeState
-        .messageQueue,
-
-        conversations:[
-
-          ...communicationRuntimeState
-          .conversations
-
-        ]
+        queue:safeQueue
 
       })
 
@@ -572,6 +748,16 @@ function restoreCommunicationState(){
     JSON.parse(raw);
 
     if(
+      !parsed ||
+      typeof parsed !==
+      "object"
+    ){
+
+      return false;
+
+    }
+
+    if(
       Array.isArray(
         parsed.queue
       )
@@ -579,20 +765,16 @@ function restoreCommunicationState(){
 
       communicationRuntimeState
       .messageQueue =
-      parsed.queue;
-    }
 
-    if(
-      Array.isArray(
-        parsed.conversations
-      )
-    ){
+      parsed.queue
+      .filter((item) => {
 
-      communicationRuntimeState
-      .conversations =
-      new Map(
-        parsed.conversations
-      );
+        return validateCommunicationMessage(
+          item
+        );
+
+      });
+
     }
 
     communicationRuntimeState
@@ -631,6 +813,31 @@ async function enqueueCommunicationMessage(
     .MAX_QUEUE_SIZE
 
   ){
+
+    return false;
+
+  }
+
+  const duplicate =
+
+    communicationRuntimeState
+    .messageQueue
+    .some((message) => {
+
+      return (
+        message.content ===
+        payload.content
+      );
+
+    });
+
+  if(
+    duplicate
+  ){
+
+    communicationRuntimeState
+    .diagnostics
+    .duplicatesPrevented++;
 
     return false;
 
@@ -710,9 +917,23 @@ async function processCommunicationQueue(){
 
       }
 
-      await executeCommunicationMessage(
-        payload
-      );
+      try{
+
+        await executeCommunicationMessage(
+          payload
+        );
+
+      }
+
+      catch(error){
+
+        communicationRuntimeState
+        .diagnostics
+        .failed++;
+
+      }
+
+      await wait(0);
 
     }
 
@@ -889,6 +1110,15 @@ async function startTypingIndicator(){
 
   }
 
+  if(
+    communicationRuntimeState
+    .typing
+  ){
+
+    return true;
+
+  }
+
   communicationRuntimeState
   .typing =
   true;
@@ -907,6 +1137,15 @@ async function startTypingIndicator(){
 
 
 async function stopTypingIndicator(){
+
+  if(
+    !communicationRuntimeState
+    .typing
+  ){
+
+    return true;
+
+  }
 
   communicationRuntimeState
   .typing =
@@ -947,7 +1186,29 @@ function abortCommunicationMessage(
 
   }
 
-  controller.abort();
+  try{
+
+    controller.abort();
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+  communicationRuntimeState
+  .abortControllers
+  .delete(
+    requestId
+  );
+
+  communicationRuntimeState
+  .activeRequests
+  .delete(
+    requestId
+  );
 
   communicationRuntimeState
   .diagnostics
@@ -989,6 +1250,14 @@ function abortAllCommunicationMessages(){
     }
 
   });
+
+  communicationRuntimeState
+  .abortControllers
+  .clear();
+
+  communicationRuntimeState
+  .activeRequests
+  .clear();
 
   return true;
 
@@ -1047,9 +1316,15 @@ async function executeCommunicationMessage(
 
   communicationRuntimeState
   .processedHashes
-  .add(
-    messageHash
+  .set(
+
+    messageHash,
+
+    Date.now()
+
   );
+
+  cleanupProcessedHashes();
 
   const controller =
 
@@ -1082,7 +1357,9 @@ async function executeCommunicationMessage(
     requestId,
 
     freezeCommunicationObject(
-      payload
+      safeCommunicationClone(
+        payload
+      )
     )
 
   );
@@ -1116,10 +1393,7 @@ async function executeCommunicationMessage(
       timeoutId =
       setTimeout(() => {
 
-        if(controller){
-
-          controller.abort();
-        }
+        controller?.abort();
 
       },
 
@@ -1147,19 +1421,6 @@ async function executeCommunicationMessage(
       try{
 
         if(
-          typeof ChatRuntime !==
-          "undefined"
-        ){
-
-          response =
-          await ChatRuntime
-          ?.send?.(
-            payload
-          );
-
-        }
-
-        else if(
           typeof APIRuntime !==
           "undefined"
         ){
@@ -1196,21 +1457,21 @@ async function executeCommunicationMessage(
 
       catch(error){
 
-        if(
+        const aborted =
 
           controller?.signal
-          ?.aborted
+          ?.aborted;
 
-        ){
+        if(aborted){
 
           communicationRuntimeState
           .diagnostics
-          .timeouts++;
+          .aborted++;
 
           await emitCommunicationEvent(
 
             COMMUNICATION_RUNTIME_EVENTS
-            .MESSAGE_TIMEOUT,
+            .MESSAGE_ABORTED,
 
             {
 
@@ -1255,7 +1516,9 @@ async function executeCommunicationMessage(
 
     const frozenResponse =
     freezeCommunicationObject(
-      response
+      safeCommunicationClone(
+        response
+      )
     );
 
     communicationRuntimeState
@@ -1277,9 +1540,7 @@ async function executeCommunicationMessage(
 
       {
 
-        requestId,
-
-        payload
+        requestId
 
       }
 
@@ -1292,10 +1553,7 @@ async function executeCommunicationMessage(
 
       {
 
-        requestId,
-
-        response:
-        frozenResponse
+        requestId
 
       }
 
@@ -1349,6 +1607,8 @@ async function executeCommunicationMessage(
       })
 
     );
+
+    trimConversationHistory();
 
     persistCommunicationState();
 
@@ -1468,9 +1728,10 @@ async function sendCommunicationMessage(
 
       freezeCommunicationObject(
 
-        message.metadata ||
-
-        {}
+        safeCommunicationClone(
+          message.metadata ||
+          {}
+        )
 
       ),
 
@@ -1479,9 +1740,16 @@ async function sendCommunicationMessage(
 
   });
 
+  const queued =
   await enqueueCommunicationMessage(
     payload
   );
+
+  if(!queued){
+
+    return null;
+
+  }
 
   await processCommunicationQueue();
 
@@ -1716,8 +1984,12 @@ function getCommunicationRuntimeStatus(){
 
     diagnostics:
 
-      communicationRuntimeState
-      .diagnostics
+      safeCommunicationClone(
+
+        communicationRuntimeState
+        .diagnostics
+
+      )
 
   });
 
@@ -1755,6 +2027,28 @@ async function resetCommunicationRuntime(){
   communicationRuntimeState
   .conversations
   .clear();
+
+  if(
+    communicationRuntimeState
+    .runtimeRecoveryUnsubscribe
+  ){
+
+    try{
+
+      communicationRuntimeState
+      .runtimeRecoveryUnsubscribe();
+
+    }
+
+    catch(error){
+
+    }
+
+    communicationRuntimeState
+    .runtimeRecoveryUnsubscribe =
+    null;
+
+  }
 
   if(
     communicationRuntimeState
@@ -1934,6 +2228,7 @@ async function initializeCommunicationRuntime(){
 
     ){
 
+      const unsubscribe =
       SystemEvents.on(
 
         "runtime.recovered",
@@ -1945,6 +2240,17 @@ async function initializeCommunicationRuntime(){
         }
 
       );
+
+      if(
+        typeof unsubscribe ===
+        "function"
+      ){
+
+        communicationRuntimeState
+        .runtimeRecoveryUnsubscribe =
+        unsubscribe;
+
+      }
 
     }
 
