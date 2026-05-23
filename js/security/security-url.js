@@ -7,17 +7,82 @@
 
 
 // =====================================
-// ALLOWED PROTOCOLS
+// GET ALLOWED PROTOCOLS
 // =====================================
 
-const ALLOWED_URL_PROTOCOLS =
-Object.freeze([
+function getAllowedURLProtocols(){
 
-  "https:",
+  const allowHTTP =
 
-  "http:"
+    SECURITY_CONFIG
+    .ENABLE_HTTP_PROTOCOL ===
+    true;
 
-]);
+  return allowHTTP
+
+  ?
+
+  ["https:","http:"]
+
+  :
+
+  ["https:"];
+
+}
+
+
+
+// =====================================
+// VALIDATE URL PROTOCOL
+// =====================================
+
+function validateURLProtocol(
+  protocol
+){
+
+  const normalized =
+  safeString(protocol)
+  .toLowerCase();
+
+  return getAllowedURLProtocols()
+  .includes(
+    normalized
+  );
+
+}
+
+
+
+// =====================================
+// VALIDATE LOCALHOST
+// =====================================
+
+function isLocalhostHostname(
+  hostname
+){
+
+  const normalized =
+  safeString(hostname)
+  .toLowerCase();
+
+  return (
+
+    normalized ===
+    "localhost"
+
+    ||
+
+    normalized ===
+    "127.0.0.1"
+
+    ||
+
+    normalized ===
+    "::1"
+
+  );
+
+}
 
 
 
@@ -54,36 +119,16 @@ function addTrustedOrigin(
     .toLowerCase();
 
     if(
-
-      protocol === "http:" &&
-
-      !SECURITY_CONFIG
-      .ENABLE_HTTP_PROTOCOL
-
-    ){
-
-      return false;
-
-    }
-
-    if(
-
-      !ALLOWED_URL_PROTOCOLS
-      .includes(
+      !validateURLProtocol(
         protocol
       )
-
     ){
 
       logSecurityEvent(
 
         "UNTRUSTED PROTOCOL BLOCKED",
 
-        {
-
-          protocol
-
-        }
+        { protocol }
 
       );
 
@@ -106,25 +151,10 @@ function addTrustedOrigin(
 
     }
 
-    const hostname =
-    parsed.hostname
-    .toLowerCase();
-
     if(
-
-      hostname ===
-      "localhost"
-
-      ||
-
-      hostname ===
-      "127.0.0.1"
-
-      ||
-
-      hostname ===
-      "::1"
-
+      isLocalhostHostname(
+        parsed.hostname
+      )
     ){
 
       logSecurityEvent(
@@ -143,11 +173,37 @@ function addTrustedOrigin(
       parsed.origin
     );
 
+    logSecurityEvent(
+
+      "TRUSTED ORIGIN ADDED",
+
+      {
+
+        origin:
+        parsed.origin
+
+      }
+
+    );
+
     return true;
 
   }
 
   catch(error){
+
+    logSecurityEvent(
+
+      "ADD TRUSTED ORIGIN FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
 
     return false;
 
@@ -268,6 +324,10 @@ function safeURL(
     securityState
     .blockedURLs++;
 
+    logSecurityEvent(
+      "URL LENGTH BLOCKED"
+    );
+
     return null;
 
   }
@@ -302,30 +362,21 @@ function safeURL(
     .toLowerCase();
 
     if(
-
-      protocol === "http:" &&
-
-      !SECURITY_CONFIG
-      .ENABLE_HTTP_PROTOCOL
-
+      !validateURLProtocol(
+        protocol
+      )
     ){
 
       securityState
       .blockedURLs++;
 
-      return null;
+      logSecurityEvent(
 
-    }
+        "URL PROTOCOL BLOCKED",
 
-    if(
+        { protocol }
 
-      !ALLOWED_URL_PROTOCOLS
-      .includes(protocol)
-
-    ){
-
-      securityState
-      .blockedURLs++;
+      );
 
       return null;
 
@@ -347,25 +398,10 @@ function safeURL(
 
     }
 
-    const hostname =
-    parsed.hostname
-    .toLowerCase();
-
     if(
-
-      hostname ===
-      "localhost"
-
-      ||
-
-      hostname ===
-      "127.0.0.1"
-
-      ||
-
-      hostname ===
-      "::1"
-
+      isLocalhostHostname(
+        parsed.hostname
+      )
     ){
 
       securityState
@@ -387,6 +423,19 @@ function safeURL(
 
     securityState
     .blockedURLs++;
+
+    logSecurityEvent(
+
+      "URL PARSE FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
 
     return null;
 
@@ -477,6 +526,19 @@ function validateTrustedURL(
       securityState
       .blockedURLs++;
 
+      logSecurityEvent(
+
+        "UNTRUSTED URL BLOCKED",
+
+        {
+
+          origin:
+          parsed.origin
+
+        }
+
+      );
+
       return null;
 
     }
@@ -502,6 +564,9 @@ function validateTrustedURL(
 function getURLSecurityDiagnostics(){
 
   return Object.freeze({
+
+    allowedProtocols:
+    getAllowedURLProtocols(),
 
     trustedOrigins:[
 
@@ -535,6 +600,9 @@ Object.freeze({
 
   validateTrusted:
   validateTrustedURL,
+
+  validateProtocol:
+  validateURLProtocol,
 
   addTrusted:
   addTrustedOrigin,
