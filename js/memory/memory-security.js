@@ -53,15 +53,18 @@ function secureCompareStrings(
 
   try{
 
-    const normalizedA =
-    String(valueA || "");
+    if(
+      typeof valueA !== "string" ||
+      typeof valueB !== "string"
+    ){
 
-    const normalizedB =
-    String(valueB || "");
+      return false;
+
+    }
 
     if(
-      normalizedA.length !==
-      normalizedB.length
+      valueA.length !==
+      valueB.length
     ){
 
       return false;
@@ -72,17 +75,17 @@ function secureCompareStrings(
 
     for(
       let i = 0;
-      i < normalizedA.length;
+      i < valueA.length;
       i++
     ){
 
       result |= (
 
-        normalizedA.charCodeAt(i)
+        valueA.charCodeAt(i)
 
         ^
 
-        normalizedB.charCodeAt(i)
+        valueB.charCodeAt(i)
 
       );
 
@@ -337,6 +340,59 @@ async function detectMemoryTampering(
 
 
 // =====================================
+// ENCRYPTION KEY STORAGE
+// =====================================
+
+let memoryEncryptionKey =
+null;
+
+
+
+async function getOrCreateMemoryEncryptionKey(){
+
+  try{
+
+    if(
+      memoryEncryptionKey
+    ){
+
+      return memoryEncryptionKey;
+
+    }
+
+    const generatedKey =
+    await createEncryptionKey();
+
+    if(
+      !generatedKey
+    ){
+
+      return null;
+
+    }
+
+    memoryEncryptionKey =
+    generatedKey;
+
+    return memoryEncryptionKey;
+
+  }
+
+  catch(error){
+
+    storeSecurityError(
+      error
+    );
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // RANDOM IV
 // =====================================
 
@@ -365,7 +421,8 @@ function createEncryptionIV(){
 
 async function encryptMemoryContent(
   content,
-  encryptionKey
+  encryptionKey =
+  memoryEncryptionKey
 ){
 
   try{
@@ -377,6 +434,14 @@ async function encryptMemoryContent(
 
       return null;
 
+    }
+
+    if(
+      !encryptionKey
+    ){
+
+      encryptionKey =
+      await getOrCreateMemoryEncryptionKey();
     }
 
     if(
@@ -481,7 +546,8 @@ async function encryptMemoryContent(
 
 async function decryptMemoryContent(
   encryptedPayload,
-  encryptionKey
+  encryptionKey =
+  memoryEncryptionKey
 ){
 
   try{
@@ -506,6 +572,14 @@ async function decryptMemoryContent(
 
       return null;
 
+    }
+
+    if(
+      !encryptionKey
+    ){
+
+      encryptionKey =
+      await getOrCreateMemoryEncryptionKey();
     }
 
     if(
