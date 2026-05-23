@@ -22,11 +22,21 @@ deepFreeze({
   MIN_PASSWORD_LENGTH:
   6,
 
+  MAX_LOGIN_ATTEMPTS:
+  5,
+
+  LOGIN_BLOCK_DURATION:
+  1000 * 60 * 15,
+
   ENABLE_EVENTS:true,
 
   ENABLE_DIAGNOSTICS:true,
 
   ENABLE_SESSION_MONITORING:true,
+
+  ENABLE_TOKEN_VALIDATION:true,
+
+  ENABLE_ACTIVITY_TRACKING:true,
 
   SESSION_CHECK_INTERVAL:
   60000
@@ -48,6 +58,9 @@ Object.freeze({
   LOGOUT:
   "auth.logout",
 
+  REGISTER:
+  "auth.register",
+
   SESSION_RESTORED:
   "auth.session.restored",
 
@@ -56,6 +69,12 @@ Object.freeze({
 
   SESSION_CLEARED:
   "auth.session.cleared",
+
+  LOGIN_BLOCKED:
+  "auth.login.blocked",
+
+  TOKEN_INVALID:
+  "auth.token.invalid",
 
   AUTH_ERROR:
   "auth.error"
@@ -85,6 +104,8 @@ new Set([
 
   "sessionExpiresAt",
 
+  "lastActivityAt",
+
   "error"
 
 ]);
@@ -112,7 +133,13 @@ Object.seal({
 
   sessionExpiresAt:null,
 
+  lastActivityAt:null,
+
   error:null,
+
+  failedLoginAttempts:0,
+
+  loginBlockedUntil:null,
 
   diagnostics:{
 
@@ -120,9 +147,13 @@ Object.seal({
 
     logouts:0,
 
+    registrations:0,
+
     restored:0,
 
     expired:0,
+
+    blocked:0,
 
     errors:0
 
@@ -230,10 +261,6 @@ function safeCloneAuth(
 
 
 
-// =====================================
-// STORAGE AVAILABILITY
-// =====================================
-
 function isStorageAvailable(){
 
   try{
@@ -264,10 +291,6 @@ function isStorageAvailable(){
 
 
 
-// =====================================
-// CREATE UNIQUE ID
-// =====================================
-
 function createUniqueId(
   prefix = "id"
 ){
@@ -281,7 +304,9 @@ function createUniqueId(
   if(
 
     typeof crypto !==
-    "undefined" &&
+    "undefined"
+
+    &&
 
     typeof crypto.randomUUID ===
     "function"
@@ -320,9 +345,46 @@ function createUniqueId(
 
 
 
-// =====================================
-// VALIDATE STATE
-// =====================================
+function createSecureToken(){
+
+  if(
+
+    typeof crypto !==
+    "undefined"
+
+    &&
+
+    typeof crypto.getRandomValues ===
+    "function"
+
+  ){
+
+    const array =
+    new Uint8Array(32);
+
+    crypto.getRandomValues(
+      array
+    );
+
+    return Array.from(array)
+    .map((byte) => {
+
+      return byte
+      .toString(16)
+      .padStart(2,"0");
+
+    })
+    .join("");
+
+  }
+
+  return createUniqueId(
+    "token"
+  );
+
+}
+
+
 
 function validateAuthStateValue(
   key,
@@ -367,6 +429,8 @@ function validateAuthStateValue(
       );
 
     case "sessionExpiresAt":
+
+    case "lastActivityAt":
 
       return (
 
@@ -462,10 +526,6 @@ function updateAuthRuntimeState(
 
 
 
-// =====================================
-// RESET STATE
-// =====================================
-
 function resetAuthRuntimeState(){
 
   updateAuthRuntimeState({
@@ -479,6 +539,8 @@ function resetAuthRuntimeState(){
     token:null,
 
     sessionExpiresAt:null,
+
+    lastActivityAt:null,
 
     error:null
 
@@ -513,8 +575,10 @@ function getAuthRuntimeState(){
     .loading,
 
     user:
-    authRuntimeState
-    .user,
+    safeCloneAuth(
+      authRuntimeState
+      .user
+    ),
 
     token:
     authRuntimeState
@@ -525,14 +589,23 @@ function getAuthRuntimeState(){
       authRuntimeState
       .sessionExpiresAt,
 
+    lastActivityAt:
+
+      authRuntimeState
+      .lastActivityAt,
+
     error:
     authRuntimeState
     .error,
 
     diagnostics:
 
-      authRuntimeState
-      .diagnostics
+      safeCloneAuth(
+
+        authRuntimeState
+        .diagnostics
+
+      )
 
   });
 
@@ -541,7 +614,7 @@ function getAuthRuntimeState(){
 
 
 // =====================================
-// VALIDATE EMAIL
+// VALIDATION
 // =====================================
 
 function validateEmail(
@@ -563,10 +636,6 @@ function validateEmail(
 }
 
 
-
-// =====================================
-// VALIDATE PASSWORD
-// =====================================
 
 function validatePassword(
   password
@@ -591,9 +660,25 @@ function validatePassword(
 
 
 
-// =====================================
-// VALIDATE SESSION
-// =====================================
+function validateToken(
+  token
+){
+
+  return (
+
+    typeof token ===
+    "string"
+
+    &&
+
+    token.trim()
+    .length >= 20
+
+  );
+
+}
+
+
 
 function validateAuthSession(
   session
@@ -614,11 +699,16 @@ function validateAuthSession(
 
   return (
 
-    typeof session.token ===
-    "string" &&
+    validateToken(
+      session.token
+    )
+
+    &&
 
     typeof session.user ===
-    "object" &&
+    "object"
+
+    &&
 
     Number.isFinite(
       session.expiresAt
@@ -631,7 +721,7 @@ function validateAuthSession(
 
 
 // =====================================
-// CREATE SESSION
+// SESSION
 // =====================================
 
 function createAuthSession({
@@ -642,13 +732,11 @@ function createAuthSession({
 
 } = {}){
 
-  const normalizedToken =
-  String(
-    token || ""
-  )
-  .trim();
-
-  if(!normalizedToken){
+  if(
+    !validateToken(
+      token
+    )
+  ){
 
     return null;
 
@@ -661,25 +749,23 @@ function createAuthSession({
       user
     ),
 
-    token:
-    normalizedToken,
+    token,
 
     expiresAt:
 
       Date.now() +
 
       AUTH_RUNTIME_CONFIG
-      .SESSION_DURATION
+      .SESSION_DURATION,
+
+    createdAt:
+    Date.now()
 
   });
 
 }
 
 
-
-// =====================================
-// SAVE SESSION
-// =====================================
 
 function saveAuthSession(
   session
@@ -731,10 +817,6 @@ function saveAuthSession(
 
 
 
-// =====================================
-// LOAD SESSION
-// =====================================
-
 function loadAuthSession(){
 
   try{
@@ -763,16 +845,15 @@ function loadAuthSession(){
     }
 
     const parsed =
-    JSON.parse(
-      raw
-    );
+    JSON.parse(raw);
 
-    const valid =
-    validateAuthSession(
-      parsed
-    );
+    if(
 
-    if(!valid){
+      !validateAuthSession(
+        parsed
+      )
+
+    ){
 
       clearAuthSession();
 
@@ -795,10 +876,6 @@ function loadAuthSession(){
 }
 
 
-
-// =====================================
-// CLEAR SESSION
-// =====================================
 
 function clearAuthSession(){
 
@@ -840,10 +917,6 @@ function clearAuthSession(){
 
 
 
-// =====================================
-// SESSION EXPIRATION
-// =====================================
-
 function isSessionExpired(
   session
 ){
@@ -854,25 +927,81 @@ function isSessionExpired(
 
   }
 
-  const expiresAt =
-  Number(
+  return (
+    Date.now() >=
     session.expiresAt
   );
 
+}
+
+
+
+function updateLastActivity(){
+
+  authRuntimeState
+  .lastActivityAt =
+  Date.now();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// LOGIN PROTECTION
+// =====================================
+
+function isLoginBlocked(){
+
   if(
-    !Number.isFinite(
-      expiresAt
-    )
+
+    !authRuntimeState
+    .loginBlockedUntil
+
   ){
 
-    return true;
+    return false;
 
   }
 
   return (
-    Date.now() >=
-    expiresAt
+
+    Date.now() <
+
+    authRuntimeState
+    .loginBlockedUntil
+
   );
+
+}
+
+
+
+function registerFailedLogin(){
+
+  authRuntimeState
+  .failedLoginAttempts++;
+
+  if(
+
+    authRuntimeState
+    .failedLoginAttempts >=
+
+    AUTH_RUNTIME_CONFIG
+    .MAX_LOGIN_ATTEMPTS
+
+  ){
+
+    authRuntimeState
+    .loginBlockedUntil =
+
+      Date.now() +
+
+      AUTH_RUNTIME_CONFIG
+      .LOGIN_BLOCK_DURATION;
+
+  }
 
 }
 
@@ -916,9 +1045,7 @@ function startSessionMonitor(){
     const session =
     loadAuthSession();
 
-    if(
-      !session
-    ){
+    if(!session){
 
       return;
     }
@@ -956,7 +1083,7 @@ function startSessionMonitor(){
 
 
 // =====================================
-// RESTORE SESSION
+// RESTORE
 // =====================================
 
 async function restoreAuthSession(){
@@ -1009,9 +1136,14 @@ async function restoreAuthSession(){
       session.token,
 
       sessionExpiresAt:
-      session.expiresAt
+      session.expiresAt,
+
+      lastActivityAt:
+      Date.now()
 
     });
+
+    updateLastActivity();
 
     authRuntimeState
     .diagnostics
@@ -1078,28 +1210,51 @@ async function login({
 
   try{
 
-    const validEmail =
-    validateEmail(
-      email
-    );
+    if(
+      isLoginBlocked()
+    ){
 
-    if(!validEmail){
+      authRuntimeState
+      .diagnostics
+      .blocked++;
+
+      await emitAuthRuntimeEvent(
+
+        AUTH_RUNTIME_EVENTS
+        .LOGIN_BLOCKED
+
+      );
 
       throw new Error(
-        "Invalid email"
+        "LOGIN_BLOCKED"
       );
 
     }
 
-    const validPassword =
-    validatePassword(
-      password
-    );
+    if(
+      !validateEmail(
+        email
+      )
+    ){
 
-    if(!validPassword){
+      registerFailedLogin();
 
       throw new Error(
-        "Invalid password"
+        "INVALID_EMAIL"
+      );
+
+    }
+
+    if(
+      !validatePassword(
+        password
+      )
+    ){
+
+      registerFailedLogin();
+
+      throw new Error(
+        "INVALID_PASSWORD"
       );
 
     }
@@ -1119,9 +1274,7 @@ async function login({
     });
 
     const token =
-    createUniqueId(
-      "token"
-    );
+    createSecureToken();
 
     const session =
     createAuthSession({
@@ -1140,18 +1293,27 @@ async function login({
 
     }
 
-    const saved =
-    saveAuthSession(
-      session
-    );
-
-    if(!saved){
+    if(
+      !saveAuthSession(
+        session
+      )
+    ){
 
       throw new Error(
         "SESSION_SAVE_FAILED"
       );
 
     }
+
+    authRuntimeState
+    .failedLoginAttempts =
+    0;
+
+    updateLastActivity();
+
+    authRuntimeState
+    .loginBlockedUntil =
+    null;
 
     updateAuthRuntimeState({
 
@@ -1165,7 +1327,10 @@ async function login({
       token,
 
       sessionExpiresAt:
-      session.expiresAt
+      session.expiresAt,
+
+      lastActivityAt:
+      Date.now()
 
     });
 
@@ -1206,6 +1371,20 @@ async function login({
 
     });
 
+    await emitAuthRuntimeEvent(
+
+      AUTH_RUNTIME_EVENTS
+      .AUTH_ERROR,
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
+
     return false;
 
   }
@@ -1236,13 +1415,31 @@ async function register({
 
 } = {}){
 
-  return login({
+  const result =
+  await login({
 
     email,
 
     password
 
   });
+
+  if(result){
+
+    authRuntimeState
+    .diagnostics
+    .registrations++;
+
+    await emitAuthRuntimeEvent(
+
+      AUTH_RUNTIME_EVENTS
+      .REGISTER
+
+    );
+
+  }
+
+  return result;
 
 }
 
@@ -1412,15 +1609,27 @@ function resetAuthRuntime(){
   }
 
   authRuntimeState
+  .failedLoginAttempts =
+  0;
+
+  authRuntimeState
+  .loginBlockedUntil =
+  null;
+
+  authRuntimeState
   .diagnostics = {
 
     logins:0,
 
     logouts:0,
 
+    registrations:0,
+
     restored:0,
 
     expired:0,
+
+    blocked:0,
 
     errors:0
 
