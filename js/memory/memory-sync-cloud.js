@@ -330,19 +330,28 @@ function incrementMemoryVectorClock(
   memory
 ){
 
-  return {
+  const currentCounter =
+  safeMemoryNumber(
+    memory?.vectorClock
+    ?.counter,
+    0
+  );
+
+  return deepFreeze({
 
     deviceId:
     MEMORY_DEVICE_ID,
 
     counter:
+    Math.max(
+      0,
+      currentCounter
+    ) + 1,
 
-      (
-        memory?.vectorClock
-        ?.counter || 0
-      ) + 1
+    updatedAt:
+    Date.now()
 
-  };
+  });
 
 }
 
@@ -354,10 +363,20 @@ function compareVectorClocks(
 ){
 
   if(
+    !localClock &&
+    !remoteClock
+  ){
+
+    return 0;
+
+  }
+
+  if(
     !localClock
   ){
 
     return -1;
+
   }
 
   if(
@@ -365,14 +384,24 @@ function compareVectorClocks(
   ){
 
     return 1;
+
   }
 
+  const localCounter =
+  safeMemoryNumber(
+    localClock.counter,
+    0
+  );
+
+  const remoteCounter =
+  safeMemoryNumber(
+    remoteClock.counter,
+    0
+  );
+
   if(
-
-    remoteClock.counter >
-
-    localClock.counter
-
+    remoteCounter >
+    localCounter
   ){
 
     return -1;
@@ -380,11 +409,38 @@ function compareVectorClocks(
   }
 
   if(
+    remoteCounter <
+    localCounter
+  ){
 
-    remoteClock.counter <
+    return 1;
 
-    localClock.counter
+  }
 
+  const localUpdatedAt =
+  safeMemoryNumber(
+    localClock.updatedAt,
+    0
+  );
+
+  const remoteUpdatedAt =
+  safeMemoryNumber(
+    remoteClock.updatedAt,
+    0
+  );
+
+  if(
+    remoteUpdatedAt >
+    localUpdatedAt
+  ){
+
+    return -1;
+
+  }
+
+  if(
+    remoteUpdatedAt <
+    localUpdatedAt
   ){
 
     return 1;
@@ -409,6 +465,25 @@ async function executeCloudRequest(
   if(
     typeof fetch !==
     "function"
+  ){
+
+    return null;
+
+  }
+
+  if(
+    !memoryCloudProvider
+    .connected
+  ){
+
+    return null;
+
+  }
+
+  if(
+    !endpoint ||
+    typeof endpoint !==
+    "string"
   ){
 
     return null;
@@ -465,7 +540,24 @@ async function executeCloudRequest(
 
     }
 
-    return response.json();
+    const contentType =
+    response.headers.get(
+      "content-type"
+    ) || "";
+
+    if(
+
+      !contentType.includes(
+        "application/json"
+      )
+
+    ){
+
+      return null;
+
+    }
+
+    return await response.json();
 
   }
 
@@ -524,45 +616,79 @@ async function createCloudPayload(
   memories = []
 ){
 
+  const safeMemories =
+
+    Array.isArray(
+      memories
+    )
+
+    ? memories
+
+    : [];
+
   const payload = [];
 
   for(
     const memory
-    of memories
+    of safeMemories
   ){
 
+    const validation =
+    validateMemoryObject(
+      memory,
+      {
+        strict:true
+      }
+    );
+
+    if(
+      !validation.valid
+    ){
+
+      continue;
+
+    }
+
+    const vectorClock =
+    incrementMemoryVectorClock(
+      memory
+    );
+
     const sanitizedMemory =
-    sanitizeMemoryObject({
+    deepFreeze(
+      sanitizeMemoryObject({
 
-      ...memory,
+        ...deepClone(
+          memory
+        ),
 
-      vectorClock:
-      incrementMemoryVectorClock(
-        memory
-      )
+        vectorClock
 
-    });
+      })
+    );
 
     const hash =
     await createCloudMemoryHash(
       sanitizedMemory
     );
 
-    payload.push({
+    payload.push(
+      deepFreeze({
 
-      memory:
-      sanitizedMemory,
+        memory:
+        sanitizedMemory,
 
-      hash,
+        hash,
 
-      syncedAt:
-      Date.now()
+        syncedAt:
+        Date.now()
 
-    });
+      })
+    );
 
   }
 
-  return {
+  return deepFreeze({
 
     version:
     MEMORY_SYNC_CONFIG
@@ -571,12 +697,15 @@ async function createCloudPayload(
     exportedAt:
     Date.now(),
 
+    deviceId:
+    MEMORY_DEVICE_ID,
+
     memoryCount:
     payload.length,
 
     payload
 
-  };
+  });
 
 }
 
@@ -612,18 +741,45 @@ function enqueueSyncOperation(
         operation.memories
       )
 
-      ? operation.memories
-      .map((memory) => {
+      ? removeDuplicateMemories(
 
-        return sanitizeMemoryObject(
-          memory
-        );
+          operation.memories
+          .map((memory) => {
 
-      })
+            return sanitizeMemoryObject(
+              memory
+            );
+
+          })
+
+        )
 
       : []
 
   };
+
+  const exists =
+
+    memorySyncState
+    .queuedOperations
+    .some((queued) => {
+
+      return (
+
+        queued.operation
+        .type ===
+
+        safeOperation.type
+
+      );
+
+    });
+
+  if(exists){
+
+    return true;
+
+  }
 
   memorySyncState
   .queuedOperations
@@ -635,7 +791,9 @@ function enqueueSyncOperation(
     Date.now(),
 
     operation:
-    safeOperation
+    deepFreeze(
+      safeOperation
+    )
 
   });
 
@@ -803,6 +961,9 @@ async function executeSyncWithRetry(
 
       if(result){
 
+        memorySyncState
+        .syncRetries = 0;
+
         return true;
 
       }
@@ -813,11 +974,18 @@ async function executeSyncWithRetry(
 
     attempt++;
 
+    memorySyncState
+    .syncRetries =
+    attempt;
+
     await new Promise((resolve) => {
 
       setTimeout(
         resolve,
-        1000 * attempt
+        Math.min(
+          1000 * attempt,
+          5000
+        )
       );
 
     });
@@ -1174,9 +1342,14 @@ async function processRemoteMemories(
 
   }
 
+  const sanitizedRemoteMemories =
+  removeDuplicateMemories(
+    remoteMemories
+  );
+
   for(
     const remoteMemory
-    of remoteMemories
+    of sanitizedRemoteMemories
   ){
 
     const validation =
@@ -1207,7 +1380,9 @@ async function processRemoteMemories(
 
     const sanitizedMemory =
     sanitizeMemoryObject(
-      remoteMemory
+      deepClone(
+        remoteMemory
+      )
     );
 
     const localMemory =
@@ -1223,16 +1398,22 @@ async function processRemoteMemories(
 
     );
 
+    if(!resolvedMemory){
+
+      continue;
+
+    }
+
     if(!localMemory){
 
       memoryState.memories =
-      [
+      deepFreeze([
 
         ...memoryState.memories,
 
         resolvedMemory
 
-      ];
+      ]);
 
       continue;
 
@@ -1247,6 +1428,8 @@ async function processRemoteMemories(
     );
 
   }
+
+  updateMemoryMetrics();
 
   return true;
 
@@ -1294,6 +1477,26 @@ async function syncMemoryCloud(){
 
   try{
 
+    if(
+      !isNetworkAvailable()
+    ){
+
+      memorySyncState
+      .offlineMode = true;
+
+      enqueueSyncOperation({
+
+        type:"push",
+
+        memories:
+        memoryState.memories
+
+      });
+
+      return false;
+
+    }
+
     const deltaMemories =
     await getDeltaSyncMemories();
 
@@ -1312,6 +1515,10 @@ async function syncMemoryCloud(){
     memorySyncState
     .totalSyncs++;
 
+    memorySyncState
+    .lastSyncAt =
+    Date.now();
+
     if(pushSuccess){
 
       memorySyncState
@@ -1321,15 +1528,29 @@ async function syncMemoryCloud(){
       .lastSuccessfulSyncAt =
       Date.now();
 
-      emitMemoryEvent(
-        MEMORY_EVENT_TYPES
-        .MEMORY_SYNCED,
-        {
-          syncedAt:
-          Date.now()
-        }
-      )
-      .catch(() => {});
+      memorySyncState
+      .offlineMode = false;
+
+      await processOfflineQueue();
+
+      if(
+
+        typeof emitMemoryEvent ===
+        "function"
+
+      ){
+
+        emitMemoryEvent(
+          MEMORY_EVENT_TYPES
+          .MEMORY_SYNCED,
+          {
+            syncedAt:
+            Date.now()
+          }
+        )
+        .catch(() => {});
+
+      }
 
     }
 
@@ -1344,12 +1565,11 @@ async function syncMemoryCloud(){
 
     }
 
-    memorySyncState
-    .lastSyncAt =
-    Date.now();
-
     session.completed =
     true;
+
+    session.completedAt =
+    Date.now();
 
     return pushSuccess;
 
@@ -1363,6 +1583,8 @@ async function syncMemoryCloud(){
     memorySyncState
     .lastFailedSyncAt =
     Date.now();
+
+    session.failed = true;
 
     return false;
 
