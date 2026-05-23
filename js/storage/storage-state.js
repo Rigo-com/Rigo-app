@@ -17,23 +17,53 @@ Object.seal({
 
   destroyed:false,
 
+
+
+  // ===================================
+  // TIMESTAMPS
+  // ===================================
+
   lastSyncAt:null,
 
   lastWriteAt:null,
+
+  lastHydrationAt:null,
+
+  lastMemoryWriteVersion:null,
+
+
+
+  // ===================================
+  // QUEUE
+  // ===================================
 
   writeQueue:[],
 
   writeTimer:null,
 
+
+
+  // ===================================
+  // METRICS
+  // ===================================
+
   quotaRecoveries:0,
 
   failedWrites:0,
 
+
+
+  // ===================================
+  // CACHE
+  // ===================================
+
   cache:Object.seal({
 
-    chats:[],
+    chats:
+    deepFreeze([]),
 
-    memory:Object.seal({})
+    memory:
+    deepFreezeMemory({})
 
   })
 
