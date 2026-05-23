@@ -7,6 +7,37 @@
 
 
 // =====================================
+// BLOCKED PORTS
+// =====================================
+
+const BLOCKED_URL_PORTS =
+Object.freeze([
+
+  "0",
+  "1",
+  "7",
+  "9",
+  "19",
+  "21",
+  "22",
+  "23",
+  "25",
+  "53",
+  "69",
+  "111",
+  "135",
+  "137",
+  "139",
+  "445",
+  "1433",
+  "3306",
+  "3389"
+
+]);
+
+
+
+// =====================================
 // GET ALLOWED PROTOCOLS
 // =====================================
 
@@ -87,6 +118,106 @@ function isLocalhostHostname(
 
 
 // =====================================
+// VALIDATE URL PORT
+// =====================================
+
+function validateURLPort(
+  port
+){
+
+  if(
+    !port
+  ){
+
+    return true;
+
+  }
+
+  return !BLOCKED_URL_PORTS
+  .includes(
+    safeString(port)
+  );
+
+}
+
+
+
+// =====================================
+// VALIDATE HOSTNAME
+// =====================================
+
+function validateURLHostname(
+  hostname
+){
+
+  const normalized =
+  safeString(hostname)
+  .toLowerCase();
+
+  if(!normalized){
+
+    return false;
+
+  }
+
+  if(
+    normalized.length > 255
+  ){
+
+    return false;
+
+  }
+
+  if(
+    /[^\w.-]/u
+    .test(normalized)
+  ){
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// NORMALIZE ORIGIN
+// =====================================
+
+function normalizeTrustedOrigin(
+  origin
+){
+
+  try{
+
+    const parsed =
+    new URL(
+      safeString(origin)
+    );
+
+    parsed.hash = "";
+    parsed.pathname = "";
+    parsed.search = "";
+
+    return parsed.origin
+    .toLowerCase();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // ADD TRUSTED ORIGIN
 // =====================================
 
@@ -152,6 +283,38 @@ function addTrustedOrigin(
     }
 
     if(
+      !validateURLHostname(
+        parsed.hostname
+      )
+    ){
+
+      logSecurityEvent(
+
+        "INVALID HOSTNAME BLOCKED"
+
+      );
+
+      return false;
+
+    }
+
+    if(
+      !validateURLPort(
+        parsed.port
+      )
+    ){
+
+      logSecurityEvent(
+
+        "BLOCKED PORT DETECTED"
+
+      );
+
+      return false;
+
+    }
+
+    if(
       isLocalhostHostname(
         parsed.hostname
       )
@@ -167,10 +330,21 @@ function addTrustedOrigin(
 
     }
 
+    const normalizedOrigin =
+    normalizeTrustedOrigin(
+      parsed.origin
+    );
+
+    if(!normalizedOrigin){
+
+      return false;
+
+    }
+
     securityState
     .trustedOrigins
     .add(
-      parsed.origin
+      normalizedOrigin
     );
 
     logSecurityEvent(
@@ -180,7 +354,7 @@ function addTrustedOrigin(
       {
 
         origin:
-        parsed.origin
+        normalizedOrigin
 
       }
 
@@ -230,30 +404,22 @@ function removeTrustedOrigin(
 
   }
 
-  try{
+  const normalized =
+  normalizeTrustedOrigin(
+    origin
+  );
 
-    const parsed =
-    new URL(
-
-      safeString(
-        origin
-      )
-
-    );
-
-    return securityState
-    .trustedOrigins
-    .delete(
-      parsed.origin
-    );
-
-  }
-
-  catch(error){
+  if(!normalized){
 
     return false;
 
   }
+
+  return securityState
+  .trustedOrigins
+  .delete(
+    normalized
+  );
 
 }
 
@@ -276,10 +442,21 @@ function isTrustedOrigin(
 
   }
 
+  const normalized =
+  normalizeTrustedOrigin(
+    origin
+  );
+
+  if(!normalized){
+
+    return false;
+
+  }
+
   return securityState
   .trustedOrigins
   .has(
-    origin
+    normalized
   );
 
 }
@@ -334,27 +511,24 @@ function safeURL(
 
   try{
 
-    const baseOrigin =
+    if(
+      normalized.includes("@")
+    ){
 
-      typeof window !==
-      "undefined"
+      securityState
+      .blockedURLs++;
 
-      &&
+      logSecurityEvent(
+        "URL USERINFO BLOCKED"
+      );
 
-      window.location
+      return null;
 
-      ?
-
-      window.location.origin
-
-      :
-
-      "https://localhost";
+    }
 
     const parsed =
     new URL(
-      normalized,
-      baseOrigin
+      normalized
     );
 
     const protocol =
@@ -399,6 +573,40 @@ function safeURL(
     }
 
     if(
+      !validateURLHostname(
+        parsed.hostname
+      )
+    ){
+
+      securityState
+      .blockedURLs++;
+
+      logSecurityEvent(
+        "INVALID HOSTNAME BLOCKED"
+      );
+
+      return null;
+
+    }
+
+    if(
+      !validateURLPort(
+        parsed.port
+      )
+    ){
+
+      securityState
+      .blockedURLs++;
+
+      logSecurityEvent(
+        "BLOCKED URL PORT"
+      );
+
+      return null;
+
+    }
+
+    if(
       isLocalhostHostname(
         parsed.hostname
       )
@@ -415,7 +623,10 @@ function safeURL(
 
     }
 
-    return parsed.toString();
+    parsed.hash = "";
+
+    return parsed
+    .toString();
 
   }
 
@@ -467,11 +678,24 @@ function normalizeURL(
     const parsed =
     new URL(safe);
 
-    parsed.hash =
-    "";
+    parsed.hash = "";
 
-    return parsed
-    .toString();
+    let normalized =
+    parsed.toString();
+
+    if(
+      normalized.endsWith("/")
+    ){
+
+      normalized =
+      normalized.slice(
+        0,
+        -1
+      );
+
+    }
+
+    return normalized;
 
   }
 
@@ -513,12 +737,17 @@ function validateTrustedURL(
     const parsed =
     new URL(safe);
 
+    const normalizedOrigin =
+    normalizeTrustedOrigin(
+      parsed.origin
+    );
+
     if(
 
       !securityState
       .trustedOrigins
       .has(
-        parsed.origin
+        normalizedOrigin
       )
 
     ){
@@ -533,7 +762,7 @@ function validateTrustedURL(
         {
 
           origin:
-          parsed.origin
+          normalizedOrigin
 
         }
 
@@ -575,6 +804,9 @@ function getURLSecurityDiagnostics(){
 
     ],
 
+    blockedPorts:
+    BLOCKED_URL_PORTS,
+
     blockedURLs:
     securityState
     .blockedURLs
@@ -603,6 +835,12 @@ Object.freeze({
 
   validateProtocol:
   validateURLProtocol,
+
+  validateHostname:
+  validateURLHostname,
+
+  validatePort:
+  validateURLPort,
 
   addTrusted:
   addTrustedOrigin,
