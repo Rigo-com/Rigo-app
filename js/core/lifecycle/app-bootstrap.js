@@ -6,65 +6,87 @@
 
 
 // =====================================
-// INITIALIZE APP
+// STATE
 // =====================================
 
-async function initializeApp(){
+const bootstrapState =
+Object.seal({
 
-  updateAppPhase(
-    APP_PHASES.INITIALIZING
-  );
+  bootstrapping:false,
 
-  await emitAppEvent(
-    "app.initializing"
-  );
+  initialized:false,
 
-  const validEnvironment =
-  validateAppEnvironment();
+  startedAt:null,
 
-  if(!validEnvironment){
+  completedAt:null,
 
-    throw new Error(
-      "INVALID ENVIRONMENT"
+  lastError:null
+
+});
+
+
+
+// =====================================
+// SAFE MODULE REGISTER
+// =====================================
+
+function safeRegisterModule(
+  moduleName
+){
+
+  try{
+
+    registerAppModule(
+      moduleName
     );
+
+    return true;
 
   }
 
-  const initializedDOM =
-  initializeDOMElements();
+  catch(error){
 
-  if(!initializedDOM){
-
-    throw new Error(
-      "DOM INITIALIZATION FAILED"
-    );
+    return false;
 
   }
 
-  registerAppModule(
-    "dom"
-  );
+}
 
-  const validDOM =
-  validateDOMElements();
 
-  if(!validDOM){
+
+// =====================================
+// SAFE MODULE FAIL
+// =====================================
+
+function safeFailModule(
+  moduleName
+){
+
+  try{
 
     markModuleFailed(
-      "dom"
+      moduleName
     );
 
-    throw new Error(
-      "DOM VALIDATION FAILED"
-    );
+    return true;
 
   }
 
+  catch(error){
+
+    return false;
+
+  }
+
+}
 
 
-  // ===================================
-  // DEPENDENCY REGISTRY
-  // ===================================
+
+// =====================================
+// REGISTER DEPENDENCIES
+// =====================================
+
+function registerBootstrapDependencies(){
 
   registerDependency(
     "memory",
@@ -99,46 +121,314 @@ async function initializeApp(){
     }
   );
 
-  const validDependencies =
-  await validateDependencyRegistry();
+  return true;
 
-  if(!validDependencies){
+}
 
-    markModuleFailed(
+
+
+// =====================================
+// INITIALIZE APP
+// =====================================
+
+async function initializeApp(){
+
+  if(
+    bootstrapState
+    .bootstrapping
+  ){
+
+    return false;
+
+  }
+
+  if(
+    bootstrapState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  bootstrapState
+  .bootstrapping =
+  true;
+
+  bootstrapState
+  .startedAt =
+  Date.now();
+
+  bootstrapState
+  .lastError =
+  null;
+
+  try{
+
+    updateAppPhase(
+      APP_PHASES
+      .INITIALIZING
+    );
+
+    await emitAppEvent(
+      "app.initializing"
+    );
+
+
+
+    // ===================================
+    // ENVIRONMENT
+    // ===================================
+
+    const environment =
+    validateAppEnvironment();
+
+    if(
+      !environment?.valid
+    ){
+
+      throw new Error(
+        "INVALID ENVIRONMENT"
+      );
+
+    }
+
+    safeRegisterModule(
+      "environment"
+    );
+
+
+
+    // ===================================
+    // DOM
+    // ===================================
+
+    const initializedDOM =
+    initializeDOMElements();
+
+    if(!initializedDOM){
+
+      throw new Error(
+        "DOM INITIALIZATION FAILED"
+      );
+
+    }
+
+    safeRegisterModule(
+      "dom");
+
+    const validDOM =
+    validateDOMElements();
+
+    if(!validDOM){
+
+      safeFailModule(
+        "dom"
+      );
+
+      throw new Error(
+        "DOM VALIDATION FAILED"
+      );
+
+    }
+
+
+
+    // ===================================
+    // DEPENDENCIES
+    // ===================================
+
+    registerBootstrapDependencies();
+
+    const validDependencies =
+    await validateDependencyRegistry();
+
+    if(!validDependencies){
+
+      safeFailModule(
+        "dependencies"
+      );
+
+      throw new Error(
+        "DEPENDENCY REGISTRY FAILED"
+      );
+
+    }
+
+    safeRegisterModule(
       "dependencies"
     );
 
-    throw new Error(
-      "DEPENDENCY REGISTRY FAILED"
-    );
-
-  }
-
-  registerAppModule(
-    "dependencies"
-  );
 
 
+    // ===================================
+    // EVENTS
+    // ===================================
 
-  const eventsReady =
-  setupAppEvents();
+    const eventsReady =
+    setupAppEvents();
 
-  if(!eventsReady){
+    if(!eventsReady){
 
-    markModuleFailed(
+      safeFailModule(
+        "events"
+      );
+
+      throw new Error(
+        "APP EVENTS FAILED"
+      );
+
+    }
+
+    safeRegisterModule(
       "events"
     );
 
-    throw new Error(
-      "APP EVENTS FAILED"
-    );
+
+
+    // ===================================
+    // COMPLETE
+    // ===================================
+
+    bootstrapState
+    .initialized =
+    true;
+
+    bootstrapState
+    .completedAt =
+    Date.now();
+
+    if(
+      typeof logDiagnosticInfo ===
+      "function"
+    ){
+
+      await logDiagnosticInfo(
+
+        "APP BOOTSTRAP COMPLETED",
+
+        {
+
+          duration:
+
+            bootstrapState
+            .completedAt -
+
+            bootstrapState
+            .startedAt
+
+        }
+
+      );
+
+    }
+
+    return true;
 
   }
 
-  registerAppModule(
-    "events"
-  );
+  catch(error){
 
-  return true;
+    bootstrapState
+    .lastError =
+    error;
+
+    updateAppPhase(
+      APP_PHASES
+      .FAILED
+    );
+
+    if(
+      typeof logCriticalError ===
+      "function"
+    ){
+
+      await logCriticalError(
+
+        "APP BOOTSTRAP FAILED",
+
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
+
+    return false;
+
+  }
+
+  finally{
+
+    bootstrapState
+    .bootstrapping =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createBootstrapSnapshot(){
+
+  return Object.freeze({
+
+    initialized:
+    bootstrapState
+    .initialized,
+
+    bootstrapping:
+    bootstrapState
+    .bootstrapping,
+
+    startedAt:
+    bootstrapState
+    .startedAt,
+
+    completedAt:
+    bootstrapState
+    .completedAt,
+
+    lastError:
+
+      bootstrapState
+      .lastError
+
+      ? String(
+          bootstrapState
+          .lastError
+        )
+
+      : null
+
+  });
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.initializeApp =
+  initializeApp;
+
+  window.createBootstrapSnapshot =
+  createBootstrapSnapshot;
 
 }
