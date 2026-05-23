@@ -62,6 +62,8 @@ Object.seal({
 
   initialized:false,
 
+  initializing:false,
+
   cleaning:false,
 
   paused:false,
@@ -351,8 +353,6 @@ function cleanupExpiredMemories(){
 
   let cleaned = 0;
 
-  const activeMemories = [];
-
   memoryState.memories
   .forEach((memory) => {
 
@@ -381,23 +381,24 @@ function cleanupExpiredMemories(){
 
     ){
 
-      markMemoryDeleted(
-        memory.id
-      );
+      if(
+
+        typeof markMemoryDeleted ===
+        "function"
+
+      ){
+
+        markMemoryDeleted(
+          memory.id
+        );
+
+      }
 
       cleaned++;
 
-      return;
     }
 
-    activeMemories.push(
-      memory
-    );
-
   });
-
-  memoryState.memories =
-  activeMemories;
 
   memoryCleanupState
   .cleanedMemories +=
@@ -525,32 +526,41 @@ function cleanupOrphanRelations(){
 
     ){
 
-      const originalLength =
+      try{
+
+        const originalLength =
+
+          memory.relations
+          .relatedMemoryIds
+          .length;
+
+        const filteredIds =
+
+          memory.relations
+          .relatedMemoryIds
+          .filter((id) => {
+
+            return validIds.has(
+              id
+            );
+
+          });
 
         memory.relations
-        .relatedMemoryIds
-        .length;
+        .relatedMemoryIds =
+        filteredIds;
 
-      memory.relations
-      .relatedMemoryIds =
+        cleaned +=
 
-        memory.relations
-        .relatedMemoryIds
-        .filter((id) => {
+          originalLength -
 
-          return validIds.has(
-            id
-          );
+          filteredIds.length;
 
-        });
+      }
 
-      cleaned +=
+      catch(error){
 
-        originalLength -
-
-        memory.relations
-        .relatedMemoryIds
-        .length;
+      }
 
     }
 
@@ -606,10 +616,20 @@ function cleanupMemoryQueues(){
 
     ){
 
-      cleaned +=
-      queue.length;
+      const removeCount =
 
-      queue.length = 0;
+        queue.length -
+
+        MEMORY_CLEANUP_CONFIG
+        .MAX_CLEANUP_BATCH;
+
+      queue.splice(
+        0,
+        removeCount
+      );
+
+      cleaned +=
+      removeCount;
 
     }
 
@@ -638,11 +658,35 @@ function optimizeMemoryRuntime(){
 
   }
 
-  cleanupTrackingState();
+  try{
 
-  updateMemoryMetrics();
+    cleanupTrackingState();
 
-  refreshMemorySession();
+  }
+
+  catch(error){
+
+  }
+
+  try{
+
+    updateMemoryMetrics();
+
+  }
+
+  catch(error){
+
+  }
+
+  try{
+
+    refreshMemorySession();
+
+  }
+
+  catch(error){
+
+  }
 
   memoryCleanupState
   .lastOptimizationAt =
@@ -773,6 +817,7 @@ async function runMemoryCleanup(
 
   try{
 
+    const completed =
     await executeCleanupTask(() => {
 
       cleanupMemoryCaches();
@@ -795,6 +840,14 @@ async function runMemoryCleanup(
 
     });
 
+    if(!completed){
+
+      throw new Error(
+        "MEMORY_CLEANUP_TIMEOUT"
+      );
+
+    }
+
     memoryCleanupState
     .totalCleanups++;
 
@@ -802,9 +855,15 @@ async function runMemoryCleanup(
     .lastCleanupAt =
     Date.now();
 
-    memoryState.metrics
-    .lastCleanupAt =
-    Date.now();
+    if(
+      memoryState?.metrics
+    ){
+
+      memoryState.metrics
+      .lastCleanupAt =
+      Date.now();
+
+    }
 
     cleanup.completed =
     true;
@@ -945,6 +1004,139 @@ function resumeMemoryCleanup(){
 
   memoryCleanupState
   .paused = false;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+async function initializeMemoryCleanup(){
+
+  if(
+    memoryCleanupState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    memoryCleanupState
+    .initializing
+  ){
+
+    return false;
+
+  }
+
+  memoryCleanupState
+  .initializing =
+  true;
+
+  try{
+
+    startAutoMemoryCleanup();
+
+    memoryCleanupState
+    .initialized =
+    true;
+
+    return true;
+
+  }
+
+  finally{
+
+    memoryCleanupState
+    .initializing =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function resetMemoryCleanup(){
+
+  stopAutoMemoryCleanup();
+
+  memoryCleanupState
+  .initialized =
+  false;
+
+  memoryCleanupState
+  .initializing =
+  false;
+
+  memoryCleanupState
+  .cleaning =
+  false;
+
+  memoryCleanupState
+  .paused =
+  false;
+
+  memoryCleanupState
+  .activeCleanupId =
+  null;
+
+  memoryCleanupState
+  .lastCleanupAt =
+  null;
+
+  memoryCleanupState
+  .lastOptimizationAt =
+  null;
+
+  memoryCleanupState
+  .totalCleanups =
+  0;
+
+  memoryCleanupState
+  .failedCleanups =
+  0;
+
+  memoryCleanupState
+  .cleanedCaches =
+  0;
+
+  memoryCleanupState
+  .cleanedIndexes =
+  0;
+
+  memoryCleanupState
+  .cleanedMemories =
+  0;
+
+  memoryCleanupState
+  .repairedIndexes =
+  0;
+
+  memoryCleanupState
+  .isolatedCorrupted =
+  0;
+
+  memoryCleanupState
+  .removedOrphans =
+  0;
+
+  memoryCleanupState
+  .cleanupHistory = [];
+
+  memoryCleanupState
+  .cleanupLocks
+  .clear();
 
   return true;
 
