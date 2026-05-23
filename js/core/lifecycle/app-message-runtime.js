@@ -6,6 +6,31 @@
 
 
 // =====================================
+// STATE
+// =====================================
+
+const messageRuntimeState =
+Object.seal({
+
+  sending:false,
+
+  startedAt:null,
+
+  completedAt:null,
+
+  lastDuration:null,
+
+  lastError:null,
+
+  sentMessages:0,
+
+  failedMessages:0
+
+});
+
+
+
+// =====================================
 // MESSAGE TIMEOUT
 // =====================================
 
@@ -36,12 +61,17 @@ function createMessageTimeout(){
 
         );
 
-      },timeoutDuration);
+      },
+
+      timeoutDuration);
 
     }
   );
 
   return {
+
+    duration:
+    timeoutDuration,
 
     promise,
 
@@ -64,13 +94,99 @@ function createMessageTimeout(){
 
 
 // =====================================
+// SAFE UI STATE
+// =====================================
+
+function updateSafeMessageUIState(
+  loading
+){
+
+  try{
+
+    if(
+      typeof updateMessageUIState ===
+      "function"
+    ){
+
+      updateMessageUIState(
+        loading
+      );
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// MESSAGE SNAPSHOT
+// =====================================
+
+function createMessageRuntimeSnapshot(){
+
+  return Object.freeze({
+
+    sending:
+    messageRuntimeState
+    .sending,
+
+    startedAt:
+    messageRuntimeState
+    .startedAt,
+
+    completedAt:
+    messageRuntimeState
+    .completedAt,
+
+    lastDuration:
+    messageRuntimeState
+    .lastDuration,
+
+    sentMessages:
+    messageRuntimeState
+    .sentMessages,
+
+    failedMessages:
+    messageRuntimeState
+    .failedMessages,
+
+    lastError:
+
+      messageRuntimeState
+      .lastError
+
+      ? String(
+          messageRuntimeState
+          .lastError
+        )
+
+      : null
+
+  });
+
+}
+
+
+
+// =====================================
 // HANDLE SEND MESSAGE
 // =====================================
 
 async function handleSendMessage(){
 
   if(
-    sendingMessage
+    messageRuntimeState
+    .sending
   ){
 
     return false;
@@ -90,10 +206,19 @@ async function handleSendMessage(){
 
   }
 
-  sendingMessage =
+  messageRuntimeState
+  .sending =
   true;
 
-  updateMessageUIState(
+  messageRuntimeState
+  .startedAt =
+  Date.now();
+
+  messageRuntimeState
+  .lastError =
+  null;
+
+  updateSafeMessageUIState(
     true
   );
 
@@ -111,6 +236,38 @@ async function handleSendMessage(){
 
     ]);
 
+    messageRuntimeState
+    .completedAt =
+    Date.now();
+
+    messageRuntimeState
+    .lastDuration =
+
+      messageRuntimeState
+      .completedAt -
+
+      messageRuntimeState
+      .startedAt;
+
+    messageRuntimeState
+    .sentMessages++;
+
+    if(
+      typeof trackPerformanceMetric ===
+      "function"
+    ){
+
+      trackPerformanceMetric(
+
+        "message.send",
+
+        messageRuntimeState
+        .lastDuration
+
+      );
+
+    }
+
     await emitAppEvent(
       "chat.message.sent"
     );
@@ -121,6 +278,13 @@ async function handleSendMessage(){
 
   catch(error){
 
+    messageRuntimeState
+    .failedMessages++;
+
+    messageRuntimeState
+    .lastError =
+    error;
+
     appState.lastError =
     error;
 
@@ -129,6 +293,28 @@ async function handleSendMessage(){
         error
       )
     );
+
+    if(
+      typeof logDiagnosticError ===
+      "function"
+    ){
+
+      await logDiagnosticError(
+
+        "MESSAGE SEND FAILED",
+
+        {
+
+          error:
+          getSafeErrorMessage(
+            error
+          )
+
+        }
+
+      );
+
+    }
 
     await emitAppEvent(
 
@@ -154,13 +340,33 @@ async function handleSendMessage(){
     timeoutController
     .clear();
 
-    sendingMessage =
+    messageRuntimeState
+    .sending =
     false;
 
-    updateMessageUIState(
+    updateSafeMessageUIState(
       false
     );
 
   }
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.handleSendMessage =
+  handleSendMessage;
+
+  window.createMessageRuntimeSnapshot =
+  createMessageRuntimeSnapshot;
 
 }
