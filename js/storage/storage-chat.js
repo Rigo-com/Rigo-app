@@ -5,14 +5,7 @@
 function saveChats(chats){
 
   if(
-    storageState.destroyed
-  ){
-
-    return false;
-
-  }
-
-  if(
+    storageState.destroyed ||
     !storageState.initialized
   ){
 
@@ -30,41 +23,71 @@ function saveChats(chats){
 
   try{
 
-    const uniqueChats =
-    deduplicateChats(
-      chats
-    );
-
     const validatedChats =
-    uniqueChats
 
-    .filter(
-      validateChatObject
-    )
+      deduplicateChats(chats)
 
-    .sort(
-      (a,b) =>
+      .filter((chat) => {
 
-      b.updatedAt -
-      a.updatedAt
+        return validateChatObject(
+          chat
+        );
 
-    )
+      })
 
-    .slice(
+      .sort((a,b) => {
 
-      0,
+        const first =
+        Number(
+          b?.updatedAt
+        ) || 0;
 
-      STORAGE_RUNTIME_CONFIG
-      .MAX_CACHE_CHATS
+        const second =
+        Number(
+          a?.updatedAt
+        ) || 0;
 
-    );
+        return first - second;
+
+      })
+
+      .slice(
+
+        0,
+
+        STORAGE_RUNTIME_CONFIG
+        .MAX_CACHE_CHATS
+
+      );
 
     const serialized =
     safeStorageSerialize(
       validatedChats
     );
 
-    if(!serialized){
+    if(
+      !serialized
+    ){
+
+      return false;
+
+    }
+
+    const serializedSize =
+    serialized.length;
+
+    if(
+
+      serializedSize >
+
+      STORAGE_RUNTIME_CONFIG
+      .MAX_STORAGE_SIZE
+
+    ){
+
+      handleStorageError(
+        "STORAGE_LIMIT_EXCEEDED"
+      );
 
       return false;
 
@@ -93,22 +116,45 @@ function saveChats(chats){
       validatedChats
     );
 
-    if(!clonedChats){
+    if(
+      !Array.isArray(
+        clonedChats
+      )
+    ){
 
       return false;
 
     }
 
     storageState.cache.chats =
-    Object.freeze(
+    deepFreeze(
       clonedChats
     );
+
+    const writeVersion =
+    Date.now();
+
+    storageState
+    .lastWriteVersion =
+    writeVersion;
 
     enqueueStorageWrite(
       () => {
 
         if(
           storageState.destroyed
+        ){
+
+          return false;
+
+        }
+
+        if(
+
+          storageState
+          .lastWriteVersion !==
+          writeVersion
+
         ){
 
           return false;
@@ -151,7 +197,7 @@ function saveChats(chats){
   catch(error){
 
     handleStorageError(
-      "SAVE CHATS ERROR",
+      "SAVE_CHATS_ERROR",
       error
     );
 
@@ -174,26 +220,32 @@ function loadChats(){
   ){
 
     return [];
+
   }
 
   try{
 
-    if(
+    const cachedChats =
 
       storageState
-      .cache
-      .chats
-      .length > 0
+      ?.cache
+      ?.chats;
 
+    if(
+      Array.isArray(
+        cachedChats
+      )
+
+      &&
+
+      cachedChats.length > 0
     ){
 
-      return deepClone(
-
-        storageState
-        .cache
-        .chats
-
-      ) || [];
+      return (
+        deepClone(
+          cachedChats
+        ) || []
+      );
 
     }
 
@@ -206,20 +258,22 @@ function loadChats(){
     );
 
     storageState.cache.chats =
-    Object.freeze(
+    deepFreeze(
       clonedChats || []
     );
 
-    return deepClone(
-      chats
-    ) || [];
+    return (
+      deepClone(
+        clonedChats
+      ) || []
+    );
 
   }
 
   catch(error){
 
     handleStorageError(
-      "LOAD CHATS RUNTIME ERROR",
+      "LOAD_CHATS_RUNTIME_ERROR",
       error
     );
 
@@ -242,6 +296,7 @@ function loadChatsFromStorage(){
   ){
 
     return [];
+
   }
 
   if(
@@ -268,7 +323,7 @@ function loadChatsFromStorage(){
       catch(migrationError){
 
         handleStorageError(
-          "STORAGE MIGRATION ERROR",
+          "STORAGE_MIGRATION_ERROR",
           migrationError
         );
 
@@ -283,14 +338,16 @@ function loadChatsFromStorage(){
 
     );
 
-    if(!data){
+    if(
+      !data
+    ){
 
       return [];
 
     }
 
     const parsedData =
-    safeJSONParse(
+    safeJsonParse(
       data,
       []
     );
@@ -316,17 +373,29 @@ function loadChatsFromStorage(){
 
     return parsedData
 
-    .filter(
-      validateChatObject
-    )
+    .filter((chat) => {
 
-    .sort(
-      (a,b) =>
+      return validateChatObject(
+        chat
+      );
 
-      b.updatedAt -
-      a.updatedAt
+    })
 
-    );
+    .sort((a,b) => {
+
+      const first =
+      Number(
+        b?.updatedAt
+      ) || 0;
+
+      const second =
+      Number(
+        a?.updatedAt
+      ) || 0;
+
+      return first - second;
+
+    });
 
   }
 
@@ -342,7 +411,7 @@ function loadChatsFromStorage(){
     }
 
     handleStorageError(
-      "LOAD CHATS ERROR",
+      "LOAD_CHATS_ERROR",
       error
     );
 
@@ -392,7 +461,9 @@ function saveCurrentChat(){
       currentChat
     );
 
-    if(!safeChat){
+    if(
+      !safeChat
+    ){
 
       return false;
 
@@ -405,16 +476,14 @@ function saveCurrentChat(){
     loadChats();
 
     const existingIndex =
-    chats.findIndex(
-      (chat) => {
+    chats.findIndex((chat) => {
 
-        return (
-          chat.id ===
-          safeChat.id
-        );
+      return (
+        chat.id ===
+        safeChat.id
+      );
 
-      }
-    );
+    });
 
     if(
       existingIndex >= 0
@@ -443,7 +512,7 @@ function saveCurrentChat(){
   catch(error){
 
     handleStorageError(
-      "SAVE CURRENT CHAT ERROR",
+      "SAVE_CURRENT_CHAT_ERROR",
       error
     );
 
@@ -484,7 +553,7 @@ function getChatById(
   chatId.trim();
 
   if(
-    normalizedId.length <= 0
+    !normalizedId
   ){
 
     return null;
@@ -500,7 +569,7 @@ function getChatById(
     chats.find((item) => {
 
       return (
-        item.id ===
+        item?.id ===
         normalizedId
       );
 
@@ -516,8 +585,9 @@ function getChatById(
 
     }
 
-    return deepClone(
-      chat
+    return (
+      deepClone(chat)
+      || null
     );
 
   }
@@ -525,7 +595,7 @@ function getChatById(
   catch(error){
 
     handleStorageError(
-      "GET CHAT ERROR",
+      "GET_CHAT_ERROR",
       error
     );
 
