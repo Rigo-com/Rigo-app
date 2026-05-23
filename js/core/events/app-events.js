@@ -27,6 +27,19 @@ async function emitAppEvent(
 
   try{
 
+    const appSnapshot =
+
+      typeof AppState !==
+      "undefined"
+
+      ?
+
+      AppState.get()
+
+      :
+
+      null;
+
     await emitSystemEvent(
 
       eventName,
@@ -37,7 +50,11 @@ async function emitAppEvent(
         "app",
 
         phase:
-        appState.phase,
+
+          appSnapshot
+          ?.phase ||
+
+          null,
 
         timestamp:
         Date.now(),
@@ -84,3 +101,22 @@ Object.freeze({
   emitAppEvent
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.AppEvents =
+  AppEvents;
+
+  window.emitAppEvent =
+  emitAppEvent;
+
+}
