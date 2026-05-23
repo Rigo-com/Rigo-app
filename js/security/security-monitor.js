@@ -1,4 +1,12 @@
 // =====================================
+// RIGO AI
+// SECURITY MONITOR
+// ENTERPRISE SECURITY MONITORING LAYER
+// =====================================
+
+
+
+// =====================================
 // RATE LIMIT CLEANUP
 // =====================================
 
@@ -122,3 +130,264 @@ function cleanupRateLimitTracker(){
   }
 
 }
+
+
+
+// =====================================
+// TRACK SECURITY REQUEST
+// =====================================
+
+function trackSecurityRequest(
+  key
+){
+
+  if(
+    typeof key !==
+    "string"
+  ){
+
+    return false;
+
+  }
+
+  cleanupRateLimitTracker();
+
+  const normalizedKey =
+  safeString(key);
+
+  const now =
+  Date.now();
+
+  const existing =
+
+    securityState
+    .requestTracker
+    .get(
+      normalizedKey
+    )
+
+    ||
+
+    [];
+
+  existing.push(now);
+
+  securityState
+  .requestTracker
+  .set(
+    normalizedKey,
+    existing
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CHECK RATE LIMIT
+// =====================================
+
+function checkRateLimit(
+  key
+){
+
+  if(
+
+    !SECURITY_CONFIG
+    .ENABLE_RATE_LIMITING
+
+  ){
+
+    return true;
+
+  }
+
+  const normalizedKey =
+  safeString(key);
+
+  trackSecurityRequest(
+    normalizedKey
+  );
+
+  const requests =
+
+    securityState
+    .requestTracker
+    .get(
+      normalizedKey
+    )
+
+    ||
+
+    [];
+
+  const allowed =
+
+    requests.length <=
+
+    SECURITY_CONFIG
+    .MAX_RATE_LIMIT;
+
+  if(!allowed){
+
+    securityState
+    .rateLimitHits++;
+
+    logSecurityEvent(
+
+      "RATE LIMIT EXCEEDED",
+
+      {
+
+        key:
+        normalizedKey
+
+      }
+
+    );
+
+  }
+
+  return allowed;
+
+}
+
+
+
+// =====================================
+// TRACK SUSPICIOUS ACTIVITY
+// =====================================
+
+function trackSuspiciousActivity(
+  type,
+  metadata = {}
+){
+
+  securityState
+  .suspiciousActivities++;
+
+  logSecurityEvent(
+
+    "SUSPICIOUS ACTIVITY",
+
+    {
+
+      type,
+
+      ...metadata
+
+    }
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SECURITY METRICS
+// =====================================
+
+function getSecurityMetrics(){
+
+  return Object.freeze({
+
+    blockedRequests:
+    securityState
+    .blockedRequests,
+
+    blockedURLs:
+    securityState
+    .blockedURLs,
+
+    blockedPrompts:
+    securityState
+    .blockedPrompts,
+
+    suspiciousActivities:
+    securityState
+    .suspiciousActivities,
+
+    sanitizedPayloads:
+    securityState
+    .sanitizedPayloads,
+
+    rateLimitHits:
+    securityState
+    .rateLimitHits,
+
+    trackedRequests:
+
+      securityState
+      .requestTracker
+      .size
+
+  });
+
+}
+
+
+
+// =====================================
+// RESET SECURITY METRICS
+// =====================================
+
+function resetSecurityMetrics(){
+
+  securityState
+  .blockedRequests = 0;
+
+  securityState
+  .blockedURLs = 0;
+
+  securityState
+  .blockedPrompts = 0;
+
+  securityState
+  .suspiciousActivities = 0;
+
+  securityState
+  .sanitizedPayloads = 0;
+
+  securityState
+  .rateLimitHits = 0;
+
+  securityState
+  .requestTracker
+  .clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SecurityMonitor =
+Object.freeze({
+
+  cleanupTracker:
+  cleanupRateLimitTracker,
+
+  trackRequest:
+  trackSecurityRequest,
+
+  checkRateLimit,
+
+  trackSuspicious:
+  trackSuspiciousActivity,
+
+  metrics:
+  getSecurityMetrics,
+
+  reset:
+  resetSecurityMetrics
+
+});
