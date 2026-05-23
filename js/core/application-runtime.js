@@ -1,6 +1,6 @@
 // =====================================
 // RIGO AI
-// APP LIFECYCLE
+// APPLICATION RUNTIME
 // ENTERPRISE ORCHESTRATION
 // =====================================
 
@@ -10,7 +10,7 @@
 // SNAPSHOT
 // =====================================
 
-function createApplicationLifecycleSnapshot(){
+function createApplicationRuntimeSnapshot(){
 
   return Object.freeze({
 
@@ -199,7 +199,7 @@ async function safelyShutdownApplication(){
 // PUBLIC API
 // =====================================
 
-const ApplicationLifecycle =
+const ApplicationRuntime =
 Object.freeze({
 
   // ===================================
@@ -246,7 +246,7 @@ Object.freeze({
   getAppDiagnostics,
 
   snapshot:
-  createApplicationLifecycleSnapshot
+  createApplicationRuntimeSnapshot
 
 });
 
@@ -261,11 +261,11 @@ if(
   "undefined"
 ){
 
-  window.ApplicationLifecycle =
-  ApplicationLifecycle;
+  window.ApplicationRuntime =
+  ApplicationRuntime;
 
-  window.createApplicationLifecycleSnapshot =
-  createApplicationLifecycleSnapshot;
+  window.createApplicationRuntimeSnapshot =
+  createApplicationRuntimeSnapshot;
 
   window.validateApplicationHealth =
   validateApplicationHealth;
