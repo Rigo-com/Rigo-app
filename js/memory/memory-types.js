@@ -165,41 +165,116 @@ function normalizeMemoryContent(
 
 
 // =====================================
-// MEMORY FINGERPRINT
+// SAFE DEEP FREEZE
 // =====================================
 
-function createMemoryFingerprint(
-  memory
+function deepFreezeMemoryObject(
+  value,
+  visited = new WeakSet()
 ){
 
   if(
 
-    !MEMORY_TYPES_CONFIG
-    .ENABLE_CHECKSUMS
+    !value ||
+
+    typeof value !==
+    "object"
 
   ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      deepFreezeMemoryObject(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
+// MEMORY FINGERPRINT
+// =====================================
+
+async function createMemoryFingerprint(
+  memory
+){
+
+  try{
+
+    if(
+
+      !MEMORY_TYPES_CONFIG
+      .ENABLE_CHECKSUMS
+
+    ){
+
+      return null;
+
+    }
+
+    return await createMemoryHash(
+      JSON.stringify({
+
+        id:memory.id,
+
+        title:memory.title,
+
+        content:memory.content,
+
+        updatedAt:
+        memory.updatedAt,
+
+        version:
+        memory.version
+
+      })
+    );
+
+  }
+
+  catch(error){
 
     return null;
 
   }
-
-  return createMemoryHash(
-    JSON.stringify({
-
-      id:memory.id,
-
-      title:memory.title,
-
-      content:memory.content,
-
-      updatedAt:
-      memory.updatedAt,
-
-      version:
-      memory.version
-
-    })
-  );
 
 }
 
@@ -846,7 +921,7 @@ function createLightweightMemoryObject(
   options = {}
 ){
 
-  return {
+  return freezeMemoryObject({
 
     id:createMemoryId(),
 
@@ -871,7 +946,7 @@ function createLightweightMemoryObject(
     updatedAt:
     Date.now()
 
-  };
+  });
 
 }
 
@@ -881,7 +956,7 @@ function createLightweightMemoryObject(
 // CREATE BASE MEMORY OBJECT
 // =====================================
 
-function createMemoryObject(
+async function createMemoryObject(
   options = {}
 ){
 
@@ -1028,7 +1103,7 @@ function createMemoryObject(
   };
 
   memoryObject.fingerprint =
-  createMemoryFingerprint(
+  await createMemoryFingerprint(
     memoryObject
   );
 
@@ -1044,7 +1119,7 @@ function createMemoryObject(
 // SPECIALIZED MEMORY TYPES
 // =====================================
 
-function createConversationMemory(
+async function createConversationMemory(
   options = {}
 ){
 
@@ -1062,7 +1137,7 @@ function createConversationMemory(
 
 
 
-function createSummaryMemory(
+async function createSummaryMemory(
   options = {}
 ){
 
@@ -1080,7 +1155,7 @@ function createSummaryMemory(
 
 
 
-function createPreferenceMemory(
+async function createPreferenceMemory(
   options = {}
 ){
 
@@ -1098,7 +1173,7 @@ function createPreferenceMemory(
 
 
 
-function createProjectMemory(
+async function createProjectMemory(
   options = {}
 ){
 
@@ -1116,7 +1191,7 @@ function createProjectMemory(
 
 
 
-function createKnowledgeMemory(
+async function createKnowledgeMemory(
   options = {}
 ){
 
@@ -1134,7 +1209,7 @@ function createKnowledgeMemory(
 
 
 
-function createFactMemory(
+async function createFactMemory(
   options = {}
 ){
 
@@ -1152,7 +1227,7 @@ function createFactMemory(
 
 
 
-function createProfileMemory(
+async function createProfileMemory(
   options = {}
 ){
 
@@ -1170,7 +1245,7 @@ function createProfileMemory(
 
 
 
-function createTemporaryMemory(
+async function createTemporaryMemory(
   options = {}
 ){
 
@@ -1196,7 +1271,7 @@ function createTemporaryMemory(
 
 
 
-function createSystemMemory(
+async function createSystemMemory(
   options = {}
 ){
 
@@ -1295,19 +1370,7 @@ function freezeMemoryObject(
 
   }
 
-  if(
-
-    MEMORY_TYPES_CONFIG
-    .ENABLE_DEV_FREEZE !==
-    true
-
-  ){
-
-    return memory;
-
-  }
-
-  return deepFreeze(
+  return deepFreezeMemoryObject(
     memory
   );
 
@@ -1319,7 +1382,7 @@ function freezeMemoryObject(
 // IMMUTABLE PATCH
 // =====================================
 
-function patchMemoryObject(
+async function patchMemoryObject(
   memory,
   patch = {}
 ){
@@ -1345,7 +1408,7 @@ function patchMemoryObject(
 // UPDATE MEMORY FIELD
 // =====================================
 
-function updateMemoryField(
+async function updateMemoryField(
   memory,
   field,
   value
@@ -1366,7 +1429,7 @@ function updateMemoryField(
 // MERGE MEMORY METADATA
 // =====================================
 
-function mergeMemoryMetadata(
+async function mergeMemoryMetadata(
   memory,
   metadata = {}
 ){
@@ -1390,7 +1453,7 @@ function mergeMemoryMetadata(
 // SANITIZE MEMORY OBJECT
 // =====================================
 
-function sanitizeMemoryObject(
+async function sanitizeMemoryObject(
   memory
 ){
 
