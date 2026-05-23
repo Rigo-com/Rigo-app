@@ -21,6 +21,12 @@ Object.freeze({
 
   MAX_QUERY_LENGTH:500,
 
+  MAX_CACHE_ENTRIES:
+  200,
+
+  MAX_SEARCH_RESULTS:
+  5000,
+
   TITLE_WEIGHT:5,
 
   TAG_WEIGHT:4,
@@ -64,18 +70,20 @@ function createSearchResult(
   score = 0
 ){
 
-  return {
+  return freezeSearchObject({
 
-    memory,
+    memory:
+    deepClone(memory),
 
-    score,
+    score:
+    Number(score) || 0,
 
     memoryId:
     memory?.id ||
 
     null
 
-  };
+  });
 
 }
 
@@ -110,6 +118,115 @@ function clampSearchLimit(
     )
 
   );
+
+}
+
+
+
+function normalizeSortDirection(
+  direction
+){
+
+  return direction ===
+  "asc"
+
+  ? "asc"
+
+  : "desc";
+
+}
+
+
+
+function normalizeSortField(
+  sortBy
+){
+
+  const allowedFields = [
+
+    "updatedAt",
+
+    "createdAt",
+
+    "priority",
+
+    "title",
+
+    "score"
+
+  ];
+
+  return allowedFields
+  .includes(sortBy)
+
+  ? sortBy
+
+  : "updatedAt";
+
+}
+
+
+
+// =====================================
+// IMMUTABLE HELPERS
+// =====================================
+
+function freezeSearchObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeSearchObject(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
 
 }
 
@@ -152,14 +269,14 @@ function createSearchCacheKey(
     ) || null,
 
     sortBy:
-    normalizeMemoryString(
+    normalizeSortField(
       options.sortBy
-    ) || null,
+    ),
 
     direction:
-    normalizeMemoryString(
+    normalizeSortDirection(
       options.direction
-    ) || null
+    )
 
   };
 
@@ -196,6 +313,17 @@ function isSearchableMemory(
 ){
 
   if(!memory){
+
+    return false;
+
+  }
+
+  if(
+
+    typeof memory !==
+    "object"
+
+  ){
 
     return false;
 
@@ -286,6 +414,12 @@ function mergeSearchScores(
 
     existing.score +=
     result.score;
+
+    existing.score =
+    Math.min(
+      existing.score,
+      999999
+    );
 
   });
 
@@ -530,7 +664,10 @@ function calculateMemoryScore(
 
   }
 
-  return score;
+  return Math.min(
+    score,
+    999999
+  );
 
 }
 
@@ -673,8 +810,10 @@ function getCachedSearchResults(
 
   }
 
-  return deepClone(
-    cachedResults
+  return freezeSearchObject(
+    deepClone(
+      cachedResults
+    )
   );
 
 }
@@ -709,7 +848,9 @@ function setCachedSearchResults(
   .searchResults
   .set(
     cacheKey,
-    deepClone(results)
+    freezeSearchObject(
+      deepClone(results)
+    )
   );
 
 
@@ -718,16 +859,16 @@ function setCachedSearchResults(
   // CACHE SIZE PROTECTION
   // ===================================
 
-  const maxCacheEntries =
-  200;
-
   const cache =
   memoryState.cache
   .searchResults;
 
   if(
     cache.size >
-    maxCacheEntries
+
+    MEMORY_SEARCH_CONFIG
+    .MAX_CACHE_ENTRIES
+
   ){
 
     const oldestKey =
@@ -780,7 +921,7 @@ function searchById(
 
   }
 
-  return (
+  const memory =
 
     memoryState.indexes
     .byId
@@ -790,9 +931,13 @@ function searchById(
 
     ||
 
-    null
+    null;
 
-  );
+  return memory
+    ? freezeSearchObject(
+        deepClone(memory)
+      )
+    : null;
 
 }
 
@@ -1010,10 +1155,17 @@ function searchByTokens(
 
   }
 
-  const tokens =
-  tokenizeMemoryText(
-    normalizedQuery
-  );
+  const tokens = [
+
+    ...new Set(
+
+      tokenizeMemoryText(
+        normalizedQuery
+      )
+
+    )
+
+  ];
 
   const results = [];
 
@@ -1167,43 +1319,82 @@ function searchMemories(
 
   const results = [];
 
-  memories.forEach((memory) => {
+  for(
+
+    let i = 0;
+
+    i < memories.length;
+
+    i++
+
+  ){
 
     if(
 
-      !isSearchableMemory(
-        memory,
-        options
-      )
+      results.length >=
+
+      MEMORY_SEARCH_CONFIG
+      .MAX_SEARCH_RESULTS
 
     ){
 
-      return;
+      break;
+
     }
 
-    const score =
-    calculateMemoryScore(
-      memory,
-      normalizedQuery
-    );
+    const memory =
+    memories[i];
 
-    if(
-      score <= 0
-    ){
+    try{
 
-      return;
-    }
+      if(
 
-    results.push(
+        !isSearchableMemory(
+          memory,
+          options
+        )
 
-      createSearchResult(
+      ){
+
+        continue;
+
+      }
+
+      const score =
+      calculateMemoryScore(
         memory,
-        score
-      )
+        normalizedQuery
+      );
 
-    );
+      if(
+        score <= 0
+      ){
 
-  });
+        continue;
+
+      }
+
+      results.push(
+
+        createSearchResult(
+          memory,
+          score
+        )
+
+      );
+
+    }
+
+    catch(error){
+
+      markMemoryCorrupted(
+        memory?.id ||
+        createMemoryId()
+      );
+
+    }
+
+  }
 
   const finalResults =
   sortSearchResults(
@@ -1225,8 +1416,10 @@ function searchMemories(
     finalResults
   );
 
-  return deepClone(
-    finalResults
+  return freezeSearchObject(
+    deepClone(
+      finalResults
+    )
   );
 
 }
@@ -1278,8 +1471,12 @@ function advancedMemorySearch(
     options.limit
   );
 
-  return finalResults
-  .slice(0,limit);
+  return freezeSearchObject(
+    deepClone(
+      finalResults
+      .slice(0,limit)
+    )
+  );
 
 }
 
@@ -1313,44 +1510,52 @@ function searchMemoriesByDateRange(
 
   }
 
-  return memoryState.memories
-  .filter((memory) => {
+  return freezeSearchObject(
 
-    if(
+    deepClone(
 
-      !isSearchableMemory(
-        memory,
-        options
-      )
+      memoryState.memories
+      .filter((memory) => {
 
-    ){
+        if(
 
-      return false;
+          !isSearchableMemory(
+            memory,
+            options
+          )
 
-    }
+        ){
 
-    const createdAt =
-    Number(
-      memory?.createdAt
-    );
+          return false;
 
-    return (
+        }
 
-      Number.isFinite(
-        createdAt
-      )
+        const createdAt =
+        Number(
+          memory?.createdAt
+        );
 
-      &&
+        return (
 
-      createdAt >= start
+          Number.isFinite(
+            createdAt
+          )
 
-      &&
+          &&
 
-      createdAt <= end
+          createdAt >= start
 
-    );
+          &&
 
-  });
+          createdAt <= end
+
+        );
+
+      })
+
+    )
+
+  );
 
 }
 
@@ -1366,6 +1571,16 @@ function sortMemories(
   direction = "desc"
 ){
 
+  const safeSortField =
+  normalizeSortField(
+    sortBy
+  );
+
+  const safeDirection =
+  normalizeSortDirection(
+    direction
+  );
+
   const sortedMemories = [
 
     ...memories
@@ -1375,17 +1590,17 @@ function sortMemories(
   sortedMemories.sort((a,b) => {
 
     const valueA =
-    a?.[sortBy];
+    a?.[safeSortField];
 
     const valueB =
-    b?.[sortBy];
+    b?.[safeSortField];
 
     if(
       valueA > valueB
     ){
 
       return (
-        direction ===
+        safeDirection ===
         "asc"
       )
 
@@ -1400,7 +1615,7 @@ function sortMemories(
     ){
 
       return (
-        direction ===
+        safeDirection ===
         "asc"
       )
 
@@ -1414,7 +1629,11 @@ function sortMemories(
 
   });
 
-  return sortedMemories;
+  return freezeSearchObject(
+    deepClone(
+      sortedMemories
+    )
+  );
 
 }
 
@@ -1436,7 +1655,7 @@ function paginateResults(
     )
   ){
 
-    return {
+    return freezeSearchObject({
 
       page:1,
 
@@ -1448,7 +1667,7 @@ function paginateResults(
 
       results:[]
 
-    };
+    });
 
   }
 
@@ -1477,7 +1696,7 @@ function paginateResults(
 
     normalizedLimit;
 
-  return {
+  return freezeSearchObject({
 
     page:
     normalizedPage,
@@ -1498,11 +1717,15 @@ function paginateResults(
     ),
 
     results:
-    results.slice(
-      startIndex,
-      endIndex
+    deepClone(
+
+      results.slice(
+        startIndex,
+        endIndex
+      )
+
     )
 
-  };
+  });
 
 }
