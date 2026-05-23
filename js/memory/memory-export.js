@@ -19,7 +19,7 @@ Object.freeze({
 
   ENABLE_COMPRESSION:true,
 
-  ENABLE_ENCRYPTION:true,
+  ENABLE_ENCRYPTION:false,
 
   ENABLE_INTEGRITY_CHECKS:true,
 
@@ -40,6 +40,8 @@ Object.freeze({
   MAX_BATCH_SIZE:500,
 
   CHECKSUM_LENGTH:64,
+
+  MAX_HISTORY_ITEMS:100,
 
   DEFAULT_IMPORT_STRATEGY:
   "merge"
@@ -93,7 +95,7 @@ Object.seal({
 
 
 // =====================================
-// EXPORT HELPERS
+// HELPERS
 // =====================================
 
 function createExportTimestamp(){
@@ -145,6 +147,91 @@ function normalizeExportStrategy(
 
 
 
+function pruneExportHistory(){
+
+  while(
+
+    memoryExportState
+    .exportHistory
+    .length >
+
+    MEMORY_EXPORT_CONFIG
+    .MAX_HISTORY_ITEMS
+
+  ){
+
+    memoryExportState
+    .exportHistory
+    .shift();
+
+  }
+
+  while(
+
+    memoryExportState
+    .importHistory
+    .length >
+
+    MEMORY_EXPORT_CONFIG
+    .MAX_HISTORY_ITEMS
+
+  ){
+
+    memoryExportState
+    .importHistory
+    .shift();
+
+  }
+
+  return true;
+
+}
+
+
+
+function safeParseExportPayload(
+  payload
+){
+
+  try{
+
+    if(
+      typeof payload !==
+      "string"
+    ){
+
+      return payload;
+    }
+
+    if(
+
+      payload.length >
+
+      MEMORY_EXPORT_CONFIG
+      .MAX_IMPORT_SIZE
+
+    ){
+
+      return null;
+
+    }
+
+    return JSON.parse(
+      payload
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
 // =====================================
 // EXPORT FILTER
 // =====================================
@@ -154,11 +241,19 @@ function filterExportMemories(
   options = {}
 ){
 
-  let filtered = [
+  let filtered =
 
-    ...memories
+    Array.isArray(
+      options.memories
+    )
 
-  ];
+    ?
+
+    [...options.memories]
+
+    :
+
+    [...memories];
 
 
 
@@ -176,6 +271,7 @@ function filterExportMemories(
     filtered.filter((memory) => {
 
       return (
+
         Array.isArray(
           memory.tags
         )
@@ -231,12 +327,15 @@ function filterExportMemories(
     filtered.filter((memory) => {
 
       return (
+
         Number(
           memory.updatedAt
         ) >=
+
         Number(
           options.after
         )
+
       );
 
     });
@@ -301,12 +400,17 @@ function createExportMetadata(
     device:"RIGO",
 
     platform:
-    typeof navigator !==
-    "undefined"
 
-    ? navigator.userAgent
+      typeof navigator !==
+      "undefined"
 
-    : "unknown"
+      ?
+
+      navigator.userAgent
+
+      :
+
+      "unknown"
 
   };
 
@@ -315,7 +419,7 @@ function createExportMetadata(
 
 
 // =====================================
-// COMPRESS EXPORT
+// COMPRESS
 // =====================================
 
 function compressExportPayload(
@@ -339,17 +443,15 @@ function compressExportPayload(
   );
 
   const compressed =
-  serialized
-  .replace(/\s+/g," ");
+  serialized;
 
   memoryExportState
   .compressionSavings +=
-
-    Math.max(
-      0,
-      serialized.length -
-      compressed.length
-    );
+  Math.max(
+    0,
+    serialized.length -
+    compressed.length
+  );
 
   return compressed;
 
@@ -358,25 +460,15 @@ function compressExportPayload(
 
 
 // =====================================
-// DECOMPRESS EXPORT
+// DECOMPRESS
 // =====================================
 
 function decompressExportPayload(
   payload
 ){
 
-  if(
-    typeof payload !==
-    "string"
-  ){
-
-    return payload;
-
-  }
-
-  return safeJsonParse(
-    payload,
-    null
+  return safeParseExportPayload(
+    payload
   );
 
 }
@@ -384,7 +476,7 @@ function decompressExportPayload(
 
 
 // =====================================
-// EXPORT PAYLOAD
+// EXPORT
 // =====================================
 
 async function createMemoryExport(
@@ -406,8 +498,16 @@ async function createMemoryExport(
     filteredMemories.filter((memory) => {
 
       if(
+        !memory
+      ){
 
-        memoryState.tracking
+        return false;
+      }
+
+      if(
+
+        memoryState
+        .tracking
         .corruptedIds
         .has(memory.id)
 
@@ -452,22 +552,10 @@ async function createMemoryExport(
 
     };
 
-
-
-    // ===================================
-    // CHECKSUM
-    // ===================================
-
     exportPayload.checksum =
     await createExportChecksum(
       exportPayload
     );
-
-
-
-    // ===================================
-    // SIZE VALIDATION
-    // ===================================
 
     const exportSize =
     calculateMemorySize(
@@ -520,6 +608,8 @@ async function createMemoryExport(
 
     });
 
+    pruneExportHistory();
+
     return compressed;
 
   }
@@ -552,7 +642,6 @@ async function verifyMemoryExport(
     ){
 
       return false;
-
     }
 
     const payload =
@@ -568,10 +657,24 @@ async function verifyMemoryExport(
 
       :
 
-      exportPayload;
+      cloneMemoryObject(
+        exportPayload
+      );
 
     if(
       !payload
+    ){
+
+      return false;
+    }
+
+    if(
+
+      payload.metadata?.schema !==
+
+      MEMORY_EXPORT_CONFIG
+      .EXPORT_SCHEMA
+
     ){
 
       return false;
@@ -581,15 +684,18 @@ async function verifyMemoryExport(
     const originalChecksum =
     payload.checksum;
 
-    delete payload.checksum;
-
-    const recalculated =
-    await createExportChecksum(
+    const verificationPayload =
+    cloneMemoryObject(
       payload
     );
 
-    payload.checksum =
-    originalChecksum;
+    delete verificationPayload
+    .checksum;
+
+    const recalculated =
+    await createExportChecksum(
+      verificationPayload
+    );
 
     return (
       recalculated ===
@@ -622,9 +728,18 @@ function createImportTransaction(){
     Date.now(),
 
     backup:
-    cloneMemoryObject(
-      memoryState.memories
-    ),
+    cloneMemoryObject({
+
+      memories:
+      memoryState.memories,
+
+      indexes:
+      memoryState.indexes,
+
+      metrics:
+      memoryState.metrics
+
+    }),
 
     completed:false
 
@@ -651,18 +766,34 @@ function rollbackImportTransaction(
   transaction
 ){
 
-  if(!transaction){
+  if(
+    !transaction
+  ){
 
     return false;
-
   }
 
   memoryState.memories =
   cloneMemoryObject(
     transaction.backup
+    .memories
+  );
+
+  memoryState.indexes =
+  cloneMemoryObject(
+    transaction.backup
+    .indexes
+  );
+
+  memoryState.metrics =
+  cloneMemoryObject(
+    transaction.backup
+    .metrics
   );
 
   rebuildMemoryIndexes();
+
+  updateMemoryMetrics();
 
   memoryExportState
   .rollbackCount++;
@@ -711,7 +842,6 @@ function resolveImportMemory(
       ){
 
         return importedMemory;
-
       }
 
       return (
@@ -738,9 +868,21 @@ function resolveImportMemory(
 
       return {
 
-        ...localMemory,
+        ...(localMemory || {}),
 
-        ...importedMemory
+        ...Object.fromEntries(
+
+          Object.entries(
+            importedMemory || {}
+          )
+          .filter(([,value]) => {
+
+            return value !==
+            undefined;
+
+          })
+
+        )
 
       };
 
@@ -751,7 +893,7 @@ function resolveImportMemory(
 
 
 // =====================================
-// IMPORT VALIDATION
+// VALIDATION
 // =====================================
 
 function validateImportPayload(
@@ -763,7 +905,6 @@ function validateImportPayload(
   ){
 
     return false;
-
   }
 
   if(
@@ -773,11 +914,22 @@ function validateImportPayload(
   ){
 
     return false;
-
   }
 
   if(
     !payload.metadata
+  ){
+
+    return false;
+  }
+
+  if(
+
+    payload.metadata.schema !==
+
+    MEMORY_EXPORT_CONFIG
+    .EXPORT_SCHEMA
+
   ){
 
     return false;
@@ -851,10 +1003,33 @@ async function importMemoryData(
 
     const imported = [];
 
+    const importedIds =
+    new Set();
+
     for(
       const importedMemory
       of payload.memories
     ){
+
+      if(
+        !importedMemory?.id
+      ){
+
+        continue;
+      }
+
+      if(
+        importedIds.has(
+          importedMemory.id
+        )
+      ){
+
+        continue;
+      }
+
+      importedIds.add(
+        importedMemory.id
+      );
 
       const validation =
       validateMemoryObject(
@@ -899,12 +1074,6 @@ async function importMemoryData(
 
     ]);
 
-
-
-    // ===================================
-    // REBUILD SYSTEMS
-    // ===================================
-
     rebuildMemoryIndexes();
 
     rebuildMemoryEmbeddings();
@@ -943,6 +1112,8 @@ async function importMemoryData(
       Date.now()
 
     });
+
+    pruneExportHistory();
 
     return true;
 
@@ -1011,7 +1182,7 @@ async function createIncrementalExport(){
 
 
 // =====================================
-// EXPORT DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getMemoryExportDiagnostics(){
