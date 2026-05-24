@@ -31,6 +31,7 @@
   <div
     class="sidebar-overlay"
     id="sidebarOverlay"
+    style="display:none;"
   ></div>
 
 
@@ -96,8 +97,6 @@
       id="chatHistory"
     >
 
-      <!-- Chats Here -->
-
     </div>
 
   </aside>
@@ -151,8 +150,6 @@
       id="chatContainer"
     >
 
-      <!-- Messages Here -->
-
     </section>
 
 
@@ -184,66 +181,81 @@
 
 
 
-  <!-- ================================= -->
-  <!-- RIGO AI JAVASCRIPT -->
-  <!-- ================================= -->
+  <!-- TEST SCRIPT -->
+
+  <script>
+
+    document.addEventListener(
+
+      "DOMContentLoaded",
+
+      () => {
+
+        const sendBtn =
+        document.getElementById(
+          "sendBtn"
+        );
+
+        const languageBtn =
+        document.getElementById(
+          "languageBtn"
+        );
+
+        const menuBtn =
+        document.getElementById(
+          "menuBtn"
+        );
 
 
 
-  <!-- SHARED -->
+        if(sendBtn){
 
-  <script src="js/shared/utils.js"></script>
+          sendBtn.onclick =
+          () => {
 
+            alert(
+              "SEND WORKING"
+            );
 
+          };
 
-  <!-- CHAT -->
-
-  <script src="js/chat/chat-state.js"></script>
-
-  <script src="js/chat/chat-utils.js"></script>
-
-  <script src="js/chat/chat-elements.js"></script>
-
-  <script src="js/chat/chat-actions.js"></script>
+        }
 
 
 
-  <!-- VOICE -->
+        if(languageBtn){
 
-  <script src="js/voice/voice.js"></script>
+          languageBtn.onclick =
+          () => {
+
+            alert(
+              "LANGUAGE WORKING"
+            );
+
+          };
+
+        }
 
 
 
-  <!-- DISABLED TEMPORARILY -->
-  <!--
-  <script src="js/chat/chat-stream-state.js"></script>
+        if(menuBtn){
 
-  <script src="js/chat/chat-events.js"></script>
+          menuBtn.onclick =
+          () => {
 
-  <script src="js/chat/chat-markdown-renderer.js"></script>
+            alert(
+              "MENU WORKING"
+            );
 
-  <script src="js/chat/chat-message-elements.js"></script>
+          };
 
-  <script src="js/chat/chat-renderer.js"></script>
+        }
 
-  <script src="js/chat/chat-stream-manager.js"></script>
+      }
 
-  <script src="js/chat/chat-queue.js"></script>
+    );
 
-  <script src="js/chat/chat-runtime.js"></script>
-
-  <script src="js/chat/index.js"></script>
-
-  <script src="js/core/runtime/runtime-state.js"></script>
-
-  <script src="js/bootstrap/bootstrap-manager.js"></script>
-
-  <script src="js/bootstrap/index.js"></script>
-
-  <script src="js/core/index.js"></script>
-
-  <script src="js/core/app.js"></script>
-  -->
+  </script>
 
 </body>
 
