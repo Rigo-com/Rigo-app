@@ -328,3 +328,53 @@ if(
   });
 
 }
+// =====================================
+// GLOBAL ERROR DEBUG
+// =====================================
+
+window.onerror = function(
+
+  message,
+  source,
+  line,
+  column,
+  error
+
+){
+
+  const details = [
+
+    "MESSAGE: " + String(message),
+
+    "SOURCE: " + String(source),
+
+    "LINE: " + String(line),
+
+    "COLUMN: " + String(column),
+
+    "ERROR: " + String(error)
+
+  ].join("\n\n");
+
+  alert(details);
+
+  return false;
+
+};
+
+
+
+window.onunhandledrejection =
+function(event){
+
+  alert(
+
+    "PROMISE ERROR:\n\n" +
+
+    String(
+      event?.reason
+    )
+
+  );
+
+};
