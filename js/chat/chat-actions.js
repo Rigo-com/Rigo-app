@@ -158,26 +158,22 @@ async function sendMessage(){
     // TEMP AI RESPONSE
     // =========================
 
-    const container =
-    ChatElements?.getContainer?.();
-
     setTimeout(() => {
 
-      const aiElement =
-      document.createElement("div");
+      addMessage({
 
-      aiElement.className =
-      "message ai-message";
+        id:
+        "ai_" + Date.now(),
 
-      aiElement.textContent =
-      "RIGO AI RESPONSE";
+        role:"assistant",
 
-      container?.appendChild(
-        aiElement
-      );
+        content:
+        "RIGO AI RESPONSE",
 
-      container.scrollTop =
-      container.scrollHeight;
+        timestamp:
+        Date.now()
+
+      });
 
     },500);
 
@@ -276,6 +272,12 @@ function addMessage(
 
     }
 
+
+
+    // =========================
+    // WRAPPER
+    // =========================
+
     const messageElement =
     document.createElement("div");
 
@@ -291,8 +293,30 @@ function addMessage(
 
       "message ai-message";
 
-    messageElement.textContent =
+
+
+    // =========================
+    // CONTENT
+    // =========================
+
+    const content =
+    document.createElement("div");
+
+    content.className =
+    "message-content";
+
+    content.textContent =
     messageData.content || "";
+
+
+
+    // =========================
+    // APPEND
+    // =========================
+
+    messageElement.appendChild(
+      content
+    );
 
     chatContainer.appendChild(
       messageElement
