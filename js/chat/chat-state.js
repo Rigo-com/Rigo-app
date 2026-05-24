@@ -81,6 +81,8 @@ Object.seal({
 
   initialized:false,
 
+  initializing:false,
+
   generating:false,
 
   streaming:false,
@@ -158,6 +160,36 @@ function freezeChatObject(
 
   if(
     visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Element
+
+    ||
+
+    value instanceof Map
+
+    ||
+
+    value instanceof WeakMap
+
+    ||
+
+    value instanceof WeakSet
+
+    ||
+
+    value instanceof Set
+
+    ||
+
+    value instanceof AbortController
+
   ){
 
     return value;
@@ -246,6 +278,10 @@ function resetChatState(){
   false;
 
   chatRuntimeState
+  .initializing =
+  false;
+
+  chatRuntimeState
   .generating =
   false;
 
@@ -318,6 +354,11 @@ function getChatRuntimeStatus(){
       chatRuntimeState
       .initialized,
 
+    initializing:
+
+      chatRuntimeState
+      .initializing,
+
     generating:
 
       chatRuntimeState
@@ -350,15 +391,37 @@ function getChatRuntimeStatus(){
 
     queueSize:
 
+      Array.isArray(
+        chatRuntimeState
+        .queue
+      )
+
+      ?
+
       chatRuntimeState
       .queue
-      .length,
+      .length
+
+      :
+
+      0,
 
     renderQueueSize:
 
+      Array.isArray(
+        chatRuntimeState
+        .renderQueue
+      )
+
+      ?
+
       chatRuntimeState
       .renderQueue
-      .length,
+      .length
+
+      :
+
+      0,
 
     activeMessageId:
 
