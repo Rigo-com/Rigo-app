@@ -56,6 +56,9 @@ async function emitModuleEvent(
         source:
         "module-loader",
 
+        timestamp:
+        Date.now(),
+
         ...payload
 
       }
@@ -77,10 +80,15 @@ async function emitModuleEvent(
 
 
 // =====================================
-// MODULE TIMEOUT
+// TIMEOUT
 // =====================================
 
-function createModuleTimeout(){
+function createModuleTimeout(
+  timeout =
+
+    MODULE_LOADER_CONFIG
+    .MODULE_TIMEOUT
+){
 
   return new Promise((_,reject) => {
 
@@ -96,8 +104,47 @@ function createModuleTimeout(){
 
     },
 
-    MODULE_LOADER_CONFIG
-    .MODULE_TIMEOUT);
+    timeout);
+
+  });
+
+}
+
+
+
+// =====================================
+// MODULE CONTEXT
+// =====================================
+
+function createModuleContext(
+  moduleDefinition
+){
+
+  return freezeModuleObject({
+
+    name:
+
+      moduleDefinition
+      .metadata
+      .name,
+
+    lifecycle:
+
+      moduleDefinition
+      .metadata
+      .lifecycle,
+
+    priority:
+
+      moduleDefinition
+      .metadata
+      .priority,
+
+    dependencies:
+
+      moduleDefinition
+      .metadata
+      .dependencies
 
   });
 
@@ -163,27 +210,43 @@ async function activateModule(
     const startedAt =
     Date.now();
 
+    const moduleContext =
+    createModuleContext(
+      moduleDefinition
+    );
+
     const moduleInstance =
     await Promise.race([
 
       moduleDefinition
       .factory({
 
+        module:
+        moduleContext,
+
         container:
         DependencyContainer,
+
+        dependencies:
+        DependencySystem,
 
         state:
         StateManager,
 
         diagnostics:
-        diagnosticsState,
+        DiagnosticsRuntime,
 
         events:
         SystemEvents
 
       }),
 
-      createModuleTimeout()
+      createModuleTimeout(
+
+        MODULE_LOADER_CONFIG
+        .ACTIVATION_TIMEOUT
+
+      )
 
     ]);
 
@@ -209,6 +272,7 @@ async function activateModule(
     .set(
 
       moduleDefinition
+      .metadata
       .name,
 
       moduleInstance
@@ -224,15 +288,21 @@ async function activateModule(
     moduleLoaderState
     .activeModules
     .add(
+
       moduleDefinition
+      .metadata
       .name
+
     );
 
     moduleLoaderState
     .failedModules
     .delete(
+
       moduleDefinition
+      .metadata
       .name
+
     );
 
     moduleLoaderState
@@ -254,8 +324,10 @@ async function activateModule(
         {
 
           module:
-          moduleDefinition
-          .name
+
+            moduleDefinition
+            .metadata
+            .name
 
         }
 
@@ -271,8 +343,10 @@ async function activateModule(
       {
 
         module:
-        moduleDefinition
-        .name
+
+          moduleDefinition
+          .metadata
+          .name
 
       }
 
@@ -287,8 +361,11 @@ async function activateModule(
     moduleLoaderState
     .failedModules
     .add(
+
       moduleDefinition
+      .metadata
       .name
+
     );
 
     moduleLoaderState
@@ -307,8 +384,10 @@ async function activateModule(
         {
 
           module:
-          moduleDefinition
-          .name,
+
+            moduleDefinition
+            .metadata
+            .name,
 
           error:
           String(error)
@@ -441,6 +520,7 @@ async function loadModule(
     await loadModuleDependencies(
 
       moduleDefinition
+      .metadata
       .dependencies
 
     );
@@ -661,6 +741,32 @@ async function unloadModule(
   ){
 
     return false;
+
+  }
+
+  const dependents =
+
+    moduleLoaderState
+    .reverseDependencies
+    ?.get(
+      normalizedName
+    );
+
+  if(
+    dependents &&
+    dependents.size > 0
+  ){
+
+    for(
+      const dependent
+      of dependents
+    ){
+
+      await unloadModule(
+        dependent
+      );
+
+    }
 
   }
 
