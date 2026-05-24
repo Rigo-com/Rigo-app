@@ -7,6 +7,94 @@
 
 
 // =====================================
+// STREAMING MESSAGE STATE
+// =====================================
+
+const streamingMessageState =
+Object.seal({
+
+  activeMessageId:null,
+
+  activeElement:null,
+
+  activeContentElement:null,
+
+  accumulatedContent:""
+
+});
+
+
+
+// =====================================
+// CREATE STREAM MESSAGE
+// =====================================
+
+function createStreamingMessageElement(){
+
+  const wrapper =
+  document.createElement(
+    "div"
+  );
+
+  wrapper.classList.add(
+    "message",
+    "assistant-message",
+    "streaming-message"
+  );
+
+  const content =
+  document.createElement(
+    "div"
+  );
+
+  content.classList.add(
+    "message-content"
+  );
+
+  wrapper.appendChild(
+    content
+  );
+
+  return {
+
+    wrapper,
+    content
+
+  };
+
+}
+
+
+
+// =====================================
+// RESET STREAM MESSAGE
+// =====================================
+
+function resetStreamingMessageState(){
+
+  streamingMessageState
+  .activeMessageId =
+  null;
+
+  streamingMessageState
+  .activeElement =
+  null;
+
+  streamingMessageState
+  .activeContentElement =
+  null;
+
+  streamingMessageState
+  .accumulatedContent =
+  "";
+
+  return true;
+
+}
+
+
+
+// =====================================
 // SHOW TYPING
 // =====================================
 
@@ -78,6 +166,242 @@ function showTypingIndicator(){
   }
 
   scrollToBottom?.();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STREAM RENDER
+// =====================================
+
+function renderStreamingMessage(
+  chunk
+){
+
+  if(
+    typeof chunk !==
+    "string"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    chunk.length <= 0
+  ){
+
+    return false;
+
+  }
+
+  const chatContainer =
+  ChatElements.getContainer();
+
+  if(!chatContainer){
+
+    return false;
+
+  }
+
+  let messageElement =
+
+    streamingMessageState
+    .activeElement;
+
+  let contentElement =
+
+    streamingMessageState
+    .activeContentElement;
+
+  if(
+
+    !messageElement
+
+    ||
+
+    !contentElement
+
+  ){
+
+    const created =
+    createStreamingMessageElement();
+
+    if(!created){
+
+      return false;
+
+    }
+
+    messageElement =
+    created.wrapper;
+
+    contentElement =
+    created.content;
+
+    streamingMessageState
+    .activeElement =
+    messageElement;
+
+    streamingMessageState
+    .activeContentElement =
+    contentElement;
+
+    streamingMessageState
+    .activeMessageId =
+    createMessageId();
+
+    ChatElements.append(
+      messageElement
+    );
+
+  }
+
+  streamingMessageState
+  .accumulatedContent +=
+  chunk;
+
+  contentElement.textContent =
+
+    streamingMessageState
+    .accumulatedContent;
+
+  messageElement.dataset
+  .streaming =
+  "true";
+
+  scrollToBottom?.();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// COMPLETE STREAM MESSAGE
+// =====================================
+
+function finalizeStreamingMessage(){
+
+  const element =
+
+    streamingMessageState
+    .activeElement;
+
+  const contentElement =
+
+    streamingMessageState
+    .activeContentElement;
+
+  if(
+    !element ||
+    !contentElement
+  ){
+
+    return false;
+
+  }
+
+  element.classList.remove(
+    "streaming-message"
+  );
+
+  element.dataset
+  .streaming =
+  "false";
+
+  const finalMessage =
+  freezeChatObject({
+
+    id:
+
+      streamingMessageState
+      .activeMessageId
+
+      ||
+
+      createMessageId(),
+
+    role:"assistant",
+
+    content:
+
+      streamingMessageState
+      .accumulatedContent,
+
+    timestamp:
+    Date.now(),
+
+    metadata:{
+
+      streaming:true,
+
+      completed:true
+
+    }
+
+  });
+
+  if(
+    Array.isArray(
+      currentChat?.messages
+    )
+  ){
+
+    currentChat.messages
+    .push(
+      finalMessage
+    );
+
+    currentChat.updatedAt =
+    Date.now();
+
+    currentChat.lastMessageAt =
+    finalMessage.timestamp;
+
+    currentChat.messageCount =
+    currentChat.messages.length;
+
+  }
+
+  debouncedSaveCurrentChat?.();
+
+  resetStreamingMessageState();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// ABORT STREAM MESSAGE
+// =====================================
+
+function abortStreamingMessage(){
+
+  const element =
+
+    streamingMessageState
+    .activeElement;
+
+  if(element){
+
+    element.classList.remove(
+      "streaming-message"
+    );
+
+    element.classList.add(
+      "stream-aborted"
+    );
+
+  }
+
+  resetStreamingMessageState();
 
   return true;
 
