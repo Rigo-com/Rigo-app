@@ -50,6 +50,11 @@ async function emitChatRuntimeEvent(
 
   catch(error){
 
+    safeLogError?.(
+      "CHAT EVENT ERROR:",
+      error
+    );
+
     return false;
 
   }
