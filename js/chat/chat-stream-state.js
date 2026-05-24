@@ -326,10 +326,6 @@ function resetChatStreamState(){
   .chunkBuffer =
   [];
 
-  chatStreamState
-  .streamHistory =
-  [];
-
   resetStreamDiagnostics();
 
   return true;
@@ -447,33 +443,70 @@ function getChatStreamStatus(){
 
     partialLength:
 
-      chatStreamState
-      .partialContent
+      String(
+        chatStreamState
+        .partialContent || ""
+      )
       .length,
 
     bufferedLength:
 
-      chatStreamState
-      .bufferedContent
+      String(
+        chatStreamState
+        .bufferedContent || ""
+      )
       .length,
 
     queuedChunks:
 
+      Array.isArray(
+        chatStreamState
+        .chunkQueue
+      )
+
+      ?
+
       chatStreamState
       .chunkQueue
-      .length,
+      .length
+
+      :
+
+      0,
 
     bufferedChunks:
 
+      Array.isArray(
+        chatStreamState
+        .chunkBuffer
+      )
+
+      ?
+
       chatStreamState
       .chunkBuffer
-      .length,
+      .length
+
+      :
+
+      0,
 
     queuedRenders:
 
+      Array.isArray(
+        chatStreamState
+        .renderQueue
+      )
+
+      ?
+
       chatStreamState
       .renderQueue
-      .length,
+      .length
+
+      :
+
+      0,
 
     diagnostics:
 
