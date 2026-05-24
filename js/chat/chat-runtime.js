@@ -21,6 +21,54 @@ function initializeChatRuntime(){
 
   }
 
+  const elementsReady =
+
+    typeof ChatElements !==
+    "undefined"
+
+    &&
+
+    ChatElements
+    .initialize();
+
+  if(!elementsReady){
+
+    return false;
+
+  }
+
+  const markdownReady =
+
+    typeof ChatMarkdownRenderer !==
+    "undefined"
+
+    &&
+
+    ChatMarkdownRenderer
+    .initialize();
+
+  if(!markdownReady){
+
+    return false;
+
+  }
+
+  const streamReady =
+
+    typeof ChatStreamManager !==
+    "undefined"
+
+    &&
+
+    ChatStreamManager
+    .initialize();
+
+  if(!streamReady){
+
+    return false;
+
+  }
+
   chatRuntimeState
   .initialized =
   true;
@@ -38,6 +86,36 @@ function initializeChatRuntime(){
 async function resetChatRuntime(){
 
   await abortMessageGeneration();
+
+  if(
+    typeof ChatStreamManager !==
+    "undefined"
+  ){
+
+    ChatStreamManager
+    .destroy();
+
+  }
+
+  if(
+    typeof ChatMarkdownRenderer !==
+    "undefined"
+  ){
+
+    ChatMarkdownRenderer
+    .reset();
+
+  }
+
+  if(
+    typeof ChatElements !==
+    "undefined"
+  ){
+
+    ChatElements
+    .reset();
+
+  }
 
   resetChatState();
 
