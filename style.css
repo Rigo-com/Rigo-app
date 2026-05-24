@@ -74,14 +74,16 @@ html{
 /* ===================================== */
 
 button,
-input{
+input,
+textarea{
 
   font-family:inherit;
 
 }
 
 button:focus-visible,
-input:focus-visible{
+input:focus-visible,
+textarea:focus-visible{
 
   outline:2px solid var(--primary);
 
@@ -574,7 +576,7 @@ body{
 
   display:flex;
 
-  align-items:center;
+  align-items:flex-end;
 
   gap:12px;
 
@@ -600,13 +602,17 @@ body{
 
   width:100%;
 
-  height:58px;
+  min-height:58px;
+
+  max-height:140px;
+
+  resize:none;
 
   border:none;
 
   outline:none;
 
-  padding:0 18px;
+  padding:16px 18px;
 
   border-radius:20px;
 
@@ -617,14 +623,14 @@ body{
 
   font-size:16px;
 
+  line-height:1.5;
+
   border:
   1px solid var(--border-color);
 
-  direction:ltr;
+  overflow-y:auto;
 
-  text-align:left;
-
-  unicode-bidi:plaintext;
+  overflow-x:hidden;
 
   -webkit-appearance:none;
 
@@ -703,6 +709,8 @@ body[dir="ltr"] #messageInput{
   font-weight:700;
 
   cursor:pointer;
+
+  flex-shrink:0;
 
 }
 
