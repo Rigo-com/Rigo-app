@@ -6,6 +6,89 @@
 
 
 // =====================================
+// PUBLIC EXPORTS
+// =====================================
+
+const LifecycleIndex =
+Object.freeze({
+
+
+
+  // ===================================
+  // LIFECYCLE
+  // ===================================
+
+  lifecycle:
+  AppLifecycle,
+
+
+
+  // ===================================
+  // STARTUP
+  // ===================================
+
+  startup:
+  AppStartup,
+
+
+
+  // ===================================
+  // BOOTSTRAP
+  // ===================================
+
+  bootstrap:
+  AppBootstrap,
+
+
+
+  // ===================================
+  // SHUTDOWN
+  // ===================================
+
+  shutdown:
+  AppShutdown,
+
+
+
+  // ===================================
+  // ENVIRONMENT
+  // ===================================
+
+  environment:
+  AppEnvironment,
+
+
+
+  // ===================================
+  // MESSAGES
+  // ===================================
+
+  messages:
+  MessageRuntime,
+
+
+
+  // ===================================
+  // DIAGNOSTICS
+  // ===================================
+
+  diagnostics:
+  AppDiagnostics,
+
+
+
+  // ===================================
+  // HEALTH
+  // ===================================
+
+  health:
+  HealthSystem
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -13,6 +96,11 @@ if(
   typeof window !==
   "undefined"
 ){
+
+  window.LifecycleIndex =
+  LifecycleIndex;
+
+
 
   // ===================================
   // LIFECYCLE
@@ -27,11 +115,8 @@ if(
   // STARTUP
   // ===================================
 
-  window.startApp =
-  startApp;
-
-  window.createStartupSnapshot =
-  createStartupSnapshot;
+  window.AppStartup =
+  AppStartup;
 
 
 
@@ -39,11 +124,8 @@ if(
   // BOOTSTRAP
   // ===================================
 
-  window.initializeApp =
-  initializeApp;
-
-  window.createBootstrapSnapshot =
-  createBootstrapSnapshot;
+  window.AppBootstrap =
+  AppBootstrap;
 
 
 
@@ -51,14 +133,8 @@ if(
   // SHUTDOWN
   // ===================================
 
-  window.shutdownApp =
-  shutdownApp;
-
-  window.cleanupApp =
- cleanupApp;
-
-  window.createShutdownSnapshot =
-  createShutdownSnapshot;
+  window.AppShutdown =
+  AppShutdown;
 
 
 
@@ -66,8 +142,8 @@ if(
   // ENVIRONMENT
   // ===================================
 
-  window.validateAppEnvironment =
-  validateAppEnvironment;
+  window.AppEnvironment =
+  AppEnvironment;
 
 
 
@@ -75,11 +151,8 @@ if(
   // MESSAGES
   // ===================================
 
-  window.handleSendMessage =
-  handleSendMessage;
-
-  window.createMessageRuntimeSnapshot =
-  createMessageRuntimeSnapshot;
+  window.MessageRuntime =
+  MessageRuntime;
 
 
 
@@ -87,11 +160,8 @@ if(
   // DIAGNOSTICS
   // ===================================
 
-  window.getAppDiagnostics =
-  getAppDiagnostics;
-
-  window.createAppDiagnosticsSnapshot =
-  createAppDiagnosticsSnapshot;
+  window.AppDiagnostics =
+  AppDiagnostics;
 
 
 
@@ -99,10 +169,7 @@ if(
   // HEALTH
   // ===================================
 
-  window.runAppHealthcheck =
-  runAppHealthcheck;
-
-  window.getHealthDiagnostics =
-  getHealthDiagnostics;
+  window.HealthSystem =
+  HealthSystem;
 
 }
