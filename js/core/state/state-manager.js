@@ -1,13 +1,12 @@
 // =====================================
 // RIGO AI
 // STATE MANAGER
-// ENTERPRISE KERNEL FINAL
 // =====================================
 
 
 
 // =====================================
-// STATE CONFIG
+// CONFIG
 // =====================================
 
 const STATE_MANAGER_CONFIG =
@@ -28,10 +27,6 @@ Object.freeze({
 
   ENABLE_MIDDLEWARE:true,
 
-  ENABLE_PERSISTENCE:true,
-
-  ENABLE_DIAGNOSTICS:true,
-
   ENABLE_TRANSACTIONS:true,
 
   ENABLE_ROLLBACKS:true
@@ -41,7 +36,7 @@ Object.freeze({
 
 
 // =====================================
-// STATE EVENTS
+// EVENTS
 // =====================================
 
 const STATE_EVENTS =
@@ -55,6 +50,9 @@ Object.freeze({
 
   RESET:
   "state.reset",
+
+  REMOVED:
+  "state.removed",
 
   ROLLBACK:
   "state.rollback",
@@ -97,11 +95,11 @@ Object.seal({
 
   activeTransaction:false,
 
-  transactionQueue:[],
-
   diagnostics:{
 
     updates:0,
+
+    removals:0,
 
     rollbacks:0,
 
@@ -120,7 +118,7 @@ Object.seal({
 
 
 // =====================================
-// SAFE CLONE
+// CLONE
 // =====================================
 
 function cloneStateValue(
@@ -169,10 +167,8 @@ function cloneStateValue(
 
     clone[key] =
     cloneStateValue(
-
       value[key],
       visited
-
     );
 
   });
@@ -184,7 +180,7 @@ function cloneStateValue(
 
 
 // =====================================
-// DEEP FREEZE
+// FREEZE
 // =====================================
 
 function freezeStateObject(
@@ -213,32 +209,17 @@ function freezeStateObject(
 
   }
 
-  visited.add(
-    value
-  );
+  visited.add(value);
 
-  Object.freeze(
-    value
-  );
+  Object.freeze(value);
 
   Object.values(value)
   .forEach((nestedValue) => {
 
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezeStateObject(
-        nestedValue,
-        visited
-      );
-
-    }
+    freezeStateObject(
+      nestedValue,
+      visited
+    );
 
   });
 
@@ -248,20 +229,12 @@ function freezeStateObject(
 
 
 
-// =====================================
-// IMMUTABLE STATE
-// =====================================
-
 function createImmutableState(
   value
 ){
 
   return freezeStateObject(
-
-    cloneStateValue(
-      value
-    )
-
+    cloneStateValue(value)
   );
 
 }
@@ -269,7 +242,7 @@ function createImmutableState(
 
 
 // =====================================
-// STATE PATH
+// PATH
 // =====================================
 
 function normalizeStatePath(
@@ -286,7 +259,7 @@ function normalizeStatePath(
 
 
 // =====================================
-// GET STATE VALUE
+// GET
 // =====================================
 
 function getStateValue(
@@ -296,28 +269,20 @@ function getStateValue(
   if(!path){
 
     return createImmutableState(
-
       stateManagerState
       .currentState
-
     );
 
   }
 
-  const normalizedPath =
-  normalizeStatePath(
-    path
-  );
-
   const segments =
-  normalizedPath.split(
-    "."
-  );
+
+    normalizeStatePath(path)
+    .split(".");
 
   let currentValue =
-
-    stateManagerState
-    .currentState;
+  stateManagerState
+  .currentState;
 
   for(
     const segment
@@ -352,39 +317,21 @@ function getStateValue(
 
 
 
-// =====================================
-// GET FULL STATE
-// =====================================
-
 function getFullState(){
 
-  return createImmutableState({
-
-    ...stateManagerState
-    .currentState
-
-  });
+  return getStateValue();
 
 }
 
 
-
-// =====================================
-// HAS STATE VALUE
-// =====================================
 
 function hasStateValue(
   path
 ){
 
   return (
-
     getStateValue(path)
-
-    !==
-
-    undefined
-
+    !== undefined
   );
 
 }
@@ -392,7 +339,7 @@ function hasStateValue(
 
 
 // =====================================
-// SET STATE VALUE
+// SET NESTED
 // =====================================
 
 function setNestedStateValue(
@@ -402,15 +349,11 @@ function setNestedStateValue(
 ){
 
   const segments =
-  normalizeStatePath(
-    path
-  )
+  normalizeStatePath(path)
   .split(".");
 
   const stateCopy =
-  cloneStateValue(
-    target
-  );
+  cloneStateValue(target);
 
   let current =
   stateCopy;
@@ -455,97 +398,6 @@ function setNestedStateValue(
   ] = value;
 
   return stateCopy;
-
-}
-
-
-
-// =====================================
-// REMOVE STATE VALUE
-// =====================================
-
-async function removeStateValue(
-  path
-){
-
-  const normalizedPath =
-  normalizeStatePath(
-    path
-  );
-
-  if(!normalizedPath){
-
-    return false;
-
-  }
-
-  const stateCopy =
-  cloneStateValue(
-
-    stateManagerState
-    .currentState
-
-  );
-
-  const segments =
-  normalizedPath
-  .split(".");
-
-  let current =
-  stateCopy;
-
-  for(
-
-    let i = 0;
-
-    i < segments.length - 1;
-
-    i++
-
-  ){
-
-    const segment =
-    segments[i];
-
-    if(
-
-      !current[segment] ||
-
-      typeof current[
-        segment
-      ] !== "object"
-
-    ){
-
-      return false;
-
-    }
-
-    current =
-    current[segment];
-
-  }
-
-  delete current[
-
-    segments[
-      segments.length - 1
-    ]
-
-  ];
-
-  stateManagerState
-  .currentState =
-  stateCopy;
-
-  stateManagerState
-  .version++;
-
-  stateManagerState
-  .lastUpdatedAt =
-  Date.now();
-
-  return true;
 
 }
 
@@ -612,23 +464,6 @@ function storeStateHistory(
 
 
 // =====================================
-// GET STATE HISTORY
-// =====================================
-
-function getStateHistory(){
-
-  return createImmutableState(
-
-    stateManagerState
-    .history
-
-  );
-
-}
-
-
-
-// =====================================
 // SNAPSHOT
 // =====================================
 
@@ -642,9 +477,8 @@ function createStateSnapshot(){
     .version,
 
     state:
-
-      stateManagerState
-      .currentState,
+    stateManagerState
+    .currentState,
 
     timestamp:
     Date.now()
@@ -653,9 +487,7 @@ function createStateSnapshot(){
 
   stateManagerState
   .snapshots
-  .push(
-    snapshot
-  );
+  .push(snapshot);
 
   if(
 
@@ -703,19 +535,13 @@ function useStateMiddleware(
 
   stateManagerState
   .middleware
-  .add(
-    middleware
-  );
+  .add(middleware);
 
   return true;
 
 }
 
 
-
-// =====================================
-// EXECUTE MIDDLEWARE
-// =====================================
 
 async function executeStateMiddleware(
   context
@@ -746,9 +572,7 @@ async function executeStateMiddleware(
     try{
 
       const result =
-      await middleware(
-        context
-      );
+      await middleware(context);
 
       if(
         result === false
@@ -760,31 +584,7 @@ async function executeStateMiddleware(
 
     }
 
-    catch(error){
-
-      if(
-
-        typeof logDiagnosticError ===
-        "function"
-
-      ){
-
-        logDiagnosticError(
-
-          "STATE MIDDLEWARE FAILED",
-
-          {
-
-            error:
-            String(error)
-
-          }
-
-        );
-
-      }
-
-    }
+    catch(error){}
 
   }
 
@@ -795,7 +595,7 @@ async function executeStateMiddleware(
 
 
 // =====================================
-// SUBSCRIPTIONS
+// SUBSCRIBERS
 // =====================================
 
 function subscribeToState(
@@ -828,9 +628,7 @@ function subscribeToState(
 
   stateManagerState
   .subscribers
-  .add(
-    subscriber
-  );
+  .add(subscriber);
 
   stateManagerState
   .diagnostics
@@ -854,9 +652,7 @@ function unsubscribeFromState(
 
     stateManagerState
     .subscribers
-    .delete(
-      subscriber
-    );
+    .delete(subscriber);
 
   stateManagerState
   .diagnostics
@@ -872,61 +668,34 @@ function unsubscribeFromState(
 
 
 
-// =====================================
-// NOTIFY
-// =====================================
-
 async function notifyStateSubscribers(
   context
 ){
 
-  const subscribers = [
+  for(
 
-    ...stateManagerState
+    const subscriber
+
+    of
+
+    stateManagerState
     .subscribers
 
-  ];
-
-  for(
-    const subscriber
-    of subscribers
   ){
 
     try{
 
       await subscriber(
+
         createImmutableState(
           context
         )
+
       );
 
     }
 
-    catch(error){
-
-      if(
-
-        typeof logDiagnosticError ===
-        "function"
-
-      ){
-
-        logDiagnosticError(
-
-          "STATE SUBSCRIBER FAILED",
-
-          {
-
-            error:
-            String(error)
-
-          }
-
-        );
-
-      }
-
-    }
+    catch(error){}
 
   }
 
@@ -937,58 +706,14 @@ async function notifyStateSubscribers(
 
 
 // =====================================
-// UPDATE STATE
+// INTERNAL UPDATE
 // =====================================
 
-async function updateState(
-  path,
-  value,
-  metadata = {}
+async function applyStateUpdate(
+  nextState,
+  context,
+  eventName
 ){
-
-  const previousState =
-  createImmutableState(
-
-    stateManagerState
-    .currentState
-
-  );
-
-  const nextState =
-  setNestedStateValue(
-
-    stateManagerState
-    .currentState,
-
-    path,
-
-    value
-
-  );
-
-  const context = {
-
-    path:
-    normalizeStatePath(
-      path
-    ),
-
-    previousState,
-
-    nextState:
-    createImmutableState(
-      nextState
-    ),
-
-    metadata:
-    cloneStateValue(
-      metadata
-    ),
-
-    timestamp:
-    Date.now()
-
-  };
 
   const middlewareSuccess =
   await executeStateMiddleware(
@@ -1002,7 +727,8 @@ async function updateState(
   }
 
   storeStateHistory(
-    previousState
+    stateManagerState
+    .currentState
   );
 
   stateManagerState
@@ -1015,10 +741,6 @@ async function updateState(
   stateManagerState
   .lastUpdatedAt =
   Date.now();
-
-  stateManagerState
-  .diagnostics
-  .updates++;
 
   if(
 
@@ -1041,17 +763,8 @@ async function updateState(
   ){
 
     await emitSystemEvent(
-
-      STATE_EVENTS.UPDATED,
-
-      {
-
-        path,
-
-        metadata
-
-      }
-
+      eventName,
+      context
     );
 
   }
@@ -1063,41 +776,194 @@ async function updateState(
 
 
 // =====================================
-// RESET STATE
+// UPDATE
 // =====================================
 
-async function resetStateManager(){
+async function updateState(
+  path,
+  value,
+  metadata = {}
+){
 
-  storeStateHistory(
+  const normalizedPath =
+  normalizeStatePath(path);
+
+  if(!normalizedPath){
+
+    return false;
+
+  }
+
+  const nextState =
+  setNestedStateValue(
+
+    stateManagerState
+    .currentState,
+
+    normalizedPath,
+
+    value
+
+  );
+
+  const context = {
+
+    path:
+    normalizedPath,
+
+    value:
+    createImmutableState(
+      value
+    ),
+
+    metadata:
+    cloneStateValue(
+      metadata
+    ),
+
+    timestamp:
+    Date.now()
+
+  };
+
+  const updated =
+  await applyStateUpdate(
+
+    nextState,
+    context,
+    STATE_EVENTS.UPDATED
+
+  );
+
+  if(updated){
+
+    stateManagerState
+    .diagnostics
+    .updates++;
+
+  }
+
+  return updated;
+
+}
+
+
+
+// =====================================
+// REMOVE
+// =====================================
+
+async function removeStateValue(
+  path
+){
+
+  const normalizedPath =
+  normalizeStatePath(path);
+
+  if(!normalizedPath){
+
+    return false;
+
+  }
+
+  const stateCopy =
+  cloneStateValue(
 
     stateManagerState
     .currentState
 
   );
 
-  stateManagerState
-  .currentState =
-  {};
+  const segments =
+  normalizedPath
+  .split(".");
 
-  stateManagerState
-  .version++;
+  let current =
+  stateCopy;
 
-  stateManagerState
-  .lastUpdatedAt =
-  Date.now();
+  for(
 
-  if(
-    typeof emitSystemEvent ===
-    "function"
+    let i = 0;
+
+    i < segments.length - 1;
+
+    i++
+
   ){
 
-    await emitSystemEvent(
-      STATE_EVENTS.RESET
-    );
+    current =
+    current?.[
+      segments[i]
+    ];
+
+    if(
+      !current
+    ){
+
+      return false;
+
+    }
 
   }
 
-  return true;
+  delete current[
+    segments[
+      segments.length - 1
+    ]
+  ];
+
+  const removed =
+  await applyStateUpdate(
+
+    stateCopy,
+
+    {
+      path:
+      normalizedPath,
+
+      timestamp:
+      Date.now()
+    },
+
+    STATE_EVENTS.REMOVED
+
+  );
+
+  if(removed){
+
+    stateManagerState
+    .diagnostics
+    .removals++;
+
+  }
+
+  return removed;
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetStateManager(){
+
+  const reset =
+  await applyStateUpdate(
+
+    {},
+
+    {
+      timestamp:
+      Date.now()
+    },
+
+    STATE_EVENTS.RESET
+
+  );
+
+  return reset;
 
 }
 
@@ -1123,9 +989,8 @@ async function rollbackState(
   }
 
   const history =
-
-    stateManagerState
-    .history;
+  stateManagerState
+  .history;
 
   if(
     history.length <= 0
@@ -1135,24 +1000,18 @@ async function rollbackState(
 
   }
 
-  let rollbackTarget =
-  null;
+  const rollbackTarget =
 
-  if(
     version == null
-  ){
 
-    rollbackTarget =
+    ?
 
-      history[
-        history.length - 1
-      ];
+    history[
+      history.length - 1
+    ]
 
-  }
+    :
 
-  else{
-
-    rollbackTarget =
     history.find((entry) => {
 
       return (
@@ -1162,50 +1021,43 @@ async function rollbackState(
 
     });
 
-  }
-
   if(!rollbackTarget){
 
     return false;
 
   }
 
-  stateManagerState
-  .currentState =
+  const rollbacked =
+  await applyStateUpdate(
 
     cloneStateValue(
       rollbackTarget.state
-    );
+    ),
 
-  stateManagerState
-  .version++;
+    {
 
-  stateManagerState
-  .diagnostics
-  .rollbacks++;
+      rollbackVersion:
+      rollbackTarget
+      .version,
 
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
+      timestamp:
+      Date.now()
 
-    await emitSystemEvent(
+    },
 
-      STATE_EVENTS.ROLLBACK,
+    STATE_EVENTS.ROLLBACK
 
-      {
+  );
 
-        rollbackVersion:
-        rollbackTarget
-        .version
+  if(rollbacked){
 
-      }
-
-    );
+    stateManagerState
+    .diagnostics
+    .rollbacks++;
 
   }
 
-  return true;
+  return rollbacked;
 
 }
 
@@ -1218,6 +1070,15 @@ async function rollbackState(
 async function runStateTransaction(
   callback
 ){
+
+  if(
+    typeof callback !==
+    "function"
+  ){
+
+    return false;
+
+  }
 
   if(
 
@@ -1255,10 +1116,8 @@ async function runStateTransaction(
     ){
 
       await emitSystemEvent(
-
         STATE_EVENTS
         .TRANSACTION_START
-
       );
 
     }
@@ -1266,9 +1125,14 @@ async function runStateTransaction(
     const result =
     await callback({
 
-      get:getStateValue,
+      get:
+      getStateValue,
 
-      set:updateState
+      set:
+      updateState,
+
+      remove:
+      removeStateValue
 
     });
 
@@ -1278,10 +1142,8 @@ async function runStateTransaction(
     ){
 
       await emitSystemEvent(
-
         STATE_EVENTS
         .TRANSACTION_END
-
       );
 
     }
@@ -1401,7 +1263,7 @@ async function initializeStateManager(){
 
 
 // =====================================
-// PUBLIC API
+// API
 // =====================================
 
 const StateManager =
@@ -1434,8 +1296,14 @@ Object.freeze({
   snapshot:
   createStateSnapshot,
 
-  history:
-  getStateHistory,
+  history(){
+
+    return createImmutableState(
+      stateManagerState
+      .history
+    );
+
+  },
 
   transaction:
   runStateTransaction,
