@@ -21,59 +21,85 @@ function initializeChatRuntime(){
 
   }
 
-  const elementsReady =
-
-    typeof ChatElements !==
-    "undefined"
-
-    &&
-
-    ChatElements
-    .initialize();
-
-  if(!elementsReady){
-
-    return false;
-
-  }
-
-  const markdownReady =
-
-    typeof ChatMarkdownRenderer !==
-    "undefined"
-
-    &&
-
-    ChatMarkdownRenderer
-    .initialize();
-
-  if(!markdownReady){
-
-    return false;
-
-  }
-
-  const streamReady =
-
-    typeof ChatStreamManager !==
-    "undefined"
-
-    &&
-
-    ChatStreamManager
-    .initialize();
-
-  if(!streamReady){
+  if(
+    chatRuntimeState
+    .initializing ===
+    true
+  ){
 
     return false;
 
   }
 
   chatRuntimeState
-  .initialized =
+  .initializing =
   true;
 
-  return true;
+  try{
+
+    const elementsReady =
+
+      typeof ChatElements !==
+      "undefined"
+
+      &&
+
+      ChatElements
+      .initialize();
+
+    if(!elementsReady){
+
+      return false;
+
+    }
+
+    const markdownReady =
+
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+
+      &&
+
+      ChatMarkdownRenderer
+      .initialize();
+
+    if(!markdownReady){
+
+      return false;
+
+    }
+
+    const streamReady =
+
+      typeof ChatStreamManager !==
+      "undefined"
+
+      &&
+
+      ChatStreamManager
+      .initialize();
+
+    if(!streamReady){
+
+      return false;
+
+    }
+
+    chatRuntimeState
+    .initialized =
+    true;
+
+    return true;
+
+  }
+
+  finally{
+
+    chatRuntimeState
+    .initializing =
+    false;
+
+  }
 
 }
 
@@ -98,6 +124,15 @@ async function resetChatRuntime(){
   }
 
   if(
+    typeof resetStreamingMessageState ===
+    "function"
+  ){
+
+    resetStreamingMessageState();
+
+  }
+
+  if(
     typeof ChatMarkdownRenderer !==
     "undefined"
   ){
@@ -113,7 +148,7 @@ async function resetChatRuntime(){
   ){
 
     ChatElements
-    .reset();
+    .cleanup();
 
   }
 
