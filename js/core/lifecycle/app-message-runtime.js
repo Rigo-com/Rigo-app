@@ -31,6 +31,51 @@ Object.seal({
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function updateMessageRuntimeState(
+  updates = {}
+){
+
+  Object.assign(
+
+    messageRuntimeState,
+
+    updates
+
+  );
+
+  return true;
+
+}
+
+
+
+function normalizeMessageRuntimeError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+// =====================================
 // MESSAGE TIMEOUT
 // =====================================
 
@@ -38,10 +83,19 @@ function createMessageTimeout(){
 
   const timeoutDuration =
 
+    ConfigRuntime
+    ?.getValue?.(
+      "CHAT.MESSAGE_TIMEOUT"
+    )
+
+    ??
+
     APP_CONFIG?.CHAT
     ?.MESSAGE_TIMEOUT
 
-    ?? 30000;
+    ??
+
+    30000;
 
   let timeoutId =
   null;
@@ -134,7 +188,7 @@ function updateSafeMessageUIState(
 
 function createMessageRuntimeSnapshot(){
 
-  return Object.freeze({
+  return freezeEnvironmentObject({
 
     sending:
     messageRuntimeState
@@ -165,7 +219,7 @@ function createMessageRuntimeSnapshot(){
       messageRuntimeState
       .lastError
 
-      ? String(
+      ? normalizeMessageRuntimeError(
           messageRuntimeState
           .lastError
         )
@@ -173,6 +227,133 @@ function createMessageRuntimeSnapshot(){
       : null
 
   });
+
+}
+
+
+
+// =====================================
+// TRACK SUCCESS
+// =====================================
+
+async function handleSuccessfulMessage(){
+
+  updateMessageRuntimeState({
+
+    completedAt:
+    Date.now()
+
+  });
+
+  updateMessageRuntimeState({
+
+    lastDuration:
+
+      messageRuntimeState
+      .completedAt -
+
+      messageRuntimeState
+      .startedAt,
+
+    sentMessages:
+
+      messageRuntimeState
+      .sentMessages + 1
+
+  });
+
+  if(
+    typeof trackPerformanceMetric ===
+    "function"
+  ){
+
+    trackPerformanceMetric(
+
+      "message.send",
+
+      messageRuntimeState
+      .lastDuration
+
+    );
+
+  }
+
+  await emitAppEvent(
+    "chat.message.sent"
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// TRACK FAILURE
+// =====================================
+
+async function handleFailedMessage(
+  error
+){
+
+  updateMessageRuntimeState({
+
+    failedMessages:
+
+      messageRuntimeState
+      .failedMessages + 1,
+
+    lastError:error
+
+  });
+
+  appState.lastError =
+  error;
+
+  safeLogError(
+    normalizeMessageRuntimeError(
+      error
+    )
+  );
+
+  if(
+    typeof logDiagnosticError ===
+    "function"
+  ){
+
+    await logDiagnosticError(
+
+      "MESSAGE SEND FAILED",
+
+      {
+
+        error:
+        normalizeMessageRuntimeError(
+          error
+        )
+
+      }
+
+    );
+
+  }
+
+  await emitAppEvent(
+
+    "chat.message.failed",
+
+    {
+
+      error:
+      normalizeMessageRuntimeError(
+        error
+      )
+
+    }
+
+  );
+
+  return false;
 
 }
 
@@ -206,17 +387,16 @@ async function handleSendMessage(){
 
   }
 
-  messageRuntimeState
-  .sending =
-  true;
+  updateMessageRuntimeState({
 
-  messageRuntimeState
-  .startedAt =
-  Date.now();
+    sending:true,
 
-  messageRuntimeState
-  .lastError =
-  null;
+    startedAt:
+    Date.now(),
+
+    lastError:null
+
+  });
 
   updateSafeMessageUIState(
     true
@@ -236,41 +416,7 @@ async function handleSendMessage(){
 
     ]);
 
-    messageRuntimeState
-    .completedAt =
-    Date.now();
-
-    messageRuntimeState
-    .lastDuration =
-
-      messageRuntimeState
-      .completedAt -
-
-      messageRuntimeState
-      .startedAt;
-
-    messageRuntimeState
-    .sentMessages++;
-
-    if(
-      typeof trackPerformanceMetric ===
-      "function"
-    ){
-
-      trackPerformanceMetric(
-
-        "message.send",
-
-        messageRuntimeState
-        .lastDuration
-
-      );
-
-    }
-
-    await emitAppEvent(
-      "chat.message.sent"
-    );
+    await handleSuccessfulMessage();
 
     return true;
 
@@ -278,60 +424,9 @@ async function handleSendMessage(){
 
   catch(error){
 
-    messageRuntimeState
-    .failedMessages++;
-
-    messageRuntimeState
-    .lastError =
-    error;
-
-    appState.lastError =
-    error;
-
-    safeLogError(
-      getSafeErrorMessage(
-        error
-      )
+    return handleFailedMessage(
+      error
     );
-
-    if(
-      typeof logDiagnosticError ===
-      "function"
-    ){
-
-      await logDiagnosticError(
-
-        "MESSAGE SEND FAILED",
-
-        {
-
-          error:
-          getSafeErrorMessage(
-            error
-          )
-
-        }
-
-      );
-
-    }
-
-    await emitAppEvent(
-
-      "chat.message.failed",
-
-      {
-
-        error:
-        getSafeErrorMessage(
-          error
-        )
-
-      }
-
-    );
-
-    return false;
 
   }
 
@@ -340,9 +435,11 @@ async function handleSendMessage(){
     timeoutController
     .clear();
 
-    messageRuntimeState
-    .sending =
-    false;
+    updateMessageRuntimeState({
+
+      sending:false
+
+    });
 
     updateSafeMessageUIState(
       false
@@ -355,6 +452,23 @@ async function handleSendMessage(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const MessageRuntime =
+Object.freeze({
+
+  send:
+  handleSendMessage,
+
+  snapshot:
+  createMessageRuntimeSnapshot
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -363,10 +477,7 @@ if(
   "undefined"
 ){
 
-  window.handleSendMessage =
-  handleSendMessage;
-
-  window.createMessageRuntimeSnapshot =
-  createMessageRuntimeSnapshot;
+  window.MessageRuntime =
+  MessageRuntime;
 
 }
