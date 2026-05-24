@@ -6,6 +6,116 @@
 
 
 // =====================================
+// DEPENDENCY API
+// =====================================
+
+const DependenciesAPI =
+Object.freeze({
+
+
+
+  // ===================================
+  // CORE
+  // ===================================
+
+  system:
+  DependencySystem,
+
+
+
+  // ===================================
+  // REGISTRY
+  // ===================================
+
+  register:
+  registerDependency,
+
+  resolve:
+  resolveDependency,
+
+  fail:
+  failDependency,
+
+  remove:
+  removeDependency,
+
+  get:
+  getDependency,
+
+  getAll:
+  getAllDependencies,
+
+
+
+  // ===================================
+  // STATUS
+  // ===================================
+
+  isResolved:
+  isDependencyResolved,
+
+
+
+  // ===================================
+  // VALIDATION
+  // ===================================
+
+  validate:
+  validateDependencyRegistry,
+
+  validateCircular:
+  validateCircularDependencies,
+
+  validateMissing:
+  validateMissingDependencies,
+
+  validateResolvers:
+  validateDependencyResolvers,
+
+
+
+  // ===================================
+  // WAITERS
+  // ===================================
+
+  wait:
+  waitForDependency,
+
+  waitAll:
+  waitForDependencies,
+
+
+
+  // ===================================
+  // DIAGNOSTICS
+  // ===================================
+
+  diagnostics:
+  getDependencyDiagnostics,
+
+  health:
+  getDependencyHealthReport,
+
+  snapshot:
+  createDependencySnapshot,
+
+
+
+  // ===================================
+  // LIFECYCLE
+  // ===================================
+
+  initialize:
+  initializeDependencySystem,
+
+  reset:
+  resetDependencySystem
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -14,101 +124,7 @@ if(
   "undefined"
 ){
 
-  // ===================================
-  // SYSTEM
-  // ===================================
-
-  window.DependencySystem =
-  DependencySystem;
-
-
-
-  // ===================================
-  // STATE
-  // ===================================
-
-  window.appDependencyRegistry =
-  appDependencyRegistry;
-
-
-
-  // ===================================
-  // REGISTRY
-  // ===================================
-
-  window.registerDependency =
-  registerDependency;
-
-  window.resolveDependency =
-  resolveDependency;
-
-  window.failDependency =
-  failDependency;
-
-  window.getDependency =
-  getDependency;
-
-  window.getAllDependencies =
-  getAllDependencies;
-
-
-
-  // ===================================
-  // STATUS
-  // ===================================
-
-  window.isDependencyResolved =
-  isDependencyResolved;
-
-
-
-  // ===================================
-  // VALIDATION
-  // ===================================
-
-  window.validateDependencyRegistry =
-  validateDependencyRegistry;
-
-  window.validateCircularDependencies =
-  validateCircularDependencies;
-
-  window.validateMissingDependencies =
-  validateMissingDependencies;
-
-
-
-  // ===================================
-  // WAITERS
-  // ===================================
-
-  window.waitForDependency =
-  waitForDependency;
-
-  window.waitForDependencies =
-  waitForDependencies;
-
-
-
-  // ===================================
-  // DIAGNOSTICS
-  // ===================================
-
-  window.getDependencyDiagnostics =
-  getDependencyDiagnostics;
-
-  window.createDependencySnapshot =
-  createDependencySnapshot;
-
-
-
-  // ===================================
-  // LIFECYCLE
-  // ===================================
-
-  window.initializeDependencySystem =
-  initializeDependencySystem;
-
-  window.resetDependencySystem =
-  resetDependencySystem;
+  window.DependenciesAPI =
+  DependenciesAPI;
 
 }
