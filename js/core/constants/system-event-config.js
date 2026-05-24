@@ -1,37 +1,69 @@
 // =====================================
 // RIGO AI
-// SYSTEM EVENT CONFIG
+// SYSTEM EVENTS CONFIG
 // =====================================
+
+
 
 const SYSTEM_EVENTS_CONFIG =
 Object.freeze({
 
-  ENABLE_HISTORY:true,
 
-  ENABLE_WILDCARDS:true,
 
-  ENABLE_PRIORITIES:true,
+  // ===================================
+  // FEATURES
+  // ===================================
 
-  ENABLE_REPLAY:true,
+  ENABLE_HISTORY:
+  true,
 
-  ENABLE_MIDDLEWARE:true,
+  ENABLE_WILDCARDS:
+  true,
 
-  ENABLE_THROTTLING:true,
+  ENABLE_PRIORITIES:
+  true,
 
-  ENABLE_DIAGNOSTICS:true,
+  ENABLE_REPLAY:
+  true,
 
-  ENABLE_QUEUE:true,
+  ENABLE_MIDDLEWARE:
+  true,
 
-  ENABLE_RETRIES:true,
+  ENABLE_THROTTLING:
+  true,
+
+  ENABLE_DIAGNOSTICS:
+  true,
+
+  ENABLE_QUEUE:
+  true,
+
+  ENABLE_RETRIES:
+  true,
+
+
+
+  // ===================================
+  // LIMITS
+  // ===================================
 
   MAX_EVENT_HISTORY:
-  5000,
+  1000,
 
   MAX_LISTENERS:
   500,
 
   MAX_EVENT_QUEUE:
   1000,
+
+  MAX_THROTTLED_EVENTS:
+  1000,
+
+
+
+  // ===================================
+  // TIMERS
+  // ===================================
 
   EVENT_TIMEOUT:
   15000,
@@ -40,9 +72,38 @@ Object.freeze({
   3,
 
   THROTTLE_CLEANUP_INTERVAL:
-  60000,
-
-  MAX_THROTTLED_EVENTS:
-  5000
+  60000
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SYSTEM_EVENTS_CONFIG",
+
+    {
+
+      value:
+      SYSTEM_EVENTS_CONFIG,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
