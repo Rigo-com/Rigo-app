@@ -79,15 +79,18 @@ function getSafeDependencyDiagnostics(){
   try{
 
     if(
-      typeof getDependencyDiagnostics !==
-      "function"
+
+      !DependencySystem
+      ?.diagnostics
+
     ){
 
       return null;
 
     }
 
-    return getDependencyDiagnostics();
+    return DependencySystem
+    .diagnostics();
 
   }
 
@@ -110,15 +113,18 @@ async function getSafeHealthDiagnostics(){
   try{
 
     if(
-      typeof getHealthDiagnostics !==
-      "function"
+
+      !HealthDiagnostics
+      ?.get
+
     ){
 
       return null;
 
     }
 
-    return await getHealthDiagnostics();
+    return await HealthDiagnostics
+    .get();
 
   }
 
@@ -133,16 +139,146 @@ async function getSafeHealthDiagnostics(){
 
 
 // =====================================
-// APP DIAGNOSTICS
+// SAFE RUNTIME
 // =====================================
 
-async function getAppDiagnostics(){
+function getSafeRuntimeDiagnostics(){
 
-  const dependencyDiagnostics =
-  getSafeDependencyDiagnostics();
+  try{
 
-  const healthDiagnostics =
-  await getSafeHealthDiagnostics();
+    if(
+
+      !RuntimeManager
+      ?.health
+
+    ){
+
+      return null;
+
+    }
+
+    return RuntimeManager
+    .health();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE BOOTSTRAP
+// =====================================
+
+function getSafeBootstrapSnapshot(){
+
+  try{
+
+    if(
+
+      !AppBootstrap
+      ?.snapshot
+
+    ){
+
+      return null;
+
+    }
+
+    return AppBootstrap
+    .snapshot();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE STARTUP
+// =====================================
+
+function getSafeStartupSnapshot(){
+
+  try{
+
+    if(
+
+      !AppStartup
+      ?.snapshot
+
+    ){
+
+      return null;
+
+    }
+
+    return AppStartup
+    .snapshot();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE SHUTDOWN
+// =====================================
+
+function getSafeShutdownSnapshot(){
+
+  try{
+
+    if(
+
+      !AppShutdown
+      ?.snapshot
+
+    ){
+
+      return null;
+
+    }
+
+    return AppShutdown
+    .snapshot();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// APP STATE
+// =====================================
+
+function getAppRuntimeState(){
 
   return freezeAppDiagnostics({
 
@@ -209,10 +345,6 @@ async function getAppDiagnostics(){
 
     ],
 
-    dependencyDiagnostics,
-
-    healthDiagnostics,
-
     lastError:
 
       appState?.lastError
@@ -222,7 +354,42 @@ async function getAppDiagnostics(){
           .lastError
         )
 
-      : null,
+      : null
+
+  });
+
+}
+
+
+
+// =====================================
+// APP DIAGNOSTICS
+// =====================================
+
+async function getAppDiagnostics(){
+
+  return freezeAppDiagnostics({
+
+    app:
+    getAppRuntimeState(),
+
+    dependencies:
+    getSafeDependencyDiagnostics(),
+
+    health:
+    await getSafeHealthDiagnostics(),
+
+    runtime:
+    getSafeRuntimeDiagnostics(),
+
+    bootstrap:
+    getSafeBootstrapSnapshot(),
+
+    startup:
+    getSafeStartupSnapshot(),
+
+    shutdown:
+    getSafeShutdownSnapshot(),
 
     timestamp:
     Date.now()
@@ -254,6 +421,23 @@ async function createAppDiagnosticsSnapshot(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const AppDiagnostics =
+Object.freeze({
+
+  get:
+  getAppDiagnostics,
+
+  snapshot:
+  createAppDiagnosticsSnapshot
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -262,10 +446,7 @@ if(
   "undefined"
 ){
 
-  window.getAppDiagnostics =
-  getAppDiagnostics;
-
-  window.createAppDiagnosticsSnapshot =
-  createAppDiagnosticsSnapshot;
+  window.AppDiagnostics =
+  AppDiagnostics;
 
 }
