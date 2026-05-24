@@ -24,7 +24,7 @@
 
 </head>
 
-<body dir="rtl">
+<body>
 
   <!-- SIDEBAR OVERLAY -->
 
@@ -149,6 +149,8 @@
         id="messageInput"
         placeholder="اكتب رسالتك هنا..."
         autocomplete="off"
+        dir="auto"
+        spellcheck="false"
       />
 
 
@@ -275,6 +277,52 @@
 
 
         // ============================
+        // INPUT AUTO DIRECTION
+        // ============================
+
+        messageInput?.addEventListener(
+          "input",
+          () => {
+
+            const value =
+            messageInput.value.trim();
+
+            const isArabic =
+
+              /[\u0600-\u06FF]/.test(
+                value
+              );
+
+            messageInput.style.direction =
+
+              isArabic
+
+              ?
+
+              "rtl"
+
+              :
+
+              "ltr";
+
+            messageInput.style.textAlign =
+
+              isArabic
+
+              ?
+
+              "right"
+
+              :
+
+              "left";
+
+          }
+        );
+
+
+
+        // ============================
         // DIRECT SEND
         // ============================
 
@@ -294,49 +342,107 @@
 
             }
 
-            const userMessage =
+
+
+            // ============================
+            // USER MESSAGE
+            // ============================
+
+            const userWrapper =
             document.createElement(
               "div"
             );
 
-            userMessage.className =
+            userWrapper.className =
             "message user-message";
 
-            userMessage.textContent =
+
+
+            const userContent =
+            document.createElement(
+              "div"
+            );
+
+            userContent.className =
+            "message-content";
+
+            userContent.textContent =
             text;
 
-            chatContainer?.appendChild(
-              userMessage
+
+
+            userWrapper.appendChild(
+              userContent
             );
+
+            chatContainer?.appendChild(
+              userWrapper
+            );
+
+
+
+            // ============================
+            // CLEAR INPUT
+            // ============================
 
             messageInput.value =
             "";
 
+
+
+            // ============================
+            // SCROLL
+            // ============================
+
+            chatContainer.scrollTop =
+            chatContainer.scrollHeight;
+
+
+
+            // ============================
+            // TEMP AI RESPONSE
+            // ============================
+
             setTimeout(() => {
 
-              const aiMessage =
+              const aiWrapper =
               document.createElement(
                 "div"
               );
 
-              aiMessage.className =
+              aiWrapper.className =
               "message ai-message";
 
-              aiMessage.textContent =
+
+
+              const aiContent =
+              document.createElement(
+                "div"
+              );
+
+              aiContent.className =
+              "message-content";
+
+              aiContent.textContent =
               "RIGO AI RESPONSE";
+
+
+
+              aiWrapper.appendChild(
+                aiContent
+              );
 
               chatContainer
               ?.appendChild(
-                aiMessage
+                aiWrapper
               );
+
+
 
               chatContainer.scrollTop =
               chatContainer.scrollHeight;
 
             },500);
-
-            chatContainer.scrollTop =
-            chatContainer.scrollHeight;
 
           }
 
@@ -353,15 +459,15 @@
 
 
 
-        if(sendBtn){
+        // ============================
+        // SEND BUTTON
+        // ============================
 
-          sendBtn
-          .addEventListener(
-            "click",
-            handleSend
-          );
-
-        }
+        sendBtn
+        ?.addEventListener(
+          "click",
+          handleSend
+        );
 
 
 
@@ -369,27 +475,23 @@
         // ENTER KEY
         // ============================
 
-        if(messageInput){
+        messageInput
+        ?.addEventListener(
+          "keydown",
+          (event) => {
 
-          messageInput
-          .addEventListener(
-            "keydown",
-            (event) => {
+            if(
+              event.key === "Enter"
+            ){
 
-              if(
-                event.key === "Enter"
-              ){
+              event.preventDefault();
 
-                event.preventDefault();
-
-                handleSend();
-
-              }
+              handleSend();
 
             }
-          );
 
-        }
+          }
+        );
 
 
 
@@ -397,20 +499,16 @@
         // NEW CHAT
         // ============================
 
-        if(newChatBtn){
+        newChatBtn
+        ?.addEventListener(
+          "click",
+          () => {
 
-          newChatBtn
-          .addEventListener(
-            "click",
-            () => {
+            chatContainer.innerHTML =
+            "";
 
-              chatContainer.innerHTML =
-              "";
-
-            }
-          );
-
-        }
+          }
+        );
 
 
 
@@ -423,54 +521,46 @@
           "languageBtn"
         );
 
-        if(languageBtn){
+        languageBtn
+        ?.addEventListener(
+          "click",
+          () => {
 
-          languageBtn
-          .addEventListener(
-            "click",
-            () => {
+            const isArabic =
 
-              const current =
-              document.body.dir;
+              languageBtn.innerText ===
+              "EN";
 
-              if(current === "rtl"){
+            if(isArabic){
 
-                document.body.dir =
-                "ltr";
+              document.documentElement
+              .lang =
+              "en";
 
-                if(messageInput){
+              messageInput.placeholder =
+              "Type your message...";
 
-                  messageInput.placeholder =
-                  "Type your message...";
-
-                }
-
-                languageBtn.innerText =
-                "AR";
-
-              }
-
-              else{
-
-                document.body.dir =
-                "rtl";
-
-                if(messageInput){
-
-                  messageInput.placeholder =
-                  "اكتب رسالتك هنا...";
-
-                }
-
-                languageBtn.innerText =
-                "EN";
-
-              }
+              languageBtn.innerText =
+              "AR";
 
             }
-          );
 
-        }
+            else{
+
+              document.documentElement
+              .lang =
+              "ar";
+
+              messageInput.placeholder =
+              "اكتب رسالتك هنا...";
+
+              languageBtn.innerText =
+              "EN";
+
+            }
+
+          }
+        );
 
 
 
@@ -498,6 +588,8 @@
           "closeSidebar"
         );
 
+
+
         function openSidebar(){
 
           sidebar?.classList.add(
@@ -510,6 +602,8 @@
           );
 
         }
+
+
 
         function closeSidebarMenu(){
 
@@ -524,17 +618,23 @@
 
         }
 
+
+
         menuBtn
         ?.addEventListener(
           "click",
           openSidebar
         );
 
+
+
         closeSidebar
         ?.addEventListener(
           "click",
           closeSidebarMenu
         );
+
+
 
         sidebarOverlay
         ?.addEventListener(
