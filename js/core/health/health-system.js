@@ -100,6 +100,28 @@ async function emitHealthSystemEvent(
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function updateHealthSystemState(
+  updates = {}
+){
+
+  Object.assign(
+
+    healthSystemState,
+
+    updates
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
 // INITIALIZE HEALTH SYSTEM
 // =====================================
 
@@ -115,7 +137,8 @@ async function initializeHealthSystem(){
   }
 
   const diagnosticsReady =
-  await initializeDiagnosticsSystem();
+  await DiagnosticsRuntime
+  .initialize();
 
   if(!diagnosticsReady){
 
@@ -123,9 +146,11 @@ async function initializeHealthSystem(){
 
   }
 
-  healthSystemState
-  .initialized =
-  true;
+  updateHealthSystemState({
+
+    initialized:true
+
+  });
 
   await emitHealthSystemEvent(
 
@@ -154,11 +179,15 @@ async function runHealthSystemCheck(){
   );
 
   const result =
-  await runAppHealthcheck();
+  await HealthRuntime
+  .run();
 
-  healthSystemState
-  .lastCheckAt =
-  Date.now();
+  updateHealthSystemState({
+
+    lastCheckAt:
+    Date.now()
+
+  });
 
   await emitHealthSystemEvent(
 
@@ -168,7 +197,9 @@ async function runHealthSystemCheck(){
     {
 
       success:
-      Boolean(result)
+      Boolean(
+        result?.healthy
+      )
 
     }
 
@@ -181,22 +212,76 @@ async function runHealthSystemCheck(){
 
 
 // =====================================
+// START
+// =====================================
+
+function startHealthSystem(){
+
+  const started =
+  HealthMonitor
+  .start();
+
+  if(started){
+
+    updateHealthSystemState({
+
+      running:true
+
+    });
+
+  }
+
+  return started;
+
+}
+
+
+
+// =====================================
+// STOP
+// =====================================
+
+function stopHealthSystem(){
+
+  const stopped =
+  HealthMonitor
+  .stop();
+
+  if(stopped){
+
+    updateHealthSystemState({
+
+      running:false
+
+    });
+
+  }
+
+  return stopped;
+
+}
+
+
+
+// =====================================
 // RESET HEALTH SYSTEM
 // =====================================
 
 function resetHealthSystem(){
 
-  resetDiagnosticsSystem();
+  DiagnosticsRuntime
+  .reset();
 
-  stopHealthchecks();
+  stopHealthSystem();
 
-  healthSystemState
-  .running =
-  false;
+  updateHealthSystemState({
 
-  healthSystemState
-  .lastResetAt =
-  Date.now();
+    running:false,
+
+    lastResetAt:
+    Date.now()
+
+  });
 
   emitHealthSystemEvent(
 
@@ -217,7 +302,7 @@ function resetHealthSystem(){
 
 function createHealthSystemSnapshot(){
 
-  return Object.freeze({
+  return freezeHealthDiagnostics({
 
     timestamp:
     Date.now(),
@@ -250,7 +335,7 @@ function createHealthSystemSnapshot(){
 
 function getHealthSystemDiagnostics(){
 
-  return Object.freeze({
+  return freezeHealthDiagnostics({
 
     initialized:
     healthSystemState
@@ -291,10 +376,10 @@ Object.freeze({
   runHealthSystemCheck,
 
   start:
-  startHealthchecks,
+  startHealthSystem,
 
   stop:
-  stopHealthchecks,
+  stopHealthSystem,
 
   diagnostics:
   getHealthSystemDiagnostics,
@@ -317,11 +402,5 @@ if(
 
   window.HealthSystem =
   HealthSystem;
-
-  window.initializeHealthSystem =
-  initializeHealthSystem;
-
-  window.resetHealthSystem =
-  resetHealthSystem;
 
 }
