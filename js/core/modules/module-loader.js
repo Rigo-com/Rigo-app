@@ -7,6 +7,33 @@
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function normalizeModuleLoaderError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+// =====================================
 // SNAPSHOT
 // =====================================
 
@@ -35,15 +62,64 @@ async function recoverModule(
   moduleName
 ){
 
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
   try{
 
     await unloadModule(
-      moduleName
+      normalizedName
     );
 
-    return await loadModule(
-      moduleName
+    const recovered =
+    await loadModule(
+      normalizedName
     );
+
+    if(
+      recovered
+    ){
+
+      if(
+        typeof emitSystemEvent ===
+        "function"
+      ){
+
+        await emitSystemEvent(
+
+          MODULE_EVENTS
+          .RECOVERED,
+
+          {
+
+            module:
+            normalizedName
+
+          }
+
+        );
+
+      }
+
+      moduleLoaderState
+      .failedModules
+      .delete(
+        normalizedName
+      );
+
+    }
+
+    return recovered;
 
   }
 
@@ -61,10 +137,12 @@ async function recoverModule(
         {
 
           module:
-          moduleName,
+          normalizedName,
 
           error:
-          String(error)
+          normalizeModuleLoaderError(
+            error
+          )
 
         }
 
@@ -114,11 +192,86 @@ function getModuleInstance(
 
 
 // =====================================
+// MODULE STATUS
+// =====================================
+
+function getModuleStatus(
+  moduleName
+){
+
+  const moduleDefinition =
+  getRegisteredModule(
+    moduleName
+  );
+
+  if(
+    !moduleDefinition
+  ){
+
+    return null;
+
+  }
+
+  return freezeModuleObject({
+
+    name:
+
+      moduleDefinition
+      .metadata
+      .name,
+
+    state:
+    moduleDefinition
+    .state,
+
+    retries:
+    moduleDefinition
+    .retries,
+
+    dependencies:
+
+      moduleDefinition
+      .metadata
+      .dependencies,
+
+    active:
+
+      moduleLoaderState
+      .activeModules
+      .has(
+
+        moduleDefinition
+        .metadata
+        .name
+
+      ),
+
+    failed:
+
+      moduleLoaderState
+      .failedModules
+      .has(
+
+        moduleDefinition
+        .metadata
+        .name
+
+      )
+
+  });
+
+}
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
 const ModuleLoader =
 Object.freeze({
+
+
 
   // ===================================
   // LIFECYCLE
@@ -159,6 +312,15 @@ Object.freeze({
 
   recover:
   recoverModule,
+
+
+
+  // ===================================
+  // STATUS
+  // ===================================
+
+  status:
+  getModuleStatus,
 
 
 
