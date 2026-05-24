@@ -6,6 +6,79 @@
 
 
 // =====================================
+// HEALTH API
+// =====================================
+
+const HealthAPI =
+Object.freeze({
+
+
+
+  // ===================================
+  // SYSTEM
+  // ===================================
+
+  system:
+  HealthSystem,
+
+
+
+  // ===================================
+  // RUNTIME
+  // ===================================
+
+  runtime:
+  HealthRuntime,
+
+
+
+  // ===================================
+  // MONITOR
+  // ===================================
+
+  monitor:
+  HealthMonitor,
+
+
+
+  // ===================================
+  // DIAGNOSTICS
+  // ===================================
+
+  diagnostics:
+  HealthDiagnostics,
+
+
+
+  // ===================================
+  // HELPERS
+  // ===================================
+
+  run:
+  HealthRuntime
+  .run,
+
+  start:
+  HealthSystem
+  .start,
+
+  stop:
+  HealthSystem
+  .stop,
+
+  initialize:
+  HealthSystem
+  .initialize,
+
+  reset:
+  HealthSystem
+  .reset
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -14,59 +87,7 @@ if(
   "undefined"
 ){
 
-  // ===================================
-  // SYSTEM
-  // ===================================
-
-  window.HealthSystem =
-  HealthSystem;
-
-
-
-  // ===================================
-  // RUNTIME
-  // ===================================
-
-  window.runAppHealthcheck =
-  runAppHealthcheck;
-
-
-
-  // ===================================
-  // MONITOR
-  // ===================================
-
-  window.startHealthchecks =
-  startHealthchecks;
-
-  window.stopHealthchecks =
-  stopHealthchecks;
-
-  window.executeHealthcheck =
-  executeHealthcheck;
-
-
-
-  // ===================================
-  // DIAGNOSTICS
-  // ===================================
-
-  window.getHealthDiagnostics =
-  getHealthDiagnostics;
-
-  window.createHealthDiagnosticsSnapshot =
-  createHealthDiagnosticsSnapshot;
-
-
-
-  // ===================================
-  // LIFECYCLE
-  // ===================================
-
-  window.initializeHealthSystem =
-  initializeHealthSystem;
-
-  window.resetHealthSystem =
-  resetHealthSystem;
+  window.HealthAPI =
+  HealthAPI;
 
 }
