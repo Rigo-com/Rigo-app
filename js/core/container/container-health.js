@@ -11,45 +11,16 @@
 
 async function resetDependencyContainer(){
 
-  dependencyContainerState
-  .services
-  .clear();
+  resetContainerState();
 
-  dependencyContainerState
-  .singletons
-  .clear();
+  if(
+    typeof clearScopeContainers ===
+    "function"
+  ){
 
-  dependencyContainerState
-  .scopes
-  .clear();
+    clearScopeContainers();
 
-  dependencyContainerState
-  .resolutionStack =
-  [];
-
-  dependencyContainerState
-  .diagnostics
-  .registered = 0;
-
-  dependencyContainerState
-  .diagnostics
-  .resolved = 0;
-
-  dependencyContainerState
-  .diagnostics
-  .failed = 0;
-
-  dependencyContainerState
-  .diagnostics
-  .removed = 0;
-
-  dependencyContainerState
-  .diagnostics
-  .scopes = 0;
-
-  dependencyContainerState
-  .lastResolvedAt =
-  null;
+  }
 
   if(
     typeof emitSystemEvent ===
@@ -63,6 +34,69 @@ async function resetDependencyContainer(){
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// HEALTH REPORT
+// =====================================
+
+function getContainerHealthReport(){
+
+  return freezeContainerObject({
+
+    healthy:
+
+      dependencyContainerState
+      .initialized &&
+
+      dependencyContainerState
+      .resolutionStack
+      .length === 0,
+
+    initialized:
+
+      dependencyContainerState
+      .initialized,
+
+    services:
+
+      dependencyContainerState
+      .services
+      .size,
+
+    singletons:
+
+      dependencyContainerState
+      .singletons
+      .size,
+
+    scopes:
+
+      dependencyContainerState
+      .scopes
+      .size,
+
+    activeResolutions:
+
+      dependencyContainerState
+      .resolutionStack
+      .length,
+
+    failedResolutions:
+
+      dependencyContainerState
+      .diagnostics
+      .failed,
+
+    lastResolvedAt:
+
+      dependencyContainerState
+      .lastResolvedAt
+
+  });
 
 }
 
@@ -104,10 +138,12 @@ function getContainerDiagnostics(){
       .resolutionStack
       .length,
 
-    diagnostics:
+    diagnostics:{
 
-      dependencyContainerState
-      .diagnostics,
+      ...dependencyContainerState
+      .diagnostics
+
+    },
 
     lastResolvedAt:
 
@@ -170,6 +206,9 @@ if(
 
   window.resetDependencyContainer =
   resetDependencyContainer;
+
+  window.getContainerHealthReport =
+  getContainerHealthReport;
 
   window.getContainerDiagnostics =
   getContainerDiagnostics;
