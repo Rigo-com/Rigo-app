@@ -441,11 +441,9 @@ function processRenderQueue(){
 
         }
 
-        const content =
-
-          chatStreamState
-          .renderQueue
-          .shift();
+        chatStreamState
+        .renderQueue
+        .shift();
 
         try{
 
@@ -455,7 +453,10 @@ function processRenderQueue(){
           ){
 
             renderStreamingMessage(
-              content
+
+              chatStreamState
+              .partialContent
+
             );
 
           }
@@ -540,6 +541,13 @@ function completeChatStream(){
   chatStreamState
   .streamEndAt =
   Date.now();
+
+  chatStreamState
+  .partialContent =
+
+    chatStreamState
+    .partialContent
+    .trim();
 
   chatStreamState
   .diagnostics
@@ -782,7 +790,7 @@ Object.freeze({
   pushStreamChunk,
 
   flush:
- flushStreamChunks,
+  flushStreamChunks,
 
   complete:
   completeChatStream,
