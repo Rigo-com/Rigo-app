@@ -183,8 +183,6 @@
 
   <script src="js/chat/chat-elements.js"></script>
 
-  <script src="js/chat/chat-events.js"></script>
-
   <script src="js/chat/chat-markdown-renderer.js"></script>
 
   <script src="js/chat/chat-message-elements.js"></script>
@@ -199,7 +197,17 @@
 
   <script src="js/chat/chat-runtime.js"></script>
 
+
+
+  <!-- ================================= -->
+  <!-- DISABLED TEMP -->
+  <!-- ================================= -->
+
+  <!--
+  <script src="js/chat/chat-events.js"></script>
+
   <script src="js/chat/index.js"></script>
+  -->
 
 
 
@@ -241,40 +249,7 @@
 
 
         // ============================
-        // INIT CHAT
-        // ============================
-
-        try{
-
-          if(
-            typeof ChatElements !==
-            "undefined"
-
-            &&
-
-            typeof ChatElements.initialize ===
-            "function"
-          ){
-
-            ChatElements.initialize();
-
-          }
-
-        }
-
-        catch(error){
-
-          console.error(
-            "CHAT_INIT_ERROR:",
-            error
-          );
-
-        }
-
-
-
-        // ============================
-        // SEND BUTTON
+        // ELEMENTS
         // ============================
 
         const sendBtn =
@@ -287,39 +262,96 @@
           "messageInput"
         );
 
+        const chatContainer =
+        document.getElementById(
+          "chatContainer"
+        );
+
+        const newChatBtn =
+        document.getElementById(
+          "newChatBtn"
+        );
+
+
+
+        // ============================
+        // DIRECT SEND
+        // ============================
+
         async function handleSend(){
 
           try{
 
-            if(
-              typeof sendMessage ===
-              "function"
-            ){
+            const text =
+            String(
+              messageInput?.value || ""
+            )
+            .trim();
 
-              await sendMessage();
+            if(!text){
+
+              return;
 
             }
 
-            else{
+            const userMessage =
+            document.createElement(
+              "div"
+            );
 
-              console.error(
-                "SEND_MESSAGE_NOT_FOUND"
+            userMessage.className =
+            "message user-message";
+
+            userMessage.textContent =
+            text;
+
+            chatContainer?.appendChild(
+              userMessage
+            );
+
+            messageInput.value =
+            "";
+
+            setTimeout(() => {
+
+              const aiMessage =
+              document.createElement(
+                "div"
               );
 
-            }
+              aiMessage.className =
+              "message ai-message";
+
+              aiMessage.textContent =
+              "RIGO AI RESPONSE";
+
+              chatContainer
+              ?.appendChild(
+                aiMessage
+              );
+
+              chatContainer.scrollTop =
+              chatContainer.scrollHeight;
+
+            },500);
+
+            chatContainer.scrollTop =
+            chatContainer.scrollHeight;
 
           }
 
           catch(error){
 
             console.error(
-              "HANDLE_SEND_ERROR:",
+              "DIRECT_SEND_ERROR:",
               error
             );
 
           }
 
         }
+
+
 
         if(sendBtn){
 
@@ -353,6 +385,27 @@
                 handleSend();
 
               }
+
+            }
+          );
+
+        }
+
+
+
+        // ============================
+        // NEW CHAT
+        // ============================
+
+        if(newChatBtn){
+
+          newChatBtn
+          .addEventListener(
+            "click",
+            () => {
+
+              chatContainer.innerHTML =
+              "";
 
             }
           );
