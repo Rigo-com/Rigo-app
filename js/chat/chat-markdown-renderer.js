@@ -1,0 +1,751 @@
+// =====================================
+// RIGO AI
+// CHAT MARKDOWN RENDERER
+// ENTERPRISE MARKDOWN PIPELINE
+// =====================================
+
+
+
+// =====================================
+// MARKDOWN STATE
+// =====================================
+
+const markdownRendererState =
+Object.seal({
+
+  initialized:false,
+
+  rendering:false,
+
+  parsing:false,
+
+  sanitizing:false,
+
+  highlightedBlocks:
+  new WeakSet(),
+
+  renderedElements:
+  new WeakMap(),
+
+  diagnostics:Object.seal({
+
+    renders:0,
+
+    codeBlocks:0,
+
+    inlineCode:0,
+
+    sanitized:0,
+
+    failed:0
+
+  })
+
+});
+
+
+
+// =====================================
+// ESCAPE HTML
+// =====================================
+
+function escapeMarkdownHTML(
+  value
+){
+
+  return String(value)
+
+  .replace(/&/g,"&amp;")
+
+  .replace(/</g,"&lt;")
+
+  .replace(/>/g,"&gt;")
+
+  .replace(/"/g,"&quot;")
+
+  .replace(/'/g,"&#39;");
+
+}
+
+
+
+// =====================================
+// SANITIZE HTML
+// =====================================
+
+function sanitizeMarkdownHTML(
+  html
+){
+
+  if(
+    typeof html !==
+    "string"
+  ){
+
+    return "";
+  }
+
+  markdownRendererState
+  .sanitizing =
+  true;
+
+  try{
+
+    const sanitized =
+    html
+
+    .replace(
+      /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+      ""
+    )
+
+    .replace(
+      /on\w+="[^"]*"/gi,
+      ""
+    )
+
+    .replace(
+      /javascript:/gi,
+      ""
+    );
+
+    markdownRendererState
+    .diagnostics
+    .sanitized++;
+
+    return sanitized;
+
+  }
+
+  finally{
+
+    markdownRendererState
+    .sanitizing =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// INLINE CODE
+// =====================================
+
+function renderInlineMarkdown(
+  content
+){
+
+  return content.replace(
+
+    /`([^`]+)`/g,
+
+    (_,code) => {
+
+      markdownRendererState
+      .diagnostics
+      .inlineCode++;
+
+      return (
+
+        "<code>" +
+
+        escapeMarkdownHTML(
+          code
+        )
+
+        +
+
+        "</code>"
+
+      );
+
+    }
+
+  );
+
+}
+
+
+
+// =====================================
+// CODE BLOCKS
+// =====================================
+
+function renderMarkdownCodeBlocks(
+  content
+){
+
+  return content.replace(
+
+    /```(\w+)?\n?([\s\S]*?)```/g,
+
+    (_,language,code) => {
+
+      markdownRendererState
+      .diagnostics
+      .codeBlocks++;
+
+      const safeLanguage =
+      escapeMarkdownHTML(
+        language || "text"
+      );
+
+      const safeCode =
+      escapeMarkdownHTML(
+        code
+      );
+
+      return (
+
+        '<pre class="code-block">' +
+
+        '<div class="code-header">' +
+
+        safeLanguage +
+
+        "</div>" +
+
+        '<code class="language-' +
+
+        safeLanguage +
+
+        '">' +
+
+        safeCode +
+
+        "</code>" +
+
+        "</pre>"
+
+      );
+
+    }
+
+  );
+
+}
+
+
+
+// =====================================
+// HEADINGS
+// =====================================
+
+function renderMarkdownHeadings(
+  content
+){
+
+  return content
+
+  .replace(
+    /^### (.*)$/gm,
+    "<h3>$1</h3>"
+  )
+
+  .replace(
+    /^## (.*)$/gm,
+    "<h2>$1</h2>"
+  )
+
+  .replace(
+    /^# (.*)$/gm,
+    "<h1>$1</h1>"
+  );
+
+}
+
+
+
+// =====================================
+// BOLD
+// =====================================
+
+function renderMarkdownBold(
+  content
+){
+
+  return content.replace(
+
+    /\*\*(.*?)\*\*/g,
+
+    "<strong>$1</strong>"
+
+  );
+
+}
+
+
+
+// =====================================
+// ITALIC
+// =====================================
+
+function renderMarkdownItalic(
+  content
+){
+
+  return content.replace(
+
+    /\*(.*?)\*/g,
+
+    "<em>$1</em>"
+
+  );
+
+}
+
+
+
+// =====================================
+// LINKS
+// =====================================
+
+function renderMarkdownLinks(
+  content
+){
+
+  return content.replace(
+
+    /$begin:math:display$\(\[\^$end:math:display$]+)\]$begin:math:text$\(\[\^\)\]\+\)$end:math:text$/g,
+
+    (_,label,url) => {
+
+      const safeLabel =
+      escapeMarkdownHTML(
+        label
+      );
+
+      const safeURL =
+      escapeMarkdownHTML(
+        url
+      );
+
+      return (
+
+        '<a href="' +
+
+        safeURL +
+
+        '" target="_blank" rel="noopener noreferrer">' +
+
+        safeLabel +
+
+        "</a>"
+
+      );
+
+    }
+
+  );
+
+}
+
+
+
+// =====================================
+// LISTS
+// =====================================
+
+function renderMarkdownLists(
+  content
+){
+
+  return content.replace(
+
+    /^\- (.*)$/gm,
+
+    "<li>$1</li>"
+
+  );
+
+}
+
+
+
+// =====================================
+// PARAGRAPHS
+// =====================================
+
+function renderMarkdownParagraphs(
+  content
+){
+
+  return content
+
+  .split("\n\n")
+
+  .map((block) => {
+
+    const trimmed =
+    block.trim();
+
+    if(!trimmed){
+
+      return "";
+    }
+
+    const isHTML =
+
+      trimmed.startsWith("<h")
+
+      ||
+
+      trimmed.startsWith("<pre")
+
+      ||
+
+      trimmed.startsWith("<li");
+
+    if(isHTML){
+
+      return trimmed;
+    }
+
+    return (
+
+      "<p>" +
+
+      trimmed +
+
+      "</p>"
+
+    );
+
+  })
+
+  .join("");
+
+}
+
+
+
+// =====================================
+// PARSE MARKDOWN
+// =====================================
+
+function parseMarkdown(
+  content
+){
+
+  if(
+    typeof content !==
+    "string"
+  ){
+
+    return "";
+  }
+
+  markdownRendererState
+  .parsing =
+  true;
+
+  try{
+
+    let parsed =
+    escapeMarkdownHTML(
+      content
+    );
+
+    parsed =
+    renderMarkdownCodeBlocks(
+      parsed
+    );
+
+    parsed =
+    renderInlineMarkdown(
+      parsed
+    );
+
+    parsed =
+    renderMarkdownHeadings(
+      parsed
+    );
+
+    parsed =
+    renderMarkdownBold(
+      parsed
+    );
+
+    parsed =
+    renderMarkdownItalic(
+      parsed
+    );
+
+    parsed =
+    renderMarkdownLinks(
+      parsed
+    );
+
+    parsed =
+    renderMarkdownLists(
+      parsed
+    );
+
+    parsed =
+    renderMarkdownParagraphs(
+      parsed
+    );
+
+    parsed =
+    sanitizeMarkdownHTML(
+      parsed
+    );
+
+    return parsed;
+
+  }
+
+  catch(error){
+
+    markdownRendererState
+    .diagnostics
+    .failed++;
+
+    safeLogError?.(
+      "MARKDOWN PARSE ERROR",
+      error
+    );
+
+    return escapeMarkdownHTML(
+      content
+    );
+
+  }
+
+  finally{
+
+    markdownRendererState
+    .parsing =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// RENDER MARKDOWN
+// =====================================
+
+function renderMarkdownContent(
+  element,
+  content
+){
+
+  if(
+    !element
+  ){
+
+    return false;
+
+  }
+
+  markdownRendererState
+  .rendering =
+  true;
+
+  try{
+
+    const parsed =
+    parseMarkdown(
+      content
+    );
+
+    element.innerHTML =
+    parsed;
+
+    markdownRendererState
+    .renderedElements
+    .set(
+      element,
+      parsed
+    );
+
+    markdownRendererState
+    .diagnostics
+    .renders++;
+
+    return true;
+
+  }
+
+  catch(error){
+
+    markdownRendererState
+    .diagnostics
+    .failed++;
+
+    safeLogError?.(
+      "MARKDOWN RENDER ERROR",
+      error
+    );
+
+    return false;
+
+  }
+
+  finally{
+
+    markdownRendererState
+    .rendering =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// RESET MARKDOWN
+// =====================================
+
+function resetMarkdownRenderer(){
+
+  markdownRendererState
+  .initialized =
+  false;
+
+  markdownRendererState
+  .rendering =
+  false;
+
+  markdownRendererState
+  .parsing =
+  false;
+
+  markdownRendererState
+  .sanitizing =
+  false;
+
+  markdownRendererState
+  .highlightedBlocks =
+  new WeakSet();
+
+  markdownRendererState
+  .renderedElements =
+  new WeakMap();
+
+  markdownRendererState
+  .diagnostics
+  .renders = 0;
+
+  markdownRendererState
+  .diagnostics
+  .codeBlocks = 0;
+
+  markdownRendererState
+  .diagnostics
+  .inlineCode = 0;
+
+  markdownRendererState
+  .diagnostics
+  .sanitized = 0;
+
+  markdownRendererState
+  .diagnostics
+  .failed = 0;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE MARKDOWN
+// =====================================
+
+function initializeMarkdownRenderer(){
+
+  if(
+    markdownRendererState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  markdownRendererState
+  .initialized =
+  true;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// MARKDOWN DIAGNOSTICS
+// =====================================
+
+function getMarkdownDiagnostics(){
+
+  return freezeChatObject({
+
+    initialized:
+
+      markdownRendererState
+      .initialized,
+
+    rendering:
+
+      markdownRendererState
+      .rendering,
+
+    parsing:
+
+      markdownRendererState
+      .parsing,
+
+    sanitizing:
+
+      markdownRendererState
+      .sanitizing,
+
+    diagnostics:
+
+      deepClone(
+
+        markdownRendererState
+        .diagnostics
+
+      )
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatMarkdownRenderer =
+Object.freeze({
+
+  initialize:
+  initializeMarkdownRenderer,
+
+  parse:
+  parseMarkdown,
+
+  render:
+  renderMarkdownContent,
+
+  sanitize:
+  sanitizeMarkdownHTML,
+
+  reset:
+  resetMarkdownRenderer,
+
+  diagnostics:
+  getMarkdownDiagnostics
+
+});
