@@ -20,7 +20,9 @@ Object.seal({
 
   completedAt:null,
 
-  lastError:null
+  lastError:null,
+
+  recoveryAttempted:false
 
 });
 
@@ -31,6 +33,11 @@ Object.seal({
 // =====================================
 
 function createEntrypointSnapshot(){
+
+  const error =
+
+    applicationEntrypointState
+    .lastError;
 
   return Object.freeze({
 
@@ -56,15 +63,20 @@ function createEntrypointSnapshot(){
 
     lastError:
 
+      error
+
+      ?
+
+      String(error)
+
+      :
+
+      null,
+
+    recoveryAttempted:
+
       applicationEntrypointState
-      .lastError
-
-      ? String(
-          applicationEntrypointState
-          .lastError
-        )
-
-      : null,
+      .recoveryAttempted,
 
     timestamp:
     Date.now()
@@ -234,9 +246,20 @@ async function bootstrapApplication(){
     try{
 
       if(
+
         typeof recoverApplication ===
         "function"
+
+        &&
+
+        !applicationEntrypointState
+        .recoveryAttempted
+
       ){
+
+        applicationEntrypointState
+        .recoveryAttempted =
+        true;
 
         await recoverApplication();
 
@@ -244,7 +267,14 @@ async function bootstrapApplication(){
 
     }
 
-    catch(recoveryError){}
+    catch(recoveryError){
+
+      safeLogError?.(
+        "APPLICATION RECOVERY FAILED:",
+        recoveryError
+      );
+
+    }
 
     return false;
 
@@ -266,6 +296,9 @@ async function bootstrapApplication(){
 // DOM READY
 // =====================================
 
+let applicationEntrypointRegistered =
+false;
+
 function registerApplicationEntrypoint(){
 
   if(
@@ -277,10 +310,31 @@ function registerApplicationEntrypoint(){
 
   }
 
+  if(
+    applicationEntrypointRegistered
+  ){
+
+    return true;
+
+  }
+
+  applicationEntrypointRegistered =
+  true;
+
   const start =
   () => {
 
-    bootstrapApplication();
+    Promise.resolve(
+      bootstrapApplication()
+    )
+    .catch((error) => {
+
+      safeLogError?.(
+        "ENTRYPOINT START ERROR:",
+        error
+      );
+
+    });
 
   };
 
@@ -296,11 +350,7 @@ function registerApplicationEntrypoint(){
       start,
 
       {
-
-        once:true,
-
-        passive:true
-
+        once:true
       }
 
     );
@@ -336,13 +386,18 @@ if(
   "undefined"
 ){
 
-  window.bootstrapApplication =
-  bootstrapApplication;
+  window.RIGOApplication =
+  Object.freeze({
 
-  window.createEntrypointSnapshot =
-  createEntrypointSnapshot;
+    bootstrap:
+    bootstrapApplication,
 
-  window.registerApplicationEntrypoint =
-  registerApplicationEntrypoint;
+    snapshot:
+    createEntrypointSnapshot,
+
+    register:
+    registerApplicationEntrypoint
+
+  });
 
 }
