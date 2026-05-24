@@ -12,6 +12,9 @@
 
 async function sendMessage(){
 
+  const messageInput =
+  ChatElements.getInput();
+
   if(!messageInput){
 
     return false;
@@ -115,20 +118,8 @@ async function sendMessage(){
   messageInput.value =
   "";
 
-  try{
-
-    messageInput.focus();
-
-  }
-
-  catch(error){
-
-    safeLogError?.(
-      "INPUT FOCUS ERROR:",
-      error
-    );
-
-  }
+  ChatElements
+  .focusInput();
 
   const duplicateQueueItem =
 
@@ -248,9 +239,10 @@ function addMessage(
   messageData
 ){
 
-  if(
-    !chatContainer
-  ){
+  const chatContainer =
+  ChatElements.getContainer();
+
+  if(!chatContainer){
 
     return false;
 
@@ -319,7 +311,7 @@ function addMessage(
 
     }
 
-    chatContainer.appendChild(
+    ChatElements.append(
       messageElement
     );
 
@@ -405,12 +397,7 @@ async function resetCurrentChat(){
 
   removeTypingIndicator?.();
 
-  if(chatContainer){
-
-    chatContainer
-    .replaceChildren();
-
-  }
+  ChatElements.clear();
 
   if(
 
