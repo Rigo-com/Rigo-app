@@ -26,7 +26,7 @@
 
 <body>
 
-  <!-- SIDEBAR OVERLAY -->
+  <!-- OVERLAY -->
 
   <div
     class="sidebar-overlay"
@@ -35,7 +35,7 @@
 
 
 
-  <!-- LOADING SCREEN -->
+  <!-- LOADING -->
 
   <div
     class="loading-screen"
@@ -44,9 +44,7 @@
 
     <div class="loader"></div>
 
-    <h1>
-      RIGO AI
-    </h1>
+    <h1>RIGO AI</h1>
 
   </div>
 
@@ -61,9 +59,7 @@
 
     <div class="sidebar-header">
 
-      <h2>
-        RIGO AI
-      </h2>
+      <h2>RIGO AI</h2>
 
       <button id="closeSidebar">
         ✕
@@ -105,9 +101,7 @@
         class="menu-btn"
         id="menuBtn"
       >
-
         ☰
-
       </button>
 
 
@@ -122,9 +116,7 @@
         class="language-btn"
         id="languageBtn"
       >
-
         EN
-
       </button>
 
     </header>
@@ -147,9 +139,8 @@
       <textarea
         id="messageInput"
         placeholder="اكتب رسالتك هنا..."
-        autocomplete="off"
-        spellcheck="false"
         rows="1"
+        spellcheck="false"
       ></textarea>
 
 
@@ -165,62 +156,18 @@
 
 
   <!-- ================================= -->
-  <!-- SHARED -->
-  <!-- ================================= -->
-
-  <script src="js/shared/utils.js"></script>
-
-
-
-  <!-- ================================= -->
-  <!-- CHAT -->
-  <!-- ================================= -->
-
-  <script src="js/chat/chat-state.js"></script>
-
-  <script src="js/chat/chat-stream-state.js"></script>
-
-  <script src="js/chat/chat-utils.js"></script>
-
-  <script src="js/chat/chat-elements.js"></script>
-
-  <script src="js/chat/chat-markdown-renderer.js"></script>
-
-  <script src="js/chat/chat-message-elements.js"></script>
-
-  <script src="js/chat/chat-renderer.js"></script>
-
-  <script src="js/chat/chat-stream-manager.js"></script>
-
-  <script src="js/chat/chat-actions.js"></script>
-
-  <script src="js/chat/chat-queue.js"></script>
-
-  <script src="js/chat/chat-runtime.js"></script>
-
-
-
-  <!-- ================================= -->
-  <!-- VOICE -->
-  <!-- ================================= -->
-
-  <script src="js/voice/voice.js"></script>
-
-
-
-  <!-- ================================= -->
-  <!-- APP EVENTS -->
+  <!-- SIMPLE CHAT CORE -->
   <!-- ================================= -->
 
   <script>
 
     window.addEventListener(
       "DOMContentLoaded",
-      async () => {
+      () => {
 
-        // ============================
-        // REMOVE LOADING
-        // ============================
+        // =========================
+        // LOADING
+        // =========================
 
         const loadingScreen =
         document.getElementById(
@@ -236,9 +183,9 @@
 
 
 
-        // ============================
+        // =========================
         // ELEMENTS
-        // ============================
+        // =========================
 
         const sendBtn =
         document.getElementById(
@@ -267,53 +214,14 @@
 
 
 
-        // ============================
-        // SAFE RUNTIME INIT
-        // ============================
-
-        try{
-
-          if(
-            typeof ChatRuntime !==
-            "undefined"
-
-            &&
-
-            typeof ChatRuntime.initialize ===
-            "function"
-          ){
-
-            await ChatRuntime.initialize();
-
-          }
-
-        }
-
-        catch(error){
-
-          console.error(
-            "CHAT_RUNTIME_INIT_ERROR:",
-            error
-          );
-
-        }
-
-
-
-        // ============================
+        // =========================
         // AUTO TEXTAREA
-        // ============================
+        // =========================
 
-        function updateTextareaState(){
-
-          if(!messageInput){
-
-            return;
-
-          }
+        function updateTextarea(){
 
           const value =
-          messageInput.value || "";
+          messageInput.value;
 
           const isArabic =
 
@@ -321,41 +229,17 @@
               value
             );
 
-
-
-          // ============================
-          // AUTO DIRECTION
-          // ============================
-
           messageInput.style.direction =
 
             isArabic
-
-            ?
-
-            "rtl"
-
-            :
-
-            "ltr";
+            ? "rtl"
+            : "ltr";
 
           messageInput.style.textAlign =
 
             isArabic
-
-            ?
-
-            "right"
-
-            :
-
-            "left";
-
-
-
-          // ============================
-          // AUTO HEIGHT
-          // ============================
+            ? "right"
+            : "left";
 
           messageInput.style.height =
           "58px";
@@ -369,82 +253,150 @@
 
         }
 
-
-
-        messageInput
-        ?.addEventListener(
+        messageInput.addEventListener(
           "input",
-          updateTextareaState
+          updateTextarea
         );
 
 
 
-        // ============================
-        // SEND MESSAGE
-        // ============================
+        // =========================
+        // CREATE MESSAGE
+        // =========================
 
-        async function handleSend(){
+        function createMessage(
+          text,
+          role
+        ){
 
-          try{
+          const wrapper =
+          document.createElement(
+            "div"
+          );
 
-            if(
-              typeof sendMessage ===
-              "function"
-            ){
+          wrapper.className =
 
-              const sent =
-              await sendMessage();
+            role === "user"
 
-              if(sent){
+            ?
 
-                messageInput.style.height =
-                "58px";
+            "message user-message"
 
-              }
+            :
 
-              return;
+            "message ai-message";
 
-            }
 
-            console.error(
-              "SEND_MESSAGE_FUNCTION_MISSING"
-            );
 
-          }
+          const content =
+          document.createElement(
+            "div"
+          );
 
-          catch(error){
+          content.className =
+          "message-content";
 
-            console.error(
-              "HANDLE_SEND_ERROR:",
-              error
-            );
+          content.textContent =
+          text;
 
-          }
+          wrapper.appendChild(
+            content
+          );
+
+          return wrapper;
 
         }
 
 
 
-        // ============================
-        // SEND BUTTON
-        // ============================
+        // =========================
+        // SEND
+        // =========================
 
-        sendBtn
-        ?.addEventListener(
+        function sendMessage(){
+
+          const text =
+          messageInput.value.trim();
+
+          if(!text){
+
+            return;
+
+          }
+
+
+
+          // USER MESSAGE
+
+          const userMessage =
+          createMessage(
+            text,
+            "user"
+          );
+
+          chatContainer.appendChild(
+            userMessage
+          );
+
+
+
+          // CLEAR INPUT
+
+          messageInput.value = "";
+
+          messageInput.style.height =
+          "58px";
+
+
+
+          // SCROLL
+
+          chatContainer.scrollTop =
+          chatContainer.scrollHeight;
+
+
+
+          // TEMP AI
+
+          setTimeout(() => {
+
+            const aiMessage =
+            createMessage(
+              "RIGO AI RESPONSE",
+              "assistant"
+            );
+
+            chatContainer.appendChild(
+              aiMessage
+            );
+
+            chatContainer.scrollTop =
+            chatContainer.scrollHeight;
+
+          },500);
+
+        }
+
+
+
+        // =========================
+        // SEND BUTTON
+        // =========================
+
+        sendBtn.addEventListener(
           "click",
-          handleSend
+          sendMessage
         );
 
 
 
-        // ============================
-        // ENTER KEY
-        // ============================
+        // =========================
+        // ENTER
+        // =========================
 
-        messageInput
-        ?.addEventListener(
+        messageInput.addEventListener(
           "keydown",
-          async (event) => {
+          (event) => {
 
             if(
               event.key === "Enter"
@@ -454,7 +406,7 @@
 
               event.preventDefault();
 
-              await handleSend();
+              sendMessage();
 
             }
 
@@ -463,66 +415,34 @@
 
 
 
-        // ============================
+        // =========================
         // NEW CHAT
-        // ============================
+        // =========================
 
-        newChatBtn
-        ?.addEventListener(
+        newChatBtn.addEventListener(
           "click",
-          async () => {
+          () => {
 
-            try{
-
-              if(
-                typeof resetCurrentChat ===
-                "function"
-              ){
-
-                await resetCurrentChat();
-
-                return;
-
-              }
-
-              if(chatContainer){
-
-                chatContainer.innerHTML =
-                "";
-
-              }
-
-            }
-
-            catch(error){
-
-              console.error(
-                "RESET_CHAT_ERROR:",
-                error
-              );
-
-            }
+            chatContainer.innerHTML =
+            "";
 
           }
         );
 
 
 
-        // ============================
-        // LANGUAGE TOGGLE
-        // ============================
+        // =========================
+        // LANGUAGE
+        // =========================
 
-        languageBtn
-        ?.addEventListener(
+        languageBtn.addEventListener(
           "click",
           () => {
 
             const currentDir =
             document.documentElement.dir;
 
-            if(
-              currentDir === "rtl"
-            ){
+            if(currentDir === "rtl"){
 
               document.documentElement.dir =
               "ltr";
@@ -532,12 +452,6 @@
 
               messageInput.placeholder =
               "Type your message...";
-
-              messageInput.style.direction =
-              "ltr";
-
-              messageInput.style.textAlign =
-              "left";
 
               sendBtn.innerText =
               "Send";
@@ -558,12 +472,6 @@
               messageInput.placeholder =
               "اكتب رسالتك هنا...";
 
-              messageInput.style.direction =
-              "rtl";
-
-              messageInput.style.textAlign =
-              "right";
-
               sendBtn.innerText =
               "إرسال";
 
@@ -577,9 +485,9 @@
 
 
 
-        // ============================
+        // =========================
         // SIDEBAR
-        // ============================
+        // =========================
 
         const sidebar =
         document.getElementById(
@@ -605,12 +513,11 @@
 
         function openSidebar(){
 
-          sidebar?.classList.add(
+          sidebar.classList.add(
             "active"
           );
 
-          sidebarOverlay
-          ?.classList.add(
+          sidebarOverlay.classList.add(
             "active"
           );
 
@@ -620,12 +527,11 @@
 
         function closeSidebarMenu(){
 
-          sidebar?.classList.remove(
+          sidebar.classList.remove(
             "active"
           );
 
-          sidebarOverlay
-          ?.classList.remove(
+          sidebarOverlay.classList.remove(
             "active"
           );
 
@@ -633,35 +539,26 @@
 
 
 
-        menuBtn
-        ?.addEventListener(
+        menuBtn.addEventListener(
           "click",
           openSidebar
         );
 
+        closeSidebar.addEventListener(
+          "click",
+          closeSidebarMenu
+        );
 
-
-        closeSidebar
-        ?.addEventListener(
+        sidebarOverlay.addEventListener(
           "click",
           closeSidebarMenu
         );
 
 
 
-        sidebarOverlay
-        ?.addEventListener(
-          "click",
-          closeSidebarMenu
-        );
+        // INIT
 
-
-
-        // ============================
-        // INITIAL TEXTAREA STATE
-        // ============================
-
-        updateTextareaState();
+        updateTextarea();
 
       }
     );
