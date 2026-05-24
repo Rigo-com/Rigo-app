@@ -118,35 +118,6 @@ async function sendMessage(){
 
 
     // =========================
-    // SIMPLE UI RENDER
-    // =========================
-
-    const container =
-    ChatElements?.getContainer?.();
-
-    if(container){
-
-      const messageElement =
-      document.createElement("div");
-
-      messageElement.className =
-      "message user-message";
-
-      messageElement.textContent =
-      text;
-
-      container.appendChild(
-        messageElement
-      );
-
-      container.scrollTop =
-      container.scrollHeight;
-
-    }
-
-
-
-    // =========================
     // STORE MESSAGE
     // =========================
 
@@ -186,6 +157,9 @@ async function sendMessage(){
     // =========================
     // TEMP AI RESPONSE
     // =========================
+
+    const container =
+    ChatElements?.getContainer?.();
 
     setTimeout(() => {
 
