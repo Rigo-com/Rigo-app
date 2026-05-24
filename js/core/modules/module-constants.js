@@ -28,6 +28,14 @@ Object.freeze({
 
   ENABLE_PARALLEL_LOADING:false,
 
+  ENABLE_MODULE_TIMEOUTS:true,
+
+  ENABLE_ACTIVATION_TIMEOUTS:true,
+
+  ENABLE_EVENT_BRIDGE:true,
+
+  ENABLE_STATE_TRACKING:true,
+
   MAX_MODULES:
   1000,
 
@@ -127,6 +135,75 @@ Object.freeze({
 
 
 // =====================================
+// MODULE LIFECYCLES
+// =====================================
+
+const MODULE_LIFECYCLES =
+Object.freeze({
+
+  SINGLETON:
+  "singleton",
+
+  TRANSIENT:
+  "transient",
+
+  RUNTIME:
+  "runtime"
+
+});
+
+
+
+// =====================================
+// MODULE PRIORITIES
+// =====================================
+
+const MODULE_PRIORITIES =
+Object.freeze({
+
+  CRITICAL:
+  1,
+
+  HIGH:
+  2,
+
+  NORMAL:
+  3,
+
+  LOW:
+  4
+
+});
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ModuleConstants =
+Object.freeze({
+
+  config:
+  MODULE_LOADER_CONFIG,
+
+  states:
+  MODULE_STATES,
+
+  events:
+  MODULE_EVENTS,
+
+  lifecycles:
+  MODULE_LIFECYCLES,
+
+  priorities:
+  MODULE_PRIORITIES
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -134,6 +211,9 @@ if(
   typeof window !==
   "undefined"
 ){
+
+  window.ModuleConstants =
+  ModuleConstants;
 
   window.MODULE_LOADER_CONFIG =
   MODULE_LOADER_CONFIG;
@@ -143,5 +223,11 @@ if(
 
   window.MODULE_EVENTS =
   MODULE_EVENTS;
+
+  window.MODULE_LIFECYCLES =
+  MODULE_LIFECYCLES;
+
+  window.MODULE_PRIORITIES =
+  MODULE_PRIORITIES;
 
 }
