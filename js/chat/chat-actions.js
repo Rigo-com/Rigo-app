@@ -150,6 +150,28 @@ async function sendMessage(){
 
     messageInput.value = "";
 
+
+
+    // =========================
+    // RESET TEXTAREA HEIGHT
+    // =========================
+
+    if(
+      typeof messageInput.style !==
+      "undefined"
+    ){
+
+      messageInput.style.height =
+      "58px";
+
+    }
+
+
+
+    // =========================
+    // FOCUS INPUT
+    // =========================
+
     messageInput.focus();
 
 
@@ -322,8 +344,18 @@ function addMessage(
       messageElement
     );
 
-    chatContainer.scrollTop =
-    chatContainer.scrollHeight;
+
+
+    // =========================
+    // AUTO SCROLL
+    // =========================
+
+    requestAnimationFrame(() => {
+
+      chatContainer.scrollTop =
+      chatContainer.scrollHeight;
+
+    });
 
     return true;
 
