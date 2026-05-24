@@ -216,7 +216,7 @@
 
     window.addEventListener(
       "DOMContentLoaded",
-      () => {
+      async () => {
 
         // ============================
         // REMOVE LOADING
@@ -229,29 +229,8 @@
 
         if(loadingScreen){
 
-          loadingScreen
-          .style.display =
+          loadingScreen.style.display =
           "none";
-
-        }
-
-
-
-        // ============================
-        // START CHAT RUNTIME
-        // ============================
-
-        if(
-          typeof ChatRuntime !==
-          "undefined"
-
-          &&
-
-          typeof ChatRuntime.start ===
-          "function"
-        ){
-
-          ChatRuntime.start();
 
         }
 
@@ -261,14 +240,24 @@
         // ELEMENTS
         // ============================
 
+        const sendBtn =
+        document.getElementById(
+          "sendBtn"
+        );
+
         const messageInput =
         document.getElementById(
           "messageInput"
         );
 
-        const sendBtn =
+        const chatContainer =
         document.getElementById(
-          "sendBtn"
+          "chatContainer"
+        );
+
+        const newChatBtn =
+        document.getElementById(
+          "newChatBtn"
         );
 
         const languageBtn =
@@ -279,68 +268,251 @@
 
 
         // ============================
-        // AUTO TEXT DIRECTION
+        // INITIALIZE RUNTIME
         // ============================
+
+        if(
+          typeof ChatRuntime !==
+          "undefined"
+
+          &&
+
+          typeof ChatRuntime.initialize ===
+          "function"
+        ){
+
+          await ChatRuntime.initialize();
+
+        }
+
+
+
+        // ============================
+        // AUTO TEXTAREA
+        // ============================
+
+        function updateTextareaState(){
+
+          if(!messageInput){
+
+            return;
+
+          }
+
+          const value =
+          messageInput.value.trim();
+
+          const isArabic =
+
+            /[\u0600-\u06FF]/.test(
+              value
+            );
+
+
+
+          // ============================
+          // AUTO DIRECTION
+          // ============================
+
+          messageInput.style.direction =
+
+            isArabic
+
+            ?
+
+            "rtl"
+
+            :
+
+            "ltr";
+
+          messageInput.style.textAlign =
+
+            isArabic
+
+            ?
+
+            "right"
+
+            :
+
+            "left";
+
+
+
+          // ============================
+          // AUTO HEIGHT
+          // ============================
+
+          messageInput.style.height =
+          "58px";
+
+          messageInput.style.height =
+
+            Math.min(
+              messageInput.scrollHeight,
+              140
+            ) + "px";
+
+        }
+
+
 
         messageInput
         ?.addEventListener(
           "input",
-          () => {
+          updateTextareaState
+        );
 
-            const value =
-            messageInput.value.trim();
 
-            const isArabic =
 
-              /[\u0600-\u06FF]/.test(
-                value
+        // ============================
+        // SEND MESSAGE
+        // ============================
+
+        async function handleSend(){
+
+          try{
+
+            if(
+              typeof ChatRuntime ===
+              "undefined"
+            ){
+
+              console.error(
+                "CHAT_RUNTIME_MISSING"
               );
 
+              return;
+            }
+
+            if(
+              typeof ChatRuntime.send !==
+              "function"
+            ){
+
+              console.error(
+                "CHAT_RUNTIME_SEND_MISSING"
+              );
+
+              return;
+            }
+
+            const sent =
+            await ChatRuntime.send();
+
+            if(sent){
+
+              messageInput.style.height =
+              "58px";
+
+              if(
+                document.documentElement.dir ===
+                "rtl"
+              ){
+
+                messageInput.style.direction =
+                "rtl";
+
+                messageInput.style.textAlign =
+                "right";
+
+              }
+
+              else{
+
+                messageInput.style.direction =
+                "ltr";
+
+                messageInput.style.textAlign =
+                "left";
+
+              }
+
+            }
+
+          }
+
+          catch(error){
+
+            console.error(
+              "HANDLE_SEND_ERROR:",
+              error
+            );
+
+          }
+
+        }
 
 
-            // ============================
-            // TEXT DIRECTION
-            // ============================
 
-            messageInput.style.direction =
+        // ============================
+        // SEND BUTTON
+        // ============================
 
-              isArabic
-
-              ?
-
-              "rtl"
-
-              :
-
-              "ltr";
-
-            messageInput.style.textAlign =
-
-              isArabic
-
-              ?
-
-              "right"
-
-              :
-
-              "left";
+        sendBtn
+        ?.addEventListener(
+          "click",
+          handleSend
+        );
 
 
 
-            // ============================
-            // AUTO HEIGHT
-            // ============================
+        // ============================
+        // ENTER KEY
+        // ============================
 
-            messageInput.style.height =
-            "58px";
+        messageInput
+        ?.addEventListener(
+          "keydown",
+          (event) => {
 
-            messageInput.style.height =
+            if(
+              event.key === "Enter"
+              &&
+              !event.shiftKey
+            ){
 
-              Math.min(
-                messageInput.scrollHeight,
-                140
-              ) + "px";
+              event.preventDefault();
+
+              handleSend();
+
+            }
+
+          }
+        );
+
+
+
+        // ============================
+        // NEW CHAT
+        // ============================
+
+        newChatBtn
+        ?.addEventListener(
+          "click",
+          async () => {
+
+            if(
+              typeof ChatRuntime !==
+              "undefined"
+
+              &&
+
+              typeof ChatRuntime.reset ===
+              "function"
+            ){
+
+              await ChatRuntime.reset();
+
+            }
+
+            else{
+
+              chatContainer.innerHTML =
+              "";
+
+            }
 
           }
         );
@@ -408,66 +580,6 @@
 
               languageBtn.innerText =
               "EN";
-
-            }
-
-          }
-        );
-
-
-
-        // ============================
-        // NEW CHAT
-        // ============================
-
-        const newChatBtn =
-        document.getElementById(
-          "newChatBtn"
-        );
-
-        newChatBtn
-        ?.addEventListener(
-          "click",
-          async () => {
-
-            try{
-
-              if(
-                typeof ChatRuntime !==
-                "undefined"
-
-                &&
-
-                typeof ChatRuntime.reset ===
-                "function"
-              ){
-
-                await ChatRuntime.reset();
-
-              }
-
-              if(
-                typeof ChatRuntime !==
-                "undefined"
-
-                &&
-
-                typeof ChatRuntime.start ===
-                "function"
-              ){
-
-                ChatRuntime.start();
-
-              }
-
-            }
-
-            catch(error){
-
-              console.error(
-                "NEW_CHAT_ERROR:",
-                error
-              );
 
             }
 
@@ -553,6 +665,14 @@
           "click",
           closeSidebarMenu
         );
+
+
+
+        // ============================
+        // INITIAL TEXTAREA STATE
+        // ============================
+
+        updateTextareaState();
 
       }
     );
