@@ -3,19 +3,59 @@
 // RUNTIME STATES
 // =====================================
 
+
+
 const RUNTIME_STATES =
 Object.freeze({
 
-  IDLE:"idle",
+  IDLE:
+  "idle",
 
-  BOOTING:"booting",
+  BOOTING:
+  "booting",
 
-  READY:"ready",
+  READY:
+  "ready",
 
-  RECOVERING:"recovering",
+  RECOVERING:
+  "recovering",
 
-  SHUTTING_DOWN:"shutting_down",
+  SHUTTING_DOWN:
+  "shutting_down",
 
-  FAILED:"failed"
+  FAILED:
+  "failed"
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "RUNTIME_STATES",
+
+    {
+
+      value:
+      RUNTIME_STATES,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
