@@ -58,20 +58,36 @@ function createMessageContentElement(
     message?.content || ""
   );
 
-  if(
-    typeof ChatMarkdownRenderer !==
-    "undefined"
-  ){
+  try{
 
-    ChatMarkdownRenderer
-    .render(
-      content,
-      messageContent
-    );
+    if(
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+    ){
+
+      ChatMarkdownRenderer
+      .render(
+        content,
+        messageContent
+      );
+
+    }
+
+    else{
+
+      content.textContent =
+      messageContent;
+
+    }
 
   }
 
-  else{
+  catch(error){
+
+    safeLogError?.(
+      "MESSAGE CONTENT ERROR:",
+      error
+    );
 
     content.textContent =
     messageContent;
@@ -189,13 +205,23 @@ function createMessageElement(
     message
   );
 
+  if(!content){
+
+    return null;
+
+  }
+
   wrapper.appendChild(
     content
   );
 
-  wrapper.appendChild(
-    meta
-  );
+  if(meta){
+
+    wrapper.appendChild(
+      meta
+    );
+
+  }
 
   return wrapper;
 
@@ -238,23 +264,74 @@ function updateMessageElement(
     message.content || ""
   );
 
-  if(
-    typeof ChatMarkdownRenderer !==
-    "undefined"
-  ){
+  try{
 
-    ChatMarkdownRenderer
-    .render(
-      content,
-      messageContent
-    );
+    if(
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+    ){
+
+      ChatMarkdownRenderer
+      .render(
+        content,
+        messageContent
+      );
+
+    }
+
+    else{
+
+      content.textContent =
+      messageContent;
+
+    }
 
   }
 
-  else{
+  catch(error){
+
+    safeLogError?.(
+      "MESSAGE UPDATE ERROR:",
+      error
+    );
 
     content.textContent =
     messageContent;
+
+  }
+
+  const meta =
+
+    element.querySelector(
+      ".message-meta"
+    );
+
+  if(
+    meta &&
+    Number.isFinite(
+      Number(
+        message?.timestamp
+      )
+    )
+  ){
+
+    try{
+
+      meta.textContent =
+
+        new Date(
+          message.timestamp
+        )
+        .toLocaleTimeString();
+
+    }
+
+    catch(error){
+
+      meta.textContent =
+      "";
+
+    }
 
   }
 
