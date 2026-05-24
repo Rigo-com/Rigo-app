@@ -77,7 +77,7 @@ Object.seal({
 
 
 // =====================================
-// IMMUTABLE SNAPSHOT
+// SNAPSHOT
 // =====================================
 
 function createAppStateSnapshot(){
@@ -196,7 +196,77 @@ function createAppStateSnapshot(){
 
 
 // =====================================
-// GET APP STATE
+// NOTIFY
+// =====================================
+
+function notifyAppStateObservers(){
+
+  const snapshot =
+  createAppStateSnapshot();
+
+  appState
+  .observers
+  .forEach((listener) => {
+
+    try{
+
+      listener(
+        snapshot
+      );
+
+    }
+
+    catch(error){}
+
+  });
+
+  return true;
+
+}
+
+
+
+// =====================================
+// UPDATE
+// =====================================
+
+function updateAppState(
+  updater
+){
+
+  if(
+    typeof updater !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  try{
+
+    updater(
+      appState
+    );
+
+    notifyAppStateObservers();
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// GET
 // =====================================
 
 function getAppState(){
@@ -251,44 +321,7 @@ function unsubscribeAppState(
 
 
 // =====================================
-// NOTIFY OBSERVERS
-// =====================================
-
-function notifyAppStateObservers(){
-
-  const snapshot =
-  createAppStateSnapshot();
-
-  appState
-  .observers
-  .forEach((listener) => {
-
-    try{
-
-      listener(
-        snapshot
-      );
-
-    }
-
-    catch(error){
-
-      console.error(
-        error
-      );
-
-    }
-
-  });
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UPDATE PHASE
+// PHASE
 // =====================================
 
 function updateAppPhase(
@@ -304,40 +337,44 @@ function updateAppPhase(
 
   }
 
-  appState.phase =
-  phase;
+  return updateAppState(
+    (state) => {
 
-  appState.ready =
-  (
-    phase ===
-    APP_PHASES.READY
+      state.phase =
+      phase;
+
+      state.ready =
+      (
+        phase ===
+        APP_PHASES.READY
+      );
+
+    }
   );
-
-  notifyAppStateObservers();
-
-  return true;
 
 }
 
 
 
 // =====================================
-// ERROR STATE
+// ERROR
 // =====================================
 
 function setAppError(
   error
 ){
 
-  appState.lastError =
-  error;
+  return updateAppState(
+    (state) => {
 
-  appState.crashed =
-  Boolean(error);
+      state.lastError =
+      error;
 
-  notifyAppStateObservers();
+      state.crashed =
+      Boolean(error);
 
-  return true;
+    }
+  );
 
 }
 
@@ -349,18 +386,21 @@ function setAppError(
 
 function updateHealthcheckTimestamp(){
 
-  appState
-  .lastHealthcheckAt =
-  Date.now();
+  return updateAppState(
+    (state) => {
 
-  return true;
+      state.lastHealthcheckAt =
+      Date.now();
+
+    }
+  );
 
 }
 
 
 
 // =====================================
-// MODULE HELPERS
+// MODULES
 // =====================================
 
 function addActiveModule(
@@ -375,15 +415,17 @@ function addActiveModule(
 
   }
 
-  appState
-  .activeModules
-  .add(
-    String(moduleName)
+  return updateAppState(
+    (state) => {
+
+      state
+      .activeModules
+      .add(
+        String(moduleName)
+      );
+
+    }
   );
-
-  notifyAppStateObservers();
-
-  return true;
 
 }
 
@@ -401,22 +443,24 @@ function removeActiveModule(
 
   }
 
-  appState
-  .activeModules
-  .delete(
-    String(moduleName)
+  return updateAppState(
+    (state) => {
+
+      state
+      .activeModules
+      .delete(
+        String(moduleName)
+      );
+
+    }
   );
-
-  notifyAppStateObservers();
-
-  return true;
 
 }
 
 
 
 // =====================================
-// RESET APP STATE
+// RESET
 // =====================================
 
 function resetAppState(){
@@ -531,6 +575,9 @@ Object.freeze({
 
   get:
   getAppState,
+
+  update:
+  updateAppState,
 
   subscribe:
   subscribeAppState,
