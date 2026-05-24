@@ -1,15 +1,15 @@
 // =====================================
 // RIGO AI
-// APP ENTRYPOINT
+// APPLICATION ORCHESTRATOR
 // =====================================
 
 
 
 // =====================================
-// ENTRYPOINT STATE
+// APPLICATION STATE
 // =====================================
 
-const applicationEntrypointState =
+const applicationState =
 Object.seal({
 
   bootstrapping:false,
@@ -20,63 +20,45 @@ Object.seal({
 
   completedAt:null,
 
-  lastError:null,
-
-  recoveryAttempted:false
+  lastError:null
 
 });
 
 
 
 // =====================================
-// SNAPSHOT
+// APPLICATION SNAPSHOT
 // =====================================
 
-function createEntrypointSnapshot(){
-
-  const error =
-
-    applicationEntrypointState
-    .lastError;
+function createApplicationSnapshot(){
 
   return Object.freeze({
 
     bootstrapping:
-
-      applicationEntrypointState
-      .bootstrapping,
+    applicationState.bootstrapping,
 
     bootstrapped:
-
-      applicationEntrypointState
-      .bootstrapped,
+    applicationState.bootstrapped,
 
     startedAt:
-
-      applicationEntrypointState
-      .startedAt,
+    applicationState.startedAt,
 
     completedAt:
-
-      applicationEntrypointState
-      .completedAt,
+    applicationState.completedAt,
 
     lastError:
 
-      error
+      applicationState.lastError
 
       ?
 
-      String(error)
+      String(
+        applicationState.lastError
+      )
 
       :
 
       null,
-
-    recoveryAttempted:
-
-      applicationEntrypointState
-      .recoveryAttempted,
 
     timestamp:
     Date.now()
@@ -88,18 +70,76 @@ function createEntrypointSnapshot(){
 
 
 // =====================================
-// BOOTSTRAP
+// STARTUP VALIDATION
+// =====================================
+
+async function validateStartupSystems(){
+
+  try{
+
+    const checks = [
+
+      typeof initializeChatSystem ===
+      "function",
+
+      typeof initializeVoiceRuntime ===
+      "function"
+
+    ];
+
+    return checks.every(Boolean);
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// STARTUP PHASES
+// =====================================
+
+async function startInterfaceSystems(){
+
+  await initializeChatSystem?.();
+
+  await initializeVoiceRuntime?.();
+
+}
+
+
+
+async function finalizeApplicationStartup(){
+
+  applicationState.bootstrapped =
+  true;
+
+  applicationState.completedAt =
+  Date.now();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// APPLICATION BOOTSTRAP
 // =====================================
 
 async function bootstrapApplication(){
 
   if(
 
-    applicationEntrypointState
-    .bootstrapping ||
+    applicationState.bootstrapping ||
 
-    applicationEntrypointState
-    .bootstrapped
+    applicationState.bootstrapped
 
   ){
 
@@ -107,85 +147,46 @@ async function bootstrapApplication(){
 
   }
 
-  applicationEntrypointState
-  .bootstrapping =
+  applicationState.bootstrapping =
   true;
 
-  applicationEntrypointState
-  .startedAt =
+  applicationState.startedAt =
   Date.now();
 
-  applicationEntrypointState
-  .lastError =
+  applicationState.lastError =
   null;
 
   try{
 
+    const validStartup =
+    await validateStartupSystems();
 
+    if(!validStartup){
 
-    // ================================
-    // BASIC UI START
-    // ================================
-
-    if(
-      typeof initializeChatSystem ===
-      "function"
-    ){
-
-      await initializeChatSystem();
-
-    }
-
-    if(
-      typeof initializeVoiceRuntime ===
-      "function"
-    ){
-
-      await initializeVoiceRuntime();
-
-    }
-
-
-
-    // ================================
-    // REMOVE LOADING SCREEN
-    // ================================
-
-    const loadingScreen =
-
-      document.getElementById(
-        "loadingScreen"
+      throw new Error(
+        "INVALID STARTUP SYSTEMS"
       );
 
-    if(loadingScreen){
-
-      loadingScreen.style.opacity =
-      "0";
-
-      setTimeout(() => {
-
-        loadingScreen.remove();
-
-      },300);
-
     }
 
 
 
     // ================================
-    // COMPLETE
+    // START RUNTIMES
     // ================================
 
-    applicationEntrypointState
-    .bootstrapped =
-    true;
+    await startInterfaceSystems();
 
-    applicationEntrypointState
-    .completedAt =
-    Date.now();
+
+
+    // ================================
+    // COMPLETE STARTUP
+    // ================================
+
+    await finalizeApplicationStartup();
 
     console.log(
-      "RIGO APP READY"
+      "RIGO APPLICATION READY"
     );
 
     return true;
@@ -194,12 +195,11 @@ async function bootstrapApplication(){
 
   catch(error){
 
-    applicationEntrypointState
-    .lastError =
+    applicationState.lastError =
     error;
 
-    console.error(
-      "BOOTSTRAP ERROR:",
+    safeLogError?.(
+      "APPLICATION BOOTSTRAP ERROR",
       error
     );
 
@@ -209,8 +209,7 @@ async function bootstrapApplication(){
 
   finally{
 
-    applicationEntrypointState
-    .bootstrapping =
+    applicationState.bootstrapping =
     false;
 
   }
@@ -220,13 +219,13 @@ async function bootstrapApplication(){
 
 
 // =====================================
-// DOM READY
+// APPLICATION START REGISTRATION
 // =====================================
 
-let applicationEntrypointRegistered =
+let applicationRegistered =
 false;
 
-function registerApplicationEntrypoint(){
+function registerApplicationStartup(){
 
   if(
     typeof document ===
@@ -237,18 +236,16 @@ function registerApplicationEntrypoint(){
 
   }
 
-  if(
-    applicationEntrypointRegistered
-  ){
+  if(applicationRegistered){
 
     return true;
 
   }
 
-  applicationEntrypointRegistered =
+  applicationRegistered =
   true;
 
-  const start =
+  const startApplication =
   () => {
 
     Promise.resolve(
@@ -257,13 +254,15 @@ function registerApplicationEntrypoint(){
     .catch((error) => {
 
       safeLogError?.(
-        "ENTRYPOINT START ERROR:",
+        "APPLICATION START ERROR",
         error
       );
 
     });
 
   };
+
+
 
   if(
     document.readyState ===
@@ -274,7 +273,7 @@ function registerApplicationEntrypoint(){
 
       "DOMContentLoaded",
 
-      start,
+      startApplication,
 
       {
         once:true
@@ -286,7 +285,7 @@ function registerApplicationEntrypoint(){
 
   else{
 
-    start();
+    startApplication();
 
   }
 
@@ -300,7 +299,27 @@ function registerApplicationEntrypoint(){
 // AUTO START
 // =====================================
 
-registerApplicationEntrypoint();
+registerApplicationStartup();
+
+
+
+// =====================================
+// APPLICATION EXPORTS
+// =====================================
+
+const RIGOApplication =
+Object.freeze({
+
+  bootstrap:
+  bootstrapApplication,
+
+  snapshot:
+  createApplicationSnapshot,
+
+  register:
+  registerApplicationStartup
+
+});
 
 
 
@@ -314,67 +333,6 @@ if(
 ){
 
   window.RIGOApplication =
-  Object.freeze({
-
-    bootstrap:
-    bootstrapApplication,
-
-    snapshot:
-    createEntrypointSnapshot,
-
-    register:
-    registerApplicationEntrypoint
-
-  });
+  RIGOApplication;
 
 }
-// =====================================
-// GLOBAL ERROR DEBUG
-// =====================================
-
-window.onerror = function(
-
-  message,
-  source,
-  line,
-  column,
-  error
-
-){
-
-  const details = [
-
-    "MESSAGE: " + String(message),
-
-    "SOURCE: " + String(source),
-
-    "LINE: " + String(line),
-
-    "COLUMN: " + String(column),
-
-    "ERROR: " + String(error)
-
-  ].join("\n\n");
-
-  alert(details);
-
-  return false;
-
-};
-
-
-
-window.onunhandledrejection =
-function(event){
-
-  alert(
-
-    "PROMISE ERROR:\n\n" +
-
-    String(
-      event?.reason
-    )
-
-  );
-
-};
