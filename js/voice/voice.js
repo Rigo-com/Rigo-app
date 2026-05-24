@@ -153,7 +153,7 @@ Object.seal({
 
   interimTranscript:"",
 
-  diagnostics:{
+  diagnostics:Object.seal({
 
     starts:0,
 
@@ -171,7 +171,7 @@ Object.seal({
 
     transcripts:0
 
-  }
+  })
 
 });
 
@@ -201,6 +201,99 @@ function getSpeechRecognitionAPI(){
     null
 
   );
+
+}
+
+
+
+function cleanupRecognitionInstance(){
+
+  const recognition =
+
+    voiceRuntimeState
+    .recognition;
+
+  if(!recognition){
+
+    return true;
+
+  }
+
+  try{
+
+    recognition.onstart =
+    null;
+
+    recognition.onend =
+    null;
+
+    recognition.onerror =
+    null;
+
+    recognition.onresult =
+    null;
+
+    recognition.abort?.();
+
+  }
+
+  catch(error){
+
+    safeLogError?.(
+      "VOICE CLEANUP ERROR:",
+      error
+    );
+
+  }
+
+  voiceRuntimeState
+  .recognition =
+  null;
+
+  return true;
+
+}
+
+
+
+function stopVoiceStream(){
+
+  const stream =
+  voiceRuntimeState
+  .stream;
+
+  if(!stream){
+
+    return true;
+
+  }
+
+  try{
+
+    stream
+    .getTracks()
+    .forEach((track) => {
+
+      track.stop();
+
+    });
+
+  }
+
+  catch(error){
+
+    safeLogError?.(
+      "VOICE STREAM STOP ERROR:",
+      error
+    );
+
+  }
+
+  voiceRuntimeState
+  .stream =
+  null;
+
+  return true;
 
 }
 
@@ -253,6 +346,11 @@ async function emitVoiceEvent(
 
   catch(error){
 
+    safeLogError?.(
+      "VOICE EVENT ERROR:",
+      error
+    );
+
     return false;
 
   }
@@ -281,6 +379,10 @@ function resetSilenceTimer(){
     voiceRuntimeState
     .silenceTimer
   );
+
+  voiceRuntimeState
+  .silenceTimer =
+  null;
 
   if(
 
@@ -371,6 +473,8 @@ async function requestMicrophonePermission(){
   .permissionRequests++;
 
   try{
+
+    stopVoiceStream();
 
     const stream =
     await navigator
@@ -537,6 +641,10 @@ async function handleRecognitionEnd(){
   );
 
   voiceRuntimeState
+  .silenceTimer =
+  null;
+
+  voiceRuntimeState
   .listening =
   false;
 
@@ -584,12 +692,22 @@ async function handleRecognitionError(
   .diagnostics
   .errors++;
 
+  voiceRuntimeState
+  .listening =
+  false;
+
   setVoiceState(
 
     VOICE_RUNTIME_STATES
     .FAILED
 
   );
+
+  const errorCode =
+
+    event?.error ||
+
+    "UNKNOWN";
 
   await emitVoiceEvent(
 
@@ -598,14 +716,24 @@ async function handleRecognitionError(
 
     {
 
-      error:
-      event?.error ||
-
-      "UNKNOWN"
+      error:errorCode
 
     }
 
   );
+
+  if(
+    errorCode ===
+    "not-allowed"
+  ){
+
+    voiceRuntimeState
+    .permissionGranted =
+    false;
+
+    return false;
+
+  }
 
   if(
 
@@ -738,16 +866,23 @@ async function handleRecognitionResult(
 
     );
 
-    if(
-      typeof messageInput !==
+    const input =
+
+      typeof ChatElements !==
       "undefined"
 
-      &&
+      ?
 
-      messageInput
-    ){
+      ChatElements
+      .getInput?.()
 
-      messageInput.value =
+      :
+
+      null;
+
+    if(input){
+
+      input.value =
       finalTranscript.trim();
     }
 
@@ -775,10 +910,8 @@ async function startVoiceRecognition(){
   }
 
   if(
-
     voiceRuntimeState
     .listening
-
   ){
 
     return true;
@@ -819,18 +952,7 @@ async function startVoiceRecognition(){
 
   try{
 
-    if(
-
-      voiceRuntimeState
-      .recognition
-
-    ){
-
-      voiceRuntimeState
-      .recognition
-      .abort();
-
-    }
+    cleanupRecognitionInstance();
 
     voiceRuntimeState
     .recognition =
@@ -903,6 +1025,10 @@ async function stopVoiceRecognition(){
 
   );
 
+  voiceRuntimeState
+  .silenceTimer =
+  null;
+
   const recognition =
 
     voiceRuntimeState
@@ -918,7 +1044,9 @@ async function stopVoiceRecognition(){
 
     catch(error){
 
-      safeLogError(error);
+      safeLogError?.(
+        error
+      );
 
     }
 
@@ -954,26 +1082,11 @@ async function abortVoiceRecognition(){
 
   );
 
-  const recognition =
+  voiceRuntimeState
+  .silenceTimer =
+  null;
 
-    voiceRuntimeState
-    .recognition;
-
-  if(recognition){
-
-    try{
-
-      recognition.abort();
-
-    }
-
-    catch(error){
-
-      safeLogError(error);
-
-    }
-
-  }
+  cleanupRecognitionInstance();
 
   voiceRuntimeState
   .listening =
@@ -1018,6 +1131,15 @@ async function recoverVoiceRuntime(){
 
   }
 
+  if(
+    !voiceRuntimeState
+    .permissionGranted
+  ){
+
+    return false;
+
+  }
+
   voiceRuntimeState
   .recovering =
   true;
@@ -1033,7 +1155,14 @@ async function recoverVoiceRuntime(){
 
     await abortVoiceRecognition();
 
+    const recovered =
     await startVoiceRecognition();
+
+    if(!recovered){
+
+      return false;
+
+    }
 
     await emitVoiceEvent(
 
@@ -1047,6 +1176,11 @@ async function recoverVoiceRuntime(){
   }
 
   catch(error){
+
+    safeLogError?.(
+      "VOICE RECOVERY ERROR:",
+      error
+    );
 
     return false;
 
@@ -1106,12 +1240,58 @@ function setVoiceLanguage(
 
 
 // =====================================
+// RESET DIAGNOSTICS
+// =====================================
+
+function resetVoiceDiagnostics(){
+
+  voiceRuntimeState
+  .diagnostics
+  .starts = 0;
+
+  voiceRuntimeState
+  .diagnostics
+  .stops = 0;
+
+  voiceRuntimeState
+  .diagnostics
+  .aborts = 0;
+
+  voiceRuntimeState
+  .diagnostics
+  .errors = 0;
+
+  voiceRuntimeState
+  .diagnostics
+  .recoveries = 0;
+
+  voiceRuntimeState
+  .diagnostics
+  .permissionRequests = 0;
+
+  voiceRuntimeState
+  .diagnostics
+  .permissionDenials = 0;
+
+  voiceRuntimeState
+  .diagnostics
+  .transcripts = 0;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // RESET VOICE
 // =====================================
 
 async function resetVoiceRuntime(){
 
   await abortVoiceRecognition();
+
+  stopVoiceStream();
 
   voiceRuntimeState
   .listening =
@@ -1137,26 +1317,7 @@ async function resetVoiceRuntime(){
   .interimTranscript =
   "";
 
-  voiceRuntimeState
-  .diagnostics = {
-
-    starts:0,
-
-    stops:0,
-
-    aborts:0,
-
-    errors:0,
-
-    recoveries:0,
-
-    permissionRequests:0,
-
-    permissionDenials:0,
-
-    transcripts:0
-
-  };
+  resetVoiceDiagnostics();
 
   setVoiceState(
 
@@ -1186,54 +1347,21 @@ async function destroyVoiceRuntime(){
 
   );
 
-  if(
-    voiceRuntimeState
-    .stream
-  ){
+  voiceRuntimeState
+  .silenceTimer =
+  null;
 
-    try{
+  stopVoiceStream();
 
-      voiceRuntimeState
-      .stream
-      .getTracks()
-      .forEach((track) => {
+  cleanupRecognitionInstance();
 
-        track.stop();
+  voiceRuntimeState
+  .transcript =
+  "";
 
-      });
-
-    }
-
-    catch(error){
-
-      safeLogError(error);
-
-    }
-
-  }
-
-  if(
-    voiceRuntimeState
-    .recognition
-  ){
-
-    voiceRuntimeState
-    .recognition
-    .onstart = null;
-
-    voiceRuntimeState
-    .recognition
-    .onend = null;
-
-    voiceRuntimeState
-    .recognition
-    .onerror = null;
-
-    voiceRuntimeState
-    .recognition
-    .onresult = null;
-
-  }
+  voiceRuntimeState
+  .interimTranscript =
+  "";
 
   voiceRuntimeState
   .recognition =
@@ -1245,7 +1373,7 @@ async function destroyVoiceRuntime(){
 
   voiceRuntimeState
   .destroyed =
- true;
+  true;
 
   voiceRuntimeState
   .initialized =
@@ -1269,6 +1397,29 @@ async function destroyVoiceRuntime(){
 // =====================================
 
 function getVoiceRuntimeStatus(){
+
+  const diagnostics =
+
+    typeof deepClone ===
+    "function"
+
+    ?
+
+    deepClone(
+
+      voiceRuntimeState
+      .diagnostics
+
+    )
+
+    :
+
+    {
+
+      ...voiceRuntimeState
+      .diagnostics
+
+    };
 
   return Object.freeze({
 
@@ -1318,9 +1469,7 @@ function getVoiceRuntimeStatus(){
       .interimTranscript,
 
     diagnostics:
-
-      voiceRuntimeState
-      .diagnostics
+    diagnostics
 
   });
 
@@ -1358,6 +1507,8 @@ async function initializeVoiceRuntime(){
     return false;
 
   }
+
+  cleanupRecognitionInstance();
 
   voiceRuntimeState
   .recognition =
