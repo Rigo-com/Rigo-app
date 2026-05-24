@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
 // FILE RUNTIME SYSTEM
-// ENTERPRISE ATTACHMENT ENGINE FINAL
 // =====================================
 
 
@@ -25,15 +24,10 @@ Object.freeze({
   ALLOWED_TYPES:[
 
     "image/jpeg",
-
     "image/png",
-
     "image/webp",
-
     "text/plain",
-
     "application/json",
-
     "application/pdf"
 
   ],
@@ -41,17 +35,11 @@ Object.freeze({
   ALLOWED_EXTENSIONS:[
 
     ".jpg",
-
     ".jpeg",
-
     ".png",
-
     ".webp",
-
     ".txt",
-
     ".json",
-
     ".pdf"
 
   ],
@@ -59,7 +47,6 @@ Object.freeze({
   TEXT_READABLE_TYPES:[
 
     "text/plain",
-
     "application/json"
 
   ]
@@ -132,8 +119,23 @@ Object.seal({
 
 
 // =====================================
-// DIAGNOSTICS
+// HELPERS
 // =====================================
+
+function setFileError(
+  message = null
+){
+
+  fileRuntimeState
+  .lastError =
+
+    message
+    ? String(message)
+    : null;
+
+}
+
+
 
 async function trackFileRuntimeError(
   message,
@@ -141,21 +143,29 @@ async function trackFileRuntimeError(
 ){
 
   if(
-    typeof DiagnosticsRuntime !==
+    typeof DiagnosticsRuntime ===
     "undefined"
   ){
 
-    try{
+    return false;
 
-      await DiagnosticsRuntime
-      .error(
-        message,
-        metadata
-      );
+  }
 
-    }
+  try{
 
-    catch(error){}
+    await DiagnosticsRuntime
+    .error?.(
+      message,
+      metadata
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
 
   }
 
@@ -163,13 +173,11 @@ async function trackFileRuntimeError(
 
 
 
-// =====================================
-// EVENTS
-// =====================================
-
 async function emitFileRuntimeEvent(
+
   eventName,
   payload = {}
+
 ){
 
   if(
@@ -192,6 +200,9 @@ async function emitFileRuntimeEvent(
         source:
         "file-runtime",
 
+        timestamp:
+        Date.now(),
+
         ...payload
 
       }
@@ -213,26 +224,7 @@ async function emitFileRuntimeEvent(
 
 
 // =====================================
-// ERROR
-// =====================================
-
-function setFileError(
-  message = null
-){
-
-  fileRuntimeState
-  .lastError =
-
-    message
-    ? String(message)
-    : null;
-
-}
-
-
-
-// =====================================
-// FILE ID
+// FILE HELPERS
 // =====================================
 
 function createFileId(){
@@ -275,10 +267,6 @@ function createFileId(){
 
 
 
-// =====================================
-// SANITIZE NAME
-// =====================================
-
 function sanitizeFileName(
   filename
 ){
@@ -287,15 +275,12 @@ function sanitizeFileName(
     filename || ""
   )
   .replace(/[<>:"/\\|?*\x00-\x1F]/g,"")
+  .replace(/\s+/g," ")
   .trim();
 
 }
 
 
-
-// =====================================
-// FILE ID VALIDATION
-// =====================================
 
 function validateFileId(
   fileId
@@ -314,10 +299,6 @@ function validateFileId(
 }
 
 
-
-// =====================================
-// FILE EXTENSION
-// =====================================
 
 function getFileExtension(
   filename
@@ -354,10 +335,6 @@ function getFileExtension(
 
 
 
-// =====================================
-// EXTENSION VALIDATION
-// =====================================
-
 function validateFileExtension(
   filename
 ){
@@ -368,20 +345,18 @@ function validateFileExtension(
   );
 
   return (
+
     FILE_CONFIG
     .ALLOWED_EXTENSIONS
     .includes(
       extension
     )
+
   );
 
 }
 
 
-
-// =====================================
-// FINGERPRINT
-// =====================================
 
 function createFileFingerprint(
   file
@@ -390,11 +365,8 @@ function createFileFingerprint(
   return [
 
     file.name,
-
     file.size,
-
     file.type,
-
     file.lastModified
 
   ]
@@ -405,7 +377,7 @@ function createFileFingerprint(
 
 
 // =====================================
-// VALIDATE FILE
+// VALIDATION
 // =====================================
 
 function validateFile(
@@ -429,7 +401,7 @@ function validateFile(
 
   }
 
-  const hasValidName =
+  const validName =
 
     typeof file.name ===
     "string" &&
@@ -437,7 +409,7 @@ function validateFile(
     file.name.trim()
     .length > 0;
 
-  const hasValidSize =
+  const validSize =
 
     Number.isFinite(
       file.size
@@ -445,18 +417,18 @@ function validateFile(
 
     file.size >= 0;
 
-  const hasValidType =
+  const validType =
 
     typeof file.type ===
     "string";
 
   if(
 
-    !hasValidName ||
+    !validName ||
 
-    !hasValidSize ||
+    !validSize ||
 
-    !hasValidType
+    !validType
 
   ){
 
@@ -483,7 +455,7 @@ function validateFile(
 
   if(
 
-    !validMimeType &&
+    !validMimeType ||
 
     !validExtension
 
@@ -522,24 +494,21 @@ function validateFile(
 
 
 
-// =====================================
-// DUPLICATES
-// =====================================
-
 function isDuplicateFile(
   file
 ){
-
-  const fingerprint =
-  createFileFingerprint(
-    file
-  );
 
   return (
 
     fileRuntimeState
     .fingerprints
-    .has(fingerprint)
+    .has(
+
+      createFileFingerprint(
+        file
+      )
+
+    )
 
   );
 
@@ -568,11 +537,6 @@ function createFileObject(
     file.name
   );
 
-  const fingerprint =
-  createFileFingerprint(
-    file
-  );
-
   return Object.freeze({
 
     id:
@@ -598,7 +562,10 @@ function createFileObject(
     createdAt:
     Date.now(),
 
-    fingerprint,
+    fingerprint:
+    createFileFingerprint(
+      file
+    ),
 
     rawFile:
     file
@@ -610,19 +577,16 @@ function createFileObject(
 
 
 // =====================================
-// ADD FILE
+// FILE ACTIONS
 // =====================================
 
 async function addFile(
   file
 ){
 
-  const validFile =
-  validateFile(
-    file
-  );
-
-  if(!validFile){
+  if(
+    !validateFile(file)
+  ){
 
     await trackFileRuntimeError(
       fileRuntimeState
@@ -690,8 +654,6 @@ async function addFile(
   .lastUpdatedAt =
   Date.now();
 
-  setFileError(null);
-
   await emitFileRuntimeEvent(
 
     FILE_RUNTIME_EVENTS
@@ -712,20 +674,13 @@ async function addFile(
 
 
 
-// =====================================
-// REMOVE FILE
-// =====================================
-
 async function removeFile(
   fileId
 ){
 
-  const validId =
-  validateFileId(
-    fileId
-  );
-
-  if(!validId){
+  if(
+    !validateFileId(fileId)
+  ){
 
     return false;
 
@@ -776,11 +731,7 @@ async function removeFile(
     FILE_RUNTIME_EVENTS
     .FILE_REMOVED,
 
-    {
-
-      fileId
-
-    }
+    { fileId }
 
   );
 
@@ -790,29 +741,21 @@ async function removeFile(
 
 
 
-// =====================================
-// CLEAR FILES
-// =====================================
-
 async function clearFiles(){
 
   cleanupObjectURLs();
 
   fileRuntimeState
-  .activeObjectURLs
-  .clear();
+  .files =
+  [];
 
   fileRuntimeState
-  .files
-  .length = 0;
+  .uploadQueue =
+  [];
 
   fileRuntimeState
   .fingerprints
   .clear();
-
-  fileRuntimeState
-  .uploadQueue
-  .length = 0;
 
   fileRuntimeState
   .uploading =
@@ -838,7 +781,7 @@ async function clearFiles(){
 
 
 // =====================================
-// GET FILES
+// GETTERS
 // =====================================
 
 function getFiles(){
@@ -853,10 +796,6 @@ function getFiles(){
 }
 
 
-
-// =====================================
-// FIND FILE
-// =====================================
 
 function findFileById(
   fileId
@@ -886,94 +825,7 @@ function findFileById(
 
 
 // =====================================
-// FILE SIZE
-// =====================================
-
-function formatFileSize(
-  bytes
-){
-
-  const safeBytes =
-  Number(bytes);
-
-  if(
-
-    !Number.isFinite(
-      safeBytes
-    ) ||
-
-    safeBytes < 0
-
-  ){
-
-    return "0 B";
-
-  }
-
-  if(
-    safeBytes < 1024
-  ){
-
-    return (
-
-      Math.round(
-        safeBytes
-      ) +
-
-      " B"
-
-    );
-
-  }
-
-  const units = [
-
-    "KB",
-
-    "MB",
-
-    "GB"
-
-  ];
-
-  let value =
-  safeBytes / 1024;
-
-  let unitIndex =
-  0;
-
-  while(
-
-    value >= 1024 &&
-
-    unitIndex <
-    units.length - 1
-
-  ){
-
-    value =
-    value / 1024;
-
-    unitIndex++;
-
-  }
-
-  return (
-
-    value.toFixed(1) +
-
-    " " +
-
-    units[unitIndex]
-
-  );
-
-}
-
-
-
-// =====================================
-// READ TEXT
+// TEXT READER
 // =====================================
 
 async function readFileAsText(
@@ -983,12 +835,9 @@ async function readFileAsText(
   return new Promise(
     (resolve,reject) => {
 
-      const validFile =
-      validateFile(
-        file
-      );
-
-      if(!validFile){
+      if(
+        !validateFile(file)
+      ){
 
         reject(
           new Error(
@@ -1066,19 +915,25 @@ async function readFileAsText(
 
 
 // =====================================
-// OBJECT URL
+// OBJECT URLS
 // =====================================
 
 function createFileURL(
   file
 ){
 
-  const validFile =
-  validateFile(
-    file
-  );
+  if(
+    !validateFile(file)
+  ){
 
-  if(!validFile){
+    return null;
+
+  }
+
+  if(
+    typeof URL ===
+    "undefined"
+  ){
 
     return null;
 
@@ -1109,13 +964,18 @@ function createFileURL(
 
 
 
-// =====================================
-// REVOKE URL
-// =====================================
-
 function revokeFileURL(
   url
 ){
+
+  if(
+    typeof URL ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
 
   try{
 
@@ -1141,21 +1001,19 @@ function revokeFileURL(
 
 
 
-// =====================================
-// CLEANUP URLS
-// =====================================
-
 function cleanupObjectURLs(){
 
-  fileRuntimeState
-  .activeObjectURLs
-  .forEach((url) => {
+  for(
+    const url
+    of fileRuntimeState
+    .activeObjectURLs
+  ){
 
     revokeFileURL(
       url
     );
 
-  });
+  }
 
   fileRuntimeState
   .activeObjectURLs
@@ -1166,12 +1024,20 @@ function cleanupObjectURLs(){
 
 
 // =====================================
-// UPLOAD QUEUE
+// QUEUE
 // =====================================
 
 function enqueueUpload(
   fileId
 ){
+
+  if(
+    !validateFileId(fileId)
+  ){
+
+    return false;
+
+  }
 
   if(
 
@@ -1199,6 +1065,113 @@ function enqueueUpload(
 
 
 // =====================================
+// FORMAT SIZE
+// =====================================
+
+function formatFileSize(
+  bytes
+){
+
+  const safeBytes =
+  Number(bytes);
+
+  if(
+
+    !Number.isFinite(
+      safeBytes
+    ) ||
+
+    safeBytes < 0
+
+  ){
+
+    return "0 B";
+
+  }
+
+  if(
+    safeBytes < 1024
+  ){
+
+    return (
+
+      Math.round(
+        safeBytes
+      ) +
+
+      " B"
+
+    );
+
+  }
+
+  const units = [
+
+    "KB",
+    "MB",
+    "GB"
+
+  ];
+
+  let value =
+  safeBytes / 1024;
+
+  let unitIndex =
+  0;
+
+  while(
+
+    value >= 1024 &&
+
+    unitIndex <
+    units.length - 1
+
+  ){
+
+    value =
+    value / 1024;
+
+    unitIndex++;
+
+  }
+
+  return (
+
+    value.toFixed(1) +
+
+    " " +
+
+    units[unitIndex]
+
+  );
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetFileRuntime(){
+
+  await clearFiles();
+
+  fileRuntimeState
+  .initialized =
+  false;
+
+  fileRuntimeState
+  .processingQueue =
+  false;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // INITIALIZE
 // =====================================
 
@@ -1218,13 +1191,6 @@ async function initializeFileRuntime(){
   true;
 
   setFileError(null);
-
-  await emitFileRuntimeEvent(
-
-    FILE_RUNTIME_EVENTS
-    .FILE_CLEARED
-
-  );
 
   return true;
 
@@ -1287,6 +1253,11 @@ function getFileRuntimeDiagnostics(){
     fileRuntimeState
     .uploading,
 
+    processingQueue:
+
+      fileRuntimeState
+      .processingQueue,
+
     files:
 
       fileRuntimeState
@@ -1312,7 +1283,10 @@ function getFileRuntimeDiagnostics(){
     lastUpdatedAt:
 
       fileRuntimeState
-      .lastUpdatedAt
+      .lastUpdatedAt,
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -1329,6 +1303,9 @@ Object.freeze({
 
   initialize:
   initializeFileRuntime,
+
+  reset:
+  resetFileRuntime,
 
   add:
   addFile,
@@ -1384,8 +1361,5 @@ if(
 
   window.FileRuntime =
   FileRuntime;
-
-  window.initializeFileRuntime =
-  initializeFileRuntime;
 
 }
