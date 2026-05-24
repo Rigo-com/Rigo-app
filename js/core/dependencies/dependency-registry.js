@@ -1,4 +1,5 @@
 // =====================================
+// RIGO AI
 // DEPENDENCY REGISTRY
 // =====================================
 
@@ -17,6 +18,42 @@ function normalizeDependencyName(
   )
   .trim()
   .toLowerCase();
+
+}
+
+
+
+function createDependencyDefinition({
+
+  name,
+  resolver = null,
+  dependencies = []
+
+}){
+
+  return freezeContainerObject({
+
+    name,
+
+    resolver:
+
+      typeof resolver ===
+      "function"
+
+      ?
+
+      resolver
+
+      :
+
+      null,
+
+    dependencies,
+
+    registeredAt:
+    Date.now()
+
+  });
 
 }
 
@@ -43,33 +80,48 @@ function registerDependency(
 
   }
 
+  const normalizedDependencies =
+
+    Array.isArray(
+      dependencies
+    )
+
+    ?
+
+    dependencies
+    .map((dependency) => {
+
+      return normalizeDependencyName(
+        dependency
+      );
+
+    })
+    .filter(Boolean)
+
+    :
+
+    [];
+
+  const definition =
+  createDependencyDefinition({
+
+    name:
+    normalizedName,
+
+    resolver,
+
+    dependencies:
+    normalizedDependencies
+
+  });
+
   appDependencyRegistry
   .dependencies
   .set(
 
     normalizedName,
 
-    {
-
-      name:
-      normalizedName,
-
-      resolver,
-
-      dependencies:
-
-        Array.isArray(
-          dependencies
-        )
-
-        ? dependencies
-
-        : [],
-
-      registeredAt:
-      Date.now()
-
-    }
+    definition
 
   );
 
@@ -86,25 +138,20 @@ function registerDependency(
     normalizedName,
 
     new Set(
-      dependencies
+      normalizedDependencies
     )
 
   );
 
-  dependencies
+  normalizedDependencies
   .forEach((dependency) => {
-
-    const normalizedDependency =
-    normalizeDependencyName(
-      dependency
-    );
 
     if(
 
       !appDependencyRegistry
       .reverseDependencies
       .has(
-        normalizedDependency
+        dependency
       )
 
     ){
@@ -113,7 +160,7 @@ function registerDependency(
       .reverseDependencies
       .set(
 
-        normalizedDependency,
+        dependency,
 
         new Set()
 
@@ -124,7 +171,7 @@ function registerDependency(
     appDependencyRegistry
     .reverseDependencies
     .get(
-      normalizedDependency
+      dependency
     )
     .add(
       normalizedName
@@ -266,6 +313,67 @@ function failDependency(
 
 
 // =====================================
+// REMOVE
+// =====================================
+
+function removeDependency(
+  dependencyName
+){
+
+  const normalizedName =
+  normalizeDependencyName(
+    dependencyName
+  );
+
+  if(!normalizedName){
+
+    return false;
+
+  }
+
+  appDependencyRegistry
+  .dependencies
+  .delete(
+    normalizedName
+  );
+
+  appDependencyRegistry
+  .resolved
+  .delete(
+    normalizedName
+  );
+
+  appDependencyRegistry
+  .failed
+  .delete(
+    normalizedName
+  );
+
+  appDependencyRegistry
+  .waiting
+  .delete(
+    normalizedName
+  );
+
+  appDependencyRegistry
+  .dependencyGraph
+  .delete(
+    normalizedName
+  );
+
+  appDependencyRegistry
+  .reverseDependencies
+  .delete(
+    normalizedName
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
 // IS RESOLVED
 // =====================================
 
@@ -323,13 +431,13 @@ function getDependency(
 
 function getAllDependencies(){
 
-  return [
+  return freezeContainerObject([
 
     ...appDependencyRegistry
     .dependencies
     .values()
 
-  ];
+  ]);
 
 }
 
@@ -344,6 +452,9 @@ if(
   "undefined"
 ){
 
+  window.normalizeDependencyName =
+  normalizeDependencyName;
+
   window.registerDependency =
   registerDependency;
 
@@ -352,6 +463,9 @@ if(
 
   window.failDependency =
   failDependency;
+
+  window.removeDependency =
+  removeDependency;
 
   window.isDependencyResolved =
   isDependencyResolved;
