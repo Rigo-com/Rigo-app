@@ -6,12 +6,57 @@
 
 
 // =====================================
-// FREEZE
+// FALLBACKS
+// =====================================
+
+const INTERNAL_RUNTIME_STATES =
+typeof RUNTIME_STATES !==
+"undefined"
+
+  ? RUNTIME_STATES
+
+  : Object.freeze({
+
+      IDLE:"idle",
+      BOOTING:"booting",
+      RUNNING:"running",
+      RECOVERING:"recovering",
+      SHUTDOWN:"shutdown"
+
+    });
+
+
+
+const MAX_RUNTIME_ERRORS =
+
+typeof RUNTIME_MANAGER_CONFIG !==
+"undefined"
+
+&&
+
+RUNTIME_MANAGER_CONFIG
+?.MAX_RUNTIME_ERRORS
+
+  ?
+
+  RUNTIME_MANAGER_CONFIG
+  .MAX_RUNTIME_ERRORS
+
+  :
+
+  20;
+
+
+
+// =====================================
+// DEEP FREEZE
 // =====================================
 
 function freezeRuntimeObject(
+
   value,
   visited = new WeakSet()
+
 ){
 
   if(
@@ -79,7 +124,7 @@ function isValidRuntimeState(
 ){
 
   return Object.values(
-    RUNTIME_STATES
+    INTERNAL_RUNTIME_STATES
   )
   .includes(
     runtimeState
@@ -90,7 +135,7 @@ function isValidRuntimeState(
 
 
 // =====================================
-// SET RUNTIME STATE
+// SET STATE
 // =====================================
 
 function setRuntimeState(
@@ -109,56 +154,89 @@ function setRuntimeState(
 
   }
 
-  runtimeManagerState
-  .runtimeState =
-  runtimeState;
+  return RuntimeState
+  ?.update?.(
 
-  return true;
+    "runtimeState",
+    runtimeState
+
+  );
 
 }
 
 
 
 // =====================================
-// ADD RUNTIME ERROR
+// ADD ERROR
 // =====================================
 
 function addRuntimeError(
   error
 ){
 
-  runtimeManagerState
-  .runtimeErrors
-  .push({
+  if(!error){
 
-    error:
-    String(error),
-
-    timestamp:
-    Date.now()
-
-  });
-
-  if(
-
-    runtimeManagerState
-    .runtimeErrors
-    .length >
-
-    RUNTIME_MANAGER_CONFIG
-    .MAX_RUNTIME_ERRORS
-
-  ){
-
-    runtimeManagerState
-    .runtimeErrors
-    .shift();
+    return false;
 
   }
 
-  runtimeManagerState
-  .diagnostics
-  .failures++;
+  const snapshot =
+  RuntimeState
+  ?.get?.();
+
+  const currentErrors =
+
+    Array.isArray(
+      snapshot?.runtimeErrors
+    )
+
+    ?
+
+    snapshot.runtimeErrors
+
+    :
+
+    [];
+
+  const nextErrors = [
+
+    ...currentErrors,
+
+    {
+
+      error:
+      String(error),
+
+      timestamp:
+      Date.now()
+
+    }
+
+  ];
+
+  while(
+
+    nextErrors.length >
+    MAX_RUNTIME_ERRORS
+
+  ){
+
+    nextErrors.shift();
+
+  }
+
+  RuntimeState
+  ?.update?.(
+
+    "runtimeErrors",
+    nextErrors
+
+  );
+
+  RuntimeState
+  ?.incrementMetric?.(
+    "failures"
+  );
 
   return true;
 
@@ -172,67 +250,64 @@ function addRuntimeError(
 
 function clearRuntimeErrors(){
 
-  runtimeManagerState
-  .runtimeErrors =
-  [];
+  return RuntimeState
+  ?.update?.(
 
-  return true;
+    "runtimeErrors",
+    []
+
+  );
 
 }
 
 
 
 // =====================================
-// RUNTIME DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getRuntimeDiagnostics(){
 
+  const snapshot =
+  RuntimeState
+  ?.get?.();
+
   return freezeRuntimeObject({
 
     runtimeState:
-
-      runtimeManagerState
-      .runtimeState,
+    snapshot?.runtimeState,
 
     initialized:
-
-      runtimeManagerState
-      .initialized,
+    snapshot?.initialized,
 
     booting:
-
-      runtimeManagerState
-      .booting,
+    snapshot?.booting,
 
     recovering:
-
-      runtimeManagerState
-      .recovering,
+    snapshot?.recovering,
 
     shuttingDown:
-
-      runtimeManagerState
-      .shuttingDown,
+    snapshot?.shuttingDown,
 
     bootRetries:
-
-      runtimeManagerState
-      .bootRetries,
+    snapshot?.bootRetries,
 
     runtimeErrors:[
 
-      ...runtimeManagerState
-      .runtimeErrors
+      ...(snapshot
+      ?.runtimeErrors || [])
 
     ],
 
     diagnostics:{
 
-      ...runtimeManagerState
-      .diagnostics
+      ...(snapshot
+      ?.diagnostics || {})
 
-    }
+    },
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -280,11 +355,5 @@ if(
 
   window.RuntimeHelpers =
   RuntimeHelpers;
-
-  window.setRuntimeState =
-  setRuntimeState;
-
-  window.addRuntimeError =
-  addRuntimeError;
 
 }
