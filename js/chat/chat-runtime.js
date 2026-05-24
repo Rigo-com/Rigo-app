@@ -7,6 +7,274 @@
 
 
 // =====================================
+// RUNTIME STATE
+// =====================================
+
+const runtimeLifecycleState =
+Object.seal({
+
+  started:false,
+
+  destroyed:false,
+
+  binding:false,
+
+  processing:false,
+
+  streaming:false,
+
+  ready:false,
+
+  listenersBound:false
+
+});
+
+
+
+// =====================================
+// SCROLL TO BOTTOM
+// =====================================
+
+function scrollChatToBottom(){
+
+  try{
+
+    const container =
+
+      ChatElements
+      ?.getContainer?.();
+
+    if(!container){
+
+      return false;
+
+    }
+
+    requestAnimationFrame(() => {
+
+      container.scrollTop =
+      container.scrollHeight;
+
+    });
+
+    return true;
+
+  }
+
+  catch(error){
+
+    console.error(
+      "SCROLL_BOTTOM_ERROR:",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// BIND EVENTS
+// =====================================
+
+function bindRuntimeEvents(){
+
+  if(
+    runtimeLifecycleState
+    .listenersBound
+  ){
+
+    return true;
+
+  }
+
+  const sendButton =
+
+    ChatElements
+    ?.getSendButton?.();
+
+  const input =
+
+    ChatElements
+    ?.getInput?.();
+
+  if(
+    !sendButton ||
+    !input
+  ){
+
+    return false;
+
+  }
+
+  runtimeLifecycleState
+  .binding =
+  true;
+
+  try{
+
+    sendButton.addEventListener(
+      "click",
+      async () => {
+
+        if(
+          runtimeLifecycleState
+          .processing
+        ){
+
+          return;
+        }
+
+        runtimeLifecycleState
+        .processing =
+        true;
+
+        try{
+
+          await ChatRuntime.send();
+
+        }
+
+        finally{
+
+          runtimeLifecycleState
+          .processing =
+          false;
+
+        }
+
+      }
+    );
+
+    input.addEventListener(
+      "keydown",
+      async (event) => {
+
+        if(
+          event.key !== "Enter"
+        ){
+
+          return;
+
+        }
+
+        event.preventDefault();
+
+        if(
+          runtimeLifecycleState
+          .processing
+        ){
+
+          return;
+        }
+
+        runtimeLifecycleState
+        .processing =
+        true;
+
+        try{
+
+          await ChatRuntime.send();
+
+        }
+
+        finally{
+
+          runtimeLifecycleState
+          .processing =
+          false;
+
+        }
+
+      }
+    );
+
+    runtimeLifecycleState
+    .listenersBound =
+    true;
+
+    return true;
+
+  }
+
+  catch(error){
+
+    console.error(
+      "RUNTIME_BIND_ERROR:",
+      error
+    );
+
+    return false;
+
+  }
+
+  finally{
+
+    runtimeLifecycleState
+    .binding =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// START RUNTIME
+// =====================================
+
+function startChatRuntime(){
+
+  if(
+    runtimeLifecycleState
+    .started
+  ){
+
+    return true;
+
+  }
+
+  const initialized =
+  initializeChatRuntime();
+
+  if(!initialized){
+
+    return false;
+
+  }
+
+  const eventsBound =
+  bindRuntimeEvents();
+
+  if(!eventsBound){
+
+    return false;
+
+  }
+
+  runtimeLifecycleState
+  .started =
+  true;
+
+  runtimeLifecycleState
+  .destroyed =
+  false;
+
+  runtimeLifecycleState
+  .ready =
+  true;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // INITIALIZE
 // =====================================
 
@@ -93,6 +361,10 @@ function initializeChatRuntime(){
 
     }
 
+    runtimeLifecycleState
+    .streaming =
+    false;
+
     chatRuntimeState.initialized =
     true;
 
@@ -160,6 +432,14 @@ function safeFunction(
 async function resetChatRuntime(){
 
   try{
+
+    runtimeLifecycleState
+    .processing =
+    false;
+
+    runtimeLifecycleState
+    .streaming =
+    false;
 
     if(
       typeof abortMessageGeneration ===
@@ -230,6 +510,18 @@ async function resetChatRuntime(){
 
     }
 
+    runtimeLifecycleState
+    .ready =
+    false;
+
+    runtimeLifecycleState
+    .started =
+    false;
+
+    runtimeLifecycleState
+    .destroyed =
+    true;
+
     return true;
 
   }
@@ -250,6 +542,50 @@ async function resetChatRuntime(){
 
 
 // =====================================
+// GET RUNTIME STATUS
+// =====================================
+
+function getRuntimeLifecycleStatus(){
+
+  return Object.freeze({
+
+    started:
+
+      runtimeLifecycleState
+      .started,
+
+    destroyed:
+
+      runtimeLifecycleState
+      .destroyed,
+
+    processing:
+
+      runtimeLifecycleState
+      .processing,
+
+    streaming:
+
+      runtimeLifecycleState
+      .streaming,
+
+    ready:
+
+      runtimeLifecycleState
+      .ready,
+
+    listenersBound:
+
+      runtimeLifecycleState
+      .listenersBound
+
+  });
+
+}
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
@@ -258,6 +594,15 @@ Object.freeze({
 
   initialize:
   initializeChatRuntime,
+
+  start:
+  startChatRuntime,
+
+  scrollBottom:
+  scrollChatToBottom,
+
+  lifecycleStatus:
+  getRuntimeLifecycleStatus,
 
 
 
