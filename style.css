@@ -516,9 +516,11 @@ body{
 
   word-break:break-word;
 
-  overflow-wrap:anywhere;
+  overflow-wrap:break-word;
 
   display:inline-block;
+
+  box-sizing:border-box;
 
 }
 
