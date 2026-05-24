@@ -38,7 +38,7 @@ function createStreamingMessageElement(){
 
   wrapper.classList.add(
     "message",
-    "assistant-message",
+    "ai-message",
     "streaming-message"
   );
 
@@ -313,7 +313,7 @@ function renderStreamingMessage(
 
   catch(error){
 
-    safeLogError?.(
+    console.error(
       "STREAM RENDER ERROR:",
       error
     );
@@ -406,7 +406,7 @@ function finalizeStreamingMessage(){
 
   catch(error){
 
-    safeLogError?.(
+    console.error(
       "FINAL STREAM RENDER ERROR:",
       error
     );
