@@ -90,6 +90,10 @@ async function processAIQueue(){
   .generationController =
   new AbortController();
 
+  ChatStreamManager.start(
+    queueItem.id
+  );
+
   await emitChatRuntimeEvent(
 
     CHAT_RUNTIME_EVENTS
@@ -136,7 +140,26 @@ async function processAIQueue(){
 
           chatRuntimeState
           .generationController
-          .signal
+          .signal,
+
+
+
+        onChunk(chunk){
+
+          if(
+            typeof chunk !==
+            "string"
+          ){
+
+            return;
+          }
+
+          ChatStreamManager
+          .push(
+            chunk
+          );
+
+        }
 
       }
 
@@ -149,6 +172,11 @@ async function processAIQueue(){
       );
 
     }
+
+    ChatStreamManager
+    .complete();
+
+    finalizeStreamingMessage?.();
 
     chatRuntimeState
     .diagnostics
@@ -184,6 +212,11 @@ async function processAIQueue(){
 
     if(aborted){
 
+      ChatStreamManager
+      .abort();
+
+      abortStreamingMessage?.();
+
       await emitChatRuntimeEvent(
 
         CHAT_RUNTIME_EVENTS
@@ -201,6 +234,11 @@ async function processAIQueue(){
     }
 
     else{
+
+      ChatStreamManager
+      .fail(
+        error
+      );
 
       chatRuntimeState
       .diagnostics
