@@ -18,7 +18,7 @@ function getMessageRoleClass(
 
     case "assistant":
 
-      return "assistant-message";
+      return "ai-message";
 
     case "system":
 
@@ -84,7 +84,7 @@ function createMessageContentElement(
 
   catch(error){
 
-    safeLogError?.(
+    console.error(
       "MESSAGE CONTENT ERROR:",
       error
     );
@@ -195,13 +195,14 @@ function createMessageElement(
     message.role || ""
   );
 
+
+
+  // =========================
+  // CONTENT
+  // =========================
+
   const content =
   createMessageContentElement(
-    message
-  );
-
-  const meta =
-  createMessageMetaElement(
     message
   );
 
@@ -213,6 +214,17 @@ function createMessageElement(
 
   wrapper.appendChild(
     content
+  );
+
+
+
+  // =========================
+  // META
+  // =========================
+
+  const meta =
+  createMessageMetaElement(
+    message
   );
 
   if(meta){
@@ -290,7 +302,7 @@ function updateMessageElement(
 
   catch(error){
 
-    safeLogError?.(
+    console.error(
       "MESSAGE UPDATE ERROR:",
       error
     );
