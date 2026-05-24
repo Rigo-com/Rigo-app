@@ -12,26 +12,48 @@
 
 async function createLifecycleSnapshot(){
 
-  return Object.freeze({
+  return freezeEnvironmentObject({
 
     timestamp:
     Date.now(),
 
     diagnostics:
 
-      typeof getAppDiagnostics ===
-      "function"
+      AppDiagnostics
+      ?.get
 
-      ? await getAppDiagnostics()
+      ? await AppDiagnostics
+        .get()
 
       : null,
 
     health:
 
-      typeof getHealthDiagnostics ===
-      "function"
+      HealthDiagnostics
+      ?.get
 
-      ? await getHealthDiagnostics()
+      ? await HealthDiagnostics
+        .get()
+
+      : null,
+
+    startup:
+
+      AppStartup
+      ?.snapshot
+
+      ? AppStartup
+        .snapshot()
+
+      : null,
+
+    shutdown:
+
+      AppShutdown
+      ?.snapshot
+
+      ? AppShutdown
+        .snapshot()
 
       : null
 
@@ -48,15 +70,16 @@ async function createLifecycleSnapshot(){
 async function getLifecycleHealth(){
 
   if(
-    typeof runAppHealthcheck !==
-    "function"
+    !HealthRuntime
+    ?.run
   ){
 
     return null;
 
   }
 
-  return await runAppHealthcheck();
+  return await HealthRuntime
+  .run();
 
 }
 
@@ -69,11 +92,14 @@ async function getLifecycleHealth(){
 async function recoverApplication(){
 
   if(
-    typeof recoverRuntimeManager ===
-    "function"
+
+    RuntimeManager
+    ?.recover
+
   ){
 
-    return recoverRuntimeManager();
+    return RuntimeManager
+    .recover();
 
   }
 
@@ -90,21 +116,27 @@ async function recoverApplication(){
 const AppLifecycle =
 Object.freeze({
 
+
+
   // ===================================
   // CORE
   // ===================================
 
   start:
-  startApp,
+  AppStartup
+  .start,
 
   shutdown:
-  shutdownApp,
+  AppShutdown
+  .shutdown,
 
   initialize:
-  initializeApp,
+  AppBootstrap
+  .initialize,
 
   cleanup:
-  cleanupApp,
+  AppShutdown
+  .cleanup,
 
 
 
@@ -113,7 +145,11 @@ Object.freeze({
   // ===================================
 
   diagnostics:
-  getAppDiagnostics,
+
+    AppDiagnostics
+    ?.get ||
+
+    null,
 
   snapshot:
   createLifecycleSnapshot,
