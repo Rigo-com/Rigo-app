@@ -1,6 +1,78 @@
 // =====================================
+// RIGO AI
 // DEPENDENCY WAITERS
 // =====================================
+
+
+
+// =====================================
+// NORMALIZE
+// =====================================
+
+function normalizeWaitingDependency(
+  dependencyName
+){
+
+  return normalizeDependencyName(
+    dependencyName
+  );
+
+}
+
+
+
+// =====================================
+// CLEANUP WAITER
+// =====================================
+
+function cleanupDependencyWaiter(
+  dependencyName,
+  resolver
+){
+
+  const waitingResolvers =
+
+    appDependencyRegistry
+    .waiting
+    .get(
+      dependencyName
+    );
+
+  if(!waitingResolvers){
+
+    return false;
+
+  }
+
+  waitingResolvers
+  .delete(
+    resolver
+  );
+
+  if(
+    waitingResolvers
+    .size <= 0
+  ){
+
+    appDependencyRegistry
+    .waiting
+    .delete(
+      dependencyName
+    );
+
+  }
+
+  appDependencyRegistry
+  .diagnostics
+  .waiting =
+
+    appDependencyRegistry
+    .waiting
+    .size;
+
+  return true;
+
+}
 
 
 
@@ -16,11 +88,9 @@ async function waitForDependency(
 ){
 
   const normalizedName =
-  String(
-    dependencyName || ""
-  )
-  .trim()
-  .toLowerCase();
+  normalizeWaitingDependency(
+    dependencyName
+  );
 
   if(!normalizedName){
 
@@ -112,31 +182,13 @@ async function waitForDependency(
         timeoutId
       );
 
-      waitingResolvers
-      .delete(
+      cleanupDependencyWaiter(
+
+        normalizedName,
+
         resolver
+
       );
-
-      if(
-        waitingResolvers
-        .size <= 0
-      ){
-
-        appDependencyRegistry
-        .waiting
-        .delete(
-          normalizedName
-        );
-
-      }
-
-      appDependencyRegistry
-      .diagnostics
-      .waiting =
-
-      appDependencyRegistry
-      .waiting
-      .size;
 
       resolve(result);
 
@@ -151,9 +203,9 @@ async function waitForDependency(
     .diagnostics
     .waiting =
 
-    appDependencyRegistry
-    .waiting
-    .size;
+      appDependencyRegistry
+      .waiting
+      .size;
 
     const timeoutId =
     setTimeout(() => {
@@ -181,10 +233,33 @@ async function waitForDependencies(
   .DEPENDENCY_TIMEOUT
 ){
 
+  const normalizedDependencies =
+
+    Array.isArray(
+      dependencies
+    )
+
+    ?
+
+    dependencies
+    .map((dependency) => {
+
+      return normalizeWaitingDependency(
+        dependency
+      );
+
+    })
+    .filter(Boolean)
+
+    :
+
+    [];
+
   const results =
   await Promise.all(
 
-    dependencies.map((dependency) => {
+    normalizedDependencies
+    .map((dependency) => {
 
       return waitForDependency(
         dependency,
