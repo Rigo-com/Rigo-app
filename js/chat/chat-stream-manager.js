@@ -74,6 +74,7 @@ function startChatStream(
   ){
 
     abortChatStream();
+
   }
 
   const streamId =
@@ -300,6 +301,10 @@ function scheduleStreamFlush(){
   .flushTimer =
   setTimeout(() => {
 
+    chatStreamState
+    .flushTimer =
+    null;
+
     flushStreamChunks();
 
   },
@@ -322,6 +327,10 @@ function flushStreamChunks(){
   if(
     !chatStreamState.active
   ){
+
+    chatStreamState
+    .flushing =
+    false;
 
     return false;
 
@@ -421,19 +430,43 @@ function processRenderQueue(){
 
       ){
 
+        if(
+          !chatStreamState.active
+          &&
+          chatStreamState.status !==
+          CHAT_STREAM_STATUS.COMPLETED
+        ){
+
+          break;
+
+        }
+
         const content =
 
           chatStreamState
           .renderQueue
           .shift();
 
-        if(
-          typeof renderStreamingMessage ===
-          "function"
-        ){
+        try{
 
-          renderStreamingMessage(
-            content
+          if(
+            typeof renderStreamingMessage ===
+            "function"
+          ){
+
+            renderStreamingMessage(
+              content
+            );
+
+          }
+
+        }
+
+        catch(error){
+
+          safeLogError?.(
+            "STREAM RENDER TASK ERROR",
+            error
           );
 
         }
@@ -500,10 +533,6 @@ function completeChatStream(){
   flushStreamChunks();
 
   chatStreamState
-  .active =
-  false;
-
-  chatStreamState
   .status =
   CHAT_STREAM_STATUS
   .COMPLETED;
@@ -564,6 +593,14 @@ function completeChatStream(){
     .shift();
 
   }
+
+  chatStreamState
+  .active =
+  false;
+
+  chatStreamState
+  .activeController =
+  null;
 
   return true;
 
@@ -627,6 +664,18 @@ function abortChatStream(){
   Date.now();
 
   chatStreamState
+  .chunkQueue =
+  [];
+
+  chatStreamState
+  .renderQueue =
+  [];
+
+  chatStreamState
+  .activeController =
+  null;
+
+  chatStreamState
   .diagnostics
   .aborted++;
 
@@ -656,6 +705,18 @@ function failChatStream(
   chatStreamState
   .streamEndAt =
   Date.now();
+
+  chatStreamState
+  .chunkQueue =
+  [];
+
+  chatStreamState
+  .renderQueue =
+  [];
+
+  chatStreamState
+  .activeController =
+  null;
 
   chatStreamState
   .diagnostics
@@ -721,7 +782,7 @@ Object.freeze({
   pushStreamChunk,
 
   flush:
-  flushStreamChunks,
+ flushStreamChunks,
 
   complete:
   completeChatStream,
