@@ -7,301 +7,39 @@
 
 
 // =====================================
-// RUNTIME STATE
+// INITIALIZE
 // =====================================
 
-const runtimeLifecycleState =
-Object.seal({
-
-  started:false,
-
-  destroyed:false,
-
-  binding:false,
-
-  processing:false,
-
-  streaming:false,
-
-  ready:false,
-
-  listenersBound:false
-
-});
-
-
-
-// =====================================
-// SCROLL TO BOTTOM
-// =====================================
-
-function scrollChatToBottom(){
+async function initializeChatRuntime(){
 
   try{
 
-    const container =
+    if(
+      chatRuntimeState?.initialized
+    ){
 
-      ChatElements
-      ?.getContainer?.();
+      return true;
 
-    if(!container){
+    }
+
+    if(
+      chatRuntimeState?.initializing
+    ){
 
       return false;
 
     }
 
-    requestAnimationFrame(() => {
-
-      container.scrollTop =
-      container.scrollHeight;
-
-    });
-
-    return true;
-
-  }
-
-  catch(error){
-
-    console.error(
-      "SCROLL_BOTTOM_ERROR:",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// BIND EVENTS
-// =====================================
-
-function bindRuntimeEvents(){
-
-  if(
-    runtimeLifecycleState
-    .listenersBound
-  ){
-
-    return true;
-
-  }
-
-  const sendButton =
-
-    ChatElements
-    ?.getSendButton?.();
-
-  const input =
-
-    ChatElements
-    ?.getInput?.();
-
-  if(
-    !sendButton ||
-    !input
-  ){
-
-    return false;
-
-  }
-
-  runtimeLifecycleState
-  .binding =
-  true;
-
-  try{
-
-    sendButton.addEventListener(
-      "click",
-      async () => {
-
-        if(
-          runtimeLifecycleState
-          .processing
-        ){
-
-          return;
-        }
-
-        runtimeLifecycleState
-        .processing =
-        true;
-
-        try{
-
-          await ChatRuntime.send();
-
-        }
-
-        finally{
-
-          runtimeLifecycleState
-          .processing =
-          false;
-
-        }
-
-      }
-    );
-
-    input.addEventListener(
-      "keydown",
-      async (event) => {
-
-        if(
-          event.key !== "Enter"
-        ){
-
-          return;
-
-        }
-
-        event.preventDefault();
-
-        if(
-          runtimeLifecycleState
-          .processing
-        ){
-
-          return;
-        }
-
-        runtimeLifecycleState
-        .processing =
-        true;
-
-        try{
-
-          await ChatRuntime.send();
-
-        }
-
-        finally{
-
-          runtimeLifecycleState
-          .processing =
-          false;
-
-        }
-
-      }
-    );
-
-    runtimeLifecycleState
-    .listenersBound =
+    chatRuntimeState.initializing =
     true;
 
-    return true;
-
-  }
-
-  catch(error){
-
-    console.error(
-      "RUNTIME_BIND_ERROR:",
-      error
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    runtimeLifecycleState
-    .binding =
-    false;
-
-  }
-
-}
 
 
+    // ============================
+    // CHAT ELEMENTS
+    // ============================
 
-// =====================================
-// START RUNTIME
-// =====================================
-
-function startChatRuntime(){
-
-  if(
-    runtimeLifecycleState
-    .started
-  ){
-
-    return true;
-
-  }
-
-  const initialized =
-  initializeChatRuntime();
-
-  if(!initialized){
-
-    return false;
-
-  }
-
-  const eventsBound =
-  bindRuntimeEvents();
-
-  if(!eventsBound){
-
-    return false;
-
-  }
-
-  runtimeLifecycleState
-  .started =
-  true;
-
-  runtimeLifecycleState
-  .destroyed =
-  false;
-
-  runtimeLifecycleState
-  .ready =
-  true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-function initializeChatRuntime(){
-
-  if(
-    chatRuntimeState?.initialized
-  ){
-
-    return true;
-
-  }
-
-  if(
-    chatRuntimeState?.initializing === true
-  ){
-
-    return false;
-
-  }
-
-  chatRuntimeState.initializing =
-  true;
-
-  try{
-
-    const elementsReady =
+    if(
 
       typeof ChatElements !==
       "undefined"
@@ -311,62 +49,131 @@ function initializeChatRuntime(){
       typeof ChatElements.initialize ===
       "function"
 
-      &&
+    ){
 
+      const elementsReady =
       ChatElements.initialize();
 
-    if(!elementsReady){
+      if(!elementsReady){
+
+        console.error(
+          "CHAT_ELEMENTS_INIT_FAILED"
+        );
+
+        return false;
+
+      }
+
+    }
+
+    else{
+
+      console.error(
+        "CHAT_ELEMENTS_MISSING"
+      );
 
       return false;
 
     }
 
-    const markdownReady =
 
-      typeof ChatMarkdownRenderer !==
-      "undefined"
 
-      &&
+    // ============================
+    // MARKDOWN
+    // ============================
 
-      typeof ChatMarkdownRenderer.initialize ===
-      "function"
+    try{
 
-      &&
+      if(
 
-      ChatMarkdownRenderer.initialize();
+        typeof ChatMarkdownRenderer !==
+        "undefined"
 
-    if(!markdownReady){
+        &&
 
-      return false;
+        typeof ChatMarkdownRenderer.initialize ===
+        "function"
 
-    }
+      ){
 
-    const streamReady =
+        ChatMarkdownRenderer.initialize();
 
-      typeof ChatStreamManager !==
-      "undefined"
+      }
 
-      &&
+      else{
 
-      typeof ChatStreamManager.initialize ===
-      "function"
+        console.warn(
+          "MARKDOWN_RENDERER_NOT_AVAILABLE"
+        );
 
-      &&
-
-      ChatStreamManager.initialize();
-
-    if(!streamReady){
-
-      return false;
+      }
 
     }
 
-    runtimeLifecycleState
-    .streaming =
-    false;
+    catch(error){
+
+      console.warn(
+        "MARKDOWN_INIT_WARNING:",
+        error
+      );
+
+    }
+
+
+
+    // ============================
+    // STREAM MANAGER
+    // ============================
+
+    try{
+
+      if(
+
+        typeof ChatStreamManager !==
+        "undefined"
+
+        &&
+
+        typeof ChatStreamManager.initialize ===
+        "function"
+
+      ){
+
+        ChatStreamManager.initialize();
+
+      }
+
+      else{
+
+        console.warn(
+          "STREAM_MANAGER_NOT_AVAILABLE"
+        );
+
+      }
+
+    }
+
+    catch(error){
+
+      console.warn(
+        "STREAM_MANAGER_WARNING:",
+        error
+      );
+
+    }
+
+
+
+    // ============================
+    // READY
+    // ============================
 
     chatRuntimeState.initialized =
     true;
+
+    console.log(
+      "CHAT_RUNTIME_READY"
+    );
 
     return true;
 
@@ -395,51 +202,12 @@ function initializeChatRuntime(){
 
 
 // =====================================
-// SAFE HELPERS
-// =====================================
-
-function safeFunction(
-  callback
-){
-
-  return typeof callback ===
-  "function"
-
-    ?
-
-    callback
-
-    :
-
-    function(){
-
-      console.warn(
-        "MISSING_FUNCTION"
-      );
-
-      return false;
-
-    };
-
-}
-
-
-
-// =====================================
 // RESET RUNTIME
 // =====================================
 
 async function resetChatRuntime(){
 
   try{
-
-    runtimeLifecycleState
-    .processing =
-    false;
-
-    runtimeLifecycleState
-    .streaming =
-    false;
 
     if(
       typeof abortMessageGeneration ===
@@ -451,6 +219,7 @@ async function resetChatRuntime(){
     }
 
     if(
+
       typeof ChatStreamManager !==
       "undefined"
 
@@ -458,6 +227,7 @@ async function resetChatRuntime(){
 
       typeof ChatStreamManager.destroy ===
       "function"
+
     ){
 
       ChatStreamManager.destroy();
@@ -474,6 +244,7 @@ async function resetChatRuntime(){
     }
 
     if(
+
       typeof ChatMarkdownRenderer !==
       "undefined"
 
@@ -481,6 +252,7 @@ async function resetChatRuntime(){
 
       typeof ChatMarkdownRenderer.reset ===
       "function"
+
     ){
 
       ChatMarkdownRenderer.reset();
@@ -488,6 +260,7 @@ async function resetChatRuntime(){
     }
 
     if(
+
       typeof ChatElements !==
       "undefined"
 
@@ -495,6 +268,7 @@ async function resetChatRuntime(){
 
       typeof ChatElements.cleanup ===
       "function"
+
     ){
 
       ChatElements.cleanup();
@@ -509,18 +283,6 @@ async function resetChatRuntime(){
       resetChatState();
 
     }
-
-    runtimeLifecycleState
-    .ready =
-    false;
-
-    runtimeLifecycleState
-    .started =
-    false;
-
-    runtimeLifecycleState
-    .destroyed =
-    true;
 
     return true;
 
@@ -542,50 +304,6 @@ async function resetChatRuntime(){
 
 
 // =====================================
-// GET RUNTIME STATUS
-// =====================================
-
-function getRuntimeLifecycleStatus(){
-
-  return Object.freeze({
-
-    started:
-
-      runtimeLifecycleState
-      .started,
-
-    destroyed:
-
-      runtimeLifecycleState
-      .destroyed,
-
-    processing:
-
-      runtimeLifecycleState
-      .processing,
-
-    streaming:
-
-      runtimeLifecycleState
-      .streaming,
-
-    ready:
-
-      runtimeLifecycleState
-      .ready,
-
-    listenersBound:
-
-      runtimeLifecycleState
-      .listenersBound
-
-  });
-
-}
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
@@ -595,37 +313,39 @@ Object.freeze({
   initialize:
   initializeChatRuntime,
 
-  start:
-  startChatRuntime,
-
-  scrollBottom:
-  scrollChatToBottom,
-
-  lifecycleStatus:
-  getRuntimeLifecycleStatus,
 
 
+  send:async function(){
 
-  // ===================================
-  // SAFE LIVE FUNCTION REFERENCES
-  // ===================================
+    try{
 
-  send:function(){
+      if(
+        typeof sendMessage ===
+        "function"
+      ){
 
-    if(
-      typeof sendMessage ===
-      "function"
-    ){
+        return await sendMessage();
 
-      return sendMessage();
+      }
+
+      console.error(
+        "SEND_MESSAGE_MISSING"
+      );
+
+      return false;
 
     }
 
-    console.error(
-      "SEND_MESSAGE_MISSING"
-    );
+    catch(error){
 
-    return false;
+      console.error(
+        "CHAT_RUNTIME_SEND_ERROR:",
+        error
+      );
+
+      return false;
+
+    }
 
   },
 
@@ -633,20 +353,28 @@ Object.freeze({
 
   process:function(){
 
-    if(
-      typeof processAIQueue ===
-      "function"
-    ){
+    try{
 
-      return processAIQueue();
+      if(
+        typeof processAIQueue ===
+        "function"
+      ){
+
+        return processAIQueue();
+
+      }
+
+      return false;
 
     }
 
-    console.error(
-      "PROCESS_QUEUE_MISSING"
-    );
+    catch(error){
 
-    return false;
+      console.error(error);
+
+      return false;
+
+    }
 
   },
 
@@ -654,22 +382,30 @@ Object.freeze({
 
   add:function(message){
 
-    if(
-      typeof addMessage ===
-      "function"
-    ){
+    try{
 
-      return addMessage(
-        message
-      );
+      if(
+        typeof addMessage ===
+        "function"
+      ){
+
+        return addMessage(
+          message
+        );
+
+      }
+
+      return false;
 
     }
 
-    console.error(
-      "ADD_MESSAGE_MISSING"
-    );
+    catch(error){
 
-    return false;
+      console.error(error);
+
+      return false;
+
+    }
 
   },
 
@@ -677,20 +413,28 @@ Object.freeze({
 
   reset:function(){
 
-    if(
-      typeof resetCurrentChat ===
-      "function"
-    ){
+    try{
 
-      return resetCurrentChat();
+      if(
+        typeof resetCurrentChat ===
+        "function"
+      ){
+
+        return resetCurrentChat();
+
+      }
+
+      return false;
 
     }
 
-    console.error(
-      "RESET_CHAT_MISSING"
-    );
+    catch(error){
 
-    return false;
+      console.error(error);
+
+      return false;
+
+    }
 
   },
 
@@ -698,20 +442,28 @@ Object.freeze({
 
   abort:function(){
 
-    if(
-      typeof abortMessageGeneration ===
-      "function"
-    ){
+    try{
 
-      return abortMessageGeneration();
+      if(
+        typeof abortMessageGeneration ===
+        "function"
+      ){
+
+        return abortMessageGeneration();
+
+      }
+
+      return false;
 
     }
 
-    console.error(
-      "ABORT_GENERATION_MISSING"
-    );
+    catch(error){
 
-    return false;
+      console.error(error);
+
+      return false;
+
+    }
 
   },
 
@@ -719,20 +471,28 @@ Object.freeze({
 
   status:function(){
 
-    if(
-      typeof getChatRuntimeStatus ===
-      "function"
-    ){
+    try{
 
-      return getChatRuntimeStatus();
+      if(
+        typeof getChatRuntimeStatus ===
+        "function"
+      ){
+
+        return getChatRuntimeStatus();
+
+      }
+
+      return null;
 
     }
 
-    console.error(
-      "STATUS_FUNCTION_MISSING"
-    );
+    catch(error){
 
-    return null;
+      console.error(error);
+
+      return null;
+
+    }
 
   },
 
