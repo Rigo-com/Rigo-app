@@ -238,27 +238,37 @@
 
 
         // ============================
-        // ELEMENTS
+        // START CHAT RUNTIME
         // ============================
 
-        const sendBtn =
-        document.getElementById(
-          "sendBtn"
-        );
+        if(
+          typeof ChatRuntime !==
+          "undefined"
+
+          &&
+
+          typeof ChatRuntime.start ===
+          "function"
+        ){
+
+          ChatRuntime.start();
+
+        }
+
+
+
+        // ============================
+        // ELEMENTS
+        // ============================
 
         const messageInput =
         document.getElementById(
           "messageInput"
         );
 
-        const chatContainer =
+        const sendBtn =
         document.getElementById(
-          "chatContainer"
-        );
-
-        const newChatBtn =
-        document.getElementById(
-          "newChatBtn"
+          "sendBtn"
         );
 
         const languageBtn =
@@ -338,238 +348,6 @@
 
 
         // ============================
-        // CREATE MESSAGE
-        // ============================
-
-        function createMessage(
-          text,
-          role
-        ){
-
-          const wrapper =
-          document.createElement(
-            "div"
-          );
-
-          wrapper.className =
-
-            role === "user"
-
-            ?
-
-            "message user-message"
-
-            :
-
-            "message ai-message";
-
-
-
-          const content =
-          document.createElement(
-            "div"
-          );
-
-          content.className =
-          "message-content";
-
-          content.textContent =
-          text;
-
-
-
-          wrapper.appendChild(
-            content
-          );
-
-          return wrapper;
-
-        }
-
-
-
-        // ============================
-        // HANDLE SEND
-        // ============================
-
-        async function handleSend(){
-
-          try{
-
-            const text =
-            String(
-              messageInput?.value || ""
-            )
-            .trim();
-
-            if(!text){
-
-              return;
-
-            }
-
-
-
-            // ============================
-            // USER MESSAGE
-            // ============================
-
-            const userMessage =
-            createMessage(
-              text,
-              "user"
-            );
-
-            chatContainer
-            ?.appendChild(
-              userMessage
-            );
-
-
-
-            // ============================
-            // CLEAR INPUT
-            // ============================
-
-            messageInput.value =
-            "";
-
-            messageInput.style.height =
-            "58px";
-
-
-
-            // ============================
-            // RESET INPUT ALIGN
-            // ============================
-
-            if(
-              document.documentElement
-              .dir === "rtl"
-            ){
-
-              messageInput.style.direction =
-              "rtl";
-
-              messageInput.style.textAlign =
-              "right";
-
-            }
-
-            else{
-
-              messageInput.style.direction =
-              "ltr";
-
-              messageInput.style.textAlign =
-              "left";
-
-            }
-
-
-
-            // ============================
-            // SCROLL
-            // ============================
-
-            chatContainer.scrollTop =
-            chatContainer.scrollHeight;
-
-
-
-            // ============================
-            // TEMP AI RESPONSE
-            // ============================
-
-            setTimeout(() => {
-
-              const aiMessage =
-              createMessage(
-                "RIGO AI RESPONSE",
-                "assistant"
-              );
-
-              chatContainer
-              ?.appendChild(
-                aiMessage
-              );
-
-              chatContainer.scrollTop =
-              chatContainer.scrollHeight;
-
-            },500);
-
-          }
-
-          catch(error){
-
-            console.error(
-              "DIRECT_SEND_ERROR:",
-              error
-            );
-
-          }
-
-        }
-
-
-
-        // ============================
-        // SEND BUTTON
-        // ============================
-
-        sendBtn
-        ?.addEventListener(
-          "click",
-          handleSend
-        );
-
-
-
-        // ============================
-        // ENTER KEY
-        // ============================
-
-        messageInput
-        ?.addEventListener(
-          "keydown",
-          (event) => {
-
-            if(
-              event.key === "Enter"
-              &&
-              !event.shiftKey
-            ){
-
-              event.preventDefault();
-
-              handleSend();
-
-            }
-
-          }
-        );
-
-
-
-        // ============================
-        // NEW CHAT
-        // ============================
-
-        newChatBtn
-        ?.addEventListener(
-          "click",
-          () => {
-
-            chatContainer.innerHTML =
-            "";
-
-          }
-        );
-
-
-
-        // ============================
         // LANGUAGE TOGGLE
         // ============================
 
@@ -630,6 +408,66 @@
 
               languageBtn.innerText =
               "EN";
+
+            }
+
+          }
+        );
+
+
+
+        // ============================
+        // NEW CHAT
+        // ============================
+
+        const newChatBtn =
+        document.getElementById(
+          "newChatBtn"
+        );
+
+        newChatBtn
+        ?.addEventListener(
+          "click",
+          async () => {
+
+            try{
+
+              if(
+                typeof ChatRuntime !==
+                "undefined"
+
+                &&
+
+                typeof ChatRuntime.reset ===
+                "function"
+              ){
+
+                await ChatRuntime.reset();
+
+              }
+
+              if(
+                typeof ChatRuntime !==
+                "undefined"
+
+                &&
+
+                typeof ChatRuntime.start ===
+                "function"
+              ){
+
+                ChatRuntime.start();
+
+              }
+
+            }
+
+            catch(error){
+
+              console.error(
+                "NEW_CHAT_ERROR:",
+                error
+              );
 
             }
 
