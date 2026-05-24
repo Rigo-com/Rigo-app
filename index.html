@@ -244,17 +244,30 @@
         // INIT CHAT
         // ============================
 
-        if(
-          typeof ChatRuntime !==
-          "undefined"
+        try{
 
-          &&
+          if(
+            typeof ChatElements !==
+            "undefined"
 
-          typeof ChatRuntime.initialize ===
-          "function"
-        ){
+            &&
 
-          ChatRuntime.initialize();
+            typeof ChatElements.initialize ===
+            "function"
+          ){
+
+            ChatElements.initialize();
+
+          }
+
+        }
+
+        catch(error){
+
+          console.error(
+            "CHAT_INIT_ERROR:",
+            error
+          );
 
         }
 
@@ -274,28 +287,46 @@
           "messageInput"
         );
 
+        async function handleSend(){
+
+          try{
+
+            if(
+              typeof sendMessage ===
+              "function"
+            ){
+
+              await sendMessage();
+
+            }
+
+            else{
+
+              console.error(
+                "SEND_MESSAGE_NOT_FOUND"
+              );
+
+            }
+
+          }
+
+          catch(error){
+
+            console.error(
+              "HANDLE_SEND_ERROR:",
+              error
+            );
+
+          }
+
+        }
+
         if(sendBtn){
 
           sendBtn
           .addEventListener(
             "click",
-            () => {
-
-              if(
-                typeof ChatRuntime !==
-                "undefined"
-
-                &&
-
-                typeof ChatRuntime.send ===
-                "function"
-              ){
-
-                ChatRuntime.send();
-
-              }
-
-            }
+            handleSend
           );
 
         }
@@ -319,19 +350,7 @@
 
                 event.preventDefault();
 
-                if(
-                  typeof ChatRuntime !==
-                  "undefined"
-
-                  &&
-
-                  typeof ChatRuntime.send ===
-                  "function"
-                ){
-
-                  ChatRuntime.send();
-
-                }
+                handleSend();
 
               }
 
@@ -366,8 +385,12 @@
                 document.body.dir =
                 "ltr";
 
-                messageInput.placeholder =
-                "Type your message...";
+                if(messageInput){
+
+                  messageInput.placeholder =
+                  "Type your message...";
+
+                }
 
                 languageBtn.innerText =
                 "AR";
@@ -379,8 +402,12 @@
                 document.body.dir =
                 "rtl";
 
-                messageInput.placeholder =
-                "اكتب رسالتك هنا...";
+                if(messageInput){
+
+                  messageInput.placeholder =
+                  "اكتب رسالتك هنا...";
+
+                }
 
                 languageBtn.innerText =
                 "EN";
