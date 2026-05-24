@@ -631,6 +631,12 @@ body{
   border:
   1px solid var(--border-color);
 
+  direction:auto;
+
+  unicode-bidi:plaintext;
+
+  text-align:start;
+
 }
 
 #messageInput:focus{
