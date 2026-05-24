@@ -6,7 +6,53 @@
 
 
 // =====================================
-// RUNTIME STATE
+// FALLBACK STATES
+// =====================================
+
+const INTERNAL_RUNTIME_STATES =
+typeof RUNTIME_STATES !==
+"undefined"
+
+  ? RUNTIME_STATES
+
+  : Object.freeze({
+
+      IDLE:"idle",
+      BOOTING:"booting",
+      RUNNING:"running",
+      RECOVERING:"recovering",
+      SHUTDOWN:"shutdown"
+
+    });
+
+
+
+// =====================================
+// DEFAULT DIAGNOSTICS
+// =====================================
+
+function createDefaultDiagnostics(){
+
+  return {
+
+    boots:0,
+
+    recoveries:0,
+
+    shutdowns:0,
+
+    failures:0,
+
+    synchronizedSystems:0
+
+  };
+
+}
+
+
+
+// =====================================
+// INTERNAL STATE
 // =====================================
 
 const runtimeManagerState =
@@ -21,7 +67,7 @@ Object.seal({
   recovering:false,
 
   runtimeState:
-  RUNTIME_STATES
+  INTERNAL_RUNTIME_STATES
   .IDLE,
 
   startupQueue:[],
@@ -30,19 +76,8 @@ Object.seal({
 
   bootRetries:0,
 
-  diagnostics:{
-
-    boots:0,
-
-    recoveries:0,
-
-    shutdowns:0,
-
-    failures:0,
-
-    synchronizedSystems:0
-
-  },
+  diagnostics:
+  createDefaultDiagnostics(),
 
   startedAt:null,
 
@@ -123,9 +158,87 @@ function createRuntimeStateSnapshot(){
 
     lastShutdownAt:
     runtimeManagerState
-    .lastShutdownAt
+    .lastShutdownAt,
+
+    timestamp:
+    Date.now()
 
   });
+
+}
+
+
+
+// =====================================
+// STATE HELPERS
+// =====================================
+
+function updateRuntimeState(
+
+  key,
+  value
+
+){
+
+  if(
+    !(key in runtimeManagerState)
+  ){
+
+    return false;
+
+  }
+
+  runtimeManagerState[key] =
+  value;
+
+  return true;
+
+}
+
+
+
+function pushRuntimeError(
+  error
+){
+
+  if(!error){
+
+    return false;
+
+  }
+
+  runtimeManagerState
+  .runtimeErrors
+  .push(String(error));
+
+  return true;
+
+}
+
+
+
+function incrementRuntimeMetric(
+  metric
+){
+
+  if(
+
+    !runtimeManagerState
+    .diagnostics[metric] &&
+
+    runtimeManagerState
+    .diagnostics[metric] !== 0
+
+  ){
+
+    return false;
+
+  }
+
+  runtimeManagerState
+  .diagnostics[metric]++;
+
+  return true;
 
 }
 
@@ -155,7 +268,7 @@ function resetRuntimeState(){
 
   runtimeManagerState
   .runtimeState =
-  RUNTIME_STATES
+  INTERNAL_RUNTIME_STATES
   .IDLE;
 
   runtimeManagerState
@@ -169,6 +282,10 @@ function resetRuntimeState(){
   runtimeManagerState
   .bootRetries =
   0;
+
+  runtimeManagerState
+  .diagnostics =
+  createDefaultDiagnostics();
 
   runtimeManagerState
   .startedAt =
@@ -203,7 +320,16 @@ Object.freeze({
   createRuntimeStateSnapshot,
 
   reset:
-  resetRuntimeState
+  resetRuntimeState,
+
+  update:
+  updateRuntimeState,
+
+  pushError:
+  pushRuntimeError,
+
+  incrementMetric:
+  incrementRuntimeMetric
 
 });
 
@@ -220,8 +346,5 @@ if(
 
   window.RuntimeState =
   RuntimeState;
-
-  window.runtimeManagerState =
-  runtimeManagerState;
 
 }
