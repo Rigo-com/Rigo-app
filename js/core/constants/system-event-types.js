@@ -3,13 +3,15 @@
 // SYSTEM EVENT TYPES
 // =====================================
 
+
+
 const SYSTEM_EVENT_TYPES =
 Object.freeze({
 
 
 
   // ===================================
-  // APP
+  // APPLICATION
   // ===================================
 
   APP_INITIALIZED:
@@ -27,7 +29,7 @@ Object.freeze({
 
 
   // ===================================
-  // AUTH
+  // AUTHENTICATION
   // ===================================
 
   AUTH_LOGIN:
@@ -63,14 +65,14 @@ Object.freeze({
   // AI
   // ===================================
 
-  AI_REQUEST:
-  "ai.request",
+  AI_REQUEST_STARTED:
+  "ai.request.started",
 
-  AI_RESPONSE:
-  "ai.response",
+  AI_RESPONSE_RECEIVED:
+  "ai.response.received",
 
-  AI_ERROR:
-  "ai.error",
+  AI_REQUEST_FAILED:
+  "ai.request.failed",
 
 
 
@@ -100,3 +102,35 @@ Object.freeze({
   "network.offline"
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SYSTEM_EVENT_TYPES",
+
+    {
+
+      value:
+      SYSTEM_EVENT_TYPES,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
