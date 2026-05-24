@@ -1,4 +1,5 @@
 // =====================================
+// RIGO AI
 // DEPENDENCY VALIDATOR
 // =====================================
 
@@ -12,7 +13,7 @@ function validateDependencyStructure(
   dependency
 ){
 
-  return (
+  return Boolean(
 
     dependency &&
 
@@ -20,7 +21,37 @@ function validateDependencyStructure(
     "object" &&
 
     typeof dependency.name ===
-    "string"
+    "string" &&
+
+    Array.isArray(
+      dependency.dependencies
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// GET GRAPH DEPENDENCIES
+// =====================================
+
+function getGraphDependencies(
+  dependencyName
+){
+
+  return (
+
+    appDependencyRegistry
+    .dependencyGraph
+    .get(
+      dependencyName
+    )
+
+    ||
+
+    new Set()
 
   );
 
@@ -73,16 +104,9 @@ function validateCircularDependencies(){
     );
 
     const dependencies =
-
-      appDependencyRegistry
-      .dependencyGraph
-      .get(
-        dependencyName
-      )
-
-      ||
-
-      new Set();
+    getGraphDependencies(
+      dependencyName
+    );
 
     for(
       const dependency
@@ -178,7 +202,9 @@ function validateMissingDependencies(){
         appDependencyRegistry
         .dependencies
         .has(
-          requiredDependency
+          normalizeDependencyName(
+            requiredDependency
+          )
         );
 
       if(!exists){
@@ -198,54 +224,10 @@ function validateMissingDependencies(){
 
 
 // =====================================
-// VALIDATE REGISTRY
+// VALIDATE RESOLVERS
 // =====================================
 
-async function validateDependencyRegistry(){
-
-  appDependencyRegistry
-  .diagnostics
-  .validations++;
-
-  appDependencyRegistry
-  .lastValidationAt =
-  Date.now();
-
-
-
-  // ===================================
-  // CIRCULAR
-  // ===================================
-
-  const validCircular =
-  validateCircularDependencies();
-
-  if(!validCircular){
-
-    return false;
-
-  }
-
-
-
-  // ===================================
-  // MISSING
-  // ===================================
-
-  const validMissing =
-  validateMissingDependencies();
-
-  if(!validMissing){
-
-    return false;
-
-  }
-
-
-
-  // ===================================
-  // RESOLVERS
-  // ===================================
+async function validateDependencyResolvers(){
 
   const dependencies = [
 
@@ -314,7 +296,7 @@ async function validateDependencyRegistry(){
     catch(error){
 
       failDependency(
-        dependency.name
+        dependency?.name
       );
 
       return false;
@@ -324,6 +306,62 @@ async function validateDependencyRegistry(){
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// VALIDATE REGISTRY
+// =====================================
+
+async function validateDependencyRegistry(){
+
+  appDependencyRegistry
+  .diagnostics
+  .validations++;
+
+  appDependencyRegistry
+  .lastValidationAt =
+  Date.now();
+
+
+
+  // ===================================
+  // CIRCULAR
+  // ===================================
+
+  const validCircular =
+  validateCircularDependencies();
+
+  if(!validCircular){
+
+    return false;
+
+  }
+
+
+
+  // ===================================
+  // MISSING
+  // ===================================
+
+  const validMissing =
+  validateMissingDependencies();
+
+  if(!validMissing){
+
+    return false;
+
+  }
+
+
+
+  // ===================================
+  // RESOLVERS
+  // ===================================
+
+  return validateDependencyResolvers();
 
 }
 
@@ -346,5 +384,8 @@ if(
 
   window.validateMissingDependencies =
   validateMissingDependencies;
+
+  window.validateDependencyResolvers =
+  validateDependencyResolvers;
 
 }
