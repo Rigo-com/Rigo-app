@@ -27,6 +27,40 @@ Object.seal({
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function updateBootstrapState(
+  updates = {}
+){
+
+  Object.assign(
+
+    bootstrapState,
+
+    updates
+
+  );
+
+  return true;
+
+}
+
+
+
+function normalizeBootstrapError(
+  error
+){
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+// =====================================
 // SAFE MODULE REGISTER
 // =====================================
 
@@ -128,6 +162,143 @@ function registerBootstrapDependencies(){
 
 
 // =====================================
+// VALIDATE ENVIRONMENT
+// =====================================
+
+function validateBootstrapEnvironment(){
+
+  const environment =
+  AppEnvironment
+  .validate();
+
+  if(
+    !environment?.valid
+  ){
+
+    throw new Error(
+      "INVALID ENVIRONMENT"
+    );
+
+  }
+
+  safeRegisterModule(
+    "environment"
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE DOM
+// =====================================
+
+function initializeBootstrapDOM(){
+
+  const initializedDOM =
+  initializeDOMElements();
+
+  if(!initializedDOM){
+
+    throw new Error(
+      "DOM INITIALIZATION FAILED"
+    );
+
+  }
+
+  safeRegisterModule(
+    "dom"
+  );
+
+  const validDOM =
+  validateDOMElements();
+
+  if(!validDOM){
+
+    safeFailModule(
+      "dom"
+    );
+
+    throw new Error(
+      "DOM VALIDATION FAILED"
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE DEPENDENCIES
+// =====================================
+
+async function initializeBootstrapDependencies(){
+
+  registerBootstrapDependencies();
+
+  const validDependencies =
+  await DependencySystem
+  .validate();
+
+  if(!validDependencies){
+
+    safeFailModule(
+      "dependencies"
+    );
+
+    throw new Error(
+      "DEPENDENCY REGISTRY FAILED"
+    );
+
+  }
+
+  safeRegisterModule(
+    "dependencies"
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE EVENTS
+// =====================================
+
+function initializeBootstrapEvents(){
+
+  const eventsReady =
+  setupAppEvents();
+
+  if(!eventsReady){
+
+    safeFailModule(
+      "events"
+    );
+
+    throw new Error(
+      "APP EVENTS FAILED"
+    );
+
+  }
+
+  safeRegisterModule(
+    "events"
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
 // INITIALIZE APP
 // =====================================
 
@@ -151,17 +322,16 @@ async function initializeApp(){
 
   }
 
-  bootstrapState
-  .bootstrapping =
-  true;
+  updateBootstrapState({
 
-  bootstrapState
-  .startedAt =
-  Date.now();
+    bootstrapping:true,
 
-  bootstrapState
-  .lastError =
-  null;
+    startedAt:
+    Date.now(),
+
+    lastError:null
+
+  });
 
   try{
 
@@ -180,22 +350,7 @@ async function initializeApp(){
     // ENVIRONMENT
     // ===================================
 
-    const environment =
-    validateAppEnvironment();
-
-    if(
-      !environment?.valid
-    ){
-
-      throw new Error(
-        "INVALID ENVIRONMENT"
-      );
-
-    }
-
-    safeRegisterModule(
-      "environment"
-    );
+    validateBootstrapEnvironment();
 
 
 
@@ -203,34 +358,7 @@ async function initializeApp(){
     // DOM
     // ===================================
 
-    const initializedDOM =
-    initializeDOMElements();
-
-    if(!initializedDOM){
-
-      throw new Error(
-        "DOM INITIALIZATION FAILED"
-      );
-
-    }
-
-    safeRegisterModule(
-      "dom");
-
-    const validDOM =
-    validateDOMElements();
-
-    if(!validDOM){
-
-      safeFailModule(
-        "dom"
-      );
-
-      throw new Error(
-        "DOM VALIDATION FAILED"
-      );
-
-    }
+    initializeBootstrapDOM();
 
 
 
@@ -238,26 +366,7 @@ async function initializeApp(){
     // DEPENDENCIES
     // ===================================
 
-    registerBootstrapDependencies();
-
-    const validDependencies =
-    await validateDependencyRegistry();
-
-    if(!validDependencies){
-
-      safeFailModule(
-        "dependencies"
-      );
-
-      throw new Error(
-        "DEPENDENCY REGISTRY FAILED"
-      );
-
-    }
-
-    safeRegisterModule(
-      "dependencies"
-    );
+    await initializeBootstrapDependencies();
 
 
 
@@ -265,24 +374,7 @@ async function initializeApp(){
     // EVENTS
     // ===================================
 
-    const eventsReady =
-    setupAppEvents();
-
-    if(!eventsReady){
-
-      safeFailModule(
-        "events"
-      );
-
-      throw new Error(
-        "APP EVENTS FAILED"
-      );
-
-    }
-
-    safeRegisterModule(
-      "events"
-    );
+    initializeBootstrapEvents();
 
 
 
@@ -290,13 +382,14 @@ async function initializeApp(){
     // COMPLETE
     // ===================================
 
-    bootstrapState
-    .initialized =
-    true;
+    updateBootstrapState({
 
-    bootstrapState
-    .completedAt =
-    Date.now();
+      initialized:true,
+
+      completedAt:
+      Date.now()
+
+    });
 
     if(
       typeof logDiagnosticInfo ===
@@ -329,9 +422,11 @@ async function initializeApp(){
 
   catch(error){
 
-    bootstrapState
-    .lastError =
-    error;
+    updateBootstrapState({
+
+      lastError:error
+
+    });
 
     updateAppPhase(
       APP_PHASES
@@ -350,7 +445,9 @@ async function initializeApp(){
         {
 
           error:
-          String(error)
+          normalizeBootstrapError(
+            error
+          )
 
         }
 
@@ -364,9 +461,11 @@ async function initializeApp(){
 
   finally{
 
-    bootstrapState
-    .bootstrapping =
-    false;
+    updateBootstrapState({
+
+      bootstrapping:false
+
+    });
 
   }
 
@@ -380,7 +479,7 @@ async function initializeApp(){
 
 function createBootstrapSnapshot(){
 
-  return Object.freeze({
+  return freezeEnvironmentObject({
 
     initialized:
     bootstrapState
@@ -403,7 +502,7 @@ function createBootstrapSnapshot(){
       bootstrapState
       .lastError
 
-      ? String(
+      ? normalizeBootstrapError(
           bootstrapState
           .lastError
         )
@@ -417,6 +516,23 @@ function createBootstrapSnapshot(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const AppBootstrap =
+Object.freeze({
+
+  initialize:
+  initializeApp,
+
+  snapshot:
+  createBootstrapSnapshot
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -425,10 +541,7 @@ if(
   "undefined"
 ){
 
-  window.initializeApp =
-  initializeApp;
-
-  window.createBootstrapSnapshot =
-  createBootstrapSnapshot;
+  window.AppBootstrap =
+  AppBootstrap;
 
 }
