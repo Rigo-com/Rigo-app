@@ -1,40 +1,174 @@
 // =====================================
 // RIGO AI
-// CORE CONSTANTS INDEX
+// CONSTANTS INDEX
 // =====================================
 
 
 
+// =====================================
+// SAFE ACCESS
+// =====================================
+
+function resolveConstant(
+  constantReference
+){
+
+  return (
+
+    typeof constantReference !==
+    "undefined"
+
+    ?
+
+    constantReference
+
+    :
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// CONSTANTS API
+// =====================================
+
 const ConstantsAPI =
 Object.freeze({
 
+
+
+  // ===================================
+  // APP
+  // ===================================
+
   phases:
-  APP_PHASES,
+  resolveConstant(
+    typeof APP_PHASES !==
+    "undefined"
+
+    ?
+
+    APP_PHASES
+
+    :
+
+    undefined
+  ),
+
+
+
+  // ===================================
+  // RUNTIME
+  // ===================================
 
   runtimeEvents:
-  RUNTIME_EVENTS,
+  resolveConstant(
+    typeof RUNTIME_EVENTS !==
+    "undefined"
+
+    ?
+
+    RUNTIME_EVENTS
+
+    :
+
+    undefined
+  ),
+
+
 
   runtimeStates:
-  RUNTIME_STATES,
+  resolveConstant(
+    typeof RUNTIME_STATES !==
+    "undefined"
+
+    ?
+
+    RUNTIME_STATES
+
+    :
+
+    undefined
+  ),
+
+
 
   runtimeManager:
-  RUNTIME_MANAGER_CONFIG,
+  resolveConstant(
+    typeof RUNTIME_MANAGER_CONFIG !==
+    "undefined"
+
+    ?
+
+    RUNTIME_MANAGER_CONFIG
+
+    :
+
+    undefined
+  ),
+
+
+
+  // ===================================
+  // SYSTEM EVENTS
+  // ===================================
 
   systemEventConfig:
-  SYSTEM_EVENTS_CONFIG,
+  resolveConstant(
+    typeof SYSTEM_EVENTS_CONFIG !==
+    "undefined"
+
+    ?
+
+    SYSTEM_EVENTS_CONFIG
+
+    :
+
+    undefined
+  ),
+
+
 
   systemEventPriorities:
-  SYSTEM_EVENT_PRIORITIES,
+  resolveConstant(
+    typeof SYSTEM_EVENT_PRIORITIES !==
+    "undefined"
+
+    ?
+
+    SYSTEM_EVENT_PRIORITIES
+
+    :
+
+    undefined
+  ),
+
+
 
   systemEventTypes:
-  SYSTEM_EVENT_TYPES
+  resolveConstant(
+    typeof SYSTEM_EVENT_TYPES !==
+    "undefined"
+
+    ?
+
+    SYSTEM_EVENT_TYPES
+
+    :
+
+    undefined
+  )
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORT
+// GLOBAL EXPORTS
 // =====================================
 
 if(
@@ -42,7 +176,23 @@ if(
   "undefined"
 ){
 
-  window.ConstantsAPI =
-  ConstantsAPI;
+  Object.defineProperty(
+
+    window,
+
+    "ConstantsAPI",
+
+    {
+
+      value:
+      ConstantsAPI,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
