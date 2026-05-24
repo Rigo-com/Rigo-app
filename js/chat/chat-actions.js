@@ -12,168 +12,215 @@
 
 async function sendMessage(){
 
-  const messageInput =
-  ChatElements.getInput();
+  try{
 
-  if(!messageInput){
+    const messageInput =
+    ChatElements?.getInput?.();
 
-    return false;
+    if(!messageInput){
 
-  }
-
-  const text =
-  String(
-    messageInput.value || ""
-  )
-  .trim();
-
-  if(!text){
-
-    return false;
-
-  }
-
-  if(
-
-    text.length >
-
-    APP_CONFIG
-    ?.CHAT
-    ?.MAX_MESSAGE_LENGTH
-
-  ){
-
-    safeLogError?.(
-      "MESSAGE TOO LONG"
-    );
-
-    return false;
-
-  }
-
-  if(
-
-    chatRuntimeState
-    .queue
-    .length >=
-
-    CHAT_RUNTIME_CONFIG
-    .MAX_QUEUE_SIZE
-
-  ){
-
-    safeLogError?.(
-      "QUEUE LIMIT REACHED"
-    );
-
-    return false;
-
-  }
-
-  if(
-    currentChat?.title === ""
-  ){
-
-    currentChat.title =
-    generateChatTitle(
-      text
-    );
-
-  }
-
-  const userMessage =
-  freezeChatObject({
-
-    id:createMessageId(),
-
-    role:"user",
-
-    content:text,
-
-    timestamp:Date.now(),
-
-    metadata:{
-
-      retries:0,
-
-      latency:null,
-
-      generationTime:null
-
-    }
-
-  });
-
-  const added =
-  addMessage(
-    userMessage
-  );
-
-  if(!added){
-
-    return false;
-
-  }
-
-  messageInput.value =
-  "";
-
-  ChatElements
-  .focusInput();
-
-  const duplicateQueueItem =
-
-    chatRuntimeState
-    .queue
-    .some((item) => {
-
-      return (
-        item.id ===
-        userMessage.id
+      console.error(
+        "MESSAGE_INPUT_NOT_FOUND"
       );
 
-    });
+      return false;
 
-  if(
-    duplicateQueueItem
-  ){
+    }
+
+    const text =
+    String(
+      messageInput.value || ""
+    )
+    .trim();
+
+    if(!text){
+
+      return false;
+
+    }
+
+    const maxLength =
+
+      APP_CONFIG
+      ?.CHAT
+      ?.MAX_MESSAGE_LENGTH
+
+      ||
+
+      4000;
+
+    if(
+      text.length > maxLength
+    ){
+
+      console.error(
+        "MESSAGE_TOO_LONG"
+      );
+
+      return false;
+
+    }
+
+    if(
+      !chatRuntimeState.queue
+    ){
+
+      chatRuntimeState.queue =
+      [];
+
+    }
+
+    const maxQueue =
+
+      CHAT_RUNTIME_CONFIG
+      ?.MAX_QUEUE_SIZE
+
+      ||
+
+      10;
+
+    if(
+      chatRuntimeState.queue.length >=
+      maxQueue
+    ){
+
+      console.error(
+        "QUEUE_LIMIT"
+      );
+
+      return false;
+
+    }
+
+    const userMessage = {
+
+      id:
+
+        typeof createMessageId ===
+        "function"
+
+        ?
+
+        createMessageId()
+
+        :
+
+        String(Date.now()),
+
+      role:"user",
+
+      content:text,
+
+      timestamp:Date.now()
+
+    };
+
+
+
+    // =========================
+    // SIMPLE UI RENDER
+    // =========================
+
+    const container =
+    ChatElements?.getContainer?.();
+
+    if(container){
+
+      const messageElement =
+      document.createElement("div");
+
+      messageElement.className =
+      "message user-message";
+
+      messageElement.textContent =
+      text;
+
+      container.appendChild(
+        messageElement
+      );
+
+      container.scrollTop =
+      container.scrollHeight;
+
+    }
+
+
+
+    // =========================
+    // STORE MESSAGE
+    // =========================
+
+    if(
+      typeof addMessage ===
+      "function"
+    ){
+
+      try{
+
+        addMessage(
+          userMessage
+        );
+
+      }
+
+      catch(error){
+
+        console.error(error);
+
+      }
+
+    }
+
+
+
+    // =========================
+    // CLEAR INPUT
+    // =========================
+
+    messageInput.value = "";
+
+    messageInput.focus();
+
+
+
+    // =========================
+    // TEMP AI RESPONSE
+    // =========================
+
+    setTimeout(() => {
+
+      const aiElement =
+      document.createElement("div");
+
+      aiElement.className =
+      "message ai-message";
+
+      aiElement.textContent =
+      "RIGO AI RESPONSE";
+
+      container?.appendChild(
+        aiElement
+      );
+
+      container.scrollTop =
+      container.scrollHeight;
+
+    },500);
+
+    return true;
+
+  }
+
+  catch(error){
+
+    console.error(
+      "SEND_MESSAGE_ERROR:",
+      error
+    );
 
     return false;
 
   }
-
-  const queueItem =
-  createQueueItem(
-    userMessage.id
-  );
-
-  chatRuntimeState
-  .queue
-  .push(
-    queueItem
-  );
-
-  chatRuntimeState
-  .diagnostics
-  .messages++;
-
-  await emitChatRuntimeEvent(
-
-    CHAT_RUNTIME_EVENTS
-    .MESSAGE_CREATED,
-
-    {
-
-      messageId:
-      userMessage.id
-
-    }
-
-  );
-
-  continueQueueProcessing();
-
-  return true;
 
 }
 
@@ -188,7 +235,7 @@ async function abortMessageGeneration(){
   const controller =
 
     chatRuntimeState
-    .generationController;
+    ?.generationController;
 
   if(!controller){
 
@@ -210,19 +257,17 @@ async function abortMessageGeneration(){
 
   catch(error){
 
-    safeLogError?.(
+    console.error(
       "ABORT ERROR:",
       error
     );
 
   }
 
-  chatRuntimeState
-  .generating =
+  chatRuntimeState.generating =
   false;
 
-  chatRuntimeState
-  .streaming =
+  chatRuntimeState.streaming =
   false;
 
   return true;
@@ -239,123 +284,48 @@ function addMessage(
   messageData
 ){
 
-  const chatContainer =
-  ChatElements.getContainer();
-
-  if(!chatContainer){
-
-    return false;
-
-  }
-
-  if(
-    !currentChat
-  ){
-
-    return false;
-
-  }
-
-  const validMessage =
-  validateMessage?.(
-    messageData
-  );
-
-  if(!validMessage){
-
-    return false;
-
-  }
-
-  const messages =
-
-    Array.isArray(
-      currentChat.messages
-    )
-
-    ?
-
-    currentChat.messages
-
-    :
-
-    [];
-
-  const duplicate =
-  messages.some(
-    (message) => {
-
-      return (
-        message?.id ===
-        messageData?.id
-      );
-
-    }
-  );
-
-  if(
-    duplicate
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    const safeMessage =
-    safeClone(
-      messageData
-    );
+    const chatContainer =
+    ChatElements
+    ?.getContainer?.();
 
-    if(!safeMessage){
+    if(!chatContainer){
+
+      return false;
+
+    }
+
+    if(!messageData){
 
       return false;
 
     }
 
     const messageElement =
-    createMessageElement(
-      safeMessage
-    );
+    document.createElement("div");
 
-    if(!messageElement){
+    messageElement.className =
 
-      return false;
+      messageData.role === "user"
 
-    }
+      ?
 
-    ChatElements.append(
+      "message user-message"
+
+      :
+
+      "message ai-message";
+
+    messageElement.textContent =
+    messageData.content || "";
+
+    chatContainer.appendChild(
       messageElement
     );
 
-    if(
-      !Array.isArray(
-        currentChat.messages
-      )
-    ){
-
-      currentChat.messages =
-      [];
-
-    }
-
-    currentChat.messages.push(
-      safeMessage
-    );
-
-    currentChat.updatedAt =
-    Date.now();
-
-    currentChat.lastMessageAt =
-    safeMessage.timestamp;
-
-    currentChat.messageCount =
-    currentChat.messages.length;
-
-    debouncedSaveCurrentChat();
-
-    scrollToBottom?.();
+    chatContainer.scrollTop =
+    chatContainer.scrollHeight;
 
     return true;
 
@@ -363,8 +333,8 @@ function addMessage(
 
   catch(error){
 
-    safeLogError?.(
-      "ADD MESSAGE ERROR:",
+    console.error(
+      "ADD_MESSAGE_ERROR:",
       error
     );
 
@@ -382,78 +352,41 @@ function addMessage(
 
 async function resetCurrentChat(){
 
-  await abortMessageGeneration();
+  try{
 
-  chatRuntimeState
-  .queue = [];
+    await abortMessageGeneration();
 
-  clearTimeout(
-    saveTimeout
-  );
+    if(chatRuntimeState){
 
-  saveTimeout =
-  null;
+      chatRuntimeState.queue =
+      [];
 
-  if(scrollAnimationFrame){
+    }
 
-    cancelAnimationFrame(
-      scrollAnimationFrame
+    const container =
+    ChatElements
+    ?.getContainer?.();
+
+    if(container){
+
+      container.innerHTML = "";
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    console.error(
+      "RESET_CHAT_ERROR:",
+      error
     );
 
-    scrollAnimationFrame =
-    null;
+    return false;
 
   }
-
-  if(
-    saveVersion >=
-    Number.MAX_SAFE_INTEGER
-  ){
-
-    saveVersion = 0;
-
-  }
-
-  else{
-
-    saveVersion++;
-
-  }
-
-  removeTypingIndicator?.();
-
-  resetStreamingMessageState?.();
-
-  ChatElements.clear();
-
-  if(
-
-    typeof resetAIService ===
-    "function"
-
-  ){
-
-    resetAIService();
-
-  }
-
-  currentChat =
-  createNewChatObject();
-
-  chatRuntimeState
-  .diagnostics
-  .resets++;
-
-  await emitChatRuntimeEvent(
-
-    CHAT_RUNTIME_EVENTS
-    .CHAT_RESET
-
-  );
-
-  scrollToBottom?.();
-
-  return true;
 
 }
 
@@ -465,65 +398,6 @@ async function resetCurrentChat(){
 
 function debouncedSaveCurrentChat(){
 
-  if(
-
-    typeof saveCurrentChat !==
-    "function"
-
-  ){
-
-    return;
-  }
-
-  clearTimeout(
-    saveTimeout
-  );
-
-  if(
-    saveVersion >=
-    Number.MAX_SAFE_INTEGER
-  ){
-
-    saveVersion = 0;
-
-  }
-
-  const currentVersion =
-  ++saveVersion;
-
-  saveTimeout =
-  setTimeout(() => {
-
-    if(
-      currentVersion !==
-      saveVersion
-    ){
-
-      return;
-
-    }
-
-    Promise.resolve(
-      saveCurrentChat()
-    )
-    .catch((error) => {
-
-      safeLogError?.(
-        "CHAT SAVE ERROR:",
-        error
-      );
-
-    })
-    .finally(() => {
-
-      saveTimeout =
-      null;
-
-    });
-
-  },
-
-  CHAT_RUNTIME_CONFIG
-  .SAVE_DEBOUNCE);
+  return true;
 
 }
