@@ -6,6 +6,24 @@
 
 
 // =====================================
+// NORMALIZE
+// =====================================
+
+function normalizeContainerScope(
+  scope
+){
+
+  return String(
+    scope || ""
+  )
+  .trim()
+  .toLowerCase();
+
+}
+
+
+
+// =====================================
 // CIRCULAR CHECK
 // =====================================
 
@@ -24,12 +42,23 @@ function detectCircularDependency(
 
   }
 
+  const normalizedService =
+  normalizeServiceName(
+    serviceName
+  );
+
+  if(!normalizedService){
+
+    return false;
+
+  }
+
   return (
 
     dependencyContainerState
     .resolutionStack
     .includes(
-      serviceName
+      normalizedService
     )
 
   );
@@ -47,7 +76,7 @@ function getScopeContainer(
 ){
 
   const normalizedScope =
-  normalizeServiceName(
+  normalizeContainerScope(
     scope
   );
 
@@ -93,6 +122,57 @@ function getScopeContainer(
 
 }
 
+
+
+// =====================================
+// REMOVE SCOPE
+// =====================================
+
+function removeScopeContainer(
+  scope
+){
+
+  const normalizedScope =
+  normalizeContainerScope(
+    scope
+  );
+
+  if(!normalizedScope){
+
+    return false;
+
+  }
+
+  return dependencyContainerState
+  .scopes
+  .delete(
+    normalizedScope
+  );
+
+}
+
+
+
+// =====================================
+// CLEAR SCOPES
+// =====================================
+
+function clearScopeContainers(){
+
+  dependencyContainerState
+  .scopes
+  .clear();
+
+  dependencyContainerState
+  .diagnostics
+  .scopes = 0;
+
+  return true;
+
+}
+
+
+
 // =====================================
 // GLOBAL EXPORTS
 // =====================================
@@ -102,10 +182,19 @@ if(
   "undefined"
 ){
 
+  window.normalizeContainerScope =
+  normalizeContainerScope;
+
   window.detectCircularDependency =
   detectCircularDependency;
 
   window.getScopeContainer =
   getScopeContainer;
+
+  window.removeScopeContainer =
+  removeScopeContainer;
+
+  window.clearScopeContainers =
+  clearScopeContainers;
 
 }
