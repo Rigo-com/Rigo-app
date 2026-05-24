@@ -27,6 +27,45 @@ function resolveRuntimeInitializer(
 
 
 // =====================================
+// CREATE STEP
+// =====================================
+
+function createBootStep({
+
+  name,
+  critical = false,
+  enabled = true,
+  timeout = 10000,
+  initialize = null
+
+}){
+
+  return Object.freeze({
+
+    name:
+    String(name),
+
+    critical:
+    Boolean(critical),
+
+    enabled:
+    Boolean(enabled),
+
+    timeout:
+    Number(timeout),
+
+    initialize:
+    resolveRuntimeInitializer(
+      initialize
+    )
+
+  });
+
+}
+
+
+
+// =====================================
 // VALIDATE STEP
 // =====================================
 
@@ -43,6 +82,12 @@ function isValidBootStep(
 
     typeof step.critical ===
     "boolean" &&
+
+    typeof step.enabled ===
+    "boolean" &&
+
+    typeof step.timeout ===
+    "number" &&
 
     typeof step.initialize ===
     "function"
@@ -67,77 +112,41 @@ function createRuntimeBootSequence(){
     // CORE SYSTEMS
     // ================================
 
-    {
+    createBootStep({
 
       name:"diagnostics",
 
       critical:true,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.initializeDiagnosticsSystem
 
-        typeof initializeDiagnosticsSystem ===
-        "function"
+    }),
 
-        ?
-
-        initializeDiagnosticsSystem
-
-        :
-
-        null
-
-      )
-
-    },
-
-    {
+    createBootStep({
 
       name:"events",
 
       critical:true,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.initializeSystemEvents
 
-        typeof initializeSystemEvents ===
-        "function"
+    }),
 
-        ?
-
-        initializeSystemEvents
-
-        :
-
-        null
-
-      )
-
-    },
-
-    {
+    createBootStep({
 
       name:"state",
 
       critical:true,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.initializeStateManager
 
-        typeof initializeStateManager ===
-        "function"
-
-        ?
-
-        initializeStateManager
-
-        :
-
-        null
-
-      )
-
-    },
+    }),
 
 
 
@@ -145,77 +154,41 @@ function createRuntimeBootSequence(){
     // PLATFORM SYSTEMS
     // ================================
 
-    {
+    createBootStep({
 
       name:"container",
 
       critical:true,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.initializeDependencyContainer
 
-        typeof initializeDependencyContainer ===
-        "function"
+    }),
 
-        ?
-
-        initializeDependencyContainer
-
-        :
-
-        null
-
-      )
-
-    },
-
-    {
+    createBootStep({
 
       name:"modules",
 
       critical:true,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.initializeModuleLoader
 
-        typeof initializeModuleLoader ===
-        "function"
+    }),
 
-        ?
-
-        initializeModuleLoader
-
-        :
-
-        null
-
-      )
-
-    },
-
-    {
+    createBootStep({
 
       name:"config-runtime",
 
       critical:false,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.initializeConfigRuntime
 
-        typeof initializeConfigRuntime ===
-        "function"
-
-        ?
-
-        initializeConfigRuntime
-
-        :
-
-        null
-
-      )
-
-    },
+    }),
 
 
 
@@ -223,21 +196,18 @@ function createRuntimeBootSequence(){
     // MEMORY
     // ================================
 
-    {
+    createBootStep({
 
       name:"memory",
 
       critical:false,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.MemoryAPI
+      ?.initialize
 
-        MemoryAPI
-        ?.initialize
-
-      )
-
-    },
+    }),
 
 
 
@@ -245,105 +215,68 @@ function createRuntimeBootSequence(){
     // UI
     // ================================
 
-    {
+    createBootStep({
 
       name:"ui",
 
       critical:false,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.initializeUI
 
-        typeof initializeUI ===
-        "function"
-
-        ?
-
-        initializeUI
-
-        :
-
-        null
-
-      )
-
-    },
+    }),
 
 
 
     // ================================
-    // FUTURE RUNTIMES
+    // OPTIONAL RUNTIMES
     // ================================
 
-    {
-
-      name:"notifications",
-
-      critical:false,
-
-      initialize:
-      resolveRuntimeInitializer(
-
-        NotificationRuntime
-        ?.initialize
-
-      )
-
-    },
-
-    {
-
-      name:"background-sync",
-
-      critical:false,
-
-      initialize:
-      resolveRuntimeInitializer(
-
-        BackgroundSyncRuntime
-        ?.initialize
-
-      )
-
-    },
-
-    {
+    createBootStep({
 
       name:"voice-runtime",
 
       critical:false,
 
       initialize:
-      resolveRuntimeInitializer(
+      globalThis
+      ?.VoiceRuntime
+      ?.initialize
 
-        VoiceRuntime
-        ?.initialize
-
-      )
-
-    },
-
-    {
-
-      name:"offline-runtime",
-
-      critical:false,
-
-      initialize:
-      resolveRuntimeInitializer(
-
-        OfflineRuntime
-        ?.initialize
-
-      )
-
-    }
+    })
 
   ];
 
-  return sequence.filter(
-    isValidBootStep
+  return Object.freeze(
+
+    sequence.filter(
+      isValidBootStep
+    )
+
   );
+
+}
+
+
+
+// =====================================
+// GET STEP
+// =====================================
+
+function getBootStepByName(
+  stepName
+){
+
+  return createRuntimeBootSequence()
+  .find((step) => {
+
+    return (
+      step.name ===
+      stepName
+    );
+
+  }) || null;
 
 }
 
@@ -357,7 +290,13 @@ const RuntimeBootSequence =
 Object.freeze({
 
   create:
-  createRuntimeBootSequence
+  createRuntimeBootSequence,
+
+  getStep:
+  getBootStepByName,
+
+  validate:
+  isValidBootStep
 
 });
 
@@ -374,8 +313,5 @@ if(
 
   window.RuntimeBootSequence =
   RuntimeBootSequence;
-
-  window.createRuntimeBootSequence =
-  createRuntimeBootSequence;
 
 }
