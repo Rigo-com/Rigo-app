@@ -50,6 +50,50 @@ function calculateModuleHealthScore(){
 
 
 // =====================================
+// MODULE COUNTS
+// =====================================
+
+function getModuleCounts(){
+
+  return freezeModuleObject({
+
+    total:
+
+      moduleLoaderState
+      .modules
+      .size,
+
+    active:
+
+      moduleLoaderState
+      .activeModules
+      .size,
+
+    failed:
+
+      moduleLoaderState
+      .failedModules
+      .size,
+
+    loading:
+
+      moduleLoaderState
+      .loadingStack
+      .length,
+
+    instances:
+
+      moduleLoaderState
+      ?.instances
+      ?.size || 0
+
+  });
+
+}
+
+
+
+// =====================================
 // SNAPSHOT
 // =====================================
 
@@ -64,11 +108,8 @@ function createModuleLoaderSnapshot(){
     moduleLoaderState
     .initialized,
 
-    totalModules:
-
-      moduleLoaderState
-      .modules
-      .size,
+    counts:
+    getModuleCounts(),
 
     activeModules:[
 
@@ -110,10 +151,42 @@ function createModuleLoaderSnapshot(){
 
 
 // =====================================
+// MODULE HEALTH STATUS
+// =====================================
+
+function getModuleHealthStatus(
+  healthScore
+){
+
+  if(healthScore >= 90){
+
+    return "healthy";
+
+  }
+
+  if(healthScore >= 70){
+
+    return "degraded";
+
+  }
+
+  return "critical";
+
+}
+
+
+
+// =====================================
 // HEALTH CHECK
 // =====================================
 
 async function getModuleHealth(){
+
+  const healthScore =
+  calculateModuleHealthScore();
+
+  const counts =
+  getModuleCounts();
 
   const health =
   freezeModuleObject({
@@ -122,38 +195,14 @@ async function getModuleHealth(){
     moduleLoaderState
     .initialized,
 
-    totalModules:
+    status:
+    getModuleHealthStatus(
+      healthScore
+    ),
 
-      moduleLoaderState
-      .modules
-      .size,
+    healthScore,
 
-    activeModules:
-
-      moduleLoaderState
-      .activeModules
-      .size,
-
-    failedModules:
-
-      moduleLoaderState
-      .failedModules
-      .size,
-
-    loadingModules:
-
-      moduleLoaderState
-      .loadingStack
-      .length,
-
-    instances:
-
-      moduleLoaderState
-      ?.instances
-      ?.size || 0,
-
-    healthScore:
-    calculateModuleHealthScore(),
+    counts,
 
     diagnostics:{
 
@@ -193,6 +242,33 @@ async function getModuleHealth(){
   }
 
   return health;
+
+}
+
+
+
+// =====================================
+// RESET DIAGNOSTICS
+// =====================================
+
+function resetModuleDiagnostics(){
+
+  moduleLoaderState
+  .diagnostics = {
+
+    registered:0,
+
+    loaded:0,
+
+    activated:0,
+
+    failed:0,
+
+    retries:0
+
+  };
+
+  return true;
 
 }
 
@@ -259,6 +335,10 @@ async function resetModuleLoader(){
     .clear();
 
     moduleLoaderState
+    .reverseDependencies
+    ?.clear();
+
+    moduleLoaderState
     .loadingStack = [];
 
     if(
@@ -272,24 +352,15 @@ async function resetModuleLoader(){
 
     }
 
-    moduleLoaderState
-    .diagnostics = {
-
-      registered:0,
-
-      loaded:0,
-
-      activated:0,
-
-      failed:0,
-
-      retries:0
-
-    };
+    resetModuleDiagnostics();
 
     moduleLoaderState
     .lastLoadedAt =
     null;
+
+    moduleLoaderState
+    .initialized =
+    false;
 
     return true;
 
@@ -364,7 +435,14 @@ async function initializeModuleLoader(){
 
       await emitSystemEvent(
 
-        "module.loader.initialized"
+        "module.loader.initialized",
+
+        {
+
+          timestamp:
+          Date.now()
+
+        }
 
       );
 
