@@ -29,8 +29,11 @@ Object.freeze({
   runtime:
   ConfigRuntime,
 
-  runtimeState:
-  configRuntimeState,
+
+
+  // ===================================
+  // HELPERS
+  // ===================================
 
   get:
   getConfigValue,
