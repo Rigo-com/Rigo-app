@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // CHAT RUNTIME
-// ENTERPRISE CHAT ORCHESTRATOR
+// SAFE ENTERPRISE ORCHESTRATOR
 // =====================================
 
 
@@ -13,8 +13,7 @@
 function initializeChatRuntime(){
 
   if(
-    chatRuntimeState
-    .initialized
+    chatRuntimeState?.initialized
   ){
 
     return true;
@@ -22,30 +21,28 @@ function initializeChatRuntime(){
   }
 
   if(
-    chatRuntimeState
-    .initializing ===
-    true
+    chatRuntimeState?.initializing === true
   ){
 
     return false;
 
   }
 
-  chatRuntimeState
-  .initializing =
-  true;
+  chatRuntimeState.initializing = true;
 
   try{
 
     const elementsReady =
 
-      typeof ChatElements !==
-      "undefined"
+      typeof ChatElements !== "undefined"
 
       &&
 
-      ChatElements
-      .initialize();
+      typeof ChatElements.initialize === "function"
+
+      &&
+
+      ChatElements.initialize();
 
     if(!elementsReady){
 
@@ -55,13 +52,15 @@ function initializeChatRuntime(){
 
     const markdownReady =
 
-      typeof ChatMarkdownRenderer !==
-      "undefined"
+      typeof ChatMarkdownRenderer !== "undefined"
 
       &&
 
-      ChatMarkdownRenderer
-      .initialize();
+      typeof ChatMarkdownRenderer.initialize === "function"
+
+      &&
+
+      ChatMarkdownRenderer.initialize();
 
     if(!markdownReady){
 
@@ -71,13 +70,15 @@ function initializeChatRuntime(){
 
     const streamReady =
 
-      typeof ChatStreamManager !==
-      "undefined"
+      typeof ChatStreamManager !== "undefined"
 
       &&
 
-      ChatStreamManager
-      .initialize();
+      typeof ChatStreamManager.initialize === "function"
+
+      &&
+
+      ChatStreamManager.initialize();
 
     if(!streamReady){
 
@@ -85,21 +86,54 @@ function initializeChatRuntime(){
 
     }
 
-    chatRuntimeState
-    .initialized =
-    true;
+    chatRuntimeState.initialized = true;
 
     return true;
 
   }
 
-  finally{
+  catch(error){
 
-    chatRuntimeState
-    .initializing =
-    false;
+    console.error(
+      "CHAT_RUNTIME_INIT_ERROR:",
+      error
+    );
+
+    return false;
 
   }
+
+  finally{
+
+    chatRuntimeState.initializing = false;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE HELPERS
+// =====================================
+
+function safeFunction(
+  callback
+){
+
+  return typeof callback === "function"
+
+    ? callback
+
+    : function(){
+
+        console.warn(
+          "MISSING_FUNCTION"
+        );
+
+        return false;
+
+      };
 
 }
 
@@ -111,50 +145,86 @@ function initializeChatRuntime(){
 
 async function resetChatRuntime(){
 
-  await abortMessageGeneration();
+  try{
 
-  if(
-    typeof ChatStreamManager !==
-    "undefined"
-  ){
+    await safeFunction(
+      window.abortMessageGeneration
+    )();
 
-    ChatStreamManager
-    .destroy();
+    if(
+      typeof ChatStreamManager !==
+      "undefined"
+
+      &&
+
+      typeof ChatStreamManager.destroy ===
+      "function"
+    ){
+
+      ChatStreamManager.destroy();
+
+    }
+
+    if(
+      typeof resetStreamingMessageState ===
+      "function"
+    ){
+
+      resetStreamingMessageState();
+
+    }
+
+    if(
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+
+      &&
+
+      typeof ChatMarkdownRenderer.reset ===
+      "function"
+    ){
+
+      ChatMarkdownRenderer.reset();
+
+    }
+
+    if(
+      typeof ChatElements !==
+      "undefined"
+
+      &&
+
+      typeof ChatElements.cleanup ===
+      "function"
+    ){
+
+      ChatElements.cleanup();
+
+    }
+
+    if(
+      typeof resetChatState ===
+      "function"
+    ){
+
+      resetChatState();
+
+    }
+
+    return true;
 
   }
 
-  if(
-    typeof resetStreamingMessageState ===
-    "function"
-  ){
+  catch(error){
 
-    resetStreamingMessageState();
+    console.error(
+      "RESET_CHAT_RUNTIME_ERROR:",
+      error
+    );
 
-  }
-
-  if(
-    typeof ChatMarkdownRenderer !==
-    "undefined"
-  ){
-
-    ChatMarkdownRenderer
-    .reset();
+    return false;
 
   }
-
-  if(
-    typeof ChatElements !==
-    "undefined"
-  ){
-
-    ChatElements
-    .cleanup();
-
-  }
-
-  resetChatState();
-
-  return true;
 
 }
 
@@ -170,25 +240,66 @@ Object.freeze({
   initialize:
   initializeChatRuntime,
 
+
+
   send:
-  sendMessage,
+  safeFunction(
+    window.sendMessage
+  ),
+
+
 
   process:
-  processAIQueue,
+  safeFunction(
+    window.processAIQueue
+  ),
+
+
 
   add:
-  addMessage,
+  safeFunction(
+    window.addMessage
+  ),
+
+
 
   reset:
-  resetCurrentChat,
+  safeFunction(
+    window.resetCurrentChat
+  ),
+
+
 
   abort:
-  abortMessageGeneration,
+  safeFunction(
+    window.abortMessageGeneration
+  ),
+
+
 
   status:
-  getChatRuntimeStatus,
+  safeFunction(
+    window.getChatRuntimeStatus
+  ),
+
+
 
   resetRuntime:
   resetChatRuntime
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !== "undefined"
+){
+
+  window.ChatRuntime =
+  ChatRuntime;
+
+}
