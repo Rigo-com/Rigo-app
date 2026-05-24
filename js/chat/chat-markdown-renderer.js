@@ -288,9 +288,9 @@ function renderMarkdownItalic(
 
   return content.replace(
 
-    /\*(.*?)\*/g,
+    /(^|[^*])\*(?!\*)(.*?)\*(?!\*)/g,
 
-    "<em>$1</em>"
+    "$1<em>$2</em>"
 
   );
 
@@ -354,9 +354,47 @@ function renderMarkdownLists(
 
   return content.replace(
 
-    /^\- (.*)$/gm,
+    /(?:^|\n)(\- .+(?:\n\- .+)*)/g,
 
-    "<li>$1</li>"
+    (match) => {
+
+      const items =
+      match
+
+      .trim()
+
+      .split("\n")
+
+      .map((item) => {
+
+        return (
+
+          "<li>" +
+
+          item
+          .replace(/^\- /,"")
+
+          +
+
+          "</li>"
+
+        );
+
+      })
+
+      .join("");
+
+      return (
+
+        "<ul>" +
+
+        items +
+
+        "</ul>"
+
+      );
+
+    }
 
   );
 
@@ -374,7 +412,7 @@ function renderMarkdownParagraphs(
 
   return content
 
-  .split("\n\n")
+  .split(/\n\s*\n/)
 
   .map((block) => {
 
@@ -396,6 +434,10 @@ function renderMarkdownParagraphs(
 
       ||
 
+      trimmed.startsWith("<ul")
+
+      ||
+
       trimmed.startsWith("<li");
 
     if(isHTML){
@@ -407,7 +449,10 @@ function renderMarkdownParagraphs(
 
       "<p>" +
 
-      trimmed +
+      trimmed
+      .replace(/\n/g,"<br>")
+
+      +
 
       "</p>"
 
