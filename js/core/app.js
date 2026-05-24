@@ -124,34 +124,49 @@ async function bootstrapApplication(){
 
 
     // ================================
-    // START APPLICATION
+    // BASIC UI START
     // ================================
 
-    const started =
-    await safelyStartApplication();
+    if(
+      typeof initializeChatSystem ===
+      "function"
+    ){
 
-    if(!started){
+      await initializeChatSystem();
 
-      throw new Error(
-        "APPLICATION START FAILED"
-      );
+    }
+
+    if(
+      typeof initializeVoiceRuntime ===
+      "function"
+    ){
+
+      await initializeVoiceRuntime();
 
     }
 
 
 
     // ================================
-    // HEALTH VALIDATION
+    // REMOVE LOADING SCREEN
     // ================================
 
-    const healthy =
-    await validateApplicationHealth();
+    const loadingScreen =
 
-    if(!healthy){
-
-      throw new Error(
-        "APPLICATION HEALTH INVALID"
+      document.getElementById(
+        "loadingScreen"
       );
+
+    if(loadingScreen){
+
+      loadingScreen.style.opacity =
+      "0";
+
+      setTimeout(() => {
+
+        loadingScreen.remove();
+
+      },300);
 
     }
 
@@ -169,49 +184,9 @@ async function bootstrapApplication(){
     .completedAt =
     Date.now();
 
-    if(
-      typeof logDiagnosticInfo ===
-      "function"
-    ){
-
-      await logDiagnosticInfo(
-
-        "APPLICATION ENTRYPOINT READY",
-
-        {
-
-          duration:
-
-            applicationEntrypointState
-            .completedAt -
-
-            applicationEntrypointState
-            .startedAt
-
-        }
-
-      );
-
-    }
-
-    if(
-      typeof trackPerformanceMetric ===
-      "function"
-    ){
-
-      trackPerformanceMetric(
-
-        "application.bootstrap",
-
-        applicationEntrypointState
-        .completedAt -
-
-        applicationEntrypointState
-        .startedAt
-
-      );
-
-    }
+    console.log(
+      "RIGO APP READY"
+    );
 
     return true;
 
@@ -223,58 +198,10 @@ async function bootstrapApplication(){
     .lastError =
     error;
 
-    if(
-      typeof logCriticalError ===
-      "function"
-    ){
-
-      await logCriticalError(
-
-        "APPLICATION BOOTSTRAP FAILED",
-
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-    }
-
-    try{
-
-      if(
-
-        typeof recoverApplication ===
-        "function"
-
-        &&
-
-        !applicationEntrypointState
-        .recoveryAttempted
-
-      ){
-
-        applicationEntrypointState
-        .recoveryAttempted =
-        true;
-
-        await recoverApplication();
-
-      }
-
-    }
-
-    catch(recoveryError){
-
-      safeLogError?.(
-        "APPLICATION RECOVERY FAILED:",
-        recoveryError
-      );
-
-    }
+    console.error(
+      "BOOTSTRAP ERROR:",
+      error
+    );
 
     return false;
 
