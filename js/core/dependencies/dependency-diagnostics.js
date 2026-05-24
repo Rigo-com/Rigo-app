@@ -1,4 +1,5 @@
 // =====================================
+// RIGO AI
 // DEPENDENCY DIAGNOSTICS
 // =====================================
 
@@ -10,7 +11,7 @@
 
 function getDependencyDiagnostics(){
 
-  return Object.freeze({
+  return freezeContainerObject({
 
 
 
@@ -91,10 +92,12 @@ function getDependencyDiagnostics(){
     // DIAGNOSTICS
     // ===================================
 
-    diagnostics:
+    diagnostics:{
 
-      appDependencyRegistry
-      .diagnostics,
+      ...appDependencyRegistry
+      .diagnostics
+
+    },
 
 
 
@@ -119,12 +122,66 @@ function getDependencyDiagnostics(){
 
 
 // =====================================
+// HEALTH REPORT
+// =====================================
+
+function getDependencyHealthReport(){
+
+  return freezeContainerObject({
+
+    healthy:
+
+      appDependencyRegistry
+      .failed
+      .size <= 0,
+
+    initialized:
+
+      appDependencyRegistry
+      .initialized,
+
+    registered:
+
+      appDependencyRegistry
+      .dependencies
+      .size,
+
+    resolved:
+
+      appDependencyRegistry
+      .resolved
+      .size,
+
+    failed:
+
+      appDependencyRegistry
+      .failed
+      .size,
+
+    waiting:
+
+      appDependencyRegistry
+      .waiting
+      .size,
+
+    lastResolvedAt:
+
+      appDependencyRegistry
+      .lastResolvedAt
+
+  });
+
+}
+
+
+
+// =====================================
 // CREATE SNAPSHOT
 // =====================================
 
 function createDependencySnapshot(){
 
-  return Object.freeze({
+  return freezeContainerObject({
 
     timestamp:
     Date.now(),
@@ -149,6 +206,9 @@ if(
 
   window.getDependencyDiagnostics =
   getDependencyDiagnostics;
+
+  window.getDependencyHealthReport =
+  getDependencyHealthReport;
 
   window.createDependencySnapshot =
   createDependencySnapshot;
