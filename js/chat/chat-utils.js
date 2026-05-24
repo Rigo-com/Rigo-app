@@ -40,6 +40,11 @@ function safeClone(
 
   catch(error){
 
+    safeLogError?.(
+      "SAFE CLONE ERROR:",
+      error
+    );
+
     return null;
 
   }
@@ -60,7 +65,10 @@ function wait(
 
     setTimeout(
       resolve,
-      duration
+      Math.max(
+        0,
+        Number(duration) || 0
+      )
     );
 
   });
@@ -76,6 +84,14 @@ function wait(
 function createQueueItem(
   messageId
 ){
+
+  if(
+    !messageId
+  ){
+
+    return null;
+
+  }
 
   return {
 
@@ -97,7 +113,17 @@ function createQueueItem(
 // CONTINUE QUEUE
 // =====================================
 
+let queueProcessingScheduled =
+false;
+
 function continueQueueProcessing(){
+
+  if(
+    queueProcessingScheduled
+  ){
+
+    return;
+  }
 
   if(
     chatRuntimeState.processing
@@ -115,6 +141,12 @@ function continueQueueProcessing(){
 
   if(
 
+    !Array.isArray(
+      chatRuntimeState.queue
+    )
+
+    ||
+
     chatRuntimeState.queue
     .length <= 0
 
@@ -123,13 +155,22 @@ function continueQueueProcessing(){
     return;
   }
 
+  queueProcessingScheduled =
+  true;
+
   Promise.resolve()
   .then(() => {
+
+    queueProcessingScheduled =
+    false;
 
     return processAIQueue();
 
   })
   .catch((error) => {
+
+    queueProcessingScheduled =
+    false;
 
     safeLogError?.(
 
