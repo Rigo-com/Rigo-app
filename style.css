@@ -586,6 +586,12 @@ body{
 
 }
 
+
+
+/* ===================================== */
+/* INPUT FIELD */
+/* ===================================== */
+
 #messageInput{
 
   flex:1;
@@ -620,15 +626,35 @@ body{
 
   unicode-bidi:plaintext;
 
-  overflow:hidden;
-
-  text-overflow:ellipsis;
-
-  white-space:nowrap;
-
   -webkit-appearance:none;
 
 }
+
+
+
+/* RTL */
+
+body[dir="rtl"] #messageInput{
+
+  direction:rtl;
+
+  text-align:right;
+
+}
+
+
+
+/* LTR */
+
+body[dir="ltr"] #messageInput{
+
+  direction:ltr;
+
+  text-align:left;
+
+}
+
+
 
 #messageInput:focus{
 
@@ -637,11 +663,19 @@ body{
 
 }
 
+
+
 #messageInput::placeholder{
 
   color:var(--text-muted);
 
 }
+
+
+
+/* ===================================== */
+/* SEND BUTTON */
+/* ===================================== */
 
 #sendBtn{
 
