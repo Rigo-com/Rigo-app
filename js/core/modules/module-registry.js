@@ -29,6 +29,9 @@ Object.seal({
   dependencyGraph:
   new Map(),
 
+  reverseDependencies:
+  new Map(),
+
   loadingStack:[],
 
   diagnostics:{
@@ -143,6 +146,85 @@ function freezeModuleObject(
 
 
 
+function createModuleError(
+  message,
+  metadata = {}
+){
+
+  if(
+    typeof logDiagnosticError ===
+    "function"
+  ){
+
+    logDiagnosticError(
+      message,
+      metadata
+    );
+
+  }
+
+  return false;
+
+}
+
+
+
+// =====================================
+// DEPENDENCY GRAPH
+// =====================================
+
+function registerReverseDependencies(
+  moduleName,
+  dependencies = []
+){
+
+  dependencies
+  .forEach((dependency) => {
+
+    const normalizedDependency =
+    normalizeModuleName(
+      dependency
+    );
+
+    if(
+
+      !moduleLoaderState
+      .reverseDependencies
+      .has(
+        normalizedDependency
+      )
+
+    ){
+
+      moduleLoaderState
+      .reverseDependencies
+      .set(
+
+        normalizedDependency,
+
+        new Set()
+
+      );
+
+    }
+
+    moduleLoaderState
+    .reverseDependencies
+    .get(
+      normalizedDependency
+    )
+    .add(
+      moduleName
+    );
+
+  });
+
+  return true;
+
+}
+
+
+
 // =====================================
 // CREATE MODULE DEFINITION
 // =====================================
@@ -174,6 +256,20 @@ function createModuleDefinition(
         ? options.dependencies
 
         : [],
+
+      lifecycle:
+
+        options.lifecycle ||
+
+        MODULE_LIFECYCLES
+        .SINGLETON,
+
+      priority:
+
+        options.priority ||
+
+        MODULE_PRIORITIES
+        .NORMAL,
 
       lazy:
 
@@ -222,7 +318,9 @@ async function registerModule(
 
   if(!normalizedName){
 
-    return false;
+    return createModuleError(
+      "INVALID MODULE NAME"
+    );
 
   }
 
@@ -232,7 +330,15 @@ async function registerModule(
     )
   ){
 
-    return false;
+    return createModuleError(
+      "INVALID MODULE FACTORY",
+
+      {
+        module:
+        normalizedName
+      }
+
+    );
 
   }
 
@@ -247,7 +353,9 @@ async function registerModule(
 
   ){
 
-    return false;
+    return createModuleError(
+      "MAX MODULES REACHED"
+    );
 
   }
 
@@ -261,7 +369,16 @@ async function registerModule(
 
   ){
 
-    return false;
+    return createModuleError(
+
+      "MODULE ALREADY REGISTERED",
+
+      {
+        module:
+        normalizedName
+      }
+
+    );
 
   }
 
@@ -298,6 +415,16 @@ async function registerModule(
 
   );
 
+  registerReverseDependencies(
+
+    normalizedName,
+
+    moduleDefinition
+    .metadata
+    .dependencies
+
+  );
+
   moduleLoaderState
   .diagnostics
   .registered++;
@@ -324,5 +451,109 @@ async function registerModule(
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// GET MODULE
+// =====================================
+
+function getRegisteredModule(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  return (
+
+    moduleLoaderState
+    .modules
+    .get(
+      normalizedName
+    )
+
+    ||
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// MODULE EXISTS
+// =====================================
+
+function hasRegisteredModule(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  return (
+
+    moduleLoaderState
+    .modules
+    .has(
+      normalizedName
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// GET ALL MODULES
+// =====================================
+
+function getRegisteredModules(){
+
+  return [
+
+    ...moduleLoaderState
+    .modules
+    .keys()
+
+  ];
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.moduleLoaderState =
+  moduleLoaderState;
+
+  window.registerModule =
+  registerModule;
+
+  window.getRegisteredModule =
+  getRegisteredModule;
+
+  window.hasRegisteredModule =
+  hasRegisteredModule;
+
+  window.getRegisteredModules =
+  getRegisteredModules;
 
 }
