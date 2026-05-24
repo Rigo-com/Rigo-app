@@ -28,6 +28,9 @@ Object.freeze({
   diagnostics:
   getContainerDiagnostics,
 
+  health:
+  getContainerHealthReport,
+
 
 
   // ===================================
@@ -42,6 +45,9 @@ Object.freeze({
 
   has:
   hasRegisteredService,
+
+  get:
+  getRegisteredService,
 
   services:
   getRegisteredServices,
@@ -66,6 +72,12 @@ Object.freeze({
 
   getScope:
   getScopeContainer,
+
+  removeScope:
+  removeScopeContainer,
+
+  clearScopes:
+  clearScopeContainers,
 
 
 
