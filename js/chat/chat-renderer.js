@@ -12,22 +12,35 @@
 
 function showTypingIndicator(){
 
+  const chatContainer =
+  ChatElements.getContainer();
+
   if(!chatContainer){
 
     return false;
 
   }
 
-  if(!typingIndicatorElement){
+  let typingIndicator =
 
-    typingIndicatorElement =
+    ChatElements
+    .getTypingIndicator();
+
+  if(!typingIndicator){
+
+    typingIndicator =
     createTypingIndicatorElement?.();
 
-  }
+    if(!typingIndicator){
 
-  if(!typingIndicatorElement){
+      return false;
 
-    return false;
+    }
+
+    ChatElements
+    .setTypingIndicator(
+      typingIndicator
+    );
 
   }
 
@@ -35,7 +48,7 @@ function showTypingIndicator(){
     false
   );
 
-  typingIndicatorElement
+  typingIndicator
   .textContent =
 
     typeof isRTLLayout ===
@@ -54,14 +67,12 @@ function showTypingIndicator(){
     "RIGO AI is typing...";
 
   if(
-
-    !typingIndicatorElement
+    !typingIndicator
     .isConnected
-
   ){
 
-    chatContainer.appendChild(
-      typingIndicatorElement
+    ChatElements.append(
+      typingIndicator
     );
 
   }
