@@ -61,7 +61,11 @@ async function processAIQueue(){
     chatRuntimeState
     .queue[0];
 
-  if(!queueItem){
+  if(
+    !queueItem
+    ||
+    !queueItem.id
+  ){
 
     chatRuntimeState
     .processing =
@@ -73,6 +77,9 @@ async function processAIQueue(){
 
   const startedAt =
   Date.now();
+
+  let shouldRemoveQueueItem =
+  true;
 
   chatRuntimeState
   .generating =
@@ -176,7 +183,14 @@ async function processAIQueue(){
     ChatStreamManager
     .complete();
 
-    finalizeStreamingMessage?.();
+    if(
+      streamingMessageState
+      ?.activeElement
+    ){
+
+      finalizeStreamingMessage?.();
+
+    }
 
     chatRuntimeState
     .diagnostics
@@ -217,6 +231,10 @@ async function processAIQueue(){
 
       abortStreamingMessage?.();
 
+      chatRuntimeState
+      .generationController =
+      null;
+
       await emitChatRuntimeEvent(
 
         CHAT_RUNTIME_EVENTS
@@ -255,6 +273,9 @@ async function processAIQueue(){
 
         queueItem.retries++;
 
+        shouldRemoveQueueItem =
+        false;
+
         chatRuntimeState
         .diagnostics
         .retries++;
@@ -283,46 +304,36 @@ async function processAIQueue(){
 
         );
 
-        chatRuntimeState
-        .processing =
-        false;
-
-        chatRuntimeState
-        .generating =
-        false;
-
-        chatRuntimeState
-        .streaming =
-        false;
-
-        return processAIQueue();
-
       }
 
-      safeLogError?.(
+      else{
 
-        "QUEUE PROCESS ERROR:",
+        safeLogError?.(
 
-        error
+          "QUEUE PROCESS ERROR:",
 
-      );
+          error
 
-      await emitChatRuntimeEvent(
+        );
 
-        CHAT_RUNTIME_EVENTS
-        .MESSAGE_FAILED,
+        await emitChatRuntimeEvent(
 
-        {
+          CHAT_RUNTIME_EVENTS
+          .MESSAGE_FAILED,
 
-          messageId:
-          queueItem.id,
+          {
 
-          error:
-          String(error)
+            messageId:
+            queueItem.id,
 
-        }
+            error:
+            String(error)
 
-      );
+          }
+
+        );
+
+      }
 
     }
 
@@ -331,11 +342,11 @@ async function processAIQueue(){
   finally{
 
     if(
-
+      shouldRemoveQueueItem
+      &&
       chatRuntimeState
       .queue[0]?.id ===
       queueItem.id
-
     ){
 
       chatRuntimeState
