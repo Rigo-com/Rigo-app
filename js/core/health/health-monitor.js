@@ -25,6 +25,54 @@ Object.seal({
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function updateHealthMonitorResult(
+  result
+){
+
+  healthMonitorState
+  .lastResult =
+  result;
+
+  healthMonitorState
+  .lastCheckAt =
+  Date.now();
+
+  return true;
+
+}
+
+
+
+function clearHealthcheckTimer(){
+
+  if(
+    appState
+    ?.healthcheckTimer
+  ){
+
+    clearInterval(
+
+      appState
+      .healthcheckTimer
+
+    );
+
+    appState
+    .healthcheckTimer =
+    null;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
 // EXECUTE HEALTHCHECK
 // =====================================
 
@@ -46,15 +94,12 @@ async function executeHealthcheck(){
   try{
 
     const result =
-    await runAppHealthcheck();
+    await HealthRuntime
+    .run();
 
-    healthMonitorState
-    .lastResult =
-    result;
-
-    healthMonitorState
-    .lastCheckAt =
-    Date.now();
+    updateHealthMonitorResult(
+      result
+    );
 
     return result;
 
@@ -115,18 +160,7 @@ function startHealthchecks(){
 
   }
 
-  if(
-    appState.healthcheckTimer
-  ){
-
-    clearInterval(
-
-      appState
-      .healthcheckTimer
-
-    );
-
-  }
+  clearHealthcheckTimer();
 
   appState.healthcheckTimer =
   setInterval(() => {
@@ -154,21 +188,7 @@ function startHealthchecks(){
 
 function stopHealthchecks(){
 
-  if(
-    appState.healthcheckTimer
-  ){
-
-    clearInterval(
-
-      appState
-      .healthcheckTimer
-
-    );
-
-    appState.healthcheckTimer =
-    null;
-
-  }
+  clearHealthcheckTimer();
 
   healthMonitorState
   .running =
@@ -186,7 +206,7 @@ function stopHealthchecks(){
 
 function createHealthMonitorSnapshot(){
 
-  return Object.freeze({
+  return freezeHealthDiagnostics({
 
     timestamp:
     Date.now(),
@@ -214,6 +234,29 @@ function createHealthMonitorSnapshot(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const HealthMonitor =
+Object.freeze({
+
+  start:
+  startHealthchecks,
+
+  stop:
+  stopHealthchecks,
+
+  execute:
+  executeHealthcheck,
+
+  snapshot:
+  createHealthMonitorSnapshot
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -222,13 +265,7 @@ if(
   "undefined"
 ){
 
-  window.startHealthchecks =
-  startHealthchecks;
-
-  window.stopHealthchecks =
-  stopHealthchecks;
-
-  window.executeHealthcheck =
-  executeHealthcheck;
+  window.HealthMonitor =
+  HealthMonitor;
 
 }
