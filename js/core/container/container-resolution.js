@@ -75,6 +75,94 @@ async function createServiceInstance(
 
 
 // =====================================
+// RESOLUTION EVENT
+// =====================================
+
+async function emitResolutionEvent(
+  service,
+  lifecycle,
+  scope
+){
+
+  if(
+    typeof emitSystemEvent !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  try{
+
+    await emitSystemEvent(
+
+      CONTAINER_EVENTS
+      .RESOLVED,
+
+      {
+
+        service,
+
+        lifecycle,
+
+        scope
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// RESOLUTION SUCCESS
+// =====================================
+
+async function finalizeResolution(
+  serviceDefinition,
+  serviceName,
+  scope,
+  instance
+){
+
+  dependencyContainerState
+  .diagnostics
+  .resolved++;
+
+  dependencyContainerState
+  .lastResolvedAt =
+  Date.now();
+
+  await emitResolutionEvent(
+
+    serviceName,
+
+    serviceDefinition
+    .lifecycle,
+
+    scope
+
+  );
+
+  return instance;
+
+}
+
+
+
+// =====================================
 // RESOLVE SERVICE
 // =====================================
 
@@ -138,9 +226,7 @@ async function resolveService(
 
   const serviceDefinition =
 
-    dependencyContainerState
-    .services
-    .get(
+    getRegisteredService(
       normalizedName
     );
 
@@ -222,42 +308,17 @@ async function resolveService(
 
       );
 
-      dependencyContainerState
-      .diagnostics
-      .resolved++;
+      return finalizeResolution(
 
-      dependencyContainerState
-      .lastResolvedAt =
-      Date.now();
+        serviceDefinition,
 
-      if(
-        typeof emitSystemEvent ===
-        "function"
-      ){
+        normalizedName,
 
-        await emitSystemEvent(
+        scope,
 
-          CONTAINER_EVENTS
-          .RESOLVED,
+        singleton
 
-          {
-
-            service:
-            normalizedName,
-
-            lifecycle:
-            serviceDefinition
-            .lifecycle,
-
-            scope
-
-          }
-
-        );
-
-      }
-
-      return singleton;
+      );
 
     }
 
@@ -281,6 +342,14 @@ async function resolveService(
       getScopeContainer(
         scope
       );
+
+      if(!scopeContainer){
+
+        return createContainerError(
+          "INVALID SCOPE"
+        );
+
+      }
 
       if(
         scopeContainer.has(
@@ -312,42 +381,17 @@ async function resolveService(
 
       );
 
-      dependencyContainerState
-      .diagnostics
-      .resolved++;
+      return finalizeResolution(
 
-      dependencyContainerState
-      .lastResolvedAt =
-      Date.now();
+        serviceDefinition,
 
-      if(
-        typeof emitSystemEvent ===
-        "function"
-      ){
+        normalizedName,
 
-        await emitSystemEvent(
+        scope,
 
-          CONTAINER_EVENTS
-          .RESOLVED,
+        scopedInstance
 
-          {
-
-            service:
-            normalizedName,
-
-            lifecycle:
-            serviceDefinition
-            .lifecycle,
-
-            scope
-
-          }
-
-        );
-
-      }
-
-      return scopedInstance;
+      );
 
     }
 
@@ -366,42 +410,17 @@ async function resolveService(
 
     );
 
-    dependencyContainerState
-    .diagnostics
-    .resolved++;
+    return finalizeResolution(
 
-    dependencyContainerState
-    .lastResolvedAt =
-    Date.now();
+      serviceDefinition,
 
-    if(
-      typeof emitSystemEvent ===
-      "function"
-    ){
+      normalizedName,
 
-      await emitSystemEvent(
+      scope,
 
-        CONTAINER_EVENTS
-        .RESOLVED,
+      transientInstance
 
-        {
-
-          service:
-          normalizedName,
-
-          lifecycle:
-          serviceDefinition
-          .lifecycle,
-
-          scope
-
-        }
-
-      );
-
-    }
-
-    return transientInstance;
+    );
 
   }
 
