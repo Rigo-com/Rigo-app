@@ -6,6 +6,72 @@
 
 
 // =====================================
+// SHUTDOWN STATE
+// =====================================
+
+const shutdownRuntimeState =
+Object.seal({
+
+  shuttingDown:false,
+
+  cleaned:false,
+
+  lastShutdownAt:null,
+
+  lastCleanupAt:null,
+
+  lastError:null
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function updateShutdownState(
+  updates = {}
+){
+
+  Object.assign(
+
+    shutdownRuntimeState,
+
+    updates
+
+  );
+
+  return true;
+
+}
+
+
+
+function normalizeShutdownError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+// =====================================
 // CLEANUP UI
 // =====================================
 
@@ -79,6 +145,31 @@ function cleanupMessageRuntime(){
 
 
 // =====================================
+// CLEANUP RUNTIME
+// =====================================
+
+async function cleanupRuntimeSystems(){
+
+  HealthMonitor
+  .stop();
+
+  if(
+    typeof RuntimeManager !==
+    "undefined"
+  ){
+
+    await RuntimeManager
+    .shutdown();
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
 // CLEANUP APP
 // =====================================
 
@@ -90,23 +181,7 @@ async function cleanupApp(){
 
     cleanupApplicationUI();
 
-    stopHealthchecks();
-
-
-
-    // ================================
-    // RUNTIME CLEANUP
-    // ================================
-
-    if(
-      typeof RuntimeManager !==
-      "undefined"
-    ){
-
-      await RuntimeManager
-      .shutdown();
-
-    }
+    await cleanupRuntimeSystems();
 
 
 
@@ -119,6 +194,15 @@ async function cleanupApp(){
       .IDLE
     );
 
+    updateShutdownState({
+
+      cleaned:true,
+
+      lastCleanupAt:
+      Date.now()
+
+    });
+
     return true;
 
   }
@@ -127,6 +211,12 @@ async function cleanupApp(){
 
     appState.lastError =
     error;
+
+    updateShutdownState({
+
+      lastError:error
+
+    });
 
     if(
       typeof logDiagnosticError ===
@@ -140,7 +230,9 @@ async function cleanupApp(){
         {
 
           error:
-          String(error)
+          normalizeShutdownError(
+            error
+          )
 
         }
 
@@ -162,13 +254,20 @@ async function cleanupApp(){
 
 function createShutdownSnapshot(){
 
-  return Object.freeze({
+  return freezeEnvironmentObject({
 
     shuttingDown:
 
       Boolean(
-        appState
-        ?.shuttingDown
+        shutdownRuntimeState
+        .shuttingDown
+      ),
+
+    cleaned:
+
+      Boolean(
+        shutdownRuntimeState
+        .cleaned
       ),
 
     started:
@@ -187,15 +286,118 @@ function createShutdownSnapshot(){
 
     shutdownAt:
 
-      appState
-      ?.shutdownAt ||
+      shutdownRuntimeState
+      .lastShutdownAt ||
 
       null,
+
+    cleanupAt:
+
+      shutdownRuntimeState
+      .lastCleanupAt ||
+
+      null,
+
+    lastError:
+
+      shutdownRuntimeState
+      .lastError
+
+      ? normalizeShutdownError(
+          shutdownRuntimeState
+          .lastError
+        )
+
+      : null,
 
     timestamp:
     Date.now()
 
   });
+
+}
+
+
+
+// =====================================
+// COMPLETE SHUTDOWN
+// =====================================
+
+async function completeShutdown(){
+
+  appState.started =
+  false;
+
+  appState.shutdownAt =
+  Date.now();
+
+  updateShutdownState({
+
+    lastShutdownAt:
+    appState
+    .shutdownAt
+
+  });
+
+  if(
+    typeof logDiagnosticInfo ===
+    "function"
+  ){
+
+    await logDiagnosticInfo(
+
+      "APPLICATION SHUTDOWN COMPLETED"
+
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// HANDLE SHUTDOWN ERROR
+// =====================================
+
+async function handleShutdownFailure(
+  error
+){
+
+  appState.lastError =
+  error;
+
+  updateShutdownState({
+
+    lastError:error
+
+  });
+
+  if(
+    typeof logCriticalError ===
+    "function"
+  ){
+
+    await logCriticalError(
+
+      "APPLICATION SHUTDOWN FAILED",
+
+      {
+
+        error:
+        normalizeShutdownError(
+          error
+        )
+
+      }
+
+    );
+
+  }
+
+  return false;
 
 }
 
@@ -220,6 +422,16 @@ async function shutdownApp(){
   .shuttingDown =
   true;
 
+  updateShutdownState({
+
+    shuttingDown:true,
+
+    cleaned:false,
+
+    lastError:null
+
+  });
+
   updateAppPhase(
     APP_PHASES
     .SHUTTING_DOWN
@@ -242,24 +454,7 @@ async function shutdownApp(){
 
     }
 
-    appState.started =
-    false;
-
-    appState.shutdownAt =
-    Date.now();
-
-    if(
-      typeof logDiagnosticInfo ===
-      "function"
-    ){
-
-      await logDiagnosticInfo(
-
-        "APPLICATION SHUTDOWN COMPLETED"
-
-      );
-
-    }
+    await completeShutdown();
 
     return true;
 
@@ -267,30 +462,9 @@ async function shutdownApp(){
 
   catch(error){
 
-    appState.lastError =
-    error;
-
-    if(
-      typeof logCriticalError ===
-      "function"
-    ){
-
-      await logCriticalError(
-
-        "APPLICATION SHUTDOWN FAILED",
-
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-    }
-
-    return false;
+    return handleShutdownFailure(
+      error
+    );
 
   }
 
@@ -300,9 +474,35 @@ async function shutdownApp(){
     .shuttingDown =
     false;
 
+    updateShutdownState({
+
+      shuttingDown:false
+
+    });
+
   }
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const AppShutdown =
+Object.freeze({
+
+  cleanup:
+  cleanupApp,
+
+  shutdown:
+  shutdownApp,
+
+  snapshot:
+  createShutdownSnapshot
+
+});
 
 
 
@@ -315,13 +515,7 @@ if(
   "undefined"
 ){
 
-  window.cleanupApp =
-  cleanupApp;
-
-  window.shutdownApp =
-  shutdownApp;
-
-  window.createShutdownSnapshot =
-  createShutdownSnapshot;
+  window.AppShutdown =
+  AppShutdown;
 
 }
