@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
 // CONFIG RUNTIME SYSTEM
-// ENTERPRISE CONFIG ENGINE FINAL
 // =====================================
 
 
@@ -133,90 +132,6 @@ function safeConfigClone(
 
 
 // =====================================
-// ENVIRONMENT DETECTION
-// =====================================
-
-function detectEnvironment(){
-
-  try{
-
-    if(
-      typeof location ===
-      "undefined"
-    ){
-
-      return "production";
-
-    }
-
-    const hostname =
-    String(
-      location.hostname || ""
-    )
-    .trim()
-    .toLowerCase();
-
-    if(
-
-      hostname ===
-      "localhost"
-
-      ||
-
-      hostname ===
-      "127.0.0.1"
-
-      ||
-
-      hostname.endsWith(
-        ".local"
-      )
-
-    ){
-
-      return "development";
-
-    }
-
-    if(
-
-      hostname.includes(
-        "staging"
-      )
-
-    ){
-
-      return "staging";
-
-    }
-
-    if(
-
-      hostname.includes(
-        "test"
-      )
-
-    ){
-
-      return "test";
-
-    }
-
-    return "production";
-
-  }
-
-  catch(error){
-
-    return "production";
-
-  }
-
-}
-
-
-
-// =====================================
 // SHARED CONSTANTS
 // =====================================
 
@@ -263,25 +178,6 @@ Object.freeze({
 
 const BASE_APP_CONFIG =
 safeDeepFreeze({
-
-
-
-  // ===================================
-  // APP
-  // ===================================
-
-  APP:{
-
-    NAME:
-    "RIGO AI",
-
-    VERSION:
-    "1.0.0",
-
-    ENVIRONMENT:
-    detectEnvironment()
-
-  },
 
 
 
@@ -397,31 +293,6 @@ safeDeepFreeze({
     STORAGE_NAMESPACE +
 
     ":auth-session"
-
-  },
-
-
-
-  // ===================================
-  // FEATURE FLAGS
-  // ===================================
-
-  FEATURE_FLAGS:{
-
-    ENABLE_AI:
-    true,
-
-    ENABLE_AUTH:
-    true,
-
-    ENABLE_STORAGE:
-    true,
-
-    ENABLE_STREAMING:
-    false,
-
-    ENABLE_NOTIFICATIONS:
-    false
 
   },
 
@@ -595,9 +466,19 @@ function mergeConfigObjects(
 
 function getAppConfig(){
 
-  return safeDeepFreeze(
+  return safeDeepFreeze({
 
-    mergeConfigObjects(
+    APP_INFO,
+
+    CURRENT_ENVIRONMENT,
+
+    FEATURE_FLAGS,
+
+    PLATFORM_CAPABILITIES,
+
+    APP_CORE_CONFIG,
+
+    ...mergeConfigObjects(
 
       BASE_APP_CONFIG,
 
@@ -606,7 +487,7 @@ function getAppConfig(){
 
     )
 
-  );
+  });
 
 }
 
@@ -801,36 +682,6 @@ function validateAppConfig(){
 
     const config =
     getAppConfig();
-
-    const validEnvironment =
-
-      [
-
-        "development",
-
-        "staging",
-
-        "production",
-
-        "test"
-
-      ]
-
-      .includes(
-
-        config
-        .APP
-        .ENVIRONMENT
-
-      );
-
-    if(
-      !validEnvironment
-    ){
-
-      return false;
-
-    }
 
     if(
 
