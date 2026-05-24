@@ -41,6 +41,10 @@ function createContainerError(
   metadata = {}
 ){
 
+  dependencyContainerState
+  .diagnostics
+  .failed++;
+
   if(
     typeof logDiagnosticError ===
     "function"
@@ -111,6 +115,46 @@ async function registerService(
 
   }
 
+  const normalizedDependencies =
+
+    Array.isArray(
+      options.dependencies
+    )
+
+    ?
+
+    options.dependencies
+    .map((dependency) => {
+
+      return normalizeServiceName(
+        dependency
+      );
+
+    })
+    .filter(Boolean)
+
+    :
+
+    [];
+
+  const lifecycle =
+
+    Object.values(
+      SERVICE_LIFECYCLE
+    )
+    .includes(
+      options.lifecycle
+    )
+
+    ?
+
+    options.lifecycle
+
+    :
+
+    SERVICE_LIFECYCLE
+    .SINGLETON;
+
   const serviceDefinition =
   freezeContainerObject({
 
@@ -120,21 +164,9 @@ async function registerService(
     factory,
 
     dependencies:
+    normalizedDependencies,
 
-      Array.isArray(
-        options.dependencies
-      )
-
-      ? options.dependencies
-
-      : [],
-
-    lifecycle:
-
-      options.lifecycle ||
-
-      SERVICE_LIFECYCLE
-      .SINGLETON,
+    lifecycle,
 
     lazy:
 
@@ -206,6 +238,20 @@ async function removeService(
 
   }
 
+  const exists =
+
+    dependencyContainerState
+    .services
+    .has(
+      normalizedName
+    );
+
+  if(!exists){
+
+    return false;
+
+  }
+
   dependencyContainerState
   .services
   .delete(
@@ -257,19 +303,58 @@ async function removeService(
 
 }
 
+
+
+// =====================================
+// GET SERVICE
+// =====================================
+
+function getRegisteredService(
+  serviceName
+){
+
+  const normalizedName =
+  normalizeServiceName(
+    serviceName
+  );
+
+  if(!normalizedName){
+
+    return null;
+
+  }
+
+  return (
+
+    dependencyContainerState
+    .services
+    .get(
+      normalizedName
+    )
+
+    ||
+
+    null
+
+  );
+
+}
+
+
+
 // =====================================
 // GET REGISTERED SERVICES
 // =====================================
 
 function getRegisteredServices(){
 
-  return [
+  return freezeContainerObject([
 
     ...dependencyContainerState
     .services
     .keys()
 
-  ];
+  ]);
 
 }
 
@@ -309,11 +394,17 @@ if(
   "undefined"
 ){
 
+  window.normalizeServiceName =
+  normalizeServiceName;
+
   window.registerService =
   registerService;
 
   window.removeService =
   removeService;
+
+  window.getRegisteredService =
+  getRegisteredService;
 
   window.getRegisteredServices =
   getRegisteredServices;
