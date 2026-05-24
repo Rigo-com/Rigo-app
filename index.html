@@ -268,20 +268,33 @@
 
 
         // ============================
-        // INITIALIZE RUNTIME
+        // SAFE RUNTIME INIT
         // ============================
 
-        if(
-          typeof ChatRuntime !==
-          "undefined"
+        try{
 
-          &&
+          if(
+            typeof ChatRuntime !==
+            "undefined"
 
-          typeof ChatRuntime.initialize ===
-          "function"
-        ){
+            &&
 
-          await ChatRuntime.initialize();
+            typeof ChatRuntime.initialize ===
+            "function"
+          ){
+
+            await ChatRuntime.initialize();
+
+          }
+
+        }
+
+        catch(error){
+
+          console.error(
+            "CHAT_RUNTIME_INIT_ERROR:",
+            error
+          );
 
         }
 
@@ -300,7 +313,7 @@
           }
 
           const value =
-          messageInput.value.trim();
+          messageInput.value || "";
 
           const isArabic =
 
@@ -375,61 +388,27 @@
           try{
 
             if(
-              typeof ChatRuntime ===
-              "undefined"
-            ){
-
-              console.error(
-                "CHAT_RUNTIME_MISSING"
-              );
-
-              return;
-            }
-
-            if(
-              typeof ChatRuntime.send !==
+              typeof sendMessage ===
               "function"
             ){
 
-              console.error(
-                "CHAT_RUNTIME_SEND_MISSING"
-              );
+              const sent =
+              await sendMessage();
+
+              if(sent){
+
+                messageInput.style.height =
+                "58px";
+
+              }
 
               return;
-            }
-
-            const sent =
-            await ChatRuntime.send();
-
-            if(sent){
-
-              messageInput.style.height =
-              "58px";
-
-              if(
-                document.documentElement.dir ===
-                "rtl"
-              ){
-
-                messageInput.style.direction =
-                "rtl";
-
-                messageInput.style.textAlign =
-                "right";
-
-              }
-
-              else{
-
-                messageInput.style.direction =
-                "ltr";
-
-                messageInput.style.textAlign =
-                "left";
-
-              }
 
             }
+
+            console.error(
+              "SEND_MESSAGE_FUNCTION_MISSING"
+            );
 
           }
 
@@ -465,7 +444,7 @@
         messageInput
         ?.addEventListener(
           "keydown",
-          (event) => {
+          async (event) => {
 
             if(
               event.key === "Enter"
@@ -475,7 +454,7 @@
 
               event.preventDefault();
 
-              handleSend();
+              await handleSend();
 
             }
 
@@ -493,24 +472,34 @@
           "click",
           async () => {
 
-            if(
-              typeof ChatRuntime !==
-              "undefined"
+            try{
 
-              &&
+              if(
+                typeof resetCurrentChat ===
+                "function"
+              ){
 
-              typeof ChatRuntime.reset ===
-              "function"
-            ){
+                await resetCurrentChat();
 
-              await ChatRuntime.reset();
+                return;
+
+              }
+
+              if(chatContainer){
+
+                chatContainer.innerHTML =
+                "";
+
+              }
 
             }
 
-            else{
+            catch(error){
 
-              chatContainer.innerHTML =
-              "";
+              console.error(
+                "RESET_CHAT_ERROR:",
+                error
+              );
 
             }
 
