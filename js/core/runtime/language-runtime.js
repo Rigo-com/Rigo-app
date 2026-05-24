@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
 // LANGUAGE RUNTIME SYSTEM
-// ENTERPRISE LOCALIZATION ENGINE FINAL
 // =====================================
 
 
@@ -21,18 +20,16 @@ Object.freeze({
 
   CACHE_ENABLED:true,
 
+  MAX_CACHE_SIZE:
+  500,
+
   SUPPORTED_LANGUAGES:[
 
     "en",
-
     "ar",
-
     "fr",
-
     "tr",
-
     "es",
-
     "de"
 
   ],
@@ -71,15 +68,13 @@ Object.freeze({
 // TRANSLATIONS
 // =====================================
 
-const TRANSLATIONS = {
+const TRANSLATIONS =
+Object.seal({
 
   en:{
 
     app:{
-
-      name:
-      "RIGO AI"
-
+      name:"RIGO AI"
     },
 
     chat:{
@@ -99,17 +94,13 @@ const TRANSLATIONS = {
     },
 
     errors:{
-
       generic:
       "Something went wrong"
-
     },
 
     file:{
-
       upload:
       "Upload File"
-
     }
 
   },
@@ -119,10 +110,7 @@ const TRANSLATIONS = {
   ar:{
 
     app:{
-
-      name:
-      "ريغو AI"
-
+      name:"ريغو AI"
     },
 
     chat:{
@@ -142,22 +130,18 @@ const TRANSLATIONS = {
     },
 
     errors:{
-
       generic:
       "حدث خطأ ما"
-
     },
 
     file:{
-
       upload:
       "رفع ملف"
-
     }
 
   }
 
-};
+});
 
 
 
@@ -184,7 +168,7 @@ Object.seal({
 
 
 // =====================================
-// DIAGNOSTICS
+// HELPERS
 // =====================================
 
 async function trackLanguageRuntimeError(
@@ -193,31 +177,35 @@ async function trackLanguageRuntimeError(
 ){
 
   if(
-    typeof DiagnosticsRuntime !==
+    typeof DiagnosticsRuntime ===
     "undefined"
   ){
 
-    try{
+    return false;
 
-      await DiagnosticsRuntime
-      .error(
-        message,
-        metadata
-      );
+  }
 
-    }
+  try{
 
-    catch(error){}
+    await DiagnosticsRuntime
+    .error?.(
+      message,
+      metadata
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
 
   }
 
 }
 
 
-
-// =====================================
-// EVENTS
-// =====================================
 
 async function emitLanguageRuntimeEvent(
   eventName,
@@ -243,6 +231,9 @@ async function emitLanguageRuntimeEvent(
 
         source:
         "language-runtime",
+
+        timestamp:
+        Date.now(),
 
         ...payload
 
@@ -308,34 +299,7 @@ function isLanguageStorageAvailable(){
 
 
 // =====================================
-// VALIDATION
-// =====================================
-
-function validateLanguage(
-  language
-){
-
-  return (
-
-    typeof language ===
-    "string" &&
-
-    LANGUAGE_CONFIG
-    .SUPPORTED_LANGUAGES
-    .includes(
-      language
-      .trim()
-      .toLowerCase()
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// NORMALIZE
+// LANGUAGE HELPERS
 // =====================================
 
 function normalizeLanguage(
@@ -360,11 +324,29 @@ function normalizeLanguage(
 
 
 
-// =====================================
-// RTL
-// =====================================
+function validateLanguage(
+  language
+){
 
-function isRTLLanguage(
+  return (
+
+    LANGUAGE_CONFIG
+    .SUPPORTED_LANGUAGES
+    .includes(
+
+      normalizeLanguage(
+        language
+      )
+
+    )
+
+  );
+
+}
+
+
+
+function resolveSupportedLanguage(
   language
 ){
 
@@ -373,12 +355,39 @@ function isRTLLanguage(
     language
   );
 
+  if(
+    validateLanguage(
+      normalizedLanguage
+    )
+  ){
+
+    return normalizedLanguage;
+
+  }
+
+  return LANGUAGE_CONFIG
+  .DEFAULT_LANGUAGE;
+
+}
+
+
+
+function isRTLLanguage(
+  language
+){
+
   return (
+
     LANGUAGE_CONFIG
     .RTL_LANGUAGES
     .includes(
-      normalizedLanguage
+
+      normalizeLanguage(
+        language
+      )
+
     )
+
   );
 
 }
@@ -386,7 +395,7 @@ function isRTLLanguage(
 
 
 // =====================================
-// SAVE
+// STORAGE
 // =====================================
 
 function saveLanguage(
@@ -408,7 +417,7 @@ function saveLanguage(
       LANGUAGE_CONFIG
       .STORAGE_KEY,
 
-      normalizeLanguage(
+      resolveSupportedLanguage(
         language
       )
 
@@ -428,10 +437,6 @@ function saveLanguage(
 
 
 
-// =====================================
-// LOAD
-// =====================================
-
 function loadLanguage(){
 
   try{
@@ -445,28 +450,15 @@ function loadLanguage(){
 
     }
 
-    const savedLanguage =
+    return resolveSupportedLanguage(
 
       localStorage.getItem(
 
         LANGUAGE_CONFIG
         .STORAGE_KEY
 
-      );
-
-    if(
-      !validateLanguage(
-        savedLanguage
       )
-    ){
 
-      return LANGUAGE_CONFIG
-      .DEFAULT_LANGUAGE;
-
-    }
-
-    return normalizeLanguage(
-      savedLanguage
     );
 
   }
@@ -483,7 +475,7 @@ function loadLanguage(){
 
 
 // =====================================
-// APPLY DOCUMENT
+// DOCUMENT
 // =====================================
 
 function applyDocumentLanguage(
@@ -499,10 +491,20 @@ function applyDocumentLanguage(
 
   }
 
-  const direction =
+  const normalizedLanguage =
+  resolveSupportedLanguage(
+    language
+  );
+
+  document.documentElement
+  .lang =
+  normalizedLanguage;
+
+  document.documentElement
+  .dir =
 
     isRTLLanguage(
-      language
+      normalizedLanguage
     )
 
     ?
@@ -513,14 +515,6 @@ function applyDocumentLanguage(
 
     "ltr";
 
-  document.documentElement
-  .lang =
-  language;
-
-  document.documentElement
-  .dir =
-  direction;
-
   return true;
 
 }
@@ -528,7 +522,7 @@ function applyDocumentLanguage(
 
 
 // =====================================
-// NESTED VALUE
+// TRANSLATION HELPERS
 // =====================================
 
 function resolveTranslationKey(
@@ -547,10 +541,6 @@ function resolveTranslationKey(
 }
 
 
-
-// =====================================
-// INTERPOLATION
-// =====================================
 
 function interpolateTranslation(
   translation,
@@ -571,8 +561,8 @@ function interpolateTranslation(
 
     (match,key) => {
 
-      return values[key] ??
-      match;
+      return values[key]
+      ?? match;
 
     }
 
@@ -582,8 +572,56 @@ function interpolateTranslation(
 
 
 
+function clearTranslationCache(){
+
+  languageRuntimeState
+  .translationCache
+  .clear();
+
+}
+
+
+
+function setTranslationCache(
+  key,
+  value
+){
+
+  if(
+
+    languageRuntimeState
+    .translationCache
+    .size >=
+
+    LANGUAGE_CONFIG
+    .MAX_CACHE_SIZE
+
+  ){
+
+    const firstKey =
+
+      languageRuntimeState
+      .translationCache
+      .keys()
+      .next()
+      .value;
+
+    languageRuntimeState
+    .translationCache
+    .delete(firstKey);
+
+  }
+
+  languageRuntimeState
+  .translationCache
+  .set(key,value);
+
+}
+
+
+
 // =====================================
-// GET TRANSLATION
+// TRANSLATIONS
 // =====================================
 
 function getTranslation(
@@ -592,19 +630,17 @@ function getTranslation(
 ){
 
   const cacheKey =
+  JSON.stringify({
 
-    JSON.stringify({
+    language:
 
-      language:
+      languageRuntimeState
+      .currentLanguage,
 
-        languageRuntimeState
-        .currentLanguage,
+    key,
+    values
 
-      key,
-
-      values
-
-    });
+  });
 
   if(
 
@@ -623,7 +659,7 @@ function getTranslation(
 
   }
 
-  const languagePack =
+  const currentPack =
 
     TRANSLATIONS[
       languageRuntimeState
@@ -632,22 +668,23 @@ function getTranslation(
 
     ||
 
-    TRANSLATIONS[
-      LANGUAGE_CONFIG
-      .DEFAULT_LANGUAGE
-    ];
+    {};
 
   const fallbackPack =
 
     TRANSLATIONS[
       LANGUAGE_CONFIG
       .DEFAULT_LANGUAGE
-    ];
+    ]
+
+    ||
+
+    {};
 
   const translation =
 
     resolveTranslationKey(
-      languagePack,
+      currentPack,
       key
     )
 
@@ -666,7 +703,6 @@ function getTranslation(
   interpolateTranslation(
 
     translation,
-
     values
 
   );
@@ -676,14 +712,9 @@ function getTranslation(
     .CACHE_ENABLED
   ){
 
-    languageRuntimeState
-    .translationCache
-    .set(
-
+    setTranslationCache(
       cacheKey,
-
       interpolated
-
     );
 
   }
@@ -698,6 +729,19 @@ function getTranslation(
 // FORMATTERS
 // =====================================
 
+function getSafeLocale(){
+
+  return resolveSupportedLanguage(
+
+    languageRuntimeState
+    .currentLanguage
+
+  );
+
+}
+
+
+
 function formatNumber(
   value
 ){
@@ -706,8 +750,7 @@ function formatNumber(
 
     return new Intl.NumberFormat(
 
-      languageRuntimeState
-      .currentLanguage
+      getSafeLocale()
 
     )
     .format(value);
@@ -732,8 +775,7 @@ function formatDate(
 
     return new Intl.DateTimeFormat(
 
-      languageRuntimeState
-      .currentLanguage
+      getSafeLocale()
 
     )
     .format(new Date(value));
@@ -751,7 +793,7 @@ function formatDate(
 
 
 // =====================================
-// APPLY ELEMENT
+// DOM
 // =====================================
 
 function applyElementTranslation(
@@ -759,9 +801,7 @@ function applyElementTranslation(
   translation
 ){
 
-  if(
-    !element
-  ){
+  if(!element){
 
     return false;
 
@@ -777,17 +817,33 @@ function applyElementTranslation(
     element instanceof
     HTMLTextAreaElement;
 
+  const isPlaceholder =
+
+    element.hasAttribute(
+      "data-translate-placeholder"
+    );
+
+  if(
+    isPlaceholder
+  ){
+
+    element.placeholder =
+    translation;
+
+    return true;
+
+  }
+
   if(
     isInput ||
     isTextArea
   ){
 
     const inputType =
-
-      String(
-        element.type || ""
-      )
-      .toLowerCase();
+    String(
+      element.type || ""
+    )
+    .toLowerCase();
 
     if(
 
@@ -819,10 +875,6 @@ function applyElementTranslation(
 
 
 
-// =====================================
-// DOM TRANSLATIONS
-// =====================================
-
 function updateDOMTranslations(){
 
   if(
@@ -834,18 +886,27 @@ function updateDOMTranslations(){
 
   }
 
-  const translationElements =
+  const elements =
 
     document.querySelectorAll(
       "[data-translate]"
     );
 
-  translationElements
-  .forEach((element) => {
+  elements.forEach((element) => {
 
     const key =
-    element.dataset
-    .translate;
+    String(
+
+      element.dataset
+      .translate || ""
+
+    ).trim();
+
+    if(!key){
+
+      return;
+
+    }
 
     applyElementTranslation(
 
@@ -864,7 +925,7 @@ function updateDOMTranslations(){
 
 
 // =====================================
-// REGISTER TRANSLATIONS
+// REGISTER
 // =====================================
 
 async function registerTranslations(
@@ -873,14 +934,17 @@ async function registerTranslations(
 ){
 
   const normalizedLanguage =
-  normalizeLanguage(
+  resolveSupportedLanguage(
     language
   );
 
   if(
-    !validateLanguage(
-      normalizedLanguage
-    )
+
+    !translations ||
+
+    typeof translations !==
+    "object"
+
   ){
 
     return false;
@@ -889,7 +953,7 @@ async function registerTranslations(
 
   TRANSLATIONS[
     normalizedLanguage
-  ] = Object.freeze({
+  ] = {
 
     ...TRANSLATIONS[
       normalizedLanguage
@@ -897,11 +961,9 @@ async function registerTranslations(
 
     ...translations
 
-  });
+  };
 
-  languageRuntimeState
-  .translationCache
-  .clear();
+  clearTranslationCache();
 
   await emitLanguageRuntimeEvent(
 
@@ -932,24 +994,9 @@ async function setLanguage(
 ){
 
   const normalizedLanguage =
-  normalizeLanguage(
+  resolveSupportedLanguage(
     language
   );
-
-  if(
-    !validateLanguage(
-      normalizedLanguage
-    )
-  ){
-
-    await trackLanguageRuntimeError(
-      "INVALID LANGUAGE",
-      { language }
-    );
-
-    return false;
-
-  }
 
   languageRuntimeState
   .currentLanguage =
@@ -959,9 +1006,7 @@ async function setLanguage(
   .lastUpdatedAt =
   Date.now();
 
-  languageRuntimeState
-  .translationCache
-  .clear();
+  clearTranslationCache();
 
   saveLanguage(
     normalizedLanguage
@@ -994,7 +1039,34 @@ async function setLanguage(
 
 
 // =====================================
-// CURRENT LANGUAGE
+// RESET
+// =====================================
+
+async function resetLanguageRuntime(){
+
+  clearTranslationCache();
+
+  languageRuntimeState
+  .initialized =
+  false;
+
+  languageRuntimeState
+  .currentLanguage =
+  LANGUAGE_CONFIG
+  .DEFAULT_LANGUAGE;
+
+  languageRuntimeState
+  .lastUpdatedAt =
+  null;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GETTERS
 // =====================================
 
 function getCurrentLanguage(){
@@ -1072,7 +1144,10 @@ function getLanguageRuntimeDiagnostics(){
     lastUpdatedAt:
 
       languageRuntimeState
-      .lastUpdatedAt
+      .lastUpdatedAt,
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -1098,16 +1173,9 @@ async function initializeLanguageRuntime(){
   const savedLanguage =
   loadLanguage();
 
-  const initialized =
   await setLanguage(
     savedLanguage
   );
-
-  if(!initialized){
-
-    return false;
-
-  }
 
   languageRuntimeState
   .initialized =
@@ -1136,6 +1204,9 @@ Object.freeze({
   initialize:
   initializeLanguageRuntime,
 
+  reset:
+  resetLanguageRuntime,
+
   set:
   setLanguage,
 
@@ -1150,6 +1221,9 @@ Object.freeze({
 
   isRTL:
   isRTLLanguage,
+
+  updateDOM:
+  updateDOMTranslations,
 
   formatNumber,
 
@@ -1176,8 +1250,5 @@ if(
 
   window.LanguageRuntime =
   LanguageRuntime;
-
-  window.initializeLanguageRuntime =
-  initializeLanguageRuntime;
 
 }
