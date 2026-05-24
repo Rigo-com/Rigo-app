@@ -264,10 +264,31 @@ function renderStreamingMessage(
   .accumulatedContent +=
   chunk;
 
-  contentElement.textContent =
+  const content =
 
     streamingMessageState
     .accumulatedContent;
+
+  if(
+    typeof ChatMarkdownRenderer !==
+    "undefined"
+  ){
+
+    ChatMarkdownRenderer
+    .render(
+      contentElement,
+      content
+    );
+
+  }
+
+  else{
+
+    contentElement
+    .textContent =
+    content;
+
+  }
 
   messageElement.dataset
   .streaming =
@@ -314,6 +335,24 @@ function finalizeStreamingMessage(){
   .streaming =
   "false";
 
+  const finalContent =
+
+    streamingMessageState
+    .accumulatedContent;
+
+  if(
+    typeof ChatMarkdownRenderer !==
+    "undefined"
+  ){
+
+    ChatMarkdownRenderer
+    .render(
+      contentElement,
+      finalContent
+    );
+
+  }
+
   const finalMessage =
   freezeChatObject({
 
@@ -329,9 +368,7 @@ function finalizeStreamingMessage(){
     role:"assistant",
 
     content:
-
-      streamingMessageState
-      .accumulatedContent,
+    finalContent,
 
     timestamp:
     Date.now(),
