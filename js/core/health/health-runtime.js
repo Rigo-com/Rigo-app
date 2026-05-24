@@ -71,6 +71,67 @@ function freezeHealthRuntime(
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function getAppRuntimeState(){
+
+  return {
+
+    activeModules:
+
+      appState
+      ?.activeModules
+      ?.size || 0,
+
+    failedModules:
+
+      appState
+      ?.failedModules
+      ?.size || 0,
+
+    started:
+    Boolean(
+      appState?.started
+    )
+
+  };
+
+}
+
+
+
+function updateCrashState(
+  healthy
+){
+
+  if(!healthy){
+
+    if(!appState.crashed){
+
+      appState.crashed =
+      true;
+
+      appState.crashCount++;
+
+    }
+
+  }
+
+  else{
+
+    appState.crashed =
+    false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
 // HEALTH SCORE
 // =====================================
 
@@ -121,30 +182,18 @@ async function runAppHealthcheck(){
 
   try{
 
+    const runtimeState =
+    getAppRuntimeState();
+
     const domHealthy =
 
       typeof document !==
       "undefined";
 
-    const activeModules =
-
-      appState
-      ?.activeModules
-      ?.size || 0;
-
-    const failedModules =
-
-      appState
-      ?.failedModules
-      ?.size || 0;
-
     const modulesHealthy =
-    failedModules <= 0;
 
-    const appStarted =
-    Boolean(
-      appState?.started
-    );
+      runtimeState
+      .failedModules <= 0;
 
     const appHealthy =
 
@@ -152,7 +201,8 @@ async function runAppHealthcheck(){
 
       modulesHealthy &&
 
-      appStarted;
+      runtimeState
+      .started;
 
     const healthScore =
     calculateAppHealthScore(
@@ -161,9 +211,11 @@ async function runAppHealthcheck(){
 
       modulesHealthy,
 
-      appStarted,
+      runtimeState
+      .started,
 
-      failedModules
+      runtimeState
+      .failedModules
 
     );
 
@@ -173,25 +225,9 @@ async function runAppHealthcheck(){
     // CRASH TRACKING
     // ================================
 
-    if(!appHealthy){
-
-      if(!appState.crashed){
-
-        appState.crashed =
-        true;
-
-        appState.crashCount++;
-
-      }
-
-    }
-
-    else{
-
-      appState.crashed =
-      false;
-
-    }
+    updateCrashState(
+      appHealthy
+    );
 
 
 
@@ -217,9 +253,15 @@ async function runAppHealthcheck(){
 
           modulesHealthy,
 
-          activeModules,
+          activeModules:
 
-          failedModules
+            runtimeState
+            .activeModules,
+
+          failedModules:
+
+            runtimeState
+            .failedModules
 
         }
 
@@ -238,11 +280,20 @@ async function runAppHealthcheck(){
 
       modulesHealthy,
 
-      appStarted,
+      appStarted:
 
-      activeModules,
+        runtimeState
+        .started,
 
-      failedModules,
+      activeModules:
+
+        runtimeState
+        .activeModules,
+
+      failedModules:
+
+        runtimeState
+        .failedModules,
 
       crashed:
 
@@ -305,5 +356,38 @@ async function runAppHealthcheck(){
     });
 
   }
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const HealthRuntime =
+Object.freeze({
+
+  run:
+  runAppHealthcheck,
+
+  calculate:
+  calculateAppHealthScore
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.HealthRuntime =
+  HealthRuntime;
 
 }
