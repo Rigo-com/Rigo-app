@@ -1,4 +1,5 @@
 // =====================================
+// RIGO AI
 // DEPENDENCY SYSTEM
 // =====================================
 
@@ -35,63 +36,7 @@ async function initializeDependencySystem(){
 
 function resetDependencySystem(){
 
-  appDependencyRegistry
-  .dependencies
-  .clear();
-
-  appDependencyRegistry
-  .resolved
-  .clear();
-
-  appDependencyRegistry
-  .failed
-  .clear();
-
-  appDependencyRegistry
-  .waiting
-  .clear();
-
-  appDependencyRegistry
-  .dependencyGraph
-  .clear();
-
-  appDependencyRegistry
-  .reverseDependencies
-  .clear();
-
-  appDependencyRegistry
-  .activeWaiters
-  .clear();
-
-  appDependencyRegistry
-  .diagnostics
-  .registered = 0;
-
-  appDependencyRegistry
-  .diagnostics
-  .resolved = 0;
-
-  appDependencyRegistry
-  .diagnostics
-  .failed = 0;
-
-  appDependencyRegistry
-  .diagnostics
-  .waiting = 0;
-
-  appDependencyRegistry
-  .diagnostics
-  .validations = 0;
-
-  appDependencyRegistry
-  .lastResolvedAt =
-  null;
-
-  appDependencyRegistry
-  .lastValidationAt =
-  null;
-
-  return true;
+  return resetDependencyState();
 
 }
 
@@ -130,6 +75,9 @@ Object.freeze({
 
   fail:
   failDependency,
+
+  remove:
+  removeDependency,
 
   get:
   getDependency,
@@ -173,6 +121,9 @@ Object.freeze({
   validateMissing:
   validateMissingDependencies,
 
+  validateResolvers:
+  validateDependencyResolvers,
+
 
 
   // ===================================
@@ -181,6 +132,9 @@ Object.freeze({
 
   diagnostics:
   getDependencyDiagnostics,
+
+  health:
+  getDependencyHealthReport,
 
   snapshot:
   createDependencySnapshot
