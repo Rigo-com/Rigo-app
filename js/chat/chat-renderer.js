@@ -207,6 +207,8 @@ function renderStreamingMessage(
 
   }
 
+  removeTypingIndicator?.();
+
   let messageElement =
 
     streamingMessageState
@@ -216,6 +218,21 @@ function renderStreamingMessage(
 
     streamingMessageState
     .activeContentElement;
+
+  if(
+    messageElement &&
+    !messageElement.isConnected
+  ){
+
+    resetStreamingMessageState();
+
+    messageElement =
+    null;
+
+    contentElement =
+    null;
+
+  }
 
   if(
 
@@ -269,20 +286,37 @@ function renderStreamingMessage(
     streamingMessageState
     .accumulatedContent;
 
-  if(
-    typeof ChatMarkdownRenderer !==
-    "undefined"
-  ){
+  try{
 
-    ChatMarkdownRenderer
-    .render(
-      contentElement,
-      content
-    );
+    if(
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+    ){
+
+      ChatMarkdownRenderer
+      .render(
+        contentElement,
+        content
+      );
+
+    }
+
+    else{
+
+      contentElement
+      .textContent =
+      content;
+
+    }
 
   }
 
-  else{
+  catch(error){
+
+    safeLogError?.(
+      "STREAM RENDER ERROR:",
+      error
+    );
 
     contentElement
     .textContent =
@@ -327,6 +361,24 @@ function finalizeStreamingMessage(){
 
   }
 
+  const finalContent =
+
+    String(
+
+      streamingMessageState
+      .accumulatedContent || ""
+
+    )
+    .trim();
+
+  if(!finalContent){
+
+    abortStreamingMessage();
+
+    return false;
+
+  }
+
   element.classList.remove(
     "streaming-message"
   );
@@ -335,21 +387,33 @@ function finalizeStreamingMessage(){
   .streaming =
   "false";
 
-  const finalContent =
+  try{
 
-    streamingMessageState
-    .accumulatedContent;
+    if(
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+    ){
 
-  if(
-    typeof ChatMarkdownRenderer !==
-    "undefined"
-  ){
+      ChatMarkdownRenderer
+      .render(
+        contentElement,
+        finalContent
+      );
 
-    ChatMarkdownRenderer
-    .render(
-      contentElement,
-      finalContent
+    }
+
+  }
+
+  catch(error){
+
+    safeLogError?.(
+      "FINAL STREAM RENDER ERROR:",
+      error
     );
+
+    contentElement
+    .textContent =
+    finalContent;
 
   }
 
@@ -436,6 +500,9 @@ function abortStreamingMessage(){
       "stream-aborted"
     );
 
+    element.dataset
+    .streaming =
+    "aborted";
   }
 
   resetStreamingMessageState();
