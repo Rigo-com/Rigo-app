@@ -6,31 +6,170 @@
 
 
 // =====================================
+// SAFE ACCESS
+// =====================================
+
+function resolveCoreModule(
+  moduleReference
+){
+
+  return (
+
+    typeof moduleReference !==
+    "undefined"
+
+    ?
+
+    moduleReference
+
+    :
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
 // CORE API
 // =====================================
 
 const CoreAPI =
 Object.freeze({
 
+
+
+  // ===================================
   // CONFIG
-  ConfigRuntime,
+  // ===================================
+
+  config:
+  resolveCoreModule(
+    typeof ConfigRuntime !==
+    "undefined"
+
+    ?
+
+    ConfigRuntime
+
+    :
+
+    undefined
+  ),
 
 
 
+  // ===================================
   // CONSTANTS
-  ConstantsAPI,
+  // ===================================
+
+  constants:
+  resolveCoreModule(
+    typeof ConstantsAPI !==
+    "undefined"
+
+    ?
+
+    ConstantsAPI
+
+    :
+
+    undefined
+  ),
 
 
 
+  // ===================================
   // STATE
-  AppState,
-  StateManager,
+  // ===================================
+
+  appState:
+  resolveCoreModule(
+    typeof AppState !==
+    "undefined"
+
+    ?
+
+    AppState
+
+    :
+
+    undefined
+  ),
 
 
 
+  stateManager:
+  resolveCoreModule(
+    typeof StateManager !==
+    "undefined"
+
+    ?
+
+    StateManager
+
+    :
+
+    undefined
+  ),
+
+
+
+  // ===================================
   // EVENTS
-  SystemEvents,
-  AppEvents
+  // ===================================
+
+  systemEvents:
+  resolveCoreModule(
+    typeof SystemEvents !==
+    "undefined"
+
+    ?
+
+    SystemEvents
+
+    :
+
+    undefined
+  ),
+
+
+
+  appEvents:
+  resolveCoreModule(
+    typeof AppEvents !==
+    "undefined"
+
+    ?
+
+    AppEvents
+
+    :
+
+    undefined
+  ),
+
+
+
+  // ===================================
+  // RUNTIME
+  // ===================================
+
+  runtime:
+  resolveCoreModule(
+    typeof RuntimeAPI !==
+    "undefined"
+
+    ?
+
+    RuntimeAPI
+
+    :
+
+    undefined
+  )
 
 });
 
