@@ -31,7 +31,6 @@
   <div
     class="sidebar-overlay"
     id="sidebarOverlay"
-    style="display:none;"
   ></div>
 
 
@@ -41,7 +40,6 @@
   <div
     class="loading-screen"
     id="loadingScreen"
-    style="display:none;"
   >
 
     <div class="loader"></div>
@@ -67,14 +65,8 @@
         RIGO AI
       </h2>
 
-
-
-      <button
-        id="closeSidebar"
-      >
-
+      <button id="closeSidebar">
         ✕
-
       </button>
 
     </div>
@@ -95,9 +87,7 @@
     <div
       class="chat-history"
       id="chatHistory"
-    >
-
-    </div>
+    ></div>
 
   </aside>
 
@@ -123,9 +113,7 @@
 
 
       <div class="logo">
-
         RIGO AI
-
       </div>
 
 
@@ -143,18 +131,16 @@
 
 
 
-    <!-- CHAT AREA -->
+    <!-- CHAT -->
 
     <section
       class="chat-container"
       id="chatContainer"
-    >
-
-    </section>
+    ></section>
 
 
 
-    <!-- INPUT AREA -->
+    <!-- INPUT -->
 
     <footer class="input-area">
 
@@ -167,12 +153,8 @@
 
 
 
-      <button
-        id="sendBtn"
-      >
-
+      <button id="sendBtn">
         إرسال
-
       </button>
 
     </footer>
@@ -181,44 +163,249 @@
 
 
 
+  <!-- ================================= -->
   <!-- SHARED -->
+  <!-- ================================= -->
 
   <script src="js/shared/utils.js"></script>
 
 
 
+  <!-- ================================= -->
   <!-- CHAT -->
+  <!-- ================================= -->
 
   <script src="js/chat/chat-state.js"></script>
+
+  <script src="js/chat/chat-stream-state.js"></script>
 
   <script src="js/chat/chat-utils.js"></script>
 
   <script src="js/chat/chat-elements.js"></script>
 
-  <script src="js/chat/chat-actions.js"></script>
-
   <script src="js/chat/chat-events.js"></script>
 
+  <script src="js/chat/chat-markdown-renderer.js"></script>
+
+  <script src="js/chat/chat-message-elements.js"></script>
+
+  <script src="js/chat/chat-renderer.js"></script>
+
+  <script src="js/chat/chat-stream-manager.js"></script>
+
+  <script src="js/chat/chat-actions.js"></script>
+
+  <script src="js/chat/chat-queue.js"></script>
+
+  <script src="js/chat/chat-runtime.js"></script>
+
+  <script src="js/chat/index.js"></script>
 
 
-  <!-- TEST SCRIPT -->
+
+  <!-- ================================= -->
+  <!-- VOICE -->
+  <!-- ================================= -->
+
+  <script src="js/voice/voice.js"></script>
+
+
+
+  <!-- ================================= -->
+  <!-- APP EVENTS -->
+  <!-- ================================= -->
 
   <script>
 
-    document.addEventListener(
-
+    window.addEventListener(
       "DOMContentLoaded",
-
       () => {
+
+        // ============================
+        // REMOVE LOADING
+        // ============================
+
+        const loadingScreen =
+        document.getElementById(
+          "loadingScreen"
+        );
+
+        if(loadingScreen){
+
+          loadingScreen
+          .style.display =
+          "none";
+
+        }
+
+
+
+        // ============================
+        // INIT CHAT
+        // ============================
+
+        if(
+          typeof ChatRuntime !==
+          "undefined"
+
+          &&
+
+          typeof ChatRuntime.initialize ===
+          "function"
+        ){
+
+          ChatRuntime.initialize();
+
+        }
+
+
+
+        // ============================
+        // SEND BUTTON
+        // ============================
 
         const sendBtn =
         document.getElementById(
           "sendBtn"
         );
 
+        const messageInput =
+        document.getElementById(
+          "messageInput"
+        );
+
+        if(sendBtn){
+
+          sendBtn
+          .addEventListener(
+            "click",
+            () => {
+
+              if(
+                typeof ChatRuntime !==
+                "undefined"
+
+                &&
+
+                typeof ChatRuntime.send ===
+                "function"
+              ){
+
+                ChatRuntime.send();
+
+              }
+
+            }
+          );
+
+        }
+
+
+
+        // ============================
+        // ENTER KEY
+        // ============================
+
+        if(messageInput){
+
+          messageInput
+          .addEventListener(
+            "keydown",
+            (event) => {
+
+              if(
+                event.key === "Enter"
+              ){
+
+                event.preventDefault();
+
+                if(
+                  typeof ChatRuntime !==
+                  "undefined"
+
+                  &&
+
+                  typeof ChatRuntime.send ===
+                  "function"
+                ){
+
+                  ChatRuntime.send();
+
+                }
+
+              }
+
+            }
+          );
+
+        }
+
+
+
+        // ============================
+        // LANGUAGE BUTTON
+        // ============================
+
         const languageBtn =
         document.getElementById(
           "languageBtn"
+        );
+
+        if(languageBtn){
+
+          languageBtn
+          .addEventListener(
+            "click",
+            () => {
+
+              const current =
+              document.body.dir;
+
+              if(current === "rtl"){
+
+                document.body.dir =
+                "ltr";
+
+                messageInput.placeholder =
+                "Type your message...";
+
+                languageBtn.innerText =
+                "AR";
+
+              }
+
+              else{
+
+                document.body.dir =
+                "rtl";
+
+                messageInput.placeholder =
+                "اكتب رسالتك هنا...";
+
+                languageBtn.innerText =
+                "EN";
+
+              }
+
+            }
+          );
+
+        }
+
+
+
+        // ============================
+        // SIDEBAR
+        // ============================
+
+        const sidebar =
+        document.getElementById(
+          "sidebar"
+        );
+
+        const sidebarOverlay =
+        document.getElementById(
+          "sidebarOverlay"
         );
 
         const menuBtn =
@@ -226,53 +413,56 @@
           "menuBtn"
         );
 
+        const closeSidebar =
+        document.getElementById(
+          "closeSidebar"
+        );
 
+        function openSidebar(){
 
-        if(sendBtn){
+          sidebar?.classList.add(
+            "active"
+          );
 
-          sendBtn.onclick =
-          () => {
-
-            alert(
-              "SEND WORKING"
-            );
-
-          };
-
-        }
-
-
-
-        if(languageBtn){
-
-          languageBtn.onclick =
-          () => {
-
-            alert(
-              "LANGUAGE WORKING"
-            );
-
-          };
+          sidebarOverlay
+          ?.classList.add(
+            "active"
+          );
 
         }
 
+        function closeSidebarMenu(){
 
+          sidebar?.classList.remove(
+            "active"
+          );
 
-        if(menuBtn){
-
-          menuBtn.onclick =
-          () => {
-
-            alert(
-              "MENU WORKING"
-            );
-
-          };
+          sidebarOverlay
+          ?.classList.remove(
+            "active"
+          );
 
         }
+
+        menuBtn
+        ?.addEventListener(
+          "click",
+          openSidebar
+        );
+
+        closeSidebar
+        ?.addEventListener(
+          "click",
+          closeSidebarMenu
+        );
+
+        sidebarOverlay
+        ?.addEventListener(
+          "click",
+          closeSidebarMenu
+        );
 
       }
-
     );
 
   </script>
