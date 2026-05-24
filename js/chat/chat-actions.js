@@ -267,8 +267,22 @@ function addMessage(
 
   }
 
+  const messages =
+
+    Array.isArray(
+      currentChat.messages
+    )
+
+    ?
+
+    currentChat.messages
+
+    :
+
+    [];
+
   const duplicate =
-  currentChat.messages.some(
+  messages.some(
     (message) => {
 
       return (
@@ -314,6 +328,17 @@ function addMessage(
     ChatElements.append(
       messageElement
     );
+
+    if(
+      !Array.isArray(
+        currentChat.messages
+      )
+    ){
+
+      currentChat.messages =
+      [];
+
+    }
 
     currentChat.messages.push(
       safeMessage
@@ -396,6 +421,8 @@ async function resetCurrentChat(){
   }
 
   removeTypingIndicator?.();
+
+  resetStreamingMessageState?.();
 
   ChatElements.clear();
 
