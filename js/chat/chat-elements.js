@@ -332,6 +332,15 @@ function clearChatContainer(){
 
   container.replaceChildren();
 
+  chatElementState
+  .typingIndicator =
+  null;
+
+  chatElementState
+  .elements
+  .typingIndicator =
+  null;
+
   return true;
 
 }
@@ -352,6 +361,14 @@ function appendChatElement(
   if(
     !container ||
     !element
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !container.isConnected
   ){
 
     return false;
@@ -427,6 +444,14 @@ function resetChatElements(){
   .elements
   .typingIndicator =
   null;
+
+  chatElementState
+  .validated =
+  false;
+
+  chatElementState
+  .cached =
+  false;
 
   return true;
 
