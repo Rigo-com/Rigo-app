@@ -79,15 +79,19 @@ async function getSafeRuntimeHealth(){
   try{
 
     if(
-      typeof runAppHealthcheck !==
-      "function"
+
+      !window
+      ?.HealthRuntime
+      ?.run
+
     ){
 
       return null;
 
     }
 
-    return await runAppHealthcheck();
+    return await HealthRuntime
+    .run();
 
   }
 
@@ -122,18 +126,12 @@ async function getSafeRuntimeHealth(){
 
 
 // =====================================
-// HEALTH REPORT
+// APP HEALTH STATE
 // =====================================
 
-async function getHealthDiagnostics(){
-
-  const runtimeHealth =
-  await getSafeRuntimeHealth();
+function getAppHealthState(){
 
   return freezeHealthDiagnostics({
-
-    runtime:
-    runtimeHealth,
 
     crashes:
 
@@ -179,7 +177,30 @@ async function getHealthDiagnostics(){
       Boolean(
         appState
         ?.healthcheckTimer
-      ),
+      )
+
+  });
+
+}
+
+
+
+// =====================================
+// HEALTH REPORT
+// =====================================
+
+async function getHealthDiagnostics(){
+
+  const runtimeHealth =
+  await getSafeRuntimeHealth();
+
+  return freezeHealthDiagnostics({
+
+    runtime:
+    runtimeHealth,
+
+    app:
+    getAppHealthState(),
 
     timestamp:
     Date.now()
@@ -211,6 +232,23 @@ async function createHealthDiagnosticsSnapshot(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const HealthDiagnostics =
+Object.freeze({
+
+  get:
+  getHealthDiagnostics,
+
+  snapshot:
+  createHealthDiagnosticsSnapshot
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -219,10 +257,7 @@ if(
   "undefined"
 ){
 
-  window.getHealthDiagnostics =
-  getHealthDiagnostics;
-
-  window.createHealthDiagnosticsSnapshot =
-  createHealthDiagnosticsSnapshot;
+  window.HealthDiagnostics =
+  HealthDiagnostics;
 
 }
