@@ -182,67 +182,7 @@ Object.freeze({
 
 
 // =====================================
-// EVENT EMITTER
-// =====================================
-
-async function emitDiagnosticsEvent(
-  eventName,
-  payload = {}
-){
-
-  if(
-
-    !DIAGNOSTICS_CONFIG
-    .ENABLE_EVENT_BRIDGE
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    await emitSystemEvent(
-
-      eventName,
-
-      {
-
-        source:
-        "diagnostics-runtime",
-
-        ...payload
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// INTERNAL ID
+// HELPERS
 // =====================================
 
 function createDiagnosticsId(){
@@ -265,8 +205,96 @@ function createDiagnosticsId(){
 
 
 
+function createDiagnosticTimestamp(){
+
+  return Date.now();
+
+}
+
+
+
+function getPerformanceNow(){
+
+  try{
+
+    if(
+
+      typeof performance !==
+      "undefined" &&
+
+      typeof performance.now ===
+      "function"
+
+    ){
+
+      return performance.now();
+
+    }
+
+  }
+
+  catch(error){}
+
+  return Date.now();
+
+}
+
+
+
+function normalizeMetricDuration(
+  duration
+){
+
+  const normalized =
+  Number(duration);
+
+  if(
+    !Number.isFinite(
+      normalized
+    )
+  ){
+
+    return 0;
+
+  }
+
+  return Math.max(
+    0,
+    normalized
+  );
+
+}
+
+
+
+function shouldSampleLog(){
+
+  if(
+
+    !DIAGNOSTICS_CONFIG
+    .ENABLE_LOG_SAMPLING
+
+  ){
+
+    return true;
+
+  }
+
+  return (
+
+    Math.random() <=
+
+    DIAGNOSTICS_CONFIG
+    .LOG_SAMPLING_RATE
+
+  );
+
+}
+
+
+
 // =====================================
-// SAFE FREEZE
+// IMMUTABLE HELPERS
 // =====================================
 
 function deepFreezeDiagnostics(
@@ -324,10 +352,6 @@ function deepFreezeDiagnostics(
 
 
 
-// =====================================
-// SAFE CLONE
-// =====================================
-
 function safeMetadataClone(
   metadata
 ){
@@ -368,74 +392,60 @@ function safeMetadataClone(
 
 
 // =====================================
-// PERFORMANCE NOW
+// EVENT EMITTER
 // =====================================
 
-function getPerformanceNow(){
-
-  try{
-
-    if(
-
-      typeof performance !==
-      "undefined" &&
-
-      typeof performance.now ===
-      "function"
-
-    ){
-
-      return performance.now();
-
-    }
-
-  }
-
-  catch(error){}
-
-  return Date.now();
-
-}
-
-
-
-// =====================================
-// TIMESTAMP
-// =====================================
-
-function createDiagnosticTimestamp(){
-
-  return Date.now();
-
-}
-
-
-
-// =====================================
-// LOG SAMPLING
-// =====================================
-
-function shouldSampleLog(){
+async function emitDiagnosticsEvent(
+  eventName,
+  payload = {}
+){
 
   if(
 
     !DIAGNOSTICS_CONFIG
-    .ENABLE_LOG_SAMPLING
+    .ENABLE_EVENT_BRIDGE
 
   ){
+
+    return false;
+
+  }
+
+  if(
+    typeof emitSystemEvent !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  try{
+
+    await emitSystemEvent(
+
+      eventName,
+
+      {
+
+        source:
+        "diagnostics-runtime",
+
+        ...payload
+
+      }
+
+    );
 
     return true;
 
   }
 
-  return (
+  catch(error){
 
-    Math.random() <=
+    return false;
 
-    DIAGNOSTICS_CONFIG
-    .LOG_SAMPLING_RATE
-
-  );
+  }
 
 }
 
@@ -643,7 +653,7 @@ async function processDiagnosticsQueue(){
 
 
 // =====================================
-// START QUEUE
+// QUEUE LIFECYCLE
 // =====================================
 
 function startDiagnosticsQueueProcessor(){
@@ -679,10 +689,6 @@ function startDiagnosticsQueueProcessor(){
 
 
 
-// =====================================
-// STOP QUEUE PROCESSOR
-// =====================================
-
 function stopDiagnosticsQueueProcessor(){
 
   if(
@@ -710,7 +716,7 @@ function stopDiagnosticsQueueProcessor(){
 
 
 // =====================================
-// RETENTION CLEANUP
+// RETENTION
 // =====================================
 
 function cleanupDiagnosticsRetention(){
@@ -802,7 +808,7 @@ function writeConsoleLog(
 
   try{
 
-    console[method](
+    console?.[method]?.(
       prefix,
       message,
       metadata || ""
@@ -823,7 +829,7 @@ function writeConsoleLog(
 
 
 // =====================================
-// INFO
+// LOGGING
 // =====================================
 
 async function logDiagnosticInfo(
@@ -890,10 +896,6 @@ async function logDiagnosticInfo(
 
 
 
-// =====================================
-// WARNING
-// =====================================
-
 async function logDiagnosticWarning(
   message,
   metadata = null
@@ -958,10 +960,6 @@ async function logDiagnosticWarning(
 }
 
 
-
-// =====================================
-// ERROR
-// =====================================
 
 async function logDiagnosticError(
   message,
@@ -1028,10 +1026,6 @@ async function logDiagnosticError(
 
 
 
-// =====================================
-// CRITICAL
-// =====================================
-
 async function logCriticalError(
   message,
   metadata = null
@@ -1072,7 +1066,7 @@ async function logCriticalError(
 
 
 // =====================================
-// RECOVER HEALTH
+// HEALTH
 // =====================================
 
 async function recoverRuntimeHealth(){
@@ -1094,31 +1088,75 @@ async function recoverRuntimeHealth(){
 
 
 
-// =====================================
-// NORMALIZE DURATION
-// =====================================
+async function calculateHealthScore(){
 
-function normalizeMetricDuration(
-  duration
-){
+  let score = 100;
 
-  const normalized =
-  Number(duration);
+  score -= Math.min(
 
-  if(
-    !Number.isFinite(
-      normalized
-    )
-  ){
+    diagnosticsState
+    .counters
+    .errors * 2,
 
-    return 0;
+    40
+
+  );
+
+  score -= Math.min(
+
+    diagnosticsState
+    .counters
+    .crashes * 10,
+
+    40
+
+  );
+
+  score -= Math.min(
+
+    diagnosticsState
+    .counters
+    .warnings,
+
+    20
+
+  );
+
+  score = Math.max(
+    0,
+    score
+  );
+
+  diagnosticsState
+  .globalHealthScore =
+  score;
+
+  diagnosticsState
+  .lastHealthCheckAt =
+  Date.now();
+
+  diagnosticsState
+  .counters
+  .healthChecks++;
+
+  if(score < 70){
+
+    await emitDiagnosticsEvent(
+
+      DIAGNOSTICS_EVENTS
+      .HEALTH_DEGRADED,
+
+      {
+
+        score
+
+      }
+
+    );
 
   }
 
-  return Math.max(
-    0,
-    normalized
-  );
+  return score;
 
 }
 
@@ -1243,10 +1281,6 @@ function trackPerformanceMetric(
 
 
 
-// =====================================
-// MEASURE PERFORMANCE
-// =====================================
-
 async function measureAsyncPerformance(
   metricName,
   callback
@@ -1283,85 +1317,7 @@ async function measureAsyncPerformance(
 
 
 // =====================================
-// HEALTH SCORE
-// =====================================
-
-async function calculateHealthScore(){
-
-  let score = 100;
-
-  score -= Math.min(
-
-    diagnosticsState
-    .counters
-    .errors * 2,
-
-    40
-
-  );
-
-  score -= Math.min(
-
-    diagnosticsState
-    .counters
-    .crashes * 10,
-
-    40
-
-  );
-
-  score -= Math.min(
-
-    diagnosticsState
-    .counters
-    .warnings,
-
-    20
-
-  );
-
-  score = Math.max(
-    0,
-    score
-  );
-
-  diagnosticsState
-  .globalHealthScore =
-  score;
-
-  diagnosticsState
-  .lastHealthCheckAt =
-  Date.now();
-
-  diagnosticsState
-  .counters
-  .healthChecks++;
-
-  if(score < 70){
-
-    await emitDiagnosticsEvent(
-
-      DIAGNOSTICS_EVENTS
-      .HEALTH_DEGRADED,
-
-      {
-
-        score
-
-      }
-
-    );
-
-  }
-
-  return score;
-
-}
-
-
-
-// =====================================
-// MEMORY USAGE
+// MEMORY
 // =====================================
 
 function getSafeMemoryUsage(){
@@ -1469,8 +1425,77 @@ async function createRuntimeSnapshot(){
 
 
 
+function getDiagnosticsSnapshot(){
+
+  return deepFreezeDiagnostics({
+
+    initialized:
+    diagnosticsState
+    .initialized,
+
+    runtimeHealthy:
+
+      diagnosticsState
+      .runtimeHealthy,
+
+    healthScore:
+
+      diagnosticsState
+      .globalHealthScore,
+
+    logs:
+
+      diagnosticsState
+      .logs
+      .length,
+
+    warnings:
+
+      diagnosticsState
+      .warnings
+      .length,
+
+    errors:
+
+      diagnosticsState
+      .errors
+      .length,
+
+    performance:
+
+      diagnosticsState
+      .performance
+      .length,
+
+    snapshots:
+
+      diagnosticsState
+      .snapshots
+      .length,
+
+    queue:
+
+      diagnosticsState
+      .queue
+      .length,
+
+    startedAt:
+    diagnosticsState
+    .startedAt,
+
+    lastHealthCheckAt:
+
+      diagnosticsState
+      .lastHealthCheckAt
+
+  });
+
+}
+
+
+
 // =====================================
-// AUTO SNAPSHOTS
+// MONITORING
 // =====================================
 
 function startAutomaticSnapshots(){
@@ -1519,10 +1544,6 @@ function startAutomaticSnapshots(){
 
 
 
-// =====================================
-// STOP SNAPSHOTS
-// =====================================
-
 function stopAutomaticSnapshots(){
 
   if(
@@ -1548,10 +1569,6 @@ function stopAutomaticSnapshots(){
 }
 
 
-
-// =====================================
-// MONITORING
-// =====================================
 
 function startDiagnosticsMonitoring(){
 
@@ -1585,10 +1602,6 @@ function startDiagnosticsMonitoring(){
 }
 
 
-
-// =====================================
-// STOP MONITORING
-// =====================================
 
 function stopDiagnosticsMonitoring(){
 
@@ -1813,79 +1826,6 @@ async function exportDiagnosticsBundle(){
 
 
 // =====================================
-// DIAGNOSTICS SNAPSHOT
-// =====================================
-
-function getDiagnosticsSnapshot(){
-
-  return deepFreezeDiagnostics({
-
-    initialized:
-    diagnosticsState
-    .initialized,
-
-    runtimeHealthy:
-
-      diagnosticsState
-      .runtimeHealthy,
-
-    healthScore:
-
-      diagnosticsState
-      .globalHealthScore,
-
-    logs:
-
-      diagnosticsState
-      .logs
-      .length,
-
-    warnings:
-
-      diagnosticsState
-      .warnings
-      .length,
-
-    errors:
-
-      diagnosticsState
-      .errors
-      .length,
-
-    performance:
-
-      diagnosticsState
-      .performance
-      .length,
-
-    snapshots:
-
-      diagnosticsState
-      .snapshots
-      .length,
-
-    queue:
-
-      diagnosticsState
-      .queue
-      .length,
-
-    startedAt:
-    diagnosticsState
-    .startedAt,
-
-    lastHealthCheckAt:
-
-      diagnosticsState
-      .lastHealthCheckAt
-
-  });
-
-}
-
-
-
-// =====================================
 // RESET
 // =====================================
 
@@ -2071,23 +2011,5 @@ if(
 
   window.DiagnosticsRuntime =
   DiagnosticsRuntime;
-
-  window.initializeDiagnosticsSystem =
-  initializeDiagnosticsSystem;
-
-  window.resetDiagnosticsSystem =
-  resetDiagnosticsSystem;
-
-  window.logDiagnosticInfo =
-  logDiagnosticInfo;
-
-  window.logDiagnosticWarning =
-  logDiagnosticWarning;
-
-  window.logDiagnosticError =
-  logDiagnosticError;
-
-  window.logCriticalError =
-  logCriticalError;
 
 }
