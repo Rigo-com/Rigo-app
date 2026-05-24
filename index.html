@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 
 <head>
 
@@ -149,7 +149,6 @@
         id="messageInput"
         placeholder="اكتب رسالتك هنا..."
         autocomplete="off"
-        dir="auto"
         spellcheck="false"
       />
 
@@ -198,18 +197,6 @@
   <script src="js/chat/chat-queue.js"></script>
 
   <script src="js/chat/chat-runtime.js"></script>
-
-
-
-  <!-- ================================= -->
-  <!-- DISABLED TEMP -->
-  <!-- ================================= -->
-
-  <!--
-  <script src="js/chat/chat-events.js"></script>
-
-  <script src="js/chat/index.js"></script>
-  -->
 
 
 
@@ -274,13 +261,19 @@
           "newChatBtn"
         );
 
+        const languageBtn =
+        document.getElementById(
+          "languageBtn"
+        );
+
 
 
         // ============================
-        // INPUT AUTO DIRECTION
+        // AUTO TEXT DIRECTION
         // ============================
 
-        messageInput?.addEventListener(
+        messageInput
+        ?.addEventListener(
           "input",
           () => {
 
@@ -323,7 +316,58 @@
 
 
         // ============================
-        // DIRECT SEND
+        // CREATE MESSAGE
+        // ============================
+
+        function createMessage(
+          text,
+          role
+        ){
+
+          const wrapper =
+          document.createElement(
+            "div"
+          );
+
+          wrapper.className =
+
+            role === "user"
+
+            ?
+
+            "message user-message"
+
+            :
+
+            "message ai-message";
+
+
+
+          const content =
+          document.createElement(
+            "div"
+          );
+
+          content.className =
+          "message-content";
+
+          content.textContent =
+          text;
+
+
+
+          wrapper.appendChild(
+            content
+          );
+
+          return wrapper;
+
+        }
+
+
+
+        // ============================
+        // HANDLE SEND
         // ============================
 
         async function handleSend(){
@@ -348,35 +392,15 @@
             // USER MESSAGE
             // ============================
 
-            const userWrapper =
-            document.createElement(
-              "div"
+            const userMessage =
+            createMessage(
+              text,
+              "user"
             );
 
-            userWrapper.className =
-            "message user-message";
-
-
-
-            const userContent =
-            document.createElement(
-              "div"
-            );
-
-            userContent.className =
-            "message-content";
-
-            userContent.textContent =
-            text;
-
-
-
-            userWrapper.appendChild(
-              userContent
-            );
-
-            chatContainer?.appendChild(
-              userWrapper
+            chatContainer
+            ?.appendChild(
+              userMessage
             );
 
 
@@ -387,6 +411,35 @@
 
             messageInput.value =
             "";
+
+
+
+            // ============================
+            // RESET INPUT ALIGN
+            // ============================
+
+            if(
+              document.documentElement
+              .dir === "rtl"
+            ){
+
+              messageInput.style.direction =
+              "rtl";
+
+              messageInput.style.textAlign =
+              "right";
+
+            }
+
+            else{
+
+              messageInput.style.direction =
+              "ltr";
+
+              messageInput.style.textAlign =
+              "left";
+
+            }
 
 
 
@@ -405,39 +458,16 @@
 
             setTimeout(() => {
 
-              const aiWrapper =
-              document.createElement(
-                "div"
-              );
-
-              aiWrapper.className =
-              "message ai-message";
-
-
-
-              const aiContent =
-              document.createElement(
-                "div"
-              );
-
-              aiContent.className =
-              "message-content";
-
-              aiContent.textContent =
-              "RIGO AI RESPONSE";
-
-
-
-              aiWrapper.appendChild(
-                aiContent
+              const aiMessage =
+              createMessage(
+                "RIGO AI RESPONSE",
+                "assistant"
               );
 
               chatContainer
               ?.appendChild(
-                aiWrapper
+                aiMessage
               );
-
-
 
               chatContainer.scrollTop =
               chatContainer.scrollHeight;
@@ -513,32 +543,38 @@
 
 
         // ============================
-        // LANGUAGE BUTTON
+        // LANGUAGE TOGGLE
         // ============================
-
-        const languageBtn =
-        document.getElementById(
-          "languageBtn"
-        );
 
         languageBtn
         ?.addEventListener(
           "click",
           () => {
 
-            const isArabic =
+            const currentDir =
+            document.documentElement.dir;
 
-              languageBtn.innerText ===
-              "EN";
+            if(
+              currentDir === "rtl"
+            ){
 
-            if(isArabic){
+              document.documentElement.dir =
+              "ltr";
 
-              document.documentElement
-              .lang =
+              document.documentElement.lang =
               "en";
 
               messageInput.placeholder =
               "Type your message...";
+
+              messageInput.style.direction =
+              "ltr";
+
+              messageInput.style.textAlign =
+              "left";
+
+              sendBtn.innerText =
+              "Send";
 
               languageBtn.innerText =
               "AR";
@@ -547,12 +583,23 @@
 
             else{
 
-              document.documentElement
-              .lang =
+              document.documentElement.dir =
+              "rtl";
+
+              document.documentElement.lang =
               "ar";
 
               messageInput.placeholder =
               "اكتب رسالتك هنا...";
+
+              messageInput.style.direction =
+              "rtl";
+
+              messageInput.style.textAlign =
+              "right";
+
+              sendBtn.innerText =
+              "إرسال";
 
               languageBtn.innerText =
               "EN";
