@@ -161,6 +161,100 @@ function getNetworkStatus(){
 
 
 // =====================================
+// BROWSER INFO
+// =====================================
+
+function getBrowserEnvironmentInfo(){
+
+  if(
+    typeof navigator ===
+    "undefined"
+  ){
+
+    return null;
+
+  }
+
+  return freezeEnvironmentObject({
+
+    userAgent:
+
+      navigator
+      ?.userAgent ||
+
+      null,
+
+    language:
+
+      navigator
+      ?.language ||
+
+      null,
+
+    platform:
+
+      navigator
+      ?.platform ||
+
+      null
+
+  });
+
+}
+
+
+
+// =====================================
+// ENVIRONMENT REPORT
+// =====================================
+
+function createEnvironmentReport({
+
+  valid,
+  secureContext,
+  storageAccess,
+  workerSupport,
+  online,
+  browser,
+  error = null
+
+}){
+
+  return freezeEnvironmentObject({
+
+    valid:
+    Boolean(valid),
+
+    secureContext:
+    Boolean(secureContext),
+
+    storageAccess:
+    Boolean(storageAccess),
+
+    workerSupport:
+    Boolean(workerSupport),
+
+    online:
+    Boolean(online),
+
+    browser,
+
+    error:
+
+      error
+      ? String(error)
+      : null,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
 // ENVIRONMENT
 // =====================================
 
@@ -185,8 +279,7 @@ function validateAppEnvironment(){
 
     const secureContext =
 
-      typeof window !==
-      "undefined"
+      hasWindow
 
       ? Boolean(
           window
@@ -213,7 +306,7 @@ function validateAppEnvironment(){
       hasNavigator;
 
     const report =
-    freezeEnvironmentObject({
+    createEnvironmentReport({
 
       valid:
       validEnvironment,
@@ -226,33 +319,8 @@ function validateAppEnvironment(){
 
       online,
 
-      browser:{
-
-        userAgent:
-
-          navigator
-          ?.userAgent ||
-
-          null,
-
-        language:
-
-          navigator
-          ?.language ||
-
-          null,
-
-        platform:
-
-          navigator
-          ?.platform ||
-
-          null
-
-      },
-
-      timestamp:
-      Date.now()
+      browser:
+      getBrowserEnvironmentInfo()
 
     });
 
@@ -301,21 +369,53 @@ function validateAppEnvironment(){
 
     }
 
-    return freezeEnvironmentObject({
+    return createEnvironmentReport({
 
       valid:false,
 
-      error:
-      String(error),
+      secureContext:false,
 
-      timestamp:
-      Date.now()
+      storageAccess:false,
+
+      workerSupport:false,
+
+      online:false,
+
+      browser:null,
+
+      error
 
     });
 
   }
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const AppEnvironment =
+Object.freeze({
+
+  validate:
+  validateAppEnvironment,
+
+  network:
+  getNetworkStatus,
+
+  storage:
+  validateStorageAccess,
+
+  workers:
+  validateWorkerSupport,
+
+  browser:
+  getBrowserEnvironmentInfo
+
+});
 
 
 
@@ -328,7 +428,7 @@ if(
   "undefined"
 ){
 
-  window.validateAppEnvironment =
-  validateAppEnvironment;
+  window.AppEnvironment =
+  AppEnvironment;
 
 }
