@@ -100,13 +100,21 @@ function cacheChatElements(){
       "messageInput"
     );
 
+
+
+  // =========================
+  // FIXED SEND BUTTON ID
+  // =========================
+
   chatElementState
   .elements
   .sendButton =
 
     getChatElement(
-      "sendButton"
+      "sendBtn"
     );
+
+
 
   chatElementState
   .elements
@@ -148,7 +156,11 @@ function validateChatElements(){
 
     &&
 
-    !!elements.input;
+    !!elements.input
+
+    &&
+
+    !!elements.sendButton;
 
   chatElementState
   .validated =
@@ -181,6 +193,10 @@ function initializeChatElements(){
   validateChatElements();
 
   if(!valid){
+
+    console.error(
+      "CHAT_ELEMENTS_INVALID"
+    );
 
     return false;
 
@@ -410,7 +426,7 @@ function focusMessageInput(){
 
   catch(error){
 
-    safeLogError?.(
+    console.error(
       error
     );
 
