@@ -28,17 +28,20 @@ function initializeChatRuntime(){
 
   }
 
-  chatRuntimeState.initializing = true;
+  chatRuntimeState.initializing =
+  true;
 
   try{
 
     const elementsReady =
 
-      typeof ChatElements !== "undefined"
+      typeof ChatElements !==
+      "undefined"
 
       &&
 
-      typeof ChatElements.initialize === "function"
+      typeof ChatElements.initialize ===
+      "function"
 
       &&
 
@@ -52,11 +55,13 @@ function initializeChatRuntime(){
 
     const markdownReady =
 
-      typeof ChatMarkdownRenderer !== "undefined"
+      typeof ChatMarkdownRenderer !==
+      "undefined"
 
       &&
 
-      typeof ChatMarkdownRenderer.initialize === "function"
+      typeof ChatMarkdownRenderer.initialize ===
+      "function"
 
       &&
 
@@ -70,11 +75,13 @@ function initializeChatRuntime(){
 
     const streamReady =
 
-      typeof ChatStreamManager !== "undefined"
+      typeof ChatStreamManager !==
+      "undefined"
 
       &&
 
-      typeof ChatStreamManager.initialize === "function"
+      typeof ChatStreamManager.initialize ===
+      "function"
 
       &&
 
@@ -86,7 +93,8 @@ function initializeChatRuntime(){
 
     }
 
-    chatRuntimeState.initialized = true;
+    chatRuntimeState.initialized =
+    true;
 
     return true;
 
@@ -105,7 +113,8 @@ function initializeChatRuntime(){
 
   finally{
 
-    chatRuntimeState.initializing = false;
+    chatRuntimeState.initializing =
+    false;
 
   }
 
@@ -121,19 +130,24 @@ function safeFunction(
   callback
 ){
 
-  return typeof callback === "function"
+  return typeof callback ===
+  "function"
 
-    ? callback
+    ?
 
-    : function(){
+    callback
 
-        console.warn(
-          "MISSING_FUNCTION"
-        );
+    :
 
-        return false;
+    function(){
 
-      };
+      console.warn(
+        "MISSING_FUNCTION"
+      );
+
+      return false;
+
+    };
 
 }
 
@@ -147,9 +161,14 @@ async function resetChatRuntime(){
 
   try{
 
-    await safeFunction(
-      window.abortMessageGeneration
-    )();
+    if(
+      typeof abortMessageGeneration ===
+      "function"
+    ){
+
+      await abortMessageGeneration();
+
+    }
 
     if(
       typeof ChatStreamManager !==
@@ -242,45 +261,135 @@ Object.freeze({
 
 
 
-  send:
-  safeFunction(
-    window.sendMessage
-  ),
+  // ===================================
+  // SAFE LIVE FUNCTION REFERENCES
+  // ===================================
+
+  send:function(){
+
+    if(
+      typeof sendMessage ===
+      "function"
+    ){
+
+      return sendMessage();
+
+    }
+
+    console.error(
+      "SEND_MESSAGE_MISSING"
+    );
+
+    return false;
+
+  },
 
 
 
-  process:
-  safeFunction(
-    window.processAIQueue
-  ),
+  process:function(){
+
+    if(
+      typeof processAIQueue ===
+      "function"
+    ){
+
+      return processAIQueue();
+
+    }
+
+    console.error(
+      "PROCESS_QUEUE_MISSING"
+    );
+
+    return false;
+
+  },
 
 
 
-  add:
-  safeFunction(
-    window.addMessage
-  ),
+  add:function(message){
+
+    if(
+      typeof addMessage ===
+      "function"
+    ){
+
+      return addMessage(
+        message
+      );
+
+    }
+
+    console.error(
+      "ADD_MESSAGE_MISSING"
+    );
+
+    return false;
+
+  },
 
 
 
-  reset:
-  safeFunction(
-    window.resetCurrentChat
-  ),
+  reset:function(){
+
+    if(
+      typeof resetCurrentChat ===
+      "function"
+    ){
+
+      return resetCurrentChat();
+
+    }
+
+    console.error(
+      "RESET_CHAT_MISSING"
+    );
+
+    return false;
+
+  },
 
 
 
-  abort:
-  safeFunction(
-    window.abortMessageGeneration
-  ),
+  abort:function(){
+
+    if(
+      typeof abortMessageGeneration ===
+      "function"
+    ){
+
+      return abortMessageGeneration();
+
+    }
+
+    console.error(
+      "ABORT_GENERATION_MISSING"
+    );
+
+    return false;
+
+  },
 
 
 
-  status:
-  safeFunction(
-    window.getChatRuntimeStatus
-  ),
+  status:function(){
+
+    if(
+      typeof getChatRuntimeStatus ===
+      "function"
+    ){
+
+      return getChatRuntimeStatus();
+
+    }
+
+    console.error(
+      "STATUS_FUNCTION_MISSING"
+    );
+
+    return null;
+
+  },
 
 
 
@@ -296,7 +405,8 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !== "undefined"
+  typeof window !==
+  "undefined"
 ){
 
   window.ChatRuntime =
