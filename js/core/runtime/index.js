@@ -1,8 +1,50 @@
 // =====================================
 // RIGO AI
 // RUNTIME INDEX
-// ENTERPRISE RUNTIME EXPORTS
 // =====================================
+
+
+
+// =====================================
+// SAFE RUNTIME ACCESS
+// =====================================
+
+function getRuntimeManager(){
+
+  return (
+
+    typeof RuntimeManager !==
+    "undefined"
+
+    ?
+
+    RuntimeManager
+
+    :
+
+    null
+
+  );
+
+}
+
+
+
+function getRuntimeState(){
+
+  return RuntimeState
+  ?.get?.() || null;
+
+}
+
+
+
+function getRuntimeHealth(){
+
+  return RuntimeManager
+  ?.health?.() || null;
+
+}
 
 
 
@@ -20,120 +62,88 @@ Object.freeze({
   // ===================================
 
   manager:
-  RuntimeManager,
+  getRuntimeManager(),
+
+
 
   state:
-  runtimeManagerState,
+  getRuntimeState,
+
+
+
+  health:
+  getRuntimeHealth,
 
 
 
   // ===================================
-  // BOOT
+  // RUNTIME CONTROL
   // ===================================
 
   boot:
-  bootRuntimeManager,
+  RuntimeManager
+  ?.boot,
+
+
 
   shutdown:
-  shutdownRuntimeManager,
+  RuntimeManager
+  ?.shutdown,
+
+
 
   recover:
-  recoverRuntimeManager,
-
-  health:
-  getRuntimeHealthReport,
+  RuntimeManager
+  ?.recover,
 
 
 
   // ===================================
-  // RUNTIME SYSTEMS
+  // SYSTEMS
   // ===================================
 
   language:
-  typeof LanguageRuntime !==
-  "undefined"
 
-  ?
+    typeof LanguageRuntime !==
+    "undefined"
 
-  LanguageRuntime
+    ?
 
-  :
+    LanguageRuntime
 
-  null,
+    :
+
+    null,
 
 
 
   files:
-  typeof FileRuntime !==
-  "undefined"
 
-  ?
+    typeof FileRuntime !==
+    "undefined"
 
-  FileRuntime
+    ?
 
-  :
+    FileRuntime
 
-  null,
+    :
+
+    null,
 
 
 
   analytics:
-  typeof AnalyticsRuntime !==
-  "undefined"
 
-  ?
+    typeof AnalyticsRuntime !==
+    "undefined"
 
-  AnalyticsRuntime
+    ?
 
-  :
+    AnalyticsRuntime
 
-  null,
+    :
 
-
-
-  // ===================================
-  // INITIALIZERS
-  // ===================================
-
-  initializeLanguage:
-  typeof initializeLanguageRuntime ===
-  "function"
-
-  ?
-
-  initializeLanguageRuntime
-
-  :
-
-  null,
-
-
-
-  initializeFiles:
-  typeof initializeFileRuntime ===
-  "function"
-
-  ?
-
-  initializeFileRuntime
-
-  :
-
-  null,
-
-
-
-  initializeAnalytics:
-  typeof initializeAnalyticsRuntime ===
-  "function"
-
-  ?
-
-  initializeAnalyticsRuntime
-
-  :
-
-  null,
+    null,
 
 
 
@@ -141,8 +151,18 @@ Object.freeze({
   // BOOT SEQUENCE
   // ===================================
 
-  createBootSequence:
-  createRuntimeBootSequence
+  bootSequence:
+
+    typeof RuntimeBootSequence !==
+    "undefined"
+
+    ?
+
+    RuntimeBootSequence
+
+    :
+
+    null
 
 });
 
