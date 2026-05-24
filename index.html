@@ -144,13 +144,13 @@
 
     <footer class="input-area">
 
-      <input
-        type="text"
+      <textarea
         id="messageInput"
         placeholder="اكتب رسالتك هنا..."
         autocomplete="off"
         spellcheck="false"
-      />
+        rows="1"
+      ></textarea>
 
 
 
@@ -286,6 +286,12 @@
                 value
               );
 
+
+
+            // ============================
+            // TEXT DIRECTION
+            // ============================
+
             messageInput.style.direction =
 
               isArabic
@@ -309,6 +315,22 @@
               :
 
               "left";
+
+
+
+            // ============================
+            // AUTO HEIGHT
+            // ============================
+
+            messageInput.style.height =
+            "58px";
+
+            messageInput.style.height =
+
+              Math.min(
+                messageInput.scrollHeight,
+                140
+              ) + "px";
 
           }
         );
@@ -412,6 +434,9 @@
             messageInput.value =
             "";
 
+            messageInput.style.height =
+            "58px";
+
 
 
             // ============================
@@ -512,6 +537,8 @@
 
             if(
               event.key === "Enter"
+              &&
+              !event.shiftKey
             ){
 
               event.preventDefault();
