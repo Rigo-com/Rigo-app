@@ -1,40 +1,150 @@
 // =====================================
 // RIGO AI
-// CORE STATE INDEX
+// STATE INDEX
 // =====================================
 
 
 
+// =====================================
+// SAFE ACCESS
+// =====================================
+
+function resolveStateModule(
+  moduleReference
+){
+
+  return (
+
+    typeof moduleReference !==
+    "undefined"
+
+    ?
+
+    moduleReference
+
+    :
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// STATE API
+// =====================================
+
 const StateAPI =
 Object.freeze({
 
+
+
+  // ===================================
+  // APP STATE
+  // ===================================
+
   app:
-  appState,
+  resolveStateModule(
+    typeof AppState !==
+    "undefined"
+
+    ?
+
+    AppState
+
+    :
+
+    undefined
+  ),
+
+
+
+  // ===================================
+  // STATE MANAGER
+  // ===================================
 
   manager:
-  StateManager,
+  resolveStateModule(
+    typeof StateManager !==
+    "undefined"
+
+    ?
+
+    StateManager
+
+    :
+
+    undefined
+  ),
+
+
+
+  // ===================================
+  // SHORTCUTS
+  // ===================================
 
   get:
-  getAppState,
+  typeof getAppState ===
+  "function"
+
+  ?
+
+  getAppState
+
+  :
+
+  null,
+
+
 
   update:
-  updateAppState,
+  typeof updateAppPhase ===
+  "function"
+
+  ?
+
+  updateAppPhase
+
+  :
+
+  null,
+
+
 
   reset:
-  resetAppState,
+  typeof resetAppState ===
+  "function"
 
-  phase:
-  updateAppPhase,
+  ?
+
+  resetAppState
+
+  :
+
+  null,
+
+
 
   diagnostics:
+  typeof getStateDiagnostics ===
+  "function"
+
+  ?
+
   getStateDiagnostics
+
+  :
+
+  null
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORT
+// GLOBAL EXPORTS
 // =====================================
 
 if(
