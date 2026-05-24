@@ -6,27 +6,6 @@
 
 
 // =====================================
-// RUNTIME CONFIG
-// =====================================
-
-const RUNTIME_MANAGER_CONFIG =
-Object.freeze({
-
-  ENABLE_RECOVERY:true,
-
-  MAX_BOOT_RETRIES:3,
-
-  MAX_RUNTIME_ERRORS:20,
-
-  STARTUP_TIMEOUT:30000,
-
-  SHUTDOWN_TIMEOUT:15000
-
-});
-
-
-
-// =====================================
 // SAFE EVENT EMITTER
 // =====================================
 
@@ -242,8 +221,6 @@ async function bootRuntimeManager(){
     RuntimeBootSequence
     ?.create?.() || [];
 
-
-
     for(
       const step
       of bootSequence
@@ -317,7 +294,9 @@ async function bootRuntimeManager(){
 
     const retries =
 
-      snapshot?.bootRetries || 0;
+      RuntimeState
+      ?.get?.()
+      ?.bootRetries || 0;
 
     if(
 
@@ -648,7 +627,23 @@ if(
   "undefined"
 ){
 
-  window.RuntimeManager =
-  RuntimeManager;
+  Object.defineProperty(
+
+    window,
+
+    "RuntimeManager",
+
+    {
+
+      value:
+      RuntimeManager,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
