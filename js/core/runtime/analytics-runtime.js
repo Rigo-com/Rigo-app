@@ -25,21 +25,52 @@ Object.seal({
 
 
 // =====================================
-// TRACK EVENT
+// HELPERS
 // =====================================
 
-async function trackAnalyticsEvent(
-  eventName,
- metadata = {}
+function sanitizeAnalyticsMetadata(
+  metadata
+){
+
+  if(
+
+    !metadata ||
+
+    typeof metadata !==
+    "object"
+
+  ){
+
+    return {};
+
+  }
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(metadata)
+    );
+
+  }
+
+  catch(error){
+
+    return {};
+
+  }
+
+}
+
+
+
+async function emitAnalyticsEvent(
+  payload
 ){
 
   if(
     typeof emitSystemEvent !==
     "function"
   ){
-
-    analyticsRuntimeState
-    .failedEvents++;
 
     return false;
 
@@ -51,29 +82,9 @@ async function trackAnalyticsEvent(
 
       "analytics.event",
 
-      {
-
-        source:
-        "analytics-runtime",
-
-        event:
-        String(eventName),
-
-        metadata,
-
-        timestamp:
-        Date.now()
-
-      }
+      payload
 
     );
-
-    analyticsRuntimeState
-    .trackedEvents++;
-
-    analyticsRuntimeState
-    .lastEventAt =
-    Date.now();
 
     return true;
 
@@ -81,12 +92,74 @@ async function trackAnalyticsEvent(
 
   catch(error){
 
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// TRACK EVENT
+// =====================================
+
+async function trackAnalyticsEvent(
+
+  eventName,
+  metadata = {}
+
+){
+
+  if(!eventName){
+
     analyticsRuntimeState
     .failedEvents++;
 
     return false;
 
   }
+
+  const payload = {
+
+    source:
+    "analytics-runtime",
+
+    event:
+    String(eventName),
+
+    metadata:
+    sanitizeAnalyticsMetadata(
+      metadata
+    ),
+
+    timestamp:
+    Date.now()
+
+  };
+
+  const success =
+  await emitAnalyticsEvent(
+    payload
+  );
+
+  if(!success){
+
+    analyticsRuntimeState
+    .failedEvents++;
+
+    return false;
+
+  }
+
+  analyticsRuntimeState
+  .trackedEvents++;
+
+  analyticsRuntimeState
+  .lastEventAt =
+  Date.now();
+
+  return true;
 
 }
 
@@ -114,9 +187,40 @@ function getAnalyticsDiagnostics(){
 
     lastEventAt:
     analyticsRuntimeState
-    .lastEventAt
+    .lastEventAt,
+
+    timestamp:
+    Date.now()
 
   });
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function resetAnalyticsRuntime(){
+
+  analyticsRuntimeState
+  .initialized =
+  false;
+
+  analyticsRuntimeState
+  .trackedEvents =
+  0;
+
+  analyticsRuntimeState
+  .failedEvents =
+  0;
+
+  analyticsRuntimeState
+  .lastEventAt =
+  null;
+
+  return true;
 
 }
 
@@ -157,6 +261,9 @@ Object.freeze({
   initialize:
   initializeAnalyticsRuntime,
 
+  reset:
+  resetAnalyticsRuntime,
+
   track:
   trackAnalyticsEvent,
 
@@ -178,8 +285,5 @@ if(
 
   window.AnalyticsRuntime =
   AnalyticsRuntime;
-
-  window.initializeAnalyticsRuntime =
-  initializeAnalyticsRuntime;
 
 }
