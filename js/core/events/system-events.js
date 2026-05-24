@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SYSTEM EVENTS
-// ENTERPRISE EVENT BUS FINAL
+// ENTERPRISE EVENT BUS
 // =====================================
 
 
@@ -61,9 +61,7 @@ Object.seal({
 
   },
 
-  lastEventAt:null,
-
-  cleanupTimer:null
+  lastEventAt:null
 
 });
 
@@ -194,7 +192,7 @@ function createSystemEvent(
   options = {}
 ){
 
-  return {
+  return Object.freeze({
 
     id:
     createSystemEventId(),
@@ -232,7 +230,7 @@ function createSystemEvent(
 
     cancelled:false
 
-  };
+  });
 
 }
 
@@ -257,6 +255,7 @@ function onSystemEvent(
   ){
 
     return false;
+
   }
 
   if(
@@ -266,6 +265,7 @@ function onSystemEvent(
   ){
 
     return false;
+
   }
 
   if(
@@ -305,6 +305,7 @@ function onSystemEvent(
   ){
 
     return false;
+
   }
 
   listeners.add(
@@ -336,6 +337,7 @@ function onceSystemEvent(
   ){
 
     return false;
+
   }
 
   if(
@@ -345,6 +347,7 @@ function onceSystemEvent(
   ){
 
     return false;
+
   }
 
   if(
@@ -396,6 +399,7 @@ function onAnySystemEvent(
   ){
 
     return false;
+
   }
 
   systemEventsState
@@ -449,6 +453,7 @@ function offSystemEvent(
   if(!listeners){
 
     return false;
+
   }
 
   const removed =
@@ -488,6 +493,7 @@ function useSystemEventMiddleware(
   ){
 
     return false;
+
   }
 
   systemEventsState
@@ -546,14 +552,12 @@ async function executeEventMiddleware(
         result === false
       ){
 
-        event.cancelled =
-        true;
-
         systemEventsState
         .diagnostics
         .cancelled++;
 
         return false;
+
       }
 
     }
@@ -604,6 +608,7 @@ function isEventThrottled(
   ){
 
     return true;
+
   }
 
   systemEventsState
@@ -618,10 +623,6 @@ function isEventThrottled(
 }
 
 
-
-// =====================================
-// THROTTLE CLEANUP
-// =====================================
 
 function cleanupThrottledEvents(){
 
@@ -753,6 +754,7 @@ function storeSystemEventHistory(
   ){
 
     return false;
+
   }
 
   systemEventsState
@@ -863,6 +865,7 @@ async function processSystemEventQueue(){
       if(!queueItem){
 
         continue;
+
       }
 
       await executeSystemEvent(
@@ -904,179 +907,203 @@ async function executeSystemEvent(
 
   try{
 
-    const middlewareSuccess =
-    await executeEventMiddleware(
-      event
-    );
+    let attempts = 0;
 
-    if(!middlewareSuccess){
+    while(
 
-      return false;
-    }
-
-    const listeners = [
-
-      ...(systemEventsState
-      .listeners
-      .get(
-        event.type
-      )
-
-      ||
-
-      new Set())
-
-    ];
-
-    const onceListeners = [
-
-      ...(systemEventsState
-      .onceListeners
-      .get(
-        event.type
-      )
-
-      ||
-
-      new Set())
-
-    ];
-
-    const executions = [];
-
-    listeners.forEach((listener) => {
-
-      executions.push({
-
-        priority:
-        event.priority,
-
-        execute(){
-
-          return executeSystemListener(
-            listener,
-            event
-          );
-
-        }
-
-      });
-
-    });
-
-    onceListeners.forEach((listener) => {
-
-      executions.push({
-
-        priority:
-        event.priority,
-
-        execute(){
-
-          return executeSystemListener(
-            listener,
-            event
-          );
-
-        }
-
-      });
-
-    });
-
-    systemEventsState
-    .wildcardListeners
-    .forEach((listener) => {
-
-      executions.push({
-
-        priority:
-        SYSTEM_EVENT_PRIORITIES
-        .LOW,
-
-        execute(){
-
-          return executeSystemListener(
-            listener,
-            event
-          );
-
-        }
-
-      });
-
-    });
-
-    const sortedExecutions =
-    sortExecutionsByPriority(
-      executions
-    );
-
-    for(
-      const execution
-      of sortedExecutions
-    ){
-
-      await execution.execute();
-
-    }
-
-    if(
-      onceListeners.length > 0
-    ){
-
-      systemEventsState
-      .onceListeners
-      .delete(
-        event.type
-      );
-
-    }
-
-    systemEventsState
-    .totalEvents++;
-
-    systemEventsState
-    .diagnostics
-    .completed++;
-
-    systemEventsState
-    .lastEventAt =
-    Date.now();
-
-    storeSystemEventHistory(
-      event
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    if(
-
-      SYSTEM_EVENTS_CONFIG
-      .ENABLE_RETRIES &&
-
-      event.retries <
-
+      attempts <=
       SYSTEM_EVENTS_CONFIG
       .MAX_RETRIES
 
     ){
 
-      event.retries++;
+      try{
 
-      systemEventsState
-      .diagnostics
-      .retries++;
+        const middlewareSuccess =
+        await executeEventMiddleware(
+          event
+        );
 
-      return executeSystemEvent(
-        event
-      );
+        if(!middlewareSuccess){
+
+          return false;
+
+        }
+
+        const listeners = [
+
+          ...(systemEventsState
+          .listeners
+          .get(
+            event.type
+          )
+
+          ||
+
+          new Set())
+
+        ];
+
+        const onceListeners = [
+
+          ...(systemEventsState
+          .onceListeners
+          .get(
+            event.type
+          )
+
+          ||
+
+          new Set())
+
+        ];
+
+        const executions = [];
+
+        listeners.forEach((listener) => {
+
+          executions.push({
+
+            priority:
+            event.priority,
+
+            execute(){
+
+              return executeSystemListener(
+                listener,
+                event
+              );
+
+            }
+
+          });
+
+        });
+
+        onceListeners.forEach((listener) => {
+
+          executions.push({
+
+            priority:
+            event.priority,
+
+            execute(){
+
+              return executeSystemListener(
+                listener,
+                event
+              );
+
+            }
+
+          });
+
+        });
+
+        systemEventsState
+        .wildcardListeners
+        .forEach((listener) => {
+
+          executions.push({
+
+            priority:
+            SYSTEM_EVENT_PRIORITIES
+            .LOW,
+
+            execute(){
+
+              return executeSystemListener(
+                listener,
+                event
+              );
+
+            }
+
+          });
+
+        });
+
+        const sortedExecutions =
+        sortExecutionsByPriority(
+          executions
+        );
+
+        for(
+          const execution
+          of sortedExecutions
+        ){
+
+          await execution.execute();
+
+        }
+
+        if(
+          onceListeners.length > 0
+        ){
+
+          systemEventsState
+          .onceListeners
+          .delete(
+            event.type
+          );
+
+        }
+
+        systemEventsState
+        .totalEvents++;
+
+        systemEventsState
+        .diagnostics
+        .completed++;
+
+        systemEventsState
+        .lastEventAt =
+        Date.now();
+
+        storeSystemEventHistory(
+          event
+        );
+
+        return true;
+
+      }
+
+      catch(error){
+
+        attempts++;
+
+        event.retries =
+        attempts;
+
+        systemEventsState
+        .diagnostics
+        .retries++;
+
+        if(
+
+          !SYSTEM_EVENTS_CONFIG
+          .ENABLE_RETRIES ||
+
+          attempts >
+
+          SYSTEM_EVENTS_CONFIG
+          .MAX_RETRIES
+
+        ){
+
+          throw error;
+
+        }
+
+      }
 
     }
+
+    return false;
+
+  }
+
+  catch(error){
 
     systemEventsState
     .failedEvents++;
@@ -1127,6 +1154,7 @@ async function emitSystemEvent(
   if(!normalizedEvent){
 
     return false;
+
   }
 
   cleanupThrottledEvents();
@@ -1147,6 +1175,7 @@ async function emitSystemEvent(
     ){
 
       return false;
+
     }
 
   }
@@ -1163,6 +1192,7 @@ async function emitSystemEvent(
   ){
 
     return false;
+
   }
 
   const event =
@@ -1218,6 +1248,7 @@ async function replaySystemEvents(
     if(!eventType){
 
       return true;
+
     }
 
     return (
@@ -1303,13 +1334,55 @@ function resetSystemEvents(){
   .clear();
 
   systemEventsState
-  .eventQueue = [];
+  .eventQueue =
+  [];
 
   systemEventsState
   .throttledEvents
   .clear();
 
   clearSystemEventHistory();
+
+  systemEventsState
+  .processingQueue =
+  false;
+
+  systemEventsState
+  .totalEvents =
+  0;
+
+  systemEventsState
+  .failedEvents =
+  0;
+
+  systemEventsState
+  .activeEvents =
+  0;
+
+  systemEventsState
+  .queuedEvents =
+  0;
+
+  systemEventsState
+  .lastEventAt =
+  null;
+
+  systemEventsState
+  .diagnostics = {
+
+    emitted:0,
+
+    completed:0,
+
+    failed:0,
+
+    retries:0,
+
+    cancelled:0,
+
+    queueProcessed:0
+
+  };
 
   return true;
 
@@ -1323,7 +1396,7 @@ function resetSystemEvents(){
 
 function getSystemEventDiagnostics(){
 
-  return {
+  return Object.freeze({
 
     initialized:
     systemEventsState
@@ -1375,17 +1448,44 @@ function getSystemEventDiagnostics(){
       .eventHistory
       .size,
 
-    diagnostics:
+    diagnostics:{
 
-      systemEventsState
-      .diagnostics,
+      ...systemEventsState
+      .diagnostics
+
+    },
 
     lastEventAt:
 
       systemEventsState
       .lastEventAt
 
-  };
+  });
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+function initializeSystemEvents(){
+
+  if(
+    systemEventsState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  systemEventsState
+  .initialized =
+  true;
+
+  return true;
 
 }
 
@@ -1432,28 +1532,6 @@ Object.freeze({
   resetSystemEvents
 
 });
-// =====================================
-// INITIALIZE
-// =====================================
-
-function initializeSystemEvents(){
-
-  if(
-    systemEventsState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  systemEventsState
-  .initialized =
-  true;
-
-  return true;
-
-}
 
 
 
