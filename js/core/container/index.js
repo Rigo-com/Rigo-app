@@ -6,6 +6,113 @@
 
 
 // =====================================
+// CONTAINER API
+// =====================================
+
+const ContainerAPI =
+Object.freeze({
+
+
+
+  // ===================================
+  // CORE
+  // ===================================
+
+  container:
+  DependencyContainer,
+
+
+
+  // ===================================
+  // CONSTANTS
+  // ===================================
+
+  config:
+  DEPENDENCY_CONTAINER_CONFIG,
+
+  lifecycles:
+  SERVICE_LIFECYCLE,
+
+  events:
+  CONTAINER_EVENTS,
+
+
+
+  // ===================================
+  // REGISTRY
+  // ===================================
+
+  register:
+  registerService,
+
+  remove:
+  removeService,
+
+  get:
+  getRegisteredService,
+
+  has:
+  hasRegisteredService,
+
+  services:
+  getRegisteredServices,
+
+
+
+  // ===================================
+  // RESOLUTION
+  // ===================================
+
+  resolve:
+  resolveService,
+
+  resolveDependencies:
+  resolveDependencies,
+
+  createInstance:
+  createServiceInstance,
+
+
+
+  // ===================================
+  // SCOPES
+  // ===================================
+
+  getScope:
+  getScopeContainer,
+
+  removeScope:
+  removeScopeContainer,
+
+  clearScopes:
+  clearScopeContainers,
+
+  detectCircular:
+  detectCircularDependency,
+
+
+
+  // ===================================
+  // HEALTH
+  // ===================================
+
+  initialize:
+  initializeDependencyContainer,
+
+  reset:
+  resetDependencyContainer,
+
+  health:
+  getContainerHealthReport,
+
+  diagnostics:
+  getContainerDiagnostics
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -14,89 +121,7 @@ if(
   "undefined"
 ){
 
-  // ===================================
-  // CORE
-  // ===================================
-
-  window.DependencyContainer =
-  DependencyContainer;
-
-
-
-  // ===================================
-  // CONSTANTS
-  // ===================================
-
-  window.DEPENDENCY_CONTAINER_CONFIG =
-  DEPENDENCY_CONTAINER_CONFIG;
-
-  window.SERVICE_LIFECYCLE =
-  SERVICE_LIFECYCLE;
-
-  window.CONTAINER_EVENTS =
-  CONTAINER_EVENTS;
-
-
-
-  // ===================================
-  // STATE
-  // ===================================
-
-  window.dependencyContainerState =
-  dependencyContainerState;
-
-
-
-  // ===================================
-  // REGISTRY
-  // ===================================
-
-  window.registerService =
-  registerService;
-
-  window.removeService =
-  removeService;
-
-
-
-  // ===================================
-  // RESOLUTION
-  // ===================================
-
-  window.resolveService =
-  resolveService;
-
-  window.resolveDependencies =
-  resolveDependencies;
-
-  window.createServiceInstance =
-  createServiceInstance;
-
-
-
-  // ===================================
-  // SCOPES
-  // ===================================
-
-  window.getScopeContainer =
-  getScopeContainer;
-
-  window.detectCircularDependency =
-  detectCircularDependency;
-
-
-
-  // ===================================
-  // HEALTH
-  // ===================================
-
-  window.resetDependencyContainer =
-  resetDependencyContainer;
-
-  window.getContainerDiagnostics =
-  getContainerDiagnostics;
-
-  window.initializeDependencyContainer =
-  initializeDependencyContainer;
+  window.ContainerAPI =
+  ContainerAPI;
 
 }
