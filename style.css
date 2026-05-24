@@ -502,11 +502,7 @@ body{
 
 .message-content{
 
-  width:fit-content;
-
   max-width:78%;
-
-  min-width:70px;
 
   padding:14px 18px;
 
@@ -522,7 +518,7 @@ body{
 
   overflow-wrap:anywhere;
 
-  display:block;
+  display:inline-block;
 
 }
 
