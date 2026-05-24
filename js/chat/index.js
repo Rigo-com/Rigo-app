@@ -57,15 +57,16 @@ function resetChatSystem(){
 function sendChatMessage(){
 
   if(
-    typeof sendMessage !==
-    "function"
+    typeof ChatRuntime ===
+    "undefined"
   ){
 
     return false;
 
   }
 
-  return sendMessage();
+  return ChatRuntime
+  .send();
 
 }
 
@@ -78,15 +79,16 @@ function sendChatMessage(){
 function abortChatGeneration(){
 
   if(
-    typeof abortMessageGeneration !==
-    "function"
+    typeof ChatRuntime ===
+    "undefined"
   ){
 
     return false;
 
   }
 
-  return abortMessageGeneration();
+  return ChatRuntime
+  .abort();
 
 }
 
@@ -99,15 +101,16 @@ function abortChatGeneration(){
 function processChatQueue(){
 
   if(
-    typeof processAIQueue !==
-    "function"
+    typeof ChatRuntime ===
+    "undefined"
   ){
 
     return false;
 
   }
 
-  return processAIQueue();
+  return ChatRuntime
+  .process();
 
 }
 
@@ -120,15 +123,16 @@ function processChatQueue(){
 function getChatSystemStatus(){
 
   if(
-    typeof getChatRuntimeStatus !==
-    "function"
+    typeof ChatRuntime ===
+    "undefined"
   ){
 
     return null;
 
   }
 
-  return getChatRuntimeStatus();
+  return ChatRuntime
+  .status();
 
 }
 
@@ -147,6 +151,11 @@ function isChatReady(){
 
     &&
 
+    typeof ChatStreamManager !==
+    "undefined"
+
+    &&
+
     chatRuntimeState
     .initialized ===
     true
@@ -155,6 +164,13 @@ function isChatReady(){
 
     chatRuntimeState
     .destroyed !==
+    true
+
+    &&
+
+    ChatStreamManager
+    .status()
+    ?.initialized ===
     true
 
   );
@@ -168,6 +184,40 @@ function isChatReady(){
 // =====================================
 
 function getChatDiagnostics(){
+
+  let diagnostics =
+  {};
+
+  try{
+
+    diagnostics =
+
+      typeof deepClone ===
+      "function"
+
+      ?
+
+      deepClone(
+
+        chatRuntimeState
+        ?.diagnostics || {}
+
+      )
+
+      :
+
+      {
+        ...(chatRuntimeState
+        ?.diagnostics || {})
+      };
+
+  }
+
+  catch(error){
+
+    diagnostics = {};
+
+  }
 
   return Object.freeze({
 
@@ -212,9 +262,20 @@ function getChatDiagnostics(){
 
       size:
 
+        Array.isArray(
+          chatRuntimeState
+          ?.queue
+        )
+
+        ?
+
         chatRuntimeState
-        ?.queue
-        ?.length || 0,
+        .queue
+        .length
+
+        :
+
+        0,
 
       generating:
 
@@ -227,13 +288,7 @@ function getChatDiagnostics(){
 
 
     diagnostics:
-
-      deepClone(
-
-        chatRuntimeState
-        ?.diagnostics || {}
-
-      )
+    diagnostics
 
   });
 
@@ -279,46 +334,144 @@ Object.freeze({
   // ===================================
 
   runtime:
-  ChatRuntime,
+
+    typeof ChatRuntime !==
+    "undefined"
+
+    ?
+
+    ChatRuntime
+
+    :
+
+    null,
+
+
 
   actions:Object.freeze({
 
     send:
-    sendMessage,
+
+      typeof sendMessage ===
+      "function"
+
+      ?
+
+      sendMessage
+
+      :
+
+      null,
+
+
 
     add:
-    addMessage,
+
+      typeof addMessage ===
+      "function"
+
+      ?
+
+      addMessage
+
+      :
+
+      null,
+
+
 
     reset:
-    resetCurrentChat,
+
+      typeof resetCurrentChat ===
+      "function"
+
+      ?
+
+      resetCurrentChat
+
+      :
+
+      null,
+
+
 
     abort:
-    abortMessageGeneration
+
+      typeof abortMessageGeneration ===
+      "function"
+
+      ?
+
+      abortMessageGeneration
+
+      :
+
+      null
 
   }),
 
   queue:Object.freeze({
 
     process:
-    processAIQueue
+
+      typeof processAIQueue ===
+      "function"
+
+      ?
+
+      processAIQueue
+
+      :
+
+      null
 
   }),
 
   renderer:Object.freeze({
 
     typing:
-    showTypingIndicator
+
+      typeof showTypingIndicator ===
+      "function"
+
+      ?
+
+      showTypingIndicator
+
+      :
+
+      null
 
   }),
 
   events:Object.freeze({
 
     emit:
-    emitChatRuntimeEvent
+
+      typeof emitChatRuntimeEvent ===
+      "function"
+
+      ?
+
+      emitChatRuntimeEvent
+
+      :
+
+      null
 
   }),
 
   state:
-  chatRuntimeState
+
+    typeof chatRuntimeState !==
+    "undefined"
+
+    ?
+
+    chatRuntimeState
+
+    :
+
+    null
 
 });
