@@ -3,31 +3,41 @@
 // APP PHASES
 // =====================================
 
+
+
 const APP_PHASES =
 Object.freeze({
 
-  IDLE:"idle",
+  IDLE:
+  "idle",
 
-  PREINIT:"preinit",
+  PREINIT:
+  "preinit",
 
-  INITIALIZING:"initializing",
+  INITIALIZING:
+  "initializing",
 
-  BOOTING:"booting",
+  BOOTING:
+  "booting",
 
-  READY:"ready",
+  READY:
+  "ready",
 
-  RECOVERING:"recovering",
+  RECOVERING:
+  "recovering",
 
-  SHUTTING_DOWN:"shutting_down",
+  SHUTTING_DOWN:
+  "shutting_down",
 
-  ERROR:"error"
+  ERROR:
+  "error"
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORT
+// GLOBAL EXPORTS
 // =====================================
 
 if(
@@ -35,7 +45,23 @@ if(
   "undefined"
 ){
 
-  window.APP_PHASES =
-  APP_PHASES;
+  Object.defineProperty(
+
+    window,
+
+    "APP_PHASES",
+
+    {
+
+      value:
+      APP_PHASES,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
