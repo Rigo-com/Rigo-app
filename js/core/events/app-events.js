@@ -6,6 +6,127 @@
 
 
 // =====================================
+// APP EVENT TYPES
+// =====================================
+
+const APP_EVENTS =
+Object.freeze({
+
+  INITIALIZED:
+  "app.initialized",
+
+  BOOT_STARTED:
+  "app.boot.started",
+
+  BOOT_COMPLETED:
+  "app.boot.completed",
+
+  BOOT_FAILED:
+  "app.boot.failed",
+
+  READY:
+  "app.ready",
+
+  SHUTDOWN:
+  "app.shutdown"
+
+});
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function validateAppEventName(
+  eventName
+){
+
+  return (
+
+    typeof eventName ===
+    "string" &&
+
+    eventName
+    .trim()
+    .length > 0
+
+  );
+
+}
+
+
+
+// =====================================
+// APP SNAPSHOT
+// =====================================
+
+function getAppEventSnapshot(){
+
+  try{
+
+    return (
+
+      typeof AppState !==
+      "undefined"
+
+      ?
+
+      AppState
+      .get?.()
+
+      :
+
+      null
+
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// CREATE PAYLOAD
+// =====================================
+
+function createAppEventPayload(
+  payload = {}
+){
+
+  const appSnapshot =
+  getAppEventSnapshot();
+
+  return Object.freeze({
+
+    source:
+    "app",
+
+    phase:
+    appSnapshot
+    ?.phase ||
+
+    null,
+
+    timestamp:
+    Date.now(),
+
+    ...payload
+
+  });
+
+}
+
+
+
+// =====================================
 // EMIT APP EVENT
 // =====================================
 
@@ -13,6 +134,17 @@ async function emitAppEvent(
   eventName,
   payload = {}
 ){
+
+  const validEvent =
+  validateAppEventName(
+    eventName
+  );
+
+  if(!validEvent){
+
+    return false;
+
+  }
 
   if(
 
@@ -27,41 +159,13 @@ async function emitAppEvent(
 
   try{
 
-    const appSnapshot =
-
-      typeof AppState !==
-      "undefined"
-
-      ?
-
-      AppState.get()
-
-      :
-
-      null;
-
     await emitSystemEvent(
 
       eventName,
 
-      {
-
-        source:
-        "app",
-
-        phase:
-
-          appSnapshot
-          ?.phase ||
-
-          null,
-
-        timestamp:
-        Date.now(),
-
-        ...payload
-
-      }
+      createAppEventPayload(
+        payload
+      )
 
     );
 
@@ -71,16 +175,10 @@ async function emitAppEvent(
 
   catch(error){
 
-    if(
-      typeof console !==
-      "undefined"
-    ){
-
-      console.error(
-        error
-      );
-
-    }
+    console.error(
+      "APP EVENT ERROR:",
+      error
+    );
 
     return false;
 
@@ -97,6 +195,9 @@ async function emitAppEvent(
 const AppEvents =
 Object.freeze({
 
+  EVENTS:
+  APP_EVENTS,
+
   emit:
   emitAppEvent
 
@@ -112,6 +213,9 @@ if(
   typeof window !==
   "undefined"
 ){
+
+  window.APP_EVENTS =
+  APP_EVENTS;
 
   window.AppEvents =
   AppEvents;
