@@ -1,21 +1,161 @@
 // =====================================
 // RIGO AI
 // CHAT INDEX
-// ENTERPRISE CHAT EXPORTS
+// ENTERPRISE CHAT PUBLIC API
 // =====================================
 
 
 
 // =====================================
-// VALIDATE DEPENDENCIES
+// INITIALIZE CHAT SYSTEM
 // =====================================
 
-function validateChatDependencies(){
+function initializeChatSystem(){
+
+  if(
+    typeof ChatRuntime ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  return ChatRuntime
+  .initialize();
+
+}
+
+
+
+// =====================================
+// RESET CHAT SYSTEM
+// =====================================
+
+function resetChatSystem(){
+
+  if(
+    typeof ChatRuntime ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  return ChatRuntime
+  .resetRuntime();
+
+}
+
+
+
+// =====================================
+// SEND CHAT MESSAGE
+// =====================================
+
+function sendChatMessage(){
+
+  if(
+    typeof sendMessage !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  return sendMessage();
+
+}
+
+
+
+// =====================================
+// ABORT CHAT GENERATION
+// =====================================
+
+function abortChatGeneration(){
+
+  if(
+    typeof abortMessageGeneration !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  return abortMessageGeneration();
+
+}
+
+
+
+// =====================================
+// PROCESS CHAT QUEUE
+// =====================================
+
+function processChatQueue(){
+
+  if(
+    typeof processAIQueue !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  return processAIQueue();
+
+}
+
+
+
+// =====================================
+// CHAT STATUS
+// =====================================
+
+function getChatSystemStatus(){
+
+  if(
+    typeof getChatRuntimeStatus !==
+    "function"
+  ){
+
+    return null;
+
+  }
+
+  return getChatRuntimeStatus();
+
+}
+
+
+
+// =====================================
+// CHAT READY
+// =====================================
+
+function isChatReady(){
 
   return (
 
-    typeof ChatRuntime !==
+    typeof chatRuntimeState !==
     "undefined"
+
+    &&
+
+    chatRuntimeState
+    .initialized ===
+    true
+
+    &&
+
+    chatRuntimeState
+    .destroyed !==
+    true
 
   );
 
@@ -24,73 +164,161 @@ function validateChatDependencies(){
 
 
 // =====================================
-// CHAT EXPORTS
+// CHAT DIAGNOSTICS
 // =====================================
 
-const ChatModule =
+function getChatDiagnostics(){
+
+  return Object.freeze({
+
+    runtime:
+
+      typeof ChatRuntime !==
+      "undefined"
+
+      ?
+
+      ChatRuntime
+      .status()
+
+      :
+
+      null,
+
+
+
+    state:
+
+      typeof getChatRuntimeStatus ===
+      "function"
+
+      ?
+
+      getChatRuntimeStatus()
+
+      :
+
+      null,
+
+
+
+    queue:Object.freeze({
+
+      active:
+
+        chatRuntimeState
+        ?.processing ===
+        true,
+
+      size:
+
+        chatRuntimeState
+        ?.queue
+        ?.length || 0,
+
+      generating:
+
+        chatRuntimeState
+        ?.generating ===
+        true
+
+    }),
+
+
+
+    diagnostics:
+
+      deepClone(
+
+        chatRuntimeState
+        ?.diagnostics || {}
+
+      )
+
+  });
+
+}
+
+
+
+// =====================================
+// CHAT PUBLIC API
+// =====================================
+
+const Chat =
 Object.freeze({
+
+  initialize:
+  initializeChatSystem,
+
+  reset:
+  resetChatSystem,
+
+  send:
+  sendChatMessage,
+
+  abort:
+  abortChatGeneration,
+
+  process:
+  processChatQueue,
+
+  status:
+  getChatSystemStatus,
+
+  diagnostics:
+  getChatDiagnostics,
+
+  isReady:
+  isChatReady,
+
+
+
+  // ===================================
+  // MODULES
+  // ===================================
 
   runtime:
   ChatRuntime,
 
-  initialize:
-  ChatRuntime
-  ?.initialize,
+  actions:Object.freeze({
 
-  send:
-  ChatRuntime
-  ?.send,
+    send:
+    sendMessage,
 
-  process:
-  ChatRuntime
-  ?.process,
+    add:
+    addMessage,
 
-  add:
-  ChatRuntime
-  ?.add,
+    reset:
+    resetCurrentChat,
 
-  reset:
-  ChatRuntime
-  ?.reset,
+    abort:
+    abortMessageGeneration
 
-  abort:
-  ChatRuntime
-  ?.abort,
+  }),
 
-  status:
-  ChatRuntime
-  ?.status,
+  queue:Object.freeze({
 
-  resetRuntime:
-  ChatRuntime
-  ?.resetRuntime
+    process:
+    processAIQueue
+
+  }),
+
+  renderer:Object.freeze({
+
+    typing:
+    showTypingIndicator
+
+  }),
+
+  events:Object.freeze({
+
+    emit:
+    emitChatRuntimeEvent
+
+  }),
+
+  state:
+  chatRuntimeState
 
 });
-
-
-
-// =====================================
-// SAFE GLOBAL EXPORT
-// =====================================
-
-if(
-  validateChatDependencies()
-){
-
-  try{
-
-    globalThis.ChatModule =
-    ChatModule;
-
-  }
-
-  catch(error){
-
-    console.error(
-      "[CHAT INDEX EXPORT ERROR]:",
-      error
-    );
-
-  }
-
-}
