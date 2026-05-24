@@ -27,6 +27,51 @@ Object.seal({
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function updateStartupState(
+  updates = {}
+){
+
+  Object.assign(
+
+    startupRuntimeState,
+
+    updates
+
+  );
+
+  return true;
+
+}
+
+
+
+function normalizeStartupError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+// =====================================
 // SAFE LOADING SCREEN
 // =====================================
 
@@ -63,7 +108,7 @@ function hideSafeLoadingScreen(){
 
 function createStartupSnapshot(){
 
-  return Object.freeze({
+  return freezeEnvironmentObject({
 
     starting:
     startupRuntimeState
@@ -86,7 +131,7 @@ function createStartupSnapshot(){
       startupRuntimeState
       .lastError
 
-      ? String(
+      ? normalizeStartupError(
           startupRuntimeState
           .lastError
         )
@@ -94,6 +139,318 @@ function createStartupSnapshot(){
       : null
 
   });
+
+}
+
+
+
+// =====================================
+// START BOOTSTRAP
+// =====================================
+
+async function startBootstrapProcess(){
+
+  await Promise.race([
+
+    AppBootstrap
+    .initialize(),
+
+    new Promise((_,reject) => {
+
+      setTimeout(() => {
+
+        reject(
+
+          new Error(
+            "APP STARTUP TIMEOUT"
+          )
+
+        );
+
+      },
+
+      APP_CORE_CONFIG
+      .STARTUP_TIMEOUT);
+
+    })
+
+  ]);
+
+  return true;
+
+}
+
+
+
+// =====================================
+// START RUNTIME
+// =====================================
+
+async function startRuntimeManager(){
+
+  if(
+    typeof RuntimeManager ===
+    "undefined"
+  ){
+
+    return true;
+
+  }
+
+  const booted =
+  await RuntimeManager
+  .boot();
+
+  if(!booted){
+
+    throw new Error(
+      "RUNTIME BOOT FAILED"
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// VALIDATE HEALTH
+// =====================================
+
+async function validateStartupHealth(){
+
+  const healthReport =
+  await HealthRuntime
+  .run();
+
+  if(
+    !healthReport
+    ?.healthy
+  ){
+
+    throw new Error(
+      "APPLICATION HEALTHCHECK FAILED"
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// COMPLETE STARTUP
+// =====================================
+
+async function completeStartupProcess(){
+
+  appState.started =
+  true;
+
+  appState.initialized =
+  true;
+
+  appState.initializedAt =
+  Date.now();
+
+  appState.startupCompletedAt =
+  Date.now();
+
+  appState.startupDuration =
+
+    appState
+    .startupCompletedAt -
+
+    appState
+    .startupStartedAt;
+
+  updateStartupState({
+
+    lastCompletedAt:
+
+      appState
+      .startupCompletedAt,
+
+    lastDuration:
+
+      appState
+      .startupDuration
+
+  });
+
+  updateAppPhase(
+    APP_PHASES
+    .READY
+  );
+
+  HealthMonitor
+  .start();
+
+  hideSafeLoadingScreen();
+
+  await emitAppEvent(
+    "app.ready"
+  );
+
+  if(
+    typeof logDiagnosticInfo ===
+    "function"
+  ){
+
+    await logDiagnosticInfo(
+
+      "RIGO AI READY",
+
+      {
+
+        startupDuration:
+
+          appState
+          .startupDuration
+
+      }
+
+    );
+
+  }
+
+  if(
+    typeof trackPerformanceMetric ===
+    "function"
+  ){
+
+    trackPerformanceMetric(
+
+      "app.startup",
+
+      appState
+      .startupDuration
+
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// HANDLE STARTUP ERROR
+// =====================================
+
+async function handleStartupFailure(
+  error
+){
+
+  appState.failedStarts++;
+
+  appState.lastError =
+  error;
+
+  updateStartupState({
+
+    lastError:error
+
+  });
+
+  updateAppPhase(
+    APP_PHASES
+    .ERROR
+  );
+
+
+
+  // ===================================
+  // CLEANUP
+  // ===================================
+
+  await cleanupApp();
+
+  if(
+    typeof document !==
+    "undefined" &&
+
+    document.body
+  ){
+
+    document.body.classList.add(
+      "app-error"
+    );
+
+  }
+
+  hideSafeLoadingScreen();
+
+
+
+  // ===================================
+  // DIAGNOSTICS
+  // ===================================
+
+  if(
+    typeof logCriticalError ===
+    "function"
+  ){
+
+    await logCriticalError(
+
+      "APPLICATION STARTUP FAILED",
+
+      {
+
+        error:
+        normalizeStartupError(
+          error
+        )
+
+      }
+
+    );
+
+  }
+
+  await emitAppEvent(
+
+    "app.error",
+
+    {
+
+      error:
+      normalizeStartupError(
+        error
+      )
+
+    }
+
+  );
+
+
+
+  // ===================================
+  // RECOVERY
+  // ===================================
+
+  if(
+
+    APP_CORE_CONFIG
+    .ENABLE_RECOVERY &&
+
+    typeof recoverApplication ===
+    "function"
+
+  ){
+
+    await recoverApplication();
+
+  }
+
+  return false;
 
 }
 
@@ -120,23 +477,24 @@ async function startApp(){
 
   }
 
-  startupRuntimeState
-  .starting =
-  true;
+  updateStartupState({
+
+    starting:true,
+
+    lastStartedAt:
+    Date.now(),
+
+    lastError:null
+
+  });
 
   appState.starting =
   true;
 
   appState.startupStartedAt =
-  Date.now();
 
-  startupRuntimeState
-  .lastStartedAt =
-  appState.startupStartedAt;
-
-  startupRuntimeState
-  .lastError =
-  null;
+    startupRuntimeState
+    .lastStartedAt;
 
   updateAppPhase(
     APP_PHASES
@@ -167,78 +525,26 @@ async function startApp(){
 
 
     // ================================
-    // INITIALIZE
+    // BOOTSTRAP
     // ================================
 
-    await Promise.race([
-
-      initializeApp(),
-
-      new Promise((_,reject) => {
-
-        setTimeout(() => {
-
-          reject(
-
-            new Error(
-              "APP STARTUP TIMEOUT"
-            )
-
-          );
-
-        },
-
-        APP_CORE_CONFIG
-        .STARTUP_TIMEOUT);
-
-      })
-
-    ]);
+    await startBootstrapProcess();
 
 
 
     // ================================
-    // RUNTIME MANAGER
+    // RUNTIME
     // ================================
 
-    if(
-      typeof RuntimeManager !==
-      "undefined"
-    ){
-
-      const booted =
-      await RuntimeManager
-      .boot();
-
-      if(!booted){
-
-        throw new Error(
-          "RUNTIME BOOT FAILED"
-        );
-
-      }
-
-    }
+    await startRuntimeManager();
 
 
 
     // ================================
-    // HEALTH VALIDATION
+    // HEALTH
     // ================================
 
-    const healthReport =
-    await runAppHealthcheck();
-
-    if(
-      !healthReport
-      ?.healthy
-    ){
-
-      throw new Error(
-        "APPLICATION HEALTHCHECK FAILED"
-      );
-
-    }
+    await validateStartupHealth();
 
 
 
@@ -246,92 +552,7 @@ async function startApp(){
     // COMPLETE
     // ================================
 
-    appState.started =
-    true;
-
-    appState.initialized =
-    true;
-
-    appState.initializedAt =
-    Date.now();
-
-    appState.startupCompletedAt =
-    Date.now();
-
-    appState.startupDuration =
-
-      appState
-      .startupCompletedAt -
-
-      appState
-      .startupStartedAt;
-
-    startupRuntimeState
-    .lastCompletedAt =
-    appState
-    .startupCompletedAt;
-
-    startupRuntimeState
-    .lastDuration =
-    appState
-    .startupDuration;
-
-    updateAppPhase(
-      APP_PHASES
-      .READY
-    );
-
-    startHealthchecks();
-
-    hideSafeLoadingScreen();
-
-    await emitAppEvent(
-      "app.ready"
-    );
-
-
-
-    // ================================
-    // DIAGNOSTICS
-    // ================================
-
-    if(
-      typeof logDiagnosticInfo ===
-      "function"
-    ){
-
-      await logDiagnosticInfo(
-
-        "RIGO AI READY",
-
-        {
-
-          startupDuration:
-
-            appState
-            .startupDuration
-
-        }
-
-      );
-
-    }
-
-    if(
-      typeof trackPerformanceMetric ===
-      "function"
-    ){
-
-      trackPerformanceMetric(
-
-        "app.startup",
-
-        appState
-        .startupDuration
-
-      );
-
-    }
+    await completeStartupProcess();
 
     return true;
 
@@ -339,107 +560,9 @@ async function startApp(){
 
   catch(error){
 
-    appState.failedStarts++;
-
-    appState.lastError =
-    error;
-
-    startupRuntimeState
-    .lastError =
-    error;
-
-    updateAppPhase(
-      APP_PHASES
-      .ERROR
+    return handleStartupFailure(
+      error
     );
-
-
-
-    // ================================
-    // CLEANUP
-    // ================================
-
-    await cleanupApp();
-
-    if(
-      typeof document !==
-      "undefined" &&
-
-      document.body
-    ){
-
-      document.body.classList.add(
-        "app-error"
-      );
-
-    }
-
-    hideSafeLoadingScreen();
-
-
-
-    // ================================
-    // DIAGNOSTICS
-    // ================================
-
-    if(
-      typeof logCriticalError ===
-      "function"
-    ){
-
-      await logCriticalError(
-
-        "APPLICATION STARTUP FAILED",
-
-        {
-
-          error:
-          getSafeErrorMessage(
-            error
-          )
-
-        }
-
-      );
-
-    }
-
-    await emitAppEvent(
-
-      "app.error",
-
-      {
-
-        error:
-        getSafeErrorMessage(
-          error
-        )
-
-      }
-
-    );
-
-
-
-    // ================================
-    // RECOVERY
-    // ================================
-
-    if(
-
-      APP_CORE_CONFIG
-      .ENABLE_RECOVERY &&
-
-      typeof recoverApplication ===
-      "function"
-
-    ){
-
-      await recoverApplication();
-
-    }
-
-    return false;
 
   }
 
@@ -448,13 +571,32 @@ async function startApp(){
     appState.starting =
     false;
 
-    startupRuntimeState
-    .starting =
-    false;
+    updateStartupState({
+
+      starting:false
+
+    });
 
   }
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const AppStartup =
+Object.freeze({
+
+  start:
+  startApp,
+
+  snapshot:
+  createStartupSnapshot
+
+});
 
 
 
@@ -467,10 +609,7 @@ if(
   "undefined"
 ){
 
-  window.startApp =
-  startApp;
-
-  window.createStartupSnapshot =
-  createStartupSnapshot;
+  window.AppStartup =
+  AppStartup;
 
 }
