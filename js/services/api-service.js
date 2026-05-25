@@ -31,6 +31,13 @@ Object.freeze({
 
   ENABLE_LOGGING:true,
 
+  ENABLE_AUTO_CLEANUP:true,
+
+  ENABLE_RESPONSE_NORMALIZATION:true,
+
+  DEFAULT_RESPONSE_TYPE:
+  "json",
+
   DEFAULT_HEADERS:{
 
     "Content-Type":
@@ -60,6 +67,8 @@ Object.seal({
 
   initialized:false,
 
+  healthy:true,
+
   totalRequests:0,
 
   successfulRequests:0,
@@ -68,7 +77,15 @@ Object.seal({
 
   cancelledRequests:0,
 
+  retriedRequests:0,
+
+  activeRequests:0,
+
   lastRequestAt:null,
+
+  lastSuccessAt:null,
+
+  lastFailureAt:null,
 
   lastError:null
 
@@ -217,7 +234,7 @@ function logAPIEvent(
 
 
 // =====================================
-// VALIDATE ACTIVE REQUEST LIMIT
+// VALIDATE REQUEST LIMIT
 // =====================================
 
 function validateRequestLimit(){
@@ -231,6 +248,30 @@ function validateRequestLimit(){
     .MAX_ACTIVE_REQUESTS
 
   );
+
+}
+
+
+
+// =====================================
+// VALIDATE REQUEST OPTIONS
+// =====================================
+
+function validateRequestOptions(
+  options = {}
+){
+
+  if(
+    !options ||
+    typeof options !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  return true;
 
 }
 
@@ -313,11 +354,60 @@ function buildHeaders(
 
 
 // =====================================
+// BUILD QUERY STRING
+// =====================================
+
+function buildQueryString(
+  query = {}
+){
+
+  if(
+    !query ||
+    typeof query !==
+    "object"
+  ){
+
+    return "";
+  }
+
+  const params =
+  new URLSearchParams();
+
+  Object.entries(query)
+  .forEach(([key,value]) => {
+
+    if(
+      value == null
+    ){
+
+      return;
+    }
+
+    params.append(
+      key,
+      String(value)
+    );
+
+  });
+
+  const result =
+  params.toString();
+
+  return result
+  ? `?${result}`
+  : "";
+
+}
+
+
+
+// =====================================
 // BUILD URL
 // =====================================
 
 function buildAPIUrl(
-  endpoint = ""
+  endpoint = "",
+  query = {}
 ){
 
   const normalizedEndpoint =
@@ -329,7 +419,11 @@ function buildAPIUrl(
     API_CONFIG
     .BASE_URL +
 
-    normalizedEndpoint
+    normalizedEndpoint +
+
+    buildQueryString(
+      query
+    )
 
   );
 
@@ -364,17 +458,39 @@ function safeJSONStringify(
 
 
 // =====================================
-// SAFE PARSE JSON
+// PARSE RESPONSE
 // =====================================
 
-async function safeParseJSON(
-  response
+async function parseAPIResponse(
+  response,
+  responseType =
+  API_CONFIG
+  .DEFAULT_RESPONSE_TYPE
 ){
 
   try{
 
-    return await response
-    .json();
+    switch(responseType){
+
+      case "text":
+        return await response.text();
+
+      case "blob":
+        return await response.blob();
+
+      case "arrayBuffer":
+        return await response.arrayBuffer();
+
+      case "raw":
+        return response;
+
+      case "json":
+      default:
+
+        return await response
+        .json();
+
+    }
 
   }
 
@@ -494,11 +610,17 @@ async function executeFetch({
 
   body = null,
 
+  query = {},
+
   headers = {},
 
   timeout =
   API_CONFIG
   .REQUEST_TIMEOUT,
+
+  responseType =
+  API_CONFIG
+  .DEFAULT_RESPONSE_TYPE,
 
   signal = null
 
@@ -541,6 +663,10 @@ async function executeFetch({
     requestId,
     controller
   );
+
+  apiServiceState
+  .activeRequests =
+  activeAPIRequests.size;
 
   apiServiceState
   .totalRequests++;
@@ -600,21 +726,17 @@ async function executeFetch({
 
     const hasBody =
 
-      upperMethod !== "GET"
-
-      &&
-
-      upperMethod !== "DELETE"
-
-      &&
-
-      upperMethod !== "HEAD";
+      !["GET","DELETE","HEAD"]
+      .includes(
+        upperMethod
+      );
 
     const response =
     await fetch(
 
       buildAPIUrl(
-        endpoint
+        endpoint,
+        query
       ),
 
       {
@@ -657,8 +779,12 @@ async function executeFetch({
     );
 
     const data =
-    await safeParseJSON(
-      response
+    await parseAPIResponse(
+
+      response,
+
+      responseType
+
     );
 
     if(
@@ -676,13 +802,6 @@ async function executeFetch({
 
       ];
 
-      const retryable =
-
-        retryableStatus
-        .includes(
-          response.status
-        );
-
       throw createAPIError({
 
         message:
@@ -698,7 +817,10 @@ async function executeFetch({
 
         code:
 
-          retryable
+          retryableStatus
+          .includes(
+            response.status
+          )
 
           ?
 
@@ -717,6 +839,10 @@ async function executeFetch({
 
     apiServiceState
     .successfulRequests++;
+
+    apiServiceState
+    .lastSuccessAt =
+    Date.now();
 
     logAPIEvent(
 
@@ -763,8 +889,15 @@ async function executeFetch({
     .failedRequests++;
 
     apiServiceState
+    .lastFailureAt =
+    Date.now();
+
+    apiServiceState
     .lastError =
     error;
+
+    apiServiceState
+    .healthy = false;
 
     if(
       error?.name ===
@@ -773,19 +906,6 @@ async function executeFetch({
 
       apiServiceState
       .cancelledRequests++;
-
-      logAPIEvent(
-
-        API_EVENTS
-        .REQUEST_ABORTED,
-
-        {
-
-          requestId
-
-        }
-
-      );
 
       throw createAPIError({
 
@@ -832,22 +952,6 @@ async function executeFetch({
 
     }
 
-    logAPIEvent(
-
-      API_EVENTS
-      .REQUEST_FAILED,
-
-      {
-
-        requestId,
-
-        error:
-        String(error)
-
-      }
-
-    );
-
     throw error;
 
   }
@@ -864,11 +968,8 @@ async function executeFetch({
     ){
 
       signal.removeEventListener(
-
         "abort",
-
         abortHandler
-
       );
 
     }
@@ -877,6 +978,10 @@ async function executeFetch({
     .delete(
       requestId
     );
+
+    apiServiceState
+    .activeRequests =
+    activeAPIRequests.size;
 
   }
 
@@ -965,6 +1070,21 @@ async function apiRequest(
   options = {}
 ){
 
+  if(
+    !validateRequestOptions(
+      options
+    )
+  ){
+
+    throw createAPIError({
+
+      message:
+      "INVALID_REQUEST_OPTIONS"
+
+    });
+
+  }
+
   let lastError =
   null;
 
@@ -1022,6 +1142,9 @@ async function apiRequest(
 
       }
 
+      apiServiceState
+      .retriedRequests++;
+
       await wait(
 
         getAPIRetryDelay(
@@ -1062,6 +1185,9 @@ function cancelAllAPIRequests(){
   activeAPIRequests
   .clear();
 
+  apiServiceState
+  .activeRequests = 0;
+
   return true;
 
 }
@@ -1080,6 +1206,10 @@ function getAPIDiagnostics(){
     apiServiceState
     .initialized,
 
+    healthy:
+    apiServiceState
+    .healthy,
+
     totalRequests:
     apiServiceState
     .totalRequests,
@@ -1096,14 +1226,25 @@ function getAPIDiagnostics(){
     apiServiceState
     .cancelledRequests,
 
-    activeRequests:
+    retriedRequests:
+    apiServiceState
+    .retriedRequests,
 
-      activeAPIRequests
-      .size,
+    activeRequests:
+    apiServiceState
+    .activeRequests,
 
     lastRequestAt:
     apiServiceState
     .lastRequestAt,
+
+    lastSuccessAt:
+    apiServiceState
+    .lastSuccessAt,
+
+    lastFailureAt:
+    apiServiceState
+    .lastFailureAt,
 
     lastError:
 
@@ -1144,7 +1285,11 @@ function initializeAPIService(){
 
   registerService(
     "api",
-    APIService
+    APIService,
+    {
+      type:"network",
+      version:"1.0.0"
+    }
   );
 
   activateService(
@@ -1153,6 +1298,10 @@ function initializeAPIService(){
 
   apiServiceState
   .initialized =
+  true;
+
+  apiServiceState
+  .healthy =
   true;
 
   logAPIEvent(
