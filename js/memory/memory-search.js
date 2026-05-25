@@ -500,10 +500,6 @@ function calculateMemoryScore(
 
 
 
-  // ===================================
-  // EXACT MATCH
-  // ===================================
-
   if(
     title === normalizedQuery
   ){
@@ -516,10 +512,6 @@ function calculateMemoryScore(
   }
 
 
-
-  // ===================================
-  // STARTS WITH BOOST
-  // ===================================
 
   if(
     title.startsWith(
@@ -536,10 +528,6 @@ function calculateMemoryScore(
 
 
 
-  // ===================================
-  // TITLE MATCH
-  // ===================================
-
   if(
     title.includes(
       normalizedQuery
@@ -554,10 +542,6 @@ function calculateMemoryScore(
   }
 
 
-
-  // ===================================
-  // SUMMARY MATCH
-  // ===================================
 
   if(
     summary.includes(
@@ -574,10 +558,6 @@ function calculateMemoryScore(
 
 
 
-  // ===================================
-  // CONTENT MATCH
-  // ===================================
-
   if(
     content.includes(
       normalizedQuery
@@ -592,10 +572,6 @@ function calculateMemoryScore(
   }
 
 
-
-  // ===================================
-  // TAG MATCH
-  // ===================================
 
   tags.forEach((tag) => {
 
@@ -616,10 +592,6 @@ function calculateMemoryScore(
 
 
 
-  // ===================================
-  // PINNED BOOST
-  // ===================================
-
   if(
 
     memoryState
@@ -637,10 +609,6 @@ function calculateMemoryScore(
   }
 
 
-
-  // ===================================
-  // RECENCY BOOST
-  // ===================================
 
   const updatedAt =
   Number(
@@ -872,12 +840,6 @@ function setCachedSearchResults(
     )
   );
 
-
-
-  // ===================================
-  // CACHE SIZE PROTECTION
-  // ===================================
-
   while(
     cache.size >
 
@@ -985,16 +947,36 @@ function searchByIndex(
   )
   .map((memoryId) => {
 
-    return searchById(
+    const memory =
+    searchById(
       memoryId
     );
 
-  })
-  .filter((memory) => {
+    if(
+      !memory
+    ){
 
-    return isSearchableMemory(
+      return null;
+
+    }
+
+    return createSearchResult(
       memory,
-      options
+      1
+    );
+
+  })
+  .filter((result) => {
+
+    return (
+
+      result &&
+
+      isSearchableMemory(
+        result.memory,
+        options
+      )
+
     );
 
   });
@@ -1382,9 +1364,9 @@ function searchMemories(
 
     catch(error){
 
-      markMemoryCorrupted(
+      markMemoryCorrupted?.(
         memory?.id ||
-        createMemoryId()
+        createMemoryId?.()
       );
 
     }
@@ -1431,7 +1413,7 @@ function searchMemories(
 // ADVANCED SEARCH
 // =====================================
 
-function advancedMemorySearch(
+async function advancedMemorySearch(
   query,
   options = {}
 ){
@@ -1457,21 +1439,37 @@ function advancedMemorySearch(
 
     try{
 
+      const semanticData =
+      await Promise.resolve(
+
+        semanticMemorySearch(
+          query,
+          options
+        )
+
+      );
+
       semanticResults =
-      semanticMemorySearch(
-        query,
-        options
-      )
-      .map((item) => {
 
-        return createSearchResult(
-          item.memory,
-          Math.round(
-            item.similarity * 100
-          )
-        );
+        Array.isArray(
+          semanticData
+        )
 
-      });
+        ? semanticData.map((item) => {
+
+            return createSearchResult(
+
+              item.memory,
+
+              Math.round(
+                item.similarity * 100
+              )
+
+            );
+
+          })
+
+        : [];
 
     }
 
@@ -1511,259 +1509,5 @@ function advancedMemorySearch(
       .slice(0,limit)
     )
   );
-
-}
-
-
-
-// =====================================
-// DATE RANGE SEARCH
-// =====================================
-
-function searchMemoriesByDateRange(
-  startDate,
-  endDate,
-  options = {}
-){
-
-  const start =
-  Number(startDate);
-
-  const end =
-  Number(endDate);
-
-  if(
-
-    !Number.isFinite(start) ||
-
-    !Number.isFinite(end)
-
-  ){
-
-    return [];
-
-  }
-
-  return freezeSearchObject(
-
-    deepClone(
-
-      safeMemoryArray(
-        memoryState.memories
-      )
-      .filter((memory) => {
-
-        if(
-
-          !isSearchableMemory(
-            memory,
-            options
-          )
-
-        ){
-
-          return false;
-
-        }
-
-        const createdAt =
-        Number(
-          memory?.createdAt
-        );
-
-        return (
-
-          Number.isFinite(
-            createdAt
-          )
-
-          &&
-
-          createdAt >= start
-
-          &&
-
-          createdAt <= end
-
-        );
-
-      })
-
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// SORT MEMORIES
-// =====================================
-
-function sortMemories(
-  memories = [],
-  sortBy = "updatedAt",
-  direction = "desc"
-){
-
-  const safeSortField =
-  normalizeSortField(
-    sortBy
-  );
-
-  const safeDirection =
-  normalizeSortDirection(
-    direction
-  );
-
-  const sortedMemories = [
-
-    ...safeMemoryArray(
-      memories
-    )
-
-  ];
-
-  sortedMemories.sort((a,b) => {
-
-    const valueA =
-    a?.[safeSortField];
-
-    const valueB =
-    b?.[safeSortField];
-
-    if(
-      valueA > valueB
-    ){
-
-      return (
-        safeDirection ===
-        "asc"
-      )
-
-      ? 1
-
-      : -1;
-
-    }
-
-    if(
-      valueA < valueB
-    ){
-
-      return (
-        safeDirection ===
-        "asc"
-      )
-
-      ? -1
-
-      : 1;
-
-    }
-
-    return 0;
-
-  });
-
-  return freezeSearchObject(
-    deepClone(
-      sortedMemories
-    )
-  );
-
-}
-
-
-
-// =====================================
-// PAGINATION
-// =====================================
-
-function paginateResults(
-  results = [],
-  page = 1,
-  limit = 20
-){
-
-  if(
-    !Array.isArray(
-      results
-    )
-  ){
-
-    return freezeSearchObject({
-
-      page:1,
-
-      limit:0,
-
-      total:0,
-
-      totalPages:0,
-
-      results:[]
-
-    });
-
-  }
-
-  const normalizedPage =
-  Math.max(
-    1,
-    Number(page) || 1
-  );
-
-  const normalizedLimit =
-  clampSearchLimit(
-    limit
-  );
-
-  const startIndex =
-
-    (
-      normalizedPage - 1
-    ) *
-
-    normalizedLimit;
-
-  const endIndex =
-
-    startIndex +
-
-    normalizedLimit;
-
-  return freezeSearchObject({
-
-    page:
-    normalizedPage,
-
-    limit:
-    normalizedLimit,
-
-    total:
-    results.length,
-
-    totalPages:
-    Math.ceil(
-
-      results.length /
-
-      normalizedLimit
-
-    ),
-
-    results:
-    deepClone(
-
-      results.slice(
-        startIndex,
-        endIndex
-      )
-
-    )
-
-  });
 
 }
