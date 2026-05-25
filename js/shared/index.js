@@ -8,21 +8,29 @@
 
 
 // =====================================
-// SHARED STATE
+// INTERNAL STATE
 // =====================================
 
 const sharedRuntimeState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  initializing:false,
+  initializing:
+  false,
 
-  crashed:false,
+  crashed:
+  false,
 
-  initializedAt:null,
+  initializedAt:
+  null,
 
-  lastError:null,
+  startupDuration:
+  null,
+
+  lastError:
+  null,
 
   loadedModules:
   new Set(),
@@ -35,19 +43,153 @@ Object.seal({
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function isFunction(
+  value
+){
+
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof HTMLElement
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    if(
+      nestedValue &&
+      typeof nestedValue ===
+      "object"
+    ){
+
+      safeFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+async function safelyExecuteSharedOperation(
+  label,
+  operation,
+  fallback = null
+){
+
+  try{
+
+    if(
+      !isFunction(operation)
+    ){
+
+      return fallback;
+
+    }
+
+    return await operation();
+
+  }
+
+  catch(error){
+
+    sharedRuntimeState
+    .crashed =
+    true;
+
+    sharedRuntimeState
+    .lastError =
+    error;
+
+    logSharedError(
+
+      `${label} FAILED`,
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    return fallback;
+
+  }
+
+}
+
+
+
+// =====================================
 // SHARED MODULES
 // =====================================
 
 const SHARED_RUNTIME_MODULES =
-Object.freeze([
+safeFreeze([
 
   {
 
-    name:"utils",
+    name:
+    "utils",
 
-    required:true,
+    required:
+    true,
 
-    initialize(){
+    async initialize(){
 
       return (
 
@@ -173,6 +315,36 @@ function logSharedError(
 
 
 // =====================================
+// MODULE REGISTRY
+// =====================================
+
+const sharedModuleRegistry =
+safeFreeze({
+
+  utils(){
+
+    return (
+
+      typeof SharedUtils !==
+      "undefined"
+
+      ?
+
+      SharedUtils
+
+      :
+
+      null
+
+    );
+
+  }
+
+});
+
+
+
+// =====================================
 // REGISTER MODULE
 // =====================================
 
@@ -261,61 +433,101 @@ function validateSharedModules(){
 
 async function initializeSharedRuntime(){
 
-  if(
-    sharedRuntimeState
-    .initialized
-  ){
+  return safelyExecuteSharedOperation(
 
-    return true;
+    "SHARED INITIALIZATION",
 
-  }
+    async() => {
 
-  if(
-    sharedRuntimeState
-    .initializing
-  ){
+      if(
+        sharedRuntimeState
+        .initialized
+      ){
 
-    return false;
+        return true;
 
-  }
+      }
 
-  sharedRuntimeState
-  .initializing =
-  true;
+      if(
+        sharedRuntimeState
+        .initializing
+      ){
 
-  try{
+        return false;
 
-    const valid =
-    validateSharedModules();
+      }
 
-    if(!valid){
+      sharedRuntimeState
+      .initializing =
+      true;
 
-      throw new Error(
-        "INVALID_SHARED_RUNTIME"
-      );
+      const startedAt =
+      Date.now();
 
-    }
+      const valid =
+      validateSharedModules();
 
-    for(
-      const module of
-      SHARED_RUNTIME_MODULES
-    ){
+      if(!valid){
 
-      try{
+        throw new Error(
+          "INVALID_SHARED_RUNTIME"
+        );
 
-        const initialized =
-        await module
-        .initialize();
+      }
 
-        if(!initialized){
+      for(
+        const module of
+        SHARED_RUNTIME_MODULES
+      ){
 
-          registerFailedSharedModule(
+        try{
+
+          const initialized =
+          await module
+          .initialize();
+
+          if(!initialized){
+
+            registerFailedSharedModule(
+              module.name
+            );
+
+            logSharedError(
+
+              "MODULE INIT FAILED",
+
+              {
+
+                module:
+                module.name
+
+              }
+
+            );
+
+            if(
+              module.required
+            ){
+
+              throw new Error(
+
+                "REQUIRED_SHARED_MODULE_FAILED"
+
+              );
+
+            }
+
+            continue;
+
+          }
+
+          registerSharedModule(
             module.name
           );
 
-          logSharedError(
+          logSharedInfo(
 
-            "MODULE INIT FAILED",
+            "MODULE READY",
 
             {
 
@@ -326,125 +538,77 @@ async function initializeSharedRuntime(){
 
           );
 
+        }
+
+        catch(error){
+
+          registerFailedSharedModule(
+            module.name
+          );
+
+          logSharedError(
+
+            "MODULE CRASHED",
+
+            {
+
+              module:
+              module.name,
+
+              error:
+              String(error)
+
+            }
+
+          );
+
           if(
             module.required
           ){
 
-            throw new Error(
-
-              "REQUIRED_SHARED_MODULE_FAILED"
-
-            );
+            throw error;
 
           }
-
-          continue;
-
-        }
-
-        registerSharedModule(
-          module.name
-        );
-
-        logSharedInfo(
-
-          "MODULE READY",
-
-          {
-
-            module:
-            module.name
-
-          }
-
-        );
-
-      }
-
-      catch(error){
-
-        registerFailedSharedModule(
-          module.name
-        );
-
-        logSharedError(
-
-          "MODULE CRASHED",
-
-          {
-
-            module:
-            module.name,
-
-            error:
-            String(error)
-
-          }
-
-        );
-
-        if(
-          module.required
-        ){
-
-          throw error;
 
         }
 
       }
 
-    }
+      sharedRuntimeState
+      .initialized =
+      true;
 
-    sharedRuntimeState
-    .initialized =
-    true;
+      sharedRuntimeState
+      .initializedAt =
+      Date.now();
 
-    sharedRuntimeState
-    .initializedAt =
-    Date.now();
+      sharedRuntimeState
+      .startupDuration =
 
-    logSharedInfo(
-      "SHARED RUNTIME READY"
-    );
+        sharedRuntimeState
+        .initializedAt -
 
-    return true;
+        startedAt;
 
-  }
+      logSharedInfo(
+        "SHARED RUNTIME READY"
+      );
 
-  catch(error){
+      return true;
 
-    sharedRuntimeState
-    .crashed =
-    true;
+    },
 
-    sharedRuntimeState
-    .lastError =
-    error;
+    false
 
-    logSharedError(
+  )
 
-      "SHARED RUNTIME FAILED",
-
-      {
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    return false;
-
-  }
-
-  finally{
+  .finally(() => {
 
     sharedRuntimeState
     .initializing =
     false;
 
-  }
+  });
 
 }
 
@@ -456,27 +620,48 @@ async function initializeSharedRuntime(){
 
 async function resetSharedRuntime(){
 
-  sharedRuntimeState
-  .loadedModules
-  .clear();
+  return safelyExecuteSharedOperation(
 
-  sharedRuntimeState
-  .failedModules
-  .clear();
+    "SHARED RESET",
 
-  sharedRuntimeState
-  .initialized =
-  false;
+    async() => {
 
-  sharedRuntimeState
-  .crashed =
-  false;
+      sharedRuntimeState
+      .loadedModules
+      .clear();
 
-  sharedRuntimeState
-  .lastError =
-  null;
+      sharedRuntimeState
+      .failedModules
+      .clear();
 
-  return initializeSharedRuntime();
+      sharedRuntimeState
+      .initialized =
+      false;
+
+      sharedRuntimeState
+      .crashed =
+      false;
+
+      sharedRuntimeState
+      .lastError =
+      null;
+
+      sharedRuntimeState
+      .initializedAt =
+      null;
+
+      sharedRuntimeState
+      .startupDuration =
+      null;
+
+      return await
+      initializeSharedRuntime();
+
+    },
+
+    false
+
+  );
 
 }
 
@@ -488,16 +673,17 @@ async function resetSharedRuntime(){
 
 function runSharedHealthcheck(){
 
-  if(
-    !sharedRuntimeState
-    .initialized
-  ){
-
-    return false;
-
-  }
-
   return (
+
+    sharedRuntimeState
+    .initialized
+
+    &&
+
+    !sharedRuntimeState
+    .crashed
+
+    &&
 
     sharedRuntimeState
     .failedModules
@@ -517,45 +703,47 @@ function getSharedModule(
   moduleName
 ){
 
-  switch(
-    String(moduleName)
-    .toLowerCase()
+  const normalizedName =
+
+    String(moduleName || "")
+    .trim()
+    .toLowerCase();
+
+  if(
+    !normalizedName
   ){
 
-    case "utils":
-
-      return (
-
-        typeof SharedUtils !==
-        "undefined"
-
-        ?
-
-        SharedUtils
-
-        :
-
-        null
-
-      );
-
-    default:
-
-      return null;
+    return null;
 
   }
+
+  const resolver =
+  sharedModuleRegistry[
+    normalizedName
+  ];
+
+  if(
+    typeof resolver !==
+    "function"
+  ){
+
+    return null;
+
+  }
+
+  return resolver();
 
 }
 
 
 
 // =====================================
-// SHARED DIAGNOSTICS
+// SHARED SNAPSHOT
 // =====================================
 
-function getSharedDiagnostics(){
+function createSharedSnapshot(){
 
-  return Object.freeze({
+  return safeFreeze({
 
     initialized:
     sharedRuntimeState
@@ -572,6 +760,10 @@ function getSharedDiagnostics(){
     initializedAt:
     sharedRuntimeState
     .initializedAt,
+
+    startupDuration:
+    sharedRuntimeState
+    .startupDuration,
 
     loadedModules:[
 
@@ -616,7 +808,10 @@ function getSharedDiagnostics(){
 
       :
 
-      null
+      null,
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -629,7 +824,7 @@ function getSharedDiagnostics(){
 // =====================================
 
 const SharedRuntime =
-Object.freeze({
+safeFreeze({
 
   initialize:
   initializeSharedRuntime,
@@ -644,6 +839,43 @@ Object.freeze({
   getSharedModule,
 
   diagnostics:
-  getSharedDiagnostics
+  createSharedSnapshot,
+
+  snapshot:
+  createSharedSnapshot
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SharedRuntime",
+
+    {
+
+      value:
+      SharedRuntime,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
