@@ -2,6 +2,7 @@
 // RIGO AI
 // SECURITY POLICY ENGINE
 // ENTERPRISE SECURITY POLICY LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -13,13 +14,17 @@
 const SECURITY_LEVELS =
 Object.freeze({
 
-  LOW:"low",
+  LOW:
+  "low",
 
-  MEDIUM:"medium",
+  MEDIUM:
+  "medium",
 
-  HIGH:"high",
+  HIGH:
+  "high",
 
-  STRICT:"strict"
+  STRICT:
+  "strict"
 
 });
 
@@ -35,21 +40,32 @@ Object.freeze({
   DEFAULT_LEVEL:
   SECURITY_LEVELS.HIGH,
 
-  ENABLE_IFRAME_BLOCKING:true,
+  ENABLE_IFRAME_BLOCKING:
+  true,
 
-  ENABLE_WORKER_RESTRICTIONS:true,
+  ENABLE_WORKER_RESTRICTIONS:
+  true,
 
-  ENABLE_INLINE_SCRIPT_BLOCKING:true,
+  ENABLE_INLINE_SCRIPT_BLOCKING:
+  true,
 
-  ENABLE_DYNAMIC_EVAL_BLOCKING:true,
+  ENABLE_DYNAMIC_EVAL_BLOCKING:
+  true,
 
-  ENABLE_PERMISSION_VALIDATION:true,
+  ENABLE_PERMISSION_VALIDATION:
+  true,
 
-  ENABLE_RUNTIME_LOCKS:true,
+  ENABLE_RUNTIME_LOCKS:
+  true,
 
-  MAX_RUNTIME_LOCKS:500,
+  MAX_RUNTIME_LOCKS:
+  500,
 
-  MAX_FEATURES:1000
+  MAX_FEATURES:
+  1000,
+
+  MAX_FEATURE_NAME_LENGTH:
+  200
 
 });
 
@@ -62,14 +78,16 @@ Object.freeze({
 const securityPolicyState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
   activeLevel:
 
     SECURITY_POLICY_CONFIG
     .DEFAULT_LEVEL,
 
-  blockedActions:0,
+  blockedActions:
+  0,
 
   runtimeLocks:
   new Set(),
@@ -80,7 +98,8 @@ Object.seal({
   blockedFeatures:
   new Set(),
 
-  lastUpdatedAt:null
+  lastUpdatedAt:
+  null
 
 });
 
@@ -101,7 +120,14 @@ function normalizePolicyFeature(
     )
     .trim()
     .toLowerCase()
-    .slice(0,200);
+    .slice(
+
+      0,
+
+      SECURITY_POLICY_CONFIG
+      .MAX_FEATURE_NAME_LENGTH
+
+    );
 
   }
 
@@ -110,6 +136,37 @@ function normalizePolicyFeature(
     return "";
 
   }
+
+}
+
+
+
+// =====================================
+// SAFE LOG
+// =====================================
+
+function logPolicyEvent(
+  message,
+  metadata = null
+){
+
+  try{
+
+    if(
+      typeof logSecurityEvent ===
+      "function"
+    ){
+
+      logSecurityEvent(
+        message,
+        metadata
+      );
+
+    }
+
+  }
+
+  catch(error){}
 
 }
 
@@ -209,11 +266,20 @@ Object.freeze({
 
   [SECURITY_LEVELS.LOW]:{
 
-    allowEval:true,
+    allowEval:
+    true,
 
-    allowInlineScripts:true,
+    allowInlineScripts:
+    true,
 
-    allowWorkers:true
+    allowWorkers:
+    true,
+
+    allowDynamicImport:
+    true,
+
+    allowRemoteScripts:
+    true
 
   },
 
@@ -221,11 +287,20 @@ Object.freeze({
 
   [SECURITY_LEVELS.MEDIUM]:{
 
-    allowEval:false,
+    allowEval:
+    false,
 
-    allowInlineScripts:false,
+    allowInlineScripts:
+    false,
 
-    allowWorkers:true
+    allowWorkers:
+    true,
+
+    allowDynamicImport:
+    false,
+
+    allowRemoteScripts:
+    false
 
   },
 
@@ -233,11 +308,20 @@ Object.freeze({
 
   [SECURITY_LEVELS.HIGH]:{
 
-    allowEval:false,
+    allowEval:
+    false,
 
-    allowInlineScripts:false,
+    allowInlineScripts:
+    false,
 
-    allowWorkers:false
+    allowWorkers:
+    false,
+
+    allowDynamicImport:
+    false,
+
+    allowRemoteScripts:
+    false
 
   },
 
@@ -245,15 +329,20 @@ Object.freeze({
 
   [SECURITY_LEVELS.STRICT]:{
 
-    allowEval:false,
+    allowEval:
+    false,
 
-    allowInlineScripts:false,
+    allowInlineScripts:
+    false,
 
-    allowWorkers:false,
+    allowWorkers:
+    false,
 
-    allowDynamicImport:false,
+    allowDynamicImport:
+    false,
 
-    allowRemoteScripts:false
+    allowRemoteScripts:
+    false
 
   }
 
@@ -262,24 +351,32 @@ Object.freeze({
 
 
 // =====================================
-// GET POLICY
+// GET ACTIVE POLICY
 // =====================================
 
 function getActiveSecurityPolicy(){
 
-  return (
+  const policy =
 
     SECURITY_POLICY_RULES[
       securityPolicyState
       .activeLevel
-    ]
+    ];
 
-    ||
+  if(
+    !policy
+  ){
 
-    SECURITY_POLICY_RULES
-    [SECURITY_LEVELS.HIGH]
+    return SECURITY_POLICY_RULES
+    [SECURITY_LEVELS.HIGH];
 
-  );
+  }
+
+  return Object.freeze({
+
+    ...policy
+
+  });
 
 }
 
@@ -321,13 +418,15 @@ function setSecurityLevel(
   .lastUpdatedAt =
   Date.now();
 
-  logSecurityEvent(
+  logPolicyEvent(
 
     "SECURITY LEVEL CHANGED",
 
     {
+
       level:
       normalizedLevel
+
     }
 
   );
@@ -361,20 +460,24 @@ function validateFeatureAccess(
 
     securityPolicyState
     .blockedFeatures
-    .has(normalized)
+    .has(
+      normalized
+    )
 
   ){
 
     securityPolicyState
     .blockedActions++;
 
-    logSecurityEvent(
+    logPolicyEvent(
 
       "FEATURE BLOCKED",
 
       {
+
         feature:
         normalized
+
       }
 
     );
@@ -410,7 +513,15 @@ function blockSecurityFeature(
 
   securityPolicyState
   .blockedFeatures
-  .add(normalized);
+  .add(
+    normalized
+  );
+
+  securityPolicyState
+  .trustedFeatures
+  .delete(
+    normalized
+  );
 
   enforcePolicyLimits();
 
@@ -445,7 +556,15 @@ function trustSecurityFeature(
 
   securityPolicyState
   .trustedFeatures
-  .add(normalized);
+  .add(
+    normalized
+  );
+
+  securityPolicyState
+  .blockedFeatures
+  .delete(
+    normalized
+  );
 
   enforcePolicyLimits();
 
@@ -460,12 +579,23 @@ function trustSecurityFeature(
 
 
 // =====================================
-// RUNTIME LOCK
+// ADD RUNTIME LOCK
 // =====================================
 
 function addRuntimeLock(
   lockName
 ){
+
+  if(
+
+    !SECURITY_POLICY_CONFIG
+    .ENABLE_RUNTIME_LOCKS
+
+  ){
+
+    return false;
+
+  }
 
   const normalized =
   normalizePolicyFeature(
@@ -480,9 +610,15 @@ function addRuntimeLock(
 
   securityPolicyState
   .runtimeLocks
-  .add(normalized);
+  .add(
+    normalized
+  );
 
   enforcePolicyLimits();
+
+  securityPolicyState
+  .lastUpdatedAt =
+  Date.now();
 
   return true;
 
@@ -498,14 +634,21 @@ function removeRuntimeLock(
   lockName
 ){
 
+  const normalized =
+  normalizePolicyFeature(
+    lockName
+  );
+
+  if(!normalized){
+
+    return false;
+
+  }
+
   return securityPolicyState
   .runtimeLocks
   .delete(
-
-    normalizePolicyFeature(
-      lockName
-    )
-
+    normalized
   );
 
 }
@@ -513,7 +656,36 @@ function removeRuntimeLock(
 
 
 // =====================================
-// CSP POLICY
+// CHECK RUNTIME LOCK
+// =====================================
+
+function hasRuntimeLock(
+  lockName
+){
+
+  const normalized =
+  normalizePolicyFeature(
+    lockName
+  );
+
+  if(!normalized){
+
+    return false;
+
+  }
+
+  return securityPolicyState
+  .runtimeLocks
+  .has(
+    normalized
+  );
+
+}
+
+
+
+// =====================================
+// BUILD CSP
 // =====================================
 
 function buildCSPPolicy(){
@@ -545,9 +717,7 @@ function buildCSPPolicy(){
   ){
 
     policy.push(
-
       "script-src 'self'"
-
     );
 
   }
@@ -558,9 +728,7 @@ function buildCSPPolicy(){
   ){
 
     policy.push(
-
       "worker-src 'none'"
-
     );
 
   }
@@ -572,7 +740,7 @@ function buildCSPPolicy(){
 
 
 // =====================================
-// VALIDATE RUNTIME EXECUTION
+// VALIDATE EXECUTION
 // =====================================
 
 function validateRuntimeExecution(
@@ -616,9 +784,26 @@ function validateRuntimeExecution(
 
       break;
 
+    case "dynamic-import":
+
+      allowed =
+      activePolicy
+      .allowDynamicImport;
+
+      break;
+
+    case "remote-script":
+
+      allowed =
+      activePolicy
+      .allowRemoteScripts;
+
+      break;
+
     default:
 
-      allowed = false;
+      allowed =
+      false;
 
   }
 
@@ -627,13 +812,15 @@ function validateRuntimeExecution(
     securityPolicyState
     .blockedActions++;
 
-    logSecurityEvent(
+    logPolicyEvent(
 
       "RUNTIME EXECUTION BLOCKED",
 
       {
+
         type:
         normalizedType
+
       }
 
     );
@@ -647,7 +834,7 @@ function validateRuntimeExecution(
 
 
 // =====================================
-// INITIALIZE POLICY ENGINE
+// INITIALIZE
 // =====================================
 
 function initializeSecurityPolicyEngine(){
@@ -661,26 +848,49 @@ function initializeSecurityPolicyEngine(){
 
   }
 
-  securityPolicyState
-  .initialized =
-  true;
+  try{
 
-  securityPolicyState
-  .lastUpdatedAt =
-  Date.now();
+    securityPolicyState
+    .initialized =
+    true;
 
-  logSecurityEvent(
-    "SECURITY POLICY READY"
-  );
+    securityPolicyState
+    .lastUpdatedAt =
+    Date.now();
 
-  return true;
+    logPolicyEvent(
+      "SECURITY POLICY READY"
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    logPolicyEvent(
+
+      "SECURITY POLICY INIT FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    return false;
+
+  }
 
 }
 
 
 
 // =====================================
-// POLICY DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getSecurityPolicyDiagnostics(){
@@ -764,6 +974,9 @@ Object.freeze({
   removeLock:
   removeRuntimeLock,
 
+  hasLock:
+  hasRuntimeLock,
+
   buildCSP:
   buildCSPPolicy,
 
@@ -771,3 +984,37 @@ Object.freeze({
   getSecurityPolicyDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SecurityPolicy",
+
+    {
+
+      value:
+      SecurityPolicy,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
