@@ -1,133 +1,546 @@
 // =====================================
 // RIGO AI
 // COMMUNICATION INDEX
-// COMMUNICATION RUNTIME EXPORTS
 // =====================================
 
 
 
 // =====================================
-// VALIDATE RUNTIME
+// DEPENDENCY CHECK
 // =====================================
 
-function validateCommunicationRuntime(){
+const COMMUNICATION_REQUIRED_MODULES =
 
-  return (
+Object.freeze([
 
-    typeof CommunicationRuntime ===
-    "object"
+  "COMMUNICATION_RUNTIME_CONFIG",
+  "COMMUNICATION_RUNTIME_STATES",
+  "COMMUNICATION_RUNTIME_EVENTS",
+  "communicationRuntimeState",
 
-    &&
+  "safeCommunicationClone",
+  "createMessageHash",
+  "cleanupProcessedHashes",
+  "trimConversationHistory",
+  "emitCommunicationEvent",
+  "freezeCommunicationObject",
+  "validateCommunicationMessage",
 
-    typeof CommunicationRuntime
-    .initialize ===
-    "function"
+  "persistCommunicationState",
+  "restoreCommunicationState",
+  "clearCommunicationStorage",
 
-    &&
+  "enqueueCommunicationMessage",
+  "processCommunicationQueue",
 
-    typeof CommunicationRuntime
-    .send ===
-    "function"
+  "startCommunicationStream",
+  "stopCommunicationStream",
 
-    &&
+  "startTypingIndicator",
+  "stopTypingIndicator",
 
-    typeof CommunicationRuntime
-    .abort ===
-    "function"
+  "abortCommunicationMessage",
+  "abortAllCommunicationMessages",
 
-    &&
+  "monitorCommunicationHealth",
+  "recoverCommunicationRuntime"
 
-    typeof CommunicationRuntime
-    .abortAll ===
-    "function"
+]);
 
-    &&
 
-    typeof CommunicationRuntime
-    .recover ===
-    "function"
 
-    &&
+// =====================================
+// CHECK MODULES
+// =====================================
 
-    typeof CommunicationRuntime
-    .status ===
-    "function"
+function validateCommunicationModules(){
 
-    &&
+  const missingModules =
 
-    typeof CommunicationRuntime
-    .reset ===
-    "function"
+    COMMUNICATION_REQUIRED_MODULES
+    .filter((moduleName) => {
 
-    &&
+      return (
+        typeof globalThis[
+          moduleName
+        ] ===
+        "undefined"
+      );
 
-    typeof CommunicationRuntime
-    .destroy ===
-    "function"
+    });
 
-  );
+  if(
+    missingModules.length > 0
+  ){
+
+    if(
+      COMMUNICATION_RUNTIME_CONFIG
+      .DEBUG
+    ){
+
+      console.error(
+
+        "COMMUNICATION_MODULES_MISSING:",
+
+        missingModules
+
+      );
+
+    }
+
+    return false;
+
+  }
+
+  return true;
 
 }
 
 
 
 // =====================================
-// SAFE EXPORT
+// STATUS
 // =====================================
 
-const CommunicationModule =
-Object.freeze({
+function getCommunicationRuntimeStatus(){
 
-  runtime:
+  return freezeCommunicationObject({
 
-    validateCommunicationRuntime()
+    initialized:
 
-    ?
+      communicationRuntimeState
+      .initialized,
 
-    CommunicationRuntime
+    destroyed:
 
-    :
+      communicationRuntimeState
+      .destroyed,
 
-    null,
+    processing:
 
-  config:
+      communicationRuntimeState
+      .processing,
 
-    typeof COMMUNICATION_RUNTIME_CONFIG ===
-    "object"
+    streaming:
 
-    ?
+      communicationRuntimeState
+      .streaming,
 
-    COMMUNICATION_RUNTIME_CONFIG
+    typing:
 
-    :
+      communicationRuntimeState
+      .typing,
 
-    null,
+    recovering:
 
-  states:
+      communicationRuntimeState
+      .recovering,
 
-    typeof COMMUNICATION_RUNTIME_STATES ===
-    "object"
+    state:
 
-    ?
+      communicationRuntimeState
+      .state,
+
+    queuedMessages:
+
+      communicationRuntimeState
+      .messageQueue
+      .length,
+
+    activeStreams:
+
+      communicationRuntimeState
+      .activeStreams
+      .size,
+
+    activeRequests:
+
+      communicationRuntimeState
+      .activeRequests
+      .size,
+
+    conversations:
+
+      communicationRuntimeState
+      .conversations
+      .size,
+
+    lastMessageAt:
+
+      communicationRuntimeState
+      .lastMessageAt,
+
+    diagnostics:
+
+      safeCommunicationClone(
+
+        communicationRuntimeState
+        .diagnostics
+
+      )
+
+  });
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetCommunicationRuntime(){
+
+  await stopTypingIndicator();
+
+  abortAllCommunicationMessages();
+
+  communicationRuntimeState
+  .messageQueue = [];
+
+  communicationRuntimeState
+  .activeStreams
+  .clear();
+
+  communicationRuntimeState
+  .activeRequests
+  .clear();
+
+  communicationRuntimeState
+  .abortControllers
+  .clear();
+
+  communicationRuntimeState
+  .processedHashes
+  .clear();
+
+  communicationRuntimeState
+  .conversations
+  .clear();
+
+  clearCommunicationStorage();
+
+  if(
+
+    communicationRuntimeState
+    .runtimeRecoveryUnsubscribe
+
+  ){
+
+    try{
+
+      communicationRuntimeState
+      .runtimeRecoveryUnsubscribe();
+
+    }
+
+    catch(error){
+
+    }
+
+    communicationRuntimeState
+    .runtimeRecoveryUnsubscribe =
+    null;
+
+  }
+
+  if(
+    communicationRuntimeState
+    .healthTimer
+  ){
+
+    clearInterval(
+
+      communicationRuntimeState
+      .healthTimer
+
+    );
+
+    communicationRuntimeState
+    .healthTimer =
+    null;
+
+  }
+
+  communicationRuntimeState
+  .initialized =
+  false;
+
+  communicationRuntimeState
+  .destroyed =
+  false;
+
+  communicationRuntimeState
+  .processing =
+  false;
+
+  communicationRuntimeState
+  .streaming =
+  false;
+
+  communicationRuntimeState
+  .typing =
+  false;
+
+  communicationRuntimeState
+  .recovering =
+  false;
+
+  communicationRuntimeState
+  .lastMessageAt =
+  null;
+
+  communicationRuntimeState
+  .diagnostics
+  .initialized = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .sent = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .received = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .failed = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .queued = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .streams = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .retries = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .recoveries = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .timeouts = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .aborted = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .duplicatesPrevented = 0;
+
+  communicationRuntimeState
+  .diagnostics
+  .recoveredQueues = 0;
+
+  setCommunicationState(
 
     COMMUNICATION_RUNTIME_STATES
+    .IDLE
 
-    :
+  );
 
-    null,
+  return true;
 
-  events:
+}
 
-    typeof COMMUNICATION_RUNTIME_EVENTS ===
-    "object"
 
-    ?
 
-    COMMUNICATION_RUNTIME_EVENTS
+// =====================================
+// INITIALIZE
+// =====================================
 
-    :
+async function initializeCommunicationRuntime(){
 
-    null
+  if(
+    communicationRuntimeState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    !validateCommunicationModules()
+  ){
+
+    return false;
+
+  }
+
+  setCommunicationState(
+
+    COMMUNICATION_RUNTIME_STATES
+    .INITIALIZING
+
+  );
+
+  try{
+
+    restoreCommunicationState();
+
+    if(
+
+      COMMUNICATION_RUNTIME_CONFIG
+      .ENABLE_HEALTH_MONITORING
+
+    ){
+
+      if(
+        !communicationRuntimeState
+        .healthTimer
+      ){
+
+        communicationRuntimeState
+        .healthTimer =
+
+        setInterval(() => {
+
+          monitorCommunicationHealth();
+
+        },
+
+        COMMUNICATION_RUNTIME_CONFIG
+        .HEALTH_INTERVAL);
+
+      }
+
+    }
+
+    communicationRuntimeState
+    .initialized =
+    true;
+
+    communicationRuntimeState
+    .diagnostics
+    .initialized++;
+
+    setCommunicationState(
+
+      COMMUNICATION_RUNTIME_STATES
+      .READY
+
+    );
+
+    await emitCommunicationEvent(
+
+      COMMUNICATION_RUNTIME_EVENTS
+      .INITIALIZED
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    if(
+      COMMUNICATION_RUNTIME_CONFIG
+      .DEBUG
+    ){
+
+      console.error(
+        "COMMUNICATION_INITIALIZE_ERROR:",
+        error
+      );
+
+    }
+
+    setCommunicationState(
+
+      COMMUNICATION_RUNTIME_STATES
+      .FAILED
+
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// DESTROY
+// =====================================
+
+async function destroyCommunicationRuntime(){
+
+  if(
+    communicationRuntimeState
+    .healthTimer
+  ){
+
+    clearInterval(
+
+      communicationRuntimeState
+      .healthTimer
+
+    );
+
+    communicationRuntimeState
+    .healthTimer =
+    null;
+
+  }
+
+  await resetCommunicationRuntime();
+
+  communicationRuntimeState
+  .destroyed =
+  true;
+
+  setCommunicationState(
+
+    COMMUNICATION_RUNTIME_STATES
+    .DESTROYED
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationRuntime =
+Object.freeze({
+
+  initialize:
+  initializeCommunicationRuntime,
+
+  send:
+  sendCommunicationMessage,
+
+  abort:
+  abortCommunicationMessage,
+
+  abortAll:
+  abortAllCommunicationMessages,
+
+  recover:
+  recoverCommunicationRuntime,
+
+  status:
+  getCommunicationRuntimeStatus,
+
+  reset:
+  resetCommunicationRuntime,
+
+  destroy:
+  destroyCommunicationRuntime
 
 });
 
@@ -138,33 +551,11 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof globalThis !==
+  typeof window !==
   "undefined"
 ){
 
-  globalThis
-  .CommunicationModule =
-  CommunicationModule;
+  window.CommunicationRuntime =
+  CommunicationRuntime;
 
 }
-
-
-
-// =====================================
-// MODULE EXPORT
-// =====================================
-
-export default
-CommunicationModule;
-
-export {
-
-  CommunicationRuntime,
-
-  COMMUNICATION_RUNTIME_CONFIG,
-
-  COMMUNICATION_RUNTIME_STATES,
-
-  COMMUNICATION_RUNTIME_EVENTS
-
-};
