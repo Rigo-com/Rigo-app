@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY INDEXING
 // ENTERPRISE INDEX ENGINE FINAL
+// STABLE + HARDENED
 // =====================================
 
 
@@ -75,7 +76,7 @@ function ensureMemoryIndex(
   }
 
   const normalizedKey =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     key
   );
 
@@ -116,7 +117,7 @@ function addMemoryIndexValue(
 ){
 
   const normalizedMemoryId =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     memoryId
   );
 
@@ -163,12 +164,12 @@ function removeMemoryIndexValue(
   }
 
   const normalizedKey =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     key
   );
 
   const normalizedMemoryId =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     memoryId
   );
 
@@ -229,7 +230,7 @@ function getIndexedMemoryIds(
   }
 
   const normalizedKey =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     key
   );
 
@@ -271,10 +272,16 @@ function tokenizeMemoryText(
 ){
 
   const normalizedText =
-  normalizeMemoryContent(
-    text
-  )
-  .toLowerCase();
+
+    normalizeMemoryContent?.(
+      text
+    )
+
+    ?.toLowerCase()
+
+    ||
+
+    "";
 
   if(!normalizedText){
 
@@ -297,7 +304,7 @@ function tokenizeMemoryText(
   rawTokens.forEach((token) => {
 
     const normalizedToken =
-    normalizeMemoryString(
+    normalizeMemoryString?.(
       token
     );
 
@@ -423,7 +430,23 @@ function validateMemoryIndexes(){
   try{
 
     const indexes =
-    memoryState.indexes;
+    memoryState?.indexes;
+
+    if(!indexes){
+
+      return {
+
+        valid:false,
+
+        errors:[
+          "INDEXES_NOT_FOUND"
+        ],
+
+        warnings
+
+      };
+
+    }
 
     const requiredIndexes = [
 
@@ -514,7 +537,8 @@ function validateMemoryIndexes(){
       valid:false,
 
       errors:[
-        error.message
+        error?.message ||
+        "UNKNOWN_INDEX_ERROR"
       ],
 
       warnings
@@ -545,7 +569,7 @@ function indexMemory(
   }
 
   const memoryId =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     memory.id
   );
 
@@ -555,10 +579,17 @@ function indexMemory(
 
   }
 
+  const indexes =
+  memoryState?.indexes;
+
+  if(!indexes){
+
+    return false;
+
+  }
+
   const existingMemory =
-  memoryState.indexes
-  .byId
-  .get(
+  indexes.byId.get(
     memoryId
   );
 
@@ -570,13 +601,20 @@ function indexMemory(
 
   }
 
-  memoryState.indexes
-  .byId
-  .set(
+  indexes.byId.set(
+
     memoryId,
-    freezeMemoryObject(
+
+    freezeMemoryObject?.(
       memory
     )
+
+    ||
+
+    Object.freeze(
+      {...memory}
+    )
+
   );
 
   if(
@@ -588,8 +626,7 @@ function indexMemory(
 
     addMemoryIndexValue(
 
-      memoryState.indexes
-      .byType,
+      indexes.byType,
 
       memory.type,
 
@@ -608,8 +645,7 @@ function indexMemory(
 
     addMemoryIndexValue(
 
-      memoryState.indexes
-      .byCategory,
+      indexes.byCategory,
 
       memory.category,
 
@@ -628,8 +664,7 @@ function indexMemory(
 
     addMemoryIndexValue(
 
-      memoryState.indexes
-      .byPriority,
+      indexes.byPriority,
 
       memory.priority,
 
@@ -648,8 +683,7 @@ function indexMemory(
 
     addMemoryIndexValue(
 
-      memoryState.indexes
-      .byState,
+      indexes.byState,
 
       memory.state,
 
@@ -669,8 +703,7 @@ function indexMemory(
 
       addMemoryIndexValue(
 
-        memoryState.indexes
-        .byTag,
+        indexes.byTag,
 
         tag,
 
@@ -694,15 +727,11 @@ function indexMemory(
       memory
     );
 
-    const uniqueTokens =
-    new Set(tokens);
-
-    uniqueTokens.forEach((token) => {
+    tokens.forEach((token) => {
 
       addMemoryIndexValue(
 
-        memoryState.indexes
-        .byToken,
+        indexes.byToken,
 
         token,
 
@@ -741,8 +770,7 @@ function indexMemory(
 
         addMemoryIndexValue(
 
-          memoryState.indexes
-          .byRelation,
+          indexes.byRelation,
 
           relations.parentMemoryId,
 
@@ -774,8 +802,7 @@ function indexMemory(
 
           addMemoryIndexValue(
 
-            memoryState.indexes
-            .byRelation,
+            indexes.byRelation,
 
             relatedId,
 
@@ -809,8 +836,7 @@ function indexMemory(
 
           addMemoryIndexValue(
 
-            memoryState.indexes
-            .byRelation,
+            indexes.byRelation,
 
             childId,
 
@@ -859,15 +885,6 @@ function deindexMemory(
 ){
 
   if(
-    typeof memory !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  if(
     !memory ||
     !memory.id
   ){
@@ -877,7 +894,7 @@ function deindexMemory(
   }
 
   const memoryId =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     memory.id
   );
 
@@ -887,32 +904,39 @@ function deindexMemory(
 
   }
 
-  memoryState.indexes
-  .byId
-  .delete(
+  const indexes =
+  memoryState?.indexes;
+
+  if(!indexes){
+
+    return false;
+
+  }
+
+  indexes.byId.delete(
     memoryId
   );
 
   removeMemoryIndexValue(
-    memoryState.indexes.byType,
+    indexes.byType,
     memory.type,
     memoryId
   );
 
   removeMemoryIndexValue(
-    memoryState.indexes.byCategory,
+    indexes.byCategory,
     memory.category,
     memoryId
   );
 
   removeMemoryIndexValue(
-    memoryState.indexes.byPriority,
+    indexes.byPriority,
     memory.priority,
     memoryId
   );
 
   removeMemoryIndexValue(
-    memoryState.indexes.byState,
+    indexes.byState,
     memory.state,
     memoryId
   );
@@ -926,7 +950,7 @@ function deindexMemory(
     memory.tags.forEach((tag) => {
 
       removeMemoryIndexValue(
-        memoryState.indexes.byTag,
+        indexes.byTag,
         tag,
         memoryId
       );
@@ -943,7 +967,7 @@ function deindexMemory(
   tokens.forEach((token) => {
 
     removeMemoryIndexValue(
-      memoryState.indexes.byToken,
+      indexes.byToken,
       token,
       memoryId
     );
@@ -955,7 +979,7 @@ function deindexMemory(
   ){
 
     removeMemoryIndexValue(
-      memoryState.indexes.byRelation,
+      indexes.byRelation,
       memory.relations.parentMemoryId,
       memoryId
     );
@@ -973,7 +997,7 @@ function deindexMemory(
       .forEach((relatedId) => {
 
         removeMemoryIndexValue(
-          memoryState.indexes.byRelation,
+          indexes.byRelation,
           relatedId,
           memoryId
         );
@@ -995,7 +1019,7 @@ function deindexMemory(
       .forEach((childId) => {
 
         removeMemoryIndexValue(
-          memoryState.indexes.byRelation,
+          indexes.byRelation,
           childId,
           memoryId
         );
@@ -1018,17 +1042,28 @@ function deindexMemory(
 
 function cleanupOrphanIndexes(){
 
+  if(
+    !Array.isArray(
+      memoryState?.memories
+    )
+  ){
+
+    return false;
+
+  }
+
   const validIds =
   new Set(
 
     memoryState.memories
     .map((memory) => {
 
-      return normalizeMemoryString(
+      return normalizeMemoryString?.(
         memory.id
       );
 
     })
+    .filter(Boolean)
 
   );
 
@@ -1090,27 +1125,107 @@ function cleanupOrphanIndexes(){
 
 function rebuildMemoryIndexes(){
 
+  if(
+    !memoryState?.indexes
+  ){
+
+    return false;
+
+  }
+
   Object.keys(
     memoryState.indexes
   )
   .forEach((key) => {
 
-    memoryState.indexes[key]
-    .clear();
+    if(
+      memoryState.indexes[key]
+      instanceof Map
+    ){
+
+      memoryState.indexes[key]
+      .clear();
+
+    }
 
   });
 
-  memoryState.memories
-  .forEach((memory) => {
+  if(
+    Array.isArray(
+      memoryState.memories
+    )
+  ){
 
-    indexMemory(
-      memory
-    );
+    memoryState.memories
+    .forEach((memory) => {
 
-  });
+      indexMemory(
+        memory
+      );
+
+    });
+
+  }
 
   cleanupOrphanIndexes();
 
   return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryIndexing =
+Object.freeze({
+
+  createIndexMap:
+  createMemoryIndexMap,
+
+  createIndexSet:
+  createMemoryIndexSet,
+
+  index:
+  indexMemory,
+
+  deindex:
+  deindexMemory,
+
+  rebuild:
+  rebuildMemoryIndexes,
+
+  validate:
+  validateMemoryIndexes,
+
+  cleanup:
+  cleanupOrphanIndexes,
+
+  getIds:
+  getIndexedMemoryIds,
+
+  tokenize:
+  tokenizeMemoryText,
+
+  extractTokens:
+  extractMemoryTokens
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryIndexing =
+  MemoryIndexing;
 
 }
