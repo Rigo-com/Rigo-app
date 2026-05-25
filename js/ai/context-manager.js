@@ -2,7 +2,7 @@
 // RIGO AI
 // CONTEXT MANAGER
 // ENTERPRISE CONTEXT ORCHESTRATION ENGINE
-// FINAL STABLE EDITION
+// FULL HARDENED PRODUCTION EDITION
 // =====================================
 
 
@@ -57,6 +57,9 @@ Object.freeze({
 
   MAX_INDEX_SIZE:5000,
 
+  CACHE_TTL:
+  1000 * 60 * 5,
+
   EVICTION_INTERVAL:
   1000 * 60 * 5,
 
@@ -99,6 +102,8 @@ Object.seal({
   initialized:false,
 
   initializing:false,
+
+  shuttingDown:false,
 
   startupPromise:null,
 
@@ -198,9 +203,49 @@ function safeClone(
 
   try{
 
-    return JSON.parse(
-      JSON.stringify(value)
-    );
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  try{
+
+    if(
+      Array.isArray(value)
+    ){
+
+      return [
+        ...value
+      ];
+
+    }
+
+    if(
+
+      value &&
+
+      typeof value ===
+      "object"
+
+    ){
+
+      return {
+        ...value
+      };
+
+    }
+
+    return value;
 
   }
 
@@ -237,9 +282,23 @@ function freezeContextObject(
 
   }
 
-  visited.add(value);
+  if(
 
-  Object.freeze(value);
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
 
   Object.values(value)
   .forEach((nestedValue) => {
@@ -251,7 +310,9 @@ function freezeContextObject(
 
   });
 
-  return value;
+  return Object.freeze(
+    value
+  );
 
 }
 
@@ -322,6 +383,16 @@ function createCompressionPreview(
 
 
 
+function clearContextCache(){
+
+  contextManagerState
+  .retrievalCache
+  .clear();
+
+}
+
+
+
 // =====================================
 // CACHE
 // =====================================
@@ -371,11 +442,33 @@ function readContextCache(
 
   }
 
+  if(
+
+    Date.now() -
+    cached.createdAt >
+
+    CONTEXT_MANAGER_CONFIG
+    .CACHE_TTL
+
+  ){
+
+    contextManagerState
+    .retrievalCache
+    .delete(key);
+
+    contextManagerState
+    .diagnostics
+    .cacheMisses++;
+
+    return null;
+
+  }
+
   contextManagerState
   .diagnostics
   .cacheHits++;
 
-  return cached;
+  return cached.value;
 
 }
 
@@ -397,7 +490,15 @@ function writeContextCache(
   .retrievalCache
   .set(
     key,
-    value
+    {
+
+      value,
+
+      createdAt:
+      Date.now()
+
+    }
+
   );
 
   while(
@@ -439,6 +540,7 @@ function tokenizeContextContent(
 
   const serialized =
   serializeContext(value)
+  .slice(0,50000)
   .toLowerCase();
 
   return serialized
@@ -447,7 +549,14 @@ function tokenizeContextContent(
 
   .split(/\s+/)
 
-  .filter(Boolean)
+  .filter((token) => {
+
+    return (
+      token &&
+      token.length > 1
+    );
+
+  })
 
   .slice(
 
@@ -524,9 +633,19 @@ function removeIndexedContext(
 
   contextManagerState
   .indexes
-  .forEach((set) => {
+  .forEach((set,token) => {
 
     set.delete(contextId);
+
+    if(
+      set.size <= 0
+    ){
+
+      contextManagerState
+      .indexes
+      .delete(token);
+
+    }
 
   });
 
@@ -552,48 +671,63 @@ function createContextObject(
     config.metadata || {}
   );
 
-  return freezeContextObject({
+  const runtime = {
 
-    id:
-    normalizeContextId(
+    accessCount:0,
 
-      config.id ||
+    lastAccessedAt:null
 
-      createContextId()
+  };
 
-    ),
+  return {
 
-    type:
+    ...freezeContextObject({
 
-      config.type ||
+      id:
+      normalizeContextId(
 
-      CONTEXT_TYPES
-      .RUNTIME,
+        config.id ||
 
-    priority:
+        createContextId()
 
-      Number(
-        config.priority
-      ) || 1,
+      ),
 
-    score:0,
+      type:
 
-    tokens:
-    estimateTokens(
-      content
-    ),
+        config.type ||
 
-    content,
+        CONTEXT_TYPES
+        .RUNTIME,
 
-    metadata,
+      priority:
 
-    createdAt:
-    Date.now(),
+        Number(
+          config.priority
+        ) || 1,
 
-    updatedAt:
-    Date.now()
+      score:0,
 
-  });
+      tokens:
+      estimateTokens(
+        content
+      ),
+
+      content,
+
+      metadata,
+
+      createdAt:
+      config.createdAt ||
+      Date.now(),
+
+      updatedAt:
+      Date.now()
+
+    }),
+
+    runtime
+
+  };
 
 }
 
@@ -606,6 +740,15 @@ function createContextObject(
 async function registerContext(
   config = {}
 ){
+
+  if(
+    contextManagerState
+    .shuttingDown
+  ){
+
+    return false;
+
+  }
 
   if(
 
@@ -633,6 +776,22 @@ async function registerContext(
 
   if(
 
+    contextManagerState
+    .contexts
+    .has(context.id)
+
+  ){
+
+    contextManagerState
+    .diagnostics
+    .rejected++;
+
+    return false;
+
+  }
+
+  if(
+
     context.tokens >
 
     CONTEXT_MANAGER_CONFIG
@@ -656,6 +815,8 @@ async function registerContext(
   );
 
   indexContext(context);
+
+  clearContextCache();
 
   contextManagerState
   .diagnostics
@@ -711,8 +872,8 @@ async function updateContext(
 
     id:normalizedId,
 
-    updatedAt:
-    Date.now()
+    createdAt:
+    existing.createdAt
 
   });
 
@@ -724,6 +885,8 @@ async function updateContext(
   );
 
   indexContext(updated);
+
+  clearContextCache();
 
   contextManagerState
   .diagnostics
@@ -768,6 +931,8 @@ async function removeContext(
   removeIndexedContext(
     normalizedId
   );
+
+  clearContextCache();
 
   contextManagerState
   .diagnostics
@@ -908,7 +1073,14 @@ async function rankContexts(
   contexts
   .map((context) => {
 
-    return freezeContextObject({
+    context.runtime
+    .accessCount++;
+
+    context.runtime
+    .lastAccessedAt =
+    Date.now();
+
+    return {
 
       ...safeClone(context),
 
@@ -918,7 +1090,7 @@ async function rankContexts(
         normalizedQuery
       )
 
-    });
+    };
 
   })
   .sort((a,b) => {
@@ -1096,6 +1268,10 @@ async function compressContext(
     context.content
   );
 
+  contextManagerState
+  .diagnostics
+  .compressed++;
+
   return updateContext(
 
     normalizedId,
@@ -1164,6 +1340,8 @@ function evictOldContexts(){
 
   });
 
+  clearContextCache();
+
 }
 
 
@@ -1189,6 +1367,32 @@ function startEvictionLoop(){
 
   CONTEXT_MANAGER_CONFIG
   .EVICTION_INTERVAL);
+
+  return true;
+
+}
+
+
+
+function stopEvictionLoop(){
+
+  if(
+    !contextManagerState
+    .evictionTimer
+  ){
+
+    return true;
+
+  }
+
+  clearInterval(
+    contextManagerState
+    .evictionTimer
+  );
+
+  contextManagerState
+  .evictionTimer =
+  null;
 
   return true;
 
@@ -1315,6 +1519,30 @@ async function resetContextManager(){
 
 
 // =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownContextManager(){
+
+  contextManagerState
+  .shuttingDown =
+  true;
+
+  stopEvictionLoop();
+
+  await resetContextManager();
+
+  contextManagerState
+  .initialized =
+  false;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // INITIALIZE
 // =====================================
 
@@ -1364,6 +1592,10 @@ async function initializeContextManager(){
       contextManagerState
       .initialized =
       true;
+
+      contextManagerState
+      .shuttingDown =
+      false;
 
       contextManagerState
       .lastUpdatedAt =
@@ -1509,6 +1741,9 @@ Object.freeze({
   initialize:
   initializeContextManager,
 
+  shutdown:
+  shutdownContextManager,
+
   register:
   registerContext,
 
@@ -1540,3 +1775,27 @@ Object.freeze({
   resetContextManager
 
 });
+
+
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.ContextManager =
+  ContextManager;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.ContextManager =
+  ContextManager;
+
+}
