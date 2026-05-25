@@ -14,7 +14,14 @@ function getMessageRoleClass(
   role
 ){
 
-  switch(role){
+  const normalizedRole =
+  String(
+    role || ""
+  )
+  .trim()
+  .toLowerCase();
+
+  switch(normalizedRole){
 
     case "assistant":
 
@@ -44,6 +51,15 @@ function createMessageContentElement(
   message
 ){
 
+  if(
+    typeof document ===
+    "undefined"
+  ){
+
+    return null;
+
+  }
+
   const content =
   document.createElement(
     "div"
@@ -63,6 +79,12 @@ function createMessageContentElement(
     if(
       typeof ChatMarkdownRenderer !==
       "undefined"
+
+      &&
+
+      typeof ChatMarkdownRenderer
+      .render ===
+      "function"
     ){
 
       ChatMarkdownRenderer
@@ -107,6 +129,15 @@ function createMessageContentElement(
 function createMessageMetaElement(
   message
 ){
+
+  if(
+    typeof document ===
+    "undefined"
+  ){
+
+    return null;
+
+  }
 
   const meta =
   document.createElement(
@@ -162,6 +193,15 @@ function createMessageElement(
 
   if(
     !message
+  ){
+
+    return null;
+
+  }
+
+  if(
+    typeof document ===
+    "undefined"
   ){
 
     return null;
@@ -259,6 +299,14 @@ function updateMessageElement(
 
   }
 
+  if(
+    !element.isConnected
+  ){
+
+    return false;
+
+  }
+
   const content =
 
     element.querySelector(
@@ -281,6 +329,12 @@ function updateMessageElement(
     if(
       typeof ChatMarkdownRenderer !==
       "undefined"
+
+      &&
+
+      typeof ChatMarkdownRenderer
+      .render ===
+      "function"
     ){
 
       ChatMarkdownRenderer
@@ -318,12 +372,15 @@ function updateMessageElement(
       ".message-meta"
     );
 
+  const timestamp =
+  Number(
+    message?.timestamp
+  );
+
   if(
     meta &&
     Number.isFinite(
-      Number(
-        message?.timestamp
-      )
+      timestamp
     )
   ){
 
@@ -332,7 +389,7 @@ function updateMessageElement(
       meta.textContent =
 
         new Date(
-          message.timestamp
+          timestamp
         )
         .toLocaleTimeString();
 
