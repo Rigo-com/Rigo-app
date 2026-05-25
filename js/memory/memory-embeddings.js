@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY EMBEDDINGS
 // ENTERPRISE INFINITY GOD FINAL
+// PATCHED + STABILIZED
 // =====================================
 
 
@@ -632,6 +633,14 @@ function createMemoryEmbeddingVector(
     weightedText
   );
 
+  const alreadyExists =
+
+    memoryEmbeddingsState
+    .embeddingIndex
+    .has(
+      memory.id
+    );
+
   memoryEmbeddingsState
   .embeddingIndex
   .set(
@@ -646,11 +655,7 @@ function createMemoryEmbeddingVector(
   );
 
   if(
-
-    !memoryEmbeddingsState
-    .embeddingIndex
-    .has(memory.id)
-
+    !alreadyExists
   ){
 
     memoryEmbeddingsState
@@ -926,7 +931,9 @@ function findRelatedMemories(
 
   const related = [];
 
-  memoryState.memories
+  safeMemoryArray(
+    memoryState?.memories
+  )
   .forEach((candidate) => {
 
     if(
@@ -1029,13 +1036,15 @@ function semanticMemorySearch(
 
     tokenCandidates.map((item) => {
 
-      return item.memory.id;
+      return item?.memory?.id;
 
     })
 
   );
 
-  memoryState.memories
+  safeMemoryArray(
+    memoryState?.memories
+  )
   .forEach((memory) => {
 
     if(
@@ -1114,7 +1123,9 @@ function autoLinkRelatedMemories(){
   .clear();
 
   const memories =
-  memoryState.memories;
+  safeMemoryArray(
+    memoryState?.memories
+  );
 
   memories.forEach((memory) => {
 
@@ -1259,7 +1270,9 @@ function rebuildMemoryEmbeddings(){
   .relationCache
   .clear();
 
-  memoryState.memories
+  safeMemoryArray(
+    memoryState?.memories
+  )
   .forEach((memory) => {
 
     createMemoryEmbeddingVector(
@@ -1287,6 +1300,14 @@ function rebuildMemoryEmbeddings(){
 function persistEmbeddingCache(){
 
   try{
+
+    if(
+      !isMemoryStorageAvailable?.()
+    ){
+
+      return false;
+
+    }
 
     if(
 
@@ -1333,6 +1354,14 @@ function persistEmbeddingCache(){
 function restoreEmbeddingCache(){
 
   try{
+
+    if(
+      !isMemoryStorageAvailable?.()
+    ){
+
+      return false;
+
+    }
 
     const serialized =
     localStorage.getItem(
@@ -1455,7 +1484,9 @@ function cleanupEmbeddingRelations(){
   const validIds =
   new Set(
 
-    memoryState.memories
+    safeMemoryArray(
+      memoryState?.memories
+    )
     .map((memory) => {
 
       return memory.id;
