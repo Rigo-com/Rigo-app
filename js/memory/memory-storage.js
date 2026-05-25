@@ -1,8 +1,8 @@
 // =====================================
 // RIGO AI
 // MEMORY STORAGE
-// ENTERPRISE INFINITY FINAL
-// PATCHED + HARDENED
+// ENTERPRISE STORAGE SYSTEM
+// FINAL STABLE BUILD
 // =====================================
 
 
@@ -13,15 +13,6 @@
 
 let memoryStorageLocked =
 false;
-
-
-
-// =====================================
-// STORAGE SAVE QUEUE
-// =====================================
-
-const memoryStorageQueue =
-[];
 
 
 
@@ -39,6 +30,7 @@ function isMemoryStorageAvailable(){
     ){
 
       return false;
+
     }
 
     const testKey =
@@ -72,11 +64,15 @@ function getPerformanceNow(){
   try{
 
     if(
+
       typeof performance !==
       "undefined"
+
       &&
+
       typeof performance.now ===
       "function"
+
     ){
 
       return performance.now();
@@ -97,7 +93,7 @@ function getPerformanceNow(){
 
 
 
-function waitForStorageUnlock(
+async function waitForStorageUnlock(
   timeout = 10000
 ){
 
@@ -158,6 +154,7 @@ function lockMemoryStorage(){
   ){
 
     return false;
+
   }
 
   memoryStorageLocked =
@@ -198,7 +195,7 @@ function serializeMemoryData(
 
   catch(error){
 
-    registerMemoryRuntimeError(
+    registerMemoryRuntimeError?.(
       error
     );
 
@@ -233,7 +230,7 @@ function deserializeMemoryData(
 
   catch(error){
 
-    registerMemoryRuntimeError(
+    registerMemoryRuntimeError?.(
       error
     );
 
@@ -260,6 +257,30 @@ function freezeStorageObject(
 
     typeof value !==
     "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet ||
+
+    value instanceof Date ||
+
+    value instanceof RegExp ||
+
+    value instanceof Error ||
+
+    value instanceof Promise
 
   ){
 
@@ -305,46 +326,6 @@ function freezeStorageObject(
   });
 
   return value;
-
-}
-
-
-
-// =====================================
-// STORAGE SNAPSHOT
-// =====================================
-
-function createStorageSnapshot(
-  memories = []
-){
-
-  const safeMemories =
-
-    Array.isArray(
-      memories
-    )
-
-    ? memories
-
-    : [];
-
-  return freezeStorageObject({
-
-    snapshotId:
-    createMemoryId(),
-
-    createdAt:
-    Date.now(),
-
-    memoryCount:
-    safeMemories.length,
-
-    memories:
-    deepClone(
-      safeMemories
-    )
-
-  });
 
 }
 
@@ -448,36 +429,6 @@ function validateStoragePayload(
 
 
 // =====================================
-// STORAGE QUOTA
-// =====================================
-
-function isQuotaExceededError(
-  error
-){
-
-  if(!error){
-
-    return false;
-
-  }
-
-  return (
-
-    error.name ===
-    "QuotaExceededError"
-
-    ||
-
-    error.name ===
-    "NS_ERROR_DOM_QUOTA_REACHED"
-
-  );
-
-}
-
-
-
-// =====================================
 // REMOVE DUPLICATES
 // =====================================
 
@@ -500,7 +451,7 @@ function removeDuplicateMemories(
     }
 
     const normalizedId =
-    normalizeMemoryString(
+    normalizeMemoryString?.(
       memory.id
     );
 
@@ -533,7 +484,7 @@ function removeDuplicateMemories(
 
 
 // =====================================
-// CLEAN INVALID MEMORIES
+// FILTER VALID MEMORIES
 // =====================================
 
 function filterValidMemories(
@@ -544,7 +495,7 @@ function filterValidMemories(
 
     const validation =
 
-      validateMemoryObject(
+      validateMemoryObject?.(
         memory,
         {
           strict:true
@@ -552,17 +503,19 @@ function filterValidMemories(
       );
 
     if(
-      !validation.valid
+      validation?.valid !==
+      true
     ){
 
-      markMemoryCorrupted(
-        memory?.id ||
-        createMemoryId()
+      markMemoryCorrupted?.(
+        memory?.id
       );
+
+      return false;
 
     }
 
-    return validation.valid;
+    return true;
 
   });
 
@@ -571,7 +524,7 @@ function filterValidMemories(
 
 
 // =====================================
-// ATOMIC STORAGE WRITE
+// STORAGE WRITE
 // =====================================
 
 function atomicStorageWrite(
@@ -604,7 +557,7 @@ function atomicStorageWrite(
 
   catch(error){
 
-    registerMemoryRuntimeError(
+    registerMemoryRuntimeError?.(
       error
     );
 
@@ -617,7 +570,7 @@ function atomicStorageWrite(
 
 
 // =====================================
-// SAVE ALL MEMORIES
+// SAVE MEMORIES
 // =====================================
 
 async function saveMemories(
@@ -654,25 +607,54 @@ async function saveMemories(
 
   try{
 
-    const sanitizedMemories =
+    const clonedMemories =
 
       Array.isArray(
         memories
       )
 
-      ? deepClone(memories)
+      ? deepClone(
+          memories
+        )
 
       : [];
 
     const uniqueMemories =
     removeDuplicateMemories(
-      sanitizedMemories
+      clonedMemories
     );
 
     const validMemories =
     filterValidMemories(
       uniqueMemories
     );
+
+    const estimatedSize =
+
+      JSON.stringify(
+        validMemories
+      ).length;
+
+    if(
+
+      MEMORY_LIMITS?.MAX_STORAGE_SIZE
+
+      &&
+
+      estimatedSize >
+
+      MEMORY_LIMITS
+      .MAX_STORAGE_SIZE
+
+    ){
+
+      console.error(
+        "MEMORY STORAGE LIMIT EXCEEDED"
+      );
+
+      return false;
+
+    }
 
     const payload =
     createMemoryStoragePayload(
@@ -722,39 +704,29 @@ async function saveMemories(
 
     }
 
-    memoryState.metrics
-    .lastSaveAt =
-    Date.now();
+    if(
+      memoryState?.metrics
+    ){
 
-    memoryState.metrics
-    .saveDuration =
-    Math.round(
+      memoryState.metrics
+      .lastSaveAt =
+      Date.now();
 
-      getPerformanceNow() -
-      startedAt
-
-    );
-
-    memoryState.metrics
-    .averageSaveDuration =
-
+      memoryState.metrics
+      .saveDuration =
       Math.round(
 
-        (
-          memoryState.metrics
-          .averageSaveDuration +
-
-          memoryState.metrics
-          .saveDuration
-
-        ) / 2
+        getPerformanceNow() -
+        startedAt
 
       );
 
-    memoryState.metrics
-    .successfulOperations++;
+      memoryState.metrics
+      .successfulOperations++;
 
-    updateMemoryMetrics();
+    }
+
+    updateMemoryMetrics?.();
 
     return true;
 
@@ -762,30 +734,14 @@ async function saveMemories(
 
   catch(error){
 
-    registerMemoryRuntimeError(
+    registerMemoryRuntimeError?.(
       error
     );
 
-    if(
-      isQuotaExceededError(
-        error
-      )
-    ){
-
-      console.error(
-        "MEMORY STORAGE QUOTA EXCEEDED"
-      );
-
-    }
-
-    else{
-
-      console.error(
-        "SAVE MEMORIES ERROR:",
-        error
-      );
-
-    }
+    console.error(
+      "SAVE MEMORIES ERROR:",
+      error
+    );
 
     return false;
 
@@ -802,7 +758,136 @@ async function saveMemories(
 
 
 // =====================================
-// SAVE SINGLE MEMORY
+// LOAD MEMORIES
+// =====================================
+
+async function loadAllMemories(){
+
+  if(
+    !isMemoryStorageAvailable()
+  ){
+
+    return [];
+
+  }
+
+  try{
+
+    localStorage.removeItem(
+      `${MEMORY_STORAGE_KEYS.MEMORIES}_temp`
+    );
+
+    const serialized =
+
+      localStorage.getItem(
+
+        MEMORY_STORAGE_KEYS
+        .MEMORIES
+
+      );
+
+    if(!serialized){
+
+      return [];
+
+    }
+
+    const payload =
+    deserializeMemoryData(
+      serialized
+    );
+
+    if(
+      !validateStoragePayload(
+        payload
+      )
+    ){
+
+      markMemoryCorrupted?.(
+        "storage_payload"
+      );
+
+      return [];
+
+    }
+
+    const memories =
+    filterValidMemories(
+      payload.memories
+    );
+
+    return freezeStorageObject(
+      deepClone(
+        memories
+      )
+    );
+
+  }
+
+  catch(error){
+
+    registerMemoryRuntimeError?.(
+      error
+    );
+
+    console.error(
+      "LOAD MEMORIES ERROR:",
+      error
+    );
+
+    return [];
+
+  }
+
+}
+
+
+
+// =====================================
+// LOAD MEMORY
+// =====================================
+
+async function loadMemory(
+  memoryId
+){
+
+  const normalizedMemoryId =
+  normalizeMemoryString?.(
+    memoryId
+  );
+
+  if(!normalizedMemoryId){
+
+    return null;
+
+  }
+
+  const memories =
+  await loadAllMemories();
+
+  return (
+
+    memories.find((memory) => {
+
+      return (
+        memory.id ===
+        normalizedMemoryId
+      );
+
+    })
+
+    ||
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// SAVE MEMORY
 // =====================================
 
 async function saveMemory(
@@ -815,12 +900,11 @@ async function saveMemory(
 
   }
 
-  const latestMemories =
-  await loadAllMemories();
+  await waitForStorageUnlock();
 
   const memories = [
 
-    ...latestMemories
+    ...await loadAllMemories()
 
   ];
 
@@ -862,166 +946,6 @@ async function saveMemory(
 
 
 // =====================================
-// LOAD ALL MEMORIES
-// =====================================
-
-async function loadAllMemories(){
-
-  if(
-    !isMemoryStorageAvailable()
-  ){
-
-    return [];
-  }
-
-  const startedAt =
-  getPerformanceNow();
-
-  try{
-
-    const serialized =
-
-      localStorage.getItem(
-
-        MEMORY_STORAGE_KEYS
-        .MEMORIES
-
-      );
-
-    if(!serialized){
-
-      return [];
-    }
-
-    const payload =
-    deserializeMemoryData(
-      serialized
-    );
-
-    const validPayload =
-    validateStoragePayload(
-      payload
-    );
-
-    if(!validPayload){
-
-      markMemoryCorrupted(
-        "storage_payload"
-      );
-
-      return [];
-    }
-
-    const memories =
-    filterValidMemories(
-      payload.memories
-    );
-
-    memoryState.metrics
-    .lastLoadAt =
-    Date.now();
-
-    memoryState.metrics
-    .loadDuration =
-    Math.round(
-
-      getPerformanceNow() -
-      startedAt
-
-    );
-
-    memoryState.metrics
-    .averageLoadDuration =
-
-      Math.round(
-
-        (
-          memoryState.metrics
-          .averageLoadDuration +
-
-          memoryState.metrics
-          .loadDuration
-
-        ) / 2
-
-      );
-
-    memoryState.metrics
-    .successfulOperations++;
-
-    return freezeStorageObject(
-      deepClone(memories)
-    );
-
-  }
-
-  catch(error){
-
-    registerMemoryRuntimeError(
-      error
-    );
-
-    console.error(
-      "LOAD MEMORIES ERROR:",
-      error
-    );
-
-    return [];
-
-  }
-
-}
-
-
-
-// =====================================
-// LOAD SINGLE MEMORY
-// =====================================
-
-async function loadMemory(
-  memoryId
-){
-
-  const normalizedMemoryId =
-  normalizeMemoryString(
-    memoryId
-  );
-
-  if(!normalizedMemoryId){
-
-    return null;
-
-  }
-
-  const memories =
-  await loadAllMemories();
-
-  const memory =
-
-    memories.find((memory) => {
-
-      return (
-        memory.id ===
-        normalizedMemoryId
-      );
-
-    })
-
-    ||
-
-    null;
-
-  return memory
-    ? freezeStorageObject(
-        deepClone(memory)
-      )
-    : null;
-
-}
-
-
-
-// =====================================
 // UPDATE MEMORY
 // =====================================
 
@@ -1042,21 +966,39 @@ async function updateMemory(
   }
 
   const safeUpdates =
-  sanitizeMemoryInput(
+  sanitizeMemoryInput?.(
     updates
-  );
+  )
+
+  ||
+
+  updates;
 
   const updatedMemory =
-  sanitizeMemoryObject({
 
-    ...memory,
+    sanitizeMemoryObject?.({
 
-    ...safeUpdates,
+      ...memory,
 
-    updatedAt:
-    Date.now()
+      ...safeUpdates,
 
-  });
+      updatedAt:
+      Date.now()
+
+    })
+
+    ||
+
+    {
+
+      ...memory,
+
+      ...safeUpdates,
+
+      updatedAt:
+      Date.now()
+
+    };
 
   return saveMemory(
     updatedMemory
@@ -1075,7 +1017,7 @@ async function deleteMemory(
 ){
 
   const normalizedMemoryId =
-  normalizeMemoryString(
+  normalizeMemoryString?.(
     memoryId
   );
 
@@ -1099,12 +1041,9 @@ async function deleteMemory(
 
     });
 
-  markMemoryDeleted(
+  markMemoryDeleted?.(
     normalizedMemoryId
   );
-
-  memoryState.stats
-  .deletions++;
 
   return saveMemories(
     filteredMemories
@@ -1144,7 +1083,7 @@ async function clearMemoryStorage(){
 
     );
 
-    resetMemoryState();
+    resetMemoryState?.();
 
     return true;
 
@@ -1152,12 +1091,12 @@ async function clearMemoryStorage(){
 
   catch(error){
 
-    registerMemoryRuntimeError(
+    registerMemoryRuntimeError?.(
       error
     );
 
     console.error(
-      "CLEAR STORAGE ERROR:",
+      "CLEAR MEMORY STORAGE ERROR:",
       error
     );
 
@@ -1175,17 +1114,9 @@ async function clearMemoryStorage(){
 
 async function backupMemoryStorage(){
 
-  if(
-    !isMemoryStorageAvailable()
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    const serialized =
+    const currentData =
 
       localStorage.getItem(
 
@@ -1194,7 +1125,7 @@ async function backupMemoryStorage(){
 
       );
 
-    if(!serialized){
+    if(!currentData){
 
       return true;
 
@@ -1202,7 +1133,7 @@ async function backupMemoryStorage(){
 
     const payload =
     deserializeMemoryData(
-      serialized
+      currentData
     );
 
     if(
@@ -1220,7 +1151,7 @@ async function backupMemoryStorage(){
       MEMORY_STORAGE_KEYS
       .BACKUP,
 
-      serialized
+      currentData
 
     );
 
@@ -1230,12 +1161,7 @@ async function backupMemoryStorage(){
 
   catch(error){
 
-    registerMemoryRuntimeError(
-      error
-    );
-
-    console.error(
-      "BACKUP STORAGE ERROR:",
+    registerMemoryRuntimeError?.(
       error
     );
 
@@ -1248,22 +1174,14 @@ async function backupMemoryStorage(){
 
 
 // =====================================
-// RESTORE BACKUP
+// RESTORE STORAGE
 // =====================================
 
 async function restoreMemoryBackup(){
 
-  if(
-    !isMemoryStorageAvailable()
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    const backup =
+    const backupData =
 
       localStorage.getItem(
 
@@ -1272,79 +1190,26 @@ async function restoreMemoryBackup(){
 
       );
 
-    if(!backup){
+    if(!backupData){
 
       return false;
 
     }
 
-    const payload =
-    deserializeMemoryData(
-      backup
-    );
-
-    if(
-      !validateStoragePayload(
-        payload
-      )
-    ){
-
-      console.error(
-        "INVALID MEMORY BACKUP"
-      );
-
-      return false;
-
-    }
-
-    payload.memories =
-    filterValidMemories(
-      payload.memories
-    );
-
-    const serialized =
-    serializeMemoryData(
-      payload
-    );
-
-    if(!serialized){
-
-      return false;
-
-    }
-
-    const restored =
-    atomicStorageWrite(
+    return atomicStorageWrite(
 
       MEMORY_STORAGE_KEYS
       .MEMORIES,
 
-      serialized
+      backupData
 
     );
-
-    if(!restored){
-
-      return false;
-
-    }
-
-    clearSearchCache();
-
-    updateMemoryMetrics();
-
-    return true;
 
   }
 
   catch(error){
 
-    registerMemoryRuntimeError(
-      error
-    );
-
-    console.error(
-      "RESTORE BACKUP ERROR:",
+    registerMemoryRuntimeError?.(
       error
     );
 
@@ -1383,6 +1248,10 @@ async function exportMemoryData(){
 
   if(
 
+    MEMORY_LIMITS?.MAX_EXPORT_SIZE
+
+    &&
+
     serialized.length >
 
     MEMORY_LIMITS
@@ -1405,34 +1274,12 @@ async function exportMemoryData(){
 
 
 // =====================================
-// VALIDATE IMPORT DATA
+// IMPORT MEMORY DATA
 // =====================================
 
-function validateImportData(
+async function importMemoryData(
   importedData
 ){
-
-  if(
-    typeof importedData !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    importedData.length >
-
-    MEMORY_LIMITS
-    .MAX_IMPORT_SIZE
-
-  ){
-
-    return false;
-
-  }
 
   const payload =
   deserializeMemoryData(
@@ -1449,98 +1296,8 @@ function validateImportData(
 
   }
 
-  if(
-
-    payload.memories.length >
-
-    MEMORY_LIMITS
-    .MAX_IMPORT_ITEMS
-
-  ){
-
-    return false;
-
-  }
-
-  return payload.memories
-  .every((memory) => {
-
-    const validation =
-
-      validateMemoryObject(
-        memory,
-        {
-          strict:true
-        }
-      );
-
-    return validation.valid;
-
-  });
-
-}
-
-
-
-// =====================================
-// IMPORT MEMORY DATA
-// =====================================
-
-async function importMemoryData(
-  importedData,
-  options = {}
-){
-
-  const validImport =
-  validateImportData(
-    importedData
-  );
-
-  if(!validImport){
-
-    return false;
-
-  }
-
-  const payload =
-  deserializeMemoryData(
-    importedData
-  );
-
-  if(
-    !payload
-  ){
-
-    return false;
-
-  }
-
-  const mergeMode =
-  options.merge !== false;
-
-  if(!mergeMode){
-
-    return saveMemories(
-      payload.memories
-    );
-
-  }
-
-  const existingMemories =
-  await loadAllMemories();
-
-  const mergedMemories =
-
-    removeDuplicateMemories([
-
-      ...existingMemories,
-
-      ...payload.memories
-
-    ]);
-
   return saveMemories(
-    mergedMemories
+    payload.memories
   );
 
 }
@@ -1548,7 +1305,7 @@ async function importMemoryData(
 
 
 // =====================================
-// EMERGENCY RECOVERY
+// RECOVER STORAGE
 // =====================================
 
 async function recoverMemoryStorage(){
@@ -1560,13 +1317,6 @@ async function recoverMemoryStorage(){
     restored
   ){
 
-    memoryState.health
-    .recoveryCount++;
-
-    memoryState.health
-    .lastRecoveryAt =
-    Date.now();
-
     return true;
 
   }
@@ -1574,5 +1324,68 @@ async function recoverMemoryStorage(){
   await clearMemoryStorage();
 
   return false;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryStorage =
+Object.freeze({
+
+  save:
+  saveMemory,
+
+  saveAll:
+  saveMemories,
+
+  load:
+  loadMemory,
+
+  loadAll:
+  loadAllMemories,
+
+  update:
+  updateMemory,
+
+  delete:
+  deleteMemory,
+
+  clear:
+  clearMemoryStorage,
+
+  backup:
+  backupMemoryStorage,
+
+  restore:
+  restoreMemoryBackup,
+
+  export:
+  exportMemoryData,
+
+  import:
+  importMemoryData,
+
+  recover:
+  recoverMemoryStorage
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryStorage =
+  MemoryStorage;
 
 }
