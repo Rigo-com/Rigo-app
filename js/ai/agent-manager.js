@@ -1,7 +1,8 @@
 // =====================================
 // RIGO AI
 // AGENT MANAGER
-// ENTERPRISE AI RUNTIME FINAL
+// ENTERPRISE AGENT ORCHESTRATOR
+// FINAL HARDENED ARCHITECTURE
 // =====================================
 
 
@@ -13,17 +14,23 @@
 const AGENT_MANAGER_CONFIG =
 Object.freeze({
 
-  ENABLE_AGENT_EVENTS:true,
+  ENABLE_AGENT_EVENTS:
+  true,
 
-  ENABLE_AGENT_MEMORY:true,
+  ENABLE_AGENT_MEMORY:
+  true,
 
-  ENABLE_AGENT_DIAGNOSTICS:true,
+  ENABLE_AGENT_DIAGNOSTICS:
+  true,
 
-  ENABLE_AGENT_RECOVERY:true,
+  ENABLE_AGENT_RECOVERY:
+  true,
 
-  ENABLE_AGENT_HEALTHCHECKS:true,
+  ENABLE_AGENT_HEALTHCHECKS:
+  true,
 
-  ENABLE_AGENT_STATE_SYNC:true,
+  ENABLE_AGENT_STATE_SYNC:
+  true,
 
   MAX_AGENTS:
   500,
@@ -33,6 +40,9 @@ Object.freeze({
 
   MAX_AGENT_RETRIES:
   3,
+
+  TASK_TIMEOUT:
+  60000,
 
   AGENT_HEALTHCHECK_INTERVAL:
   30000
@@ -48,19 +58,26 @@ Object.freeze({
 const AGENT_STATES =
 Object.freeze({
 
-  IDLE:"idle",
+  IDLE:
+  "idle",
 
-  INITIALIZING:"initializing",
+  INITIALIZING:
+  "initializing",
 
-  READY:"ready",
+  READY:
+  "ready",
 
-  RUNNING:"running",
+  RUNNING:
+  "running",
 
-  PAUSED:"paused",
+  PAUSED:
+  "paused",
 
-  FAILED:"failed",
+  FAILED:
+  "failed",
 
-  TERMINATED:"terminated"
+  TERMINATED:
+  "terminated"
 
 });
 
@@ -111,9 +128,17 @@ Object.freeze({
 const agentManagerState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  initializing:false,
+  initializing:
+  false,
+
+  startupPromise:
+  null,
+
+  memoryInitialized:
+  false,
 
   agents:
   new Map(),
@@ -125,9 +150,10 @@ Object.seal({
   new Set(),
 
   executionLocks:
-  new Set(),
+  new Map(),
 
-  healthcheckTimer:null,
+  healthcheckTimer:
+  null,
 
   diagnostics:{
 
@@ -147,7 +173,8 @@ Object.seal({
 
   },
 
-  lastAgentCreatedAt:null
+  lastAgentCreatedAt:
+  null
 
 });
 
@@ -197,13 +224,7 @@ function freezeAgentObject(
 
   }
 
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
+  visited.add(value);
 
   Object.values(value)
   .forEach((nestedValue) => {
@@ -226,20 +247,94 @@ function freezeAgentObject(
 
   });
 
-  return value;
+  return Object.freeze(
+    value
+  );
 
 }
 
 
 
-function cloneAgentDiagnostics(){
+function cloneAgentObject(
+  value
+){
 
-  return freezeAgentObject({
+  try{
 
-    ...agentManagerState
-    .diagnostics
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
 
-  });
+      return structuredClone(
+        value
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return {};
+
+  }
+
+}
+
+
+
+function createAgentId(){
+
+  try{
+
+    if(
+
+      typeof crypto !==
+      "undefined"
+
+      &&
+
+      typeof crypto
+      .randomUUID ===
+      "function"
+
+    ){
+
+      return crypto
+      .randomUUID();
+
+    }
+
+  }
+
+  catch(error){}
+
+  return (
+
+    "agent_" +
+
+    Date.now() +
+
+    "_" +
+
+    Math.random()
+    .toString(36)
+    .slice(2,10)
+
+  );
 
 }
 
@@ -276,13 +371,17 @@ async function emitAgentEvent(
 
       eventName,
 
-      {
+      freezeAgentObject({
 
-        source:"agent-manager",
+        source:
+        "agent-manager",
+
+        timestamp:
+        Date.now(),
 
         ...payload
 
-      }
+      })
 
     );
 
@@ -300,6 +399,49 @@ async function emitAgentEvent(
 
 
 
+function trimAgentTasks(
+  tasks = []
+){
+
+  if(
+
+    tasks.length <=
+
+    AGENT_MANAGER_CONFIG
+    .MAX_AGENT_TASKS
+
+  ){
+
+    return tasks;
+
+  }
+
+  return tasks.slice(
+
+    tasks.length -
+
+    AGENT_MANAGER_CONFIG
+    .MAX_AGENT_TASKS
+
+  );
+
+}
+
+
+
+function cloneAgentDiagnostics(){
+
+  return freezeAgentObject({
+
+    ...agentManagerState
+    .diagnostics
+
+  });
+
+}
+
+
+
 // =====================================
 // AGENT OBJECT
 // =====================================
@@ -308,33 +450,28 @@ function createAgentObject(
   config = {}
 ){
 
-  const agentId =
-  normalizeAgentId(
-
-    config.id ||
-
-    createMemoryId()
-
-  );
-
-  return freezeAgentObject({
+  return {
 
     id:
-    agentId,
+    normalizeAgentId(
+
+      config.id ||
+
+      createAgentId()
+
+    ),
 
     name:
-
-      String(
-        config.name ||
-        "agent"
-      ),
+    String(
+      config.name ||
+      "agent"
+    ),
 
     description:
-
-      String(
-        config.description ||
-        ""
-      ),
+    String(
+      config.description ||
+      ""
+    ),
 
     state:
     AGENT_STATES
@@ -351,15 +488,11 @@ function createAgentObject(
     Date.now(),
 
     metadata:
+    cloneAgentObject(
+      config.metadata || {}
+    )
 
-      freezeAgentObject(
-
-        config.metadata ||
-        {}
-
-      )
-
-  });
+  };
 
 }
 
@@ -434,887 +567,8 @@ async function registerAgent(
 
   );
 
-  return agent;
+  return freezeAgentObject(
+    cloneAgentObject(agent)
+  );
 
 }
-
-
-
-// =====================================
-// UPDATE AGENT STATE
-// =====================================
-
-async function updateAgentState(
-  agentId,
-  newState
-){
-
-  const normalizedId =
-  normalizeAgentId(
-    agentId
-  );
-
-  const existingAgent =
-
-    agentManagerState
-    .agents
-    .get(
-      normalizedId
-    );
-
-  if(!existingAgent){
-
-    return false;
-
-  }
-
-  const updatedAgent =
-  freezeAgentObject({
-
-    ...existingAgent,
-
-    state:
-    newState,
-
-    updatedAt:
-    Date.now()
-
-  });
-
-  agentManagerState
-  .agents
-  .set(
-    normalizedId,
-    updatedAgent
-  );
-
-  if(
-    newState ===
-    AGENT_STATES.READY
-  ){
-
-    agentManagerState
-    .activeAgents
-    .add(
-      normalizedId
-    );
-
-    agentManagerState
-    .failedAgents
-    .delete(
-      normalizedId
-    );
-
-  }
-
-  else if(
-    newState ===
-    AGENT_STATES.FAILED
-  ){
-
-    agentManagerState
-    .failedAgents
-    .add(
-      normalizedId
-    );
-
-    agentManagerState
-    .activeAgents
-    .delete(
-      normalizedId
-    );
-
-    agentManagerState
-    .diagnostics
-    .failed++;
-
-  }
-
-  else if(
-    newState ===
-    AGENT_STATES.TERMINATED
-  ){
-
-    agentManagerState
-    .activeAgents
-    .delete(
-      normalizedId
-    );
-
-    agentManagerState
-    .failedAgents
-    .delete(
-      normalizedId
-    );
-
-  }
-
-  await emitAgentEvent(
-
-    AGENT_EVENTS
-    .STATE_CHANGED,
-
-    {
-
-      agentId:
-      normalizedId,
-
-      state:
-      newState
-
-    }
-
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INITIALIZE AGENT
-// =====================================
-
-async function initializeAgent(
-  agentId
-){
-
-  const normalizedId =
-  normalizeAgentId(
-    agentId
-  );
-
-  const agent =
-
-    agentManagerState
-    .agents
-    .get(
-      normalizedId
-    );
-
-  if(!agent){
-
-    return false;
-
-  }
-
-  await updateAgentState(
-
-    normalizedId,
-
-    AGENT_STATES
-    .INITIALIZING
-
-  );
-
-  try{
-
-    if(
-
-      AGENT_MANAGER_CONFIG
-      .ENABLE_AGENT_MEMORY
-
-    ){
-
-      if(
-        typeof MemorySystem !==
-        "undefined"
-      ){
-
-        await MemorySystem
-        ?.initialize?.();
-
-      }
-
-    }
-
-    await updateAgentState(
-
-      normalizedId,
-
-      AGENT_STATES
-      .READY
-
-    );
-
-    agentManagerState
-    .diagnostics
-    .initialized++;
-
-    await emitAgentEvent(
-
-      AGENT_EVENTS
-      .INITIALIZED,
-
-      {
-
-        agentId:
-        normalizedId
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    await updateAgentState(
-
-      normalizedId,
-
-      AGENT_STATES
-      .FAILED
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// EXECUTE TASK
-// =====================================
-
-async function executeAgentTask(
-  agentId,
-  task = {}
-){
-
-  const normalizedId =
-  normalizeAgentId(
-    agentId
-  );
-
-  if(
-
-    agentManagerState
-    .executionLocks
-    .has(
-      normalizedId
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  const agent =
-
-    agentManagerState
-    .agents
-    .get(
-      normalizedId
-    );
-
-  if(!agent){
-
-    return false;
-
-  }
-
-  if(
-
-    agent.tasks.length >=
-
-    AGENT_MANAGER_CONFIG
-    .MAX_AGENT_TASKS
-
-  ){
-
-    return false;
-
-  }
-
-  agentManagerState
-  .executionLocks
-  .add(
-    normalizedId
-  );
-
-  const taskObject =
-  freezeAgentObject({
-
-    id:createMemoryId(),
-
-    type:
-
-      String(
-        task.type ||
-        "generic"
-      ),
-
-    payload:
-
-      freezeAgentObject(
-
-        task.payload ||
-        {}
-
-      ),
-
-    createdAt:
-    Date.now()
-
-  });
-
-  const updatedAgent =
-  freezeAgentObject({
-
-    ...agent,
-
-    tasks:[
-
-      ...agent.tasks,
-
-      taskObject
-
-    ],
-
-    updatedAt:
-    Date.now()
-
-  });
-
-  agentManagerState
-  .agents
-  .set(
-    normalizedId,
-    updatedAgent
-  );
-
-  await updateAgentState(
-
-    normalizedId,
-
-    AGENT_STATES
-    .RUNNING
-
-  );
-
-  await emitAgentEvent(
-
-    AGENT_EVENTS
-    .TASK_STARTED,
-
-    {
-
-      agentId:
-      normalizedId,
-
-      taskId:
-      taskObject.id
-
-    }
-
-  );
-
-  let attempts = 0;
-
-  try{
-
-    while(
-
-      attempts <
-
-      AGENT_MANAGER_CONFIG
-      .MAX_AGENT_RETRIES
-
-    ){
-
-      attempts++;
-
-      try{
-
-        if(
-          typeof task.execute ===
-          "function"
-        ){
-
-          await task.execute({
-
-            agent:
-            updatedAgent,
-
-            task:
-            taskObject,
-
-            state:
-            StateManager,
-
-            memory:
-            typeof MemorySystem !==
-            "undefined"
-
-            ? MemorySystem
-
-            : null
-
-          });
-
-        }
-
-        agentManagerState
-        .diagnostics
-        .tasksExecuted++;
-
-        await updateAgentState(
-
-          normalizedId,
-
-          AGENT_STATES
-          .READY
-
-        );
-
-        await emitAgentEvent(
-
-          AGENT_EVENTS
-          .TASK_COMPLETED,
-
-          {
-
-            agentId:
-            normalizedId,
-
-            taskId:
-            taskObject.id
-
-          }
-
-        );
-
-        return true;
-
-      }
-
-      catch(error){
-
-        if(
-
-          attempts >=
-
-          AGENT_MANAGER_CONFIG
-          .MAX_AGENT_RETRIES
-
-        ){
-
-          await updateAgentState(
-
-            normalizedId,
-
-            AGENT_STATES
-            .FAILED
-
-          );
-
-          await emitAgentEvent(
-
-            AGENT_EVENTS
-            .TASK_FAILED,
-
-            {
-
-              agentId:
-              normalizedId,
-
-              taskId:
-              taskObject.id,
-
-              error:
-              String(error)
-
-            }
-
-          );
-
-          return false;
-
-        }
-
-        agentManagerState
-        .diagnostics
-        .retries++;
-
-      }
-
-    }
-
-  }
-
-  finally{
-
-    agentManagerState
-    .executionLocks
-    .delete(
-      normalizedId
-    );
-
-    const currentAgent =
-
-      agentManagerState
-      .agents
-      .get(
-        normalizedId
-      );
-
-    if(
-
-      currentAgent &&
-
-      currentAgent.state ===
-      AGENT_STATES.RUNNING
-
-    ){
-
-      await updateAgentState(
-
-        normalizedId,
-
-        AGENT_STATES
-        .READY
-
-      );
-
-    }
-
-  }
-
-}
-
-
-
-// =====================================
-// TERMINATE AGENT
-// =====================================
-
-async function terminateAgent(
-  agentId
-){
-
-  const normalizedId =
-  normalizeAgentId(
-    agentId
-  );
-
-  const agent =
-
-    agentManagerState
-    .agents
-    .get(
-      normalizedId
-    );
-
-  if(!agent){
-
-    return false;
-
-  }
-
-  await updateAgentState(
-
-    normalizedId,
-
-    AGENT_STATES
-    .TERMINATED
-
-  );
-
-  agentManagerState
-  .executionLocks
-  .delete(
-    normalizedId
-  );
-
-  agentManagerState
-  .diagnostics
-  .terminated++;
-
-  await emitAgentEvent(
-
-    AGENT_EVENTS
-    .TERMINATED,
-
-    {
-
-      agentId:
-      normalizedId
-
-    }
-
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// HEALTHCHECKS
-// =====================================
-
-function runAgentHealthchecks(){
-
-  if(
-
-    !AGENT_MANAGER_CONFIG
-    .ENABLE_AGENT_HEALTHCHECKS
-
-  ){
-
-    return false;
-
-  }
-
-  agentManagerState
-  .agents
-  .forEach((agent) => {
-
-    if(
-      agent.state ===
-      AGENT_STATES.FAILED
-    ){
-
-      agentManagerState
-      .failedAgents
-      .add(
-        agent.id
-      );
-
-    }
-
-  });
-
-  return true;
-
-}
-
-
-
-function startAgentHealthchecks(){
-
-  if(
-    agentManagerState
-    .healthcheckTimer
-  ){
-
-    return true;
-
-  }
-
-  agentManagerState
-  .healthcheckTimer =
-  setInterval(() => {
-
-    runAgentHealthchecks();
-
-  },
-
-  AGENT_MANAGER_CONFIG
-  .AGENT_HEALTHCHECK_INTERVAL);
-
-  return true;
-
-}
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
-
-function getAgentDiagnostics(){
-
-  return freezeAgentObject({
-
-    initialized:
-    agentManagerState
-    .initialized,
-
-    agents:
-
-      agentManagerState
-      .agents
-      .size,
-
-    activeAgents:
-
-      agentManagerState
-      .activeAgents
-      .size,
-
-    failedAgents:
-
-      agentManagerState
-      .failedAgents
-      .size,
-
-    diagnostics:
-    cloneAgentDiagnostics(),
-
-    lastAgentCreatedAt:
-
-      agentManagerState
-      .lastAgentCreatedAt
-
-  });
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-async function resetAgentManager(){
-
-  agentManagerState
-  .agents
-  .clear();
-
-  agentManagerState
-  .activeAgents
-  .clear();
-
-  agentManagerState
-  .failedAgents
-  .clear();
-
-  agentManagerState
-  .executionLocks
-  .clear();
-
-  if(
-    agentManagerState
-    .healthcheckTimer
-  ){
-
-    clearInterval(
-
-      agentManagerState
-      .healthcheckTimer
-
-    );
-
-    agentManagerState
-    .healthcheckTimer =
-    null;
-
-  }
-
-  agentManagerState
-  .diagnostics = {
-
-    created:0,
-
-    initialized:0,
-
-    running:0,
-
-    failed:0,
-
-    terminated:0,
-
-    tasksExecuted:0,
-
-    retries:0
-
-  };
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-async function initializeAgentManager(){
-
-  if(
-    agentManagerState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  if(
-    agentManagerState
-    .initializing
-  ){
-
-    return false;
-
-  }
-
-  agentManagerState
-  .initializing =
-  true;
-
-  try{
-
-    startAgentHealthchecks();
-
-    agentManagerState
-    .initialized =
-    true;
-
-    return true;
-
-  }
-
-  finally{
-
-    agentManagerState
-    .initializing =
-    false;
-
-  }
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const AgentManager =
-Object.freeze({
-
-  initialize:
-  initializeAgentManager,
-
-  register:
-  registerAgent,
-
-  initializeAgent:
-  initializeAgent,
-
-  executeTask:
-  executeAgentTask,
-
-  terminate:
-  terminateAgent,
-
-  diagnostics:
-  getAgentDiagnostics,
-
-  reset:
-  resetAgentManager
-
-});
