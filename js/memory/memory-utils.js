@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY UTILS
 // ENTERPRISE INFINITY ULTRA FINAL
+// PATCHED + STABILIZED
 // =====================================
 
 
@@ -29,7 +30,11 @@ Object.freeze({
 
   DEFAULT_DEBOUNCE:300,
 
-  DEFAULT_THROTTLE:300
+  DEFAULT_THROTTLE:300,
+
+  DEFAULT_RETRY_DELAY:300,
+
+  MAX_RETRY_DELAY:5000
 
 });
 
@@ -763,6 +768,51 @@ function safeJsonStringify(
       (key,nestedValue) => {
 
         if(
+          typeof nestedValue ===
+          "bigint"
+        ){
+
+          return nestedValue
+          .toString();
+        }
+
+        if(
+          nestedValue instanceof Map
+        ){
+
+          return {
+            __type:"Map",
+            value:[
+              ...nestedValue.entries()
+            ]
+          };
+        }
+
+        if(
+          nestedValue instanceof Set
+        ){
+
+          return {
+            __type:"Set",
+            value:[
+              ...nestedValue.values()
+            ]
+          };
+        }
+
+        if(
+          nestedValue instanceof Uint8Array
+        ){
+
+          return {
+            __type:"Uint8Array",
+            value:[
+              ...nestedValue
+            ]
+          };
+        }
+
+        if(
 
           nestedValue &&
 
@@ -1071,12 +1121,17 @@ function calculateMemoryRelevance(
     return 0;
   }
 
+  const tokenSet =
+  new Set(
+    textTokens
+  );
+
   let matches = 0;
 
   queryTokens.forEach((token) => {
 
     if(
-      textTokens.includes(
+      tokenSet.has(
         token
       )
     ){
@@ -1333,6 +1388,27 @@ function normalizeMemoryScore(
 
 
 // =====================================
+// RETRY DELAY
+// =====================================
+
+function waitMemoryRetryDelay(
+  delay
+){
+
+  return new Promise((resolve) => {
+
+    setTimeout(
+      resolve,
+      delay
+    );
+
+  });
+
+}
+
+
+
+// =====================================
 // RETRY HELPER
 // =====================================
 
@@ -1375,6 +1451,34 @@ async function retryMemoryOperation(
 
       lastError = error;
 
+      if(
+        attempt >=
+        normalizedRetries
+      ){
+
+        break;
+      }
+
+      const retryDelay =
+      Math.min(
+
+        MEMORY_UTILS_CONFIG
+        .DEFAULT_RETRY_DELAY *
+
+        Math.pow(
+          2,
+          attempt
+        ),
+
+        MEMORY_UTILS_CONFIG
+        .MAX_RETRY_DELAY
+
+      );
+
+      await waitMemoryRetryDelay(
+        retryDelay
+      );
+
     }
 
   }
@@ -1406,10 +1510,23 @@ function debounceMemoryFunction(
 
     timer = setTimeout(() => {
 
-      callback.apply(
-        this,
-        args
-      );
+      try{
+
+        callback.apply(
+          this,
+          args
+        );
+
+      }
+
+      catch(error){
+
+        console.error(
+          "[RIGO MEMORY DEBOUNCE ERROR]",
+          error
+        );
+
+      }
 
     },delay);
 
@@ -1441,10 +1558,23 @@ function throttleMemoryFunction(
 
     waiting = true;
 
-    callback.apply(
-      this,
-      args
-    );
+    try{
+
+      callback.apply(
+        this,
+        args
+      );
+
+    }
+
+    catch(error){
+
+      console.error(
+        "[RIGO MEMORY THROTTLE ERROR]",
+        error
+      );
+
+    }
 
     setTimeout(() => {
 
