@@ -7,69 +7,241 @@
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function isFunction(value){
+
+  return typeof value === "function";
+
+}
+
+
+
+function getRuntimeDependency(name){
+
+  if(typeof window === "undefined"){
+    return null;
+  }
+
+  return window[name] || null;
+
+}
+
+
+
+function emitApplicationRuntimeWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+    `[ApplicationRuntime] ${message}`,
+    error || ""
+  );
+
+}
+
+
+
+// =====================================
+// SAFE FREEZE
+// =====================================
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !== "object"
+  ){
+    return value;
+  }
+
+  if(visited.has(value)){
+    return value;
+  }
+
+  if(
+
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof Date ||
+    value instanceof RegExp
+
+  ){
+    return value;
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    if(
+      nestedValue &&
+      typeof nestedValue === "object"
+    ){
+
+      safeFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
+// SAFE EXECUTION
+// =====================================
+
+async function safelyExecute(
+  label,
+  operation
+){
+
+  try{
+
+    if(!isFunction(operation)){
+      return false;
+    }
+
+    return await operation();
+
+  }catch(error){
+
+    emitApplicationRuntimeWarning(
+      `${label} failed`,
+      error
+    );
+
+    if(
+      isFunction(logCriticalError)
+    ){
+
+      try{
+
+        await logCriticalError(
+          label.toUpperCase(),
+          {
+
+            error:
+            String(error)
+
+          }
+        );
+
+      }catch(loggingError){
+
+        emitApplicationRuntimeWarning(
+          "Critical logging failed",
+          loggingError
+        );
+
+      }
+
+    }
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // SNAPSHOT
 // =====================================
 
 function createApplicationRuntimeSnapshot(){
 
-  return Object.freeze({
+  try{
 
-    timestamp:
-    Date.now(),
+    const startupSnapshot =
+      getRuntimeDependency(
+        "createStartupSnapshot"
+      );
 
-    app:{
+    const shutdownSnapshot =
+      getRuntimeDependency(
+        "createShutdownSnapshot"
+      );
 
-      initialized:
-      appState
-      ?.initialized,
+    const messageRuntimeSnapshot =
+      getRuntimeDependency(
+        "createMessageRuntimeSnapshot"
+      );
 
-      started:
-      appState
-      ?.started,
+    const diagnostics =
+      getRuntimeDependency(
+        "getAppDiagnostics"
+      );
 
-      phase:
-      appState
-      ?.phase
+    return safeFreeze({
 
-    },
+      timestamp:
+      Date.now(),
 
-    startup:
+      app:{
 
-      typeof createStartupSnapshot ===
-      "function"
+        initialized:
+        Boolean(appState?.initialized),
 
-      ? createStartupSnapshot()
+        started:
+        Boolean(appState?.started),
 
-      : null,
+        phase:
+        appState?.phase || null
 
-    shutdown:
+      },
 
-      typeof createShutdownSnapshot ===
-      "function"
+      startup:
 
-      ? createShutdownSnapshot()
+      isFunction(startupSnapshot)
+        ? startupSnapshot()
+        : null,
 
-      : null,
+      shutdown:
 
-    messageRuntime:
+      isFunction(shutdownSnapshot)
+        ? shutdownSnapshot()
+        : null,
 
-      typeof createMessageRuntimeSnapshot ===
-      "function"
+      messageRuntime:
 
-      ? createMessageRuntimeSnapshot()
+      isFunction(messageRuntimeSnapshot)
+        ? messageRuntimeSnapshot()
+        : null,
 
-      : null,
+      diagnostics:
 
-    diagnostics:
+      isFunction(diagnostics)
+        ? diagnostics()
+        : null
 
-      typeof getAppDiagnostics ===
-      "function"
+    });
 
-      ? getAppDiagnostics()
+  }catch(error){
 
-      : null
+    emitApplicationRuntimeWarning(
+      "Snapshot creation failed",
+      error
+    );
 
-  });
+    return null;
+
+  }
 
 }
 
@@ -83,25 +255,36 @@ async function validateApplicationHealth(){
 
   try{
 
+    const runHealthcheck =
+      getRuntimeDependency(
+        "runAppHealthcheck"
+      );
+
     if(
-      typeof runAppHealthcheck !==
-      "function"
+      !isFunction(runHealthcheck)
     ){
-
       return false;
-
     }
 
     const report =
-    await runAppHealthcheck();
+      await runHealthcheck();
+
+    const runtimeReady =
+
+      Boolean(appState?.initialized) &&
+      Boolean(appState?.started);
 
     return Boolean(
-      report?.healthy
+      report?.healthy &&
+      runtimeReady
     );
 
-  }
+  }catch(error){
 
-  catch(error){
+    emitApplicationRuntimeWarning(
+      "Application healthcheck failed",
+      error
+    );
 
     return false;
 
@@ -112,82 +295,225 @@ async function validateApplicationHealth(){
 
 
 // =====================================
-// SAFE APP START
+// INITIALIZATION
+// =====================================
+
+async function safelyInitializeApplication(){
+
+  return await safelyExecute(
+
+    "APPLICATION INITIALIZATION",
+
+    async() => {
+
+      const initialize =
+        getRuntimeDependency(
+          "initializeApp"
+        );
+
+      if(
+        !isFunction(initialize)
+      ){
+
+        throw new Error(
+          "initializeApp unavailable"
+        );
+
+      }
+
+      return await initialize();
+
+    }
+
+  );
+
+}
+
+
+
+// =====================================
+// START
 // =====================================
 
 async function safelyStartApplication(){
 
-  try{
+  return await safelyExecute(
 
-    return await startApp();
+    "APPLICATION START",
 
-  }
+    async() => {
 
-  catch(error){
+      const start =
+        getRuntimeDependency(
+          "startApp"
+        );
 
-    if(
-      typeof logCriticalError ===
-      "function"
-    ){
+      if(
+        !isFunction(start)
+      ){
 
-      await logCriticalError(
+        throw new Error(
+          "startApp unavailable"
+        );
 
-        "SAFE START FAILED",
+      }
 
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
+      return await start();
 
     }
 
-    return false;
-
-  }
+  );
 
 }
 
 
 
 // =====================================
-// SAFE APP SHUTDOWN
+// SHUTDOWN
 // =====================================
 
 async function safelyShutdownApplication(){
 
-  try{
+  return await safelyExecute(
 
-    return await shutdownApp();
+    "APPLICATION SHUTDOWN",
 
-  }
+    async() => {
 
-  catch(error){
+      const shutdown =
+        getRuntimeDependency(
+          "shutdownApp"
+        );
 
-    if(
-      typeof logCriticalError ===
-      "function"
-    ){
+      if(
+        !isFunction(shutdown)
+      ){
 
-      await logCriticalError(
+        throw new Error(
+          "shutdownApp unavailable"
+        );
 
-        "SAFE SHUTDOWN FAILED",
+      }
 
-        {
+      return await shutdown();
 
-          error:
-          String(error)
+    }
 
-        }
+  );
 
+}
+
+
+
+// =====================================
+// CLEANUP
+// =====================================
+
+async function safelyCleanupApplication(){
+
+  return await safelyExecute(
+
+    "APPLICATION CLEANUP",
+
+    async() => {
+
+      const cleanup =
+        getRuntimeDependency(
+          "cleanupApp"
+        );
+
+      if(
+        !isFunction(cleanup)
+      ){
+
+        throw new Error(
+          "cleanupApp unavailable"
+        );
+
+      }
+
+      return await cleanup();
+
+    }
+
+  );
+
+}
+
+
+
+// =====================================
+// MESSAGE RUNTIME
+// =====================================
+
+async function safelySendMessage(
+  ...args
+){
+
+  return await safelyExecute(
+
+    "MESSAGE RUNTIME",
+
+    async() => {
+
+      const sendMessage =
+        getRuntimeDependency(
+          "handleSendMessage"
+        );
+
+      if(
+        !isFunction(sendMessage)
+      ){
+
+        throw new Error(
+          "handleSendMessage unavailable"
+        );
+
+      }
+
+      return await sendMessage(
+        ...args
       );
 
     }
 
-    return false;
+  );
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function safelyGetDiagnostics(){
+
+  try{
+
+    const diagnostics =
+      getRuntimeDependency(
+        "getAppDiagnostics"
+      );
+
+    if(
+      !isFunction(diagnostics)
+    ){
+      return null;
+    }
+
+    return safeFreeze(
+      diagnostics()
+    );
+
+  }catch(error){
+
+    emitApplicationRuntimeWarning(
+      "Diagnostics failed",
+      error
+    );
+
+    return null;
 
   }
 
@@ -202,12 +528,8 @@ async function safelyShutdownApplication(){
 const ApplicationRuntime =
 Object.freeze({
 
-  // ===================================
-  // CORE
-  // ===================================
-
   initialize:
-  initializeApp,
+  safelyInitializeApplication,
 
   start:
   safelyStartApplication,
@@ -216,34 +538,16 @@ Object.freeze({
   safelyShutdownApplication,
 
   cleanup:
-  cleanupApp,
-
-
-
-  // ===================================
-  // MESSAGE RUNTIME
-  // ===================================
+  safelyCleanupApplication,
 
   sendMessage:
-  handleSendMessage,
-
-
-
-  // ===================================
-  // HEALTH
-  // ===================================
+  safelySendMessage,
 
   health:
   validateApplicationHealth,
 
-
-
-  // ===================================
-  // DIAGNOSTICS
-  // ===================================
-
   diagnostics:
-  getAppDiagnostics,
+  safelyGetDiagnostics,
 
   snapshot:
   createApplicationRuntimeSnapshot
@@ -253,27 +557,26 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+if(typeof window !== "undefined"){
 
-  window.ApplicationRuntime =
-  ApplicationRuntime;
+  Object.defineProperty(
+    window,
+    "ApplicationRuntime",
+    {
 
-  window.createApplicationRuntimeSnapshot =
-  createApplicationRuntimeSnapshot;
+      value:
+      ApplicationRuntime,
 
-  window.validateApplicationHealth =
-  validateApplicationHealth;
+      writable:
+      false,
 
-  window.safelyStartApplication =
-  safelyStartApplication;
+      configurable:
+      false
 
-  window.safelyShutdownApplication =
-  safelyShutdownApplication;
+    }
+  );
 
 }
