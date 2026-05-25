@@ -19,7 +19,7 @@ Object.freeze({
 
   ENABLE_RUNTIME_VALIDATION:true,
 
-  ENABLE_AUTO_INITIALIZATION:true,
+  ENABLE_AUTO_INITIALIZATION:false,
 
   ENABLE_HEALTH_MONITORING:true,
 
@@ -151,7 +151,8 @@ Object.seal({
 
   lastHealthcheckAt:null,
 
-  diagnostics:{
+  diagnostics:
+  Object.seal({
 
     initialized:0,
 
@@ -171,7 +172,7 @@ Object.seal({
 
     resets:0
 
-  }
+  })
 
 });
 
@@ -257,6 +258,22 @@ function freezeMemoryCoreObject(
   }
 
   if(
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet
+
+  ){
+
+    return value;
+
+  }
+
+  if(
     visited.has(value)
   ){
 
@@ -268,9 +285,19 @@ function freezeMemoryCoreObject(
     value
   );
 
-  Object.freeze(
-    value
-  );
+  try{
+
+    Object.freeze(
+      value
+    );
+
+  }
+
+  catch(error){
+
+    return value;
+
+  }
 
   Object.values(value)
   .forEach((nestedValue) => {
@@ -570,9 +597,18 @@ async function executeMemoryCoreOperation({
 
       memoryCoreState
       .state !==
-
       MEMORY_CORE_STATES
       .FAILED
+
+      &&
+
+      !memoryCoreState
+      .synchronizing
+
+      &&
+
+      !memoryCoreState
+      .recovering
 
     ){
 
@@ -843,6 +879,15 @@ async function synchronizeMemoryCore(){
 
   }
 
+  if(
+    typeof syncMemorySystem !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
   memoryCoreState
   .synchronizing =
   true;
@@ -926,6 +971,19 @@ async function synchronizeMemoryCore(){
 async function runMemoryCoreHealthcheck(){
 
   try{
+
+    if(
+      typeof runMemoryHealthCheck !==
+      "function"
+    ){
+
+      return freezeMemoryCoreObject({
+
+        valid:false
+
+      });
+
+    }
 
     const health =
     await Promise.resolve(
@@ -1194,10 +1252,6 @@ async function resetMemoryCore(){
   false;
 
   memoryCoreState
-  .destroyed =
-  false;
-
-  memoryCoreState
   .lastOperationAt =
   null;
 
@@ -1206,27 +1260,40 @@ async function resetMemoryCore(){
   null;
 
   memoryCoreState
-  .diagnostics = {
+  .diagnostics
+  .initialized = 0;
 
-    initialized:0,
+  memoryCoreState
+  .diagnostics
+  .created = 0;
 
-    created:0,
+  memoryCoreState
+  .diagnostics
+  .updated = 0;
 
-    updated:0,
+  memoryCoreState
+  .diagnostics
+  .deleted = 0;
 
-    deleted:0,
+  memoryCoreState
+  .diagnostics
+  .searched = 0;
 
-    searched:0,
+  memoryCoreState
+  .diagnostics
+  .synced = 0;
 
-    synced:0,
+  memoryCoreState
+  .diagnostics
+  .recovered = 0;
 
-    recovered:0,
+  memoryCoreState
+  .diagnostics
+  .failed = 0;
 
-    failed:0,
-
-    resets:1
-
-  };
+  memoryCoreState
+  .diagnostics
+  .resets = 1;
 
   setMemoryCoreState(
     MEMORY_CORE_STATES
@@ -1253,6 +1320,10 @@ async function resetMemoryCore(){
 async function destroyMemoryCore(){
 
   await resetMemoryCore();
+
+  memoryCoreState
+  .activeOperations
+  .clear();
 
   memoryCoreState
   .destroyed =
@@ -1283,6 +1354,15 @@ async function initializeMemoryCore(){
   ){
 
     return true;
+
+  }
+
+  if(
+    memoryCoreState
+    .destroyed
+  ){
+
+    return false;
 
   }
 
@@ -1470,3 +1550,19 @@ Object.freeze({
   destroyMemoryCore
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryCore =
+  MemoryCore;
+
+}
