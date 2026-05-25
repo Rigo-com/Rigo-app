@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY INDEX
 // ENTERPRISE INFINITY ULTRA FINAL
+// PATCHED + STABILIZED
 // =====================================
 
 
@@ -29,7 +30,7 @@ Object.freeze({
 
   ENABLE_TAG_INDEX:true,
 
-  ENABLE_DATE_INDEX:true,
+  ENABLE_DATE_INDEX:false,
 
   ENABLE_CACHE_INDEX:true,
 
@@ -151,9 +152,20 @@ function ensureIndexMap(
 
   }
 
-  return indexMap.get(
+  const bucket =
+  indexMap.get(
     normalizedKey
   );
+
+  if(
+    !(bucket instanceof Set)
+  ){
+
+    return null;
+
+  }
+
+  return bucket;
 
 }
 
@@ -268,7 +280,9 @@ function removeMemoryFromIndex(
       normalizedKey
     );
 
-    if(!bucket){
+    if(
+      !(bucket instanceof Set)
+    ){
 
       return false;
 
@@ -350,7 +364,9 @@ function getIndexedMemories(
       normalizedKey
     );
 
-    if(!bucket){
+    if(
+      !(bucket instanceof Set)
+    ){
 
       return [];
 
@@ -571,7 +587,7 @@ function indexMemoryRelations(
 // HASH INDEXING
 // =====================================
 
-async function indexMemoryHash(
+function indexMemoryHash(
   memory
 ){
 
@@ -587,7 +603,7 @@ async function indexMemoryHash(
   }
 
   const contentHash =
-  await createMemoryHash(
+  createUtilityMemoryHash(
     memory.content || ""
   );
 
@@ -633,18 +649,36 @@ function indexMemoryDates(
 
   }
 
-  if(
-    memory.createdAt
-  ){
+  const createdKey =
+  memory.createdAt
+
+  ? new Date(
+      memory.createdAt
+    )
+    .toISOString()
+    .slice(0,10)
+
+  : null;
+
+  const updatedKey =
+  memory.updatedAt
+
+  ? new Date(
+      memory.updatedAt
+    )
+    .toISOString()
+    .slice(0,10)
+
+  : null;
+
+  if(createdKey){
 
     addMemoryToIndex(
 
       memoryState.indexes
       .byCreatedAt,
 
-      String(
-        memory.createdAt
-      ),
+      createdKey,
 
       memory.id
 
@@ -652,18 +686,14 @@ function indexMemoryDates(
 
   }
 
-  if(
-    memory.updatedAt
-  ){
+  if(updatedKey){
 
     addMemoryToIndex(
 
       memoryState.indexes
       .byUpdatedAt,
 
-      String(
-        memory.updatedAt
-      ),
+      updatedKey,
 
       memory.id
 
@@ -697,16 +727,41 @@ async function indexMemory(
 
     }
 
-    addMemoryToIndex(
+    if(
 
       memoryState.indexes
-      .byId,
+      .byId
+      .has(
+        memory.id
+      )
 
+    ){
+
+      return true;
+
+    }
+
+    memoryIndexState
+    .indexing = true;
+
+
+
+    // ===================================
+    // PRIMARY LOOKUP
+    // ===================================
+
+    memoryState.indexes
+    .byId
+    .set(
       memory.id,
-
-      memory.id
-
+      memory
     );
+
+
+
+    // ===================================
+    // SECONDARY INDEXES
+    // ===================================
 
     addMemoryToIndex(
 
@@ -752,7 +807,7 @@ async function indexMemory(
 
     );
 
-    await indexMemoryHash(
+    indexMemoryHash(
       memory
     );
 
@@ -769,13 +824,6 @@ async function indexMemory(
     );
 
     indexMemoryDates(
-      memory
-    );
-
-    memoryState.indexes
-    .byId
-    .set(
-      memory.id,
       memory
     );
 
@@ -796,6 +844,13 @@ async function indexMemory(
     .failedIndexes++;
 
     return false;
+
+  }
+
+  finally{
+
+    memoryIndexState
+    .indexing = false;
 
   }
 
@@ -871,6 +926,12 @@ async function unindexMemory(
 
     );
 
+
+
+    // ===================================
+    // TAGS
+    // ===================================
+
     if(
       Array.isArray(
         memory.tags
@@ -893,6 +954,12 @@ async function unindexMemory(
       });
 
     }
+
+
+
+    // ===================================
+    // TOKENS
+    // ===================================
 
     const tokens =
     tokenizeMemoryText([
@@ -922,8 +989,14 @@ async function unindexMemory(
 
     });
 
+
+
+    // ===================================
+    // HASH
+    // ===================================
+
     const hash =
-    await createMemoryHash(
+    createUtilityMemoryHash(
       memory.content || ""
     );
 
@@ -941,6 +1014,68 @@ async function unindexMemory(
       );
 
     }
+
+
+
+    // ===================================
+    // RELATIONS
+    // ===================================
+
+    const relations =
+    memory.relations || {};
+
+    if(
+      relations.parentMemoryId
+    ){
+
+      removeMemoryFromIndex(
+
+        memoryState.indexes
+        .byParent,
+
+        relations.parentMemoryId,
+
+        memory.id
+
+      );
+
+    }
+
+    (
+      relations.childMemoryIds || []
+    )
+    .forEach((childId) => {
+
+      removeMemoryFromIndex(
+
+        memoryState.indexes
+        .byChild,
+
+        childId,
+
+        memory.id
+
+      );
+
+    });
+
+    (
+      relations.relatedMemoryIds || []
+    )
+    .forEach((relatedId) => {
+
+      removeMemoryFromIndex(
+
+        memoryState.indexes
+        .byRelation,
+
+        relatedId,
+
+        memory.id
+
+      );
+
+    });
 
     return true;
 
@@ -980,6 +1115,9 @@ async function rebuildMemoryIndexes(){
   try{
 
     resetRuntimeMemoryIndexes();
+
+    memoryIndexState
+    .indexedMemories = 0;
 
     const memories =
     safeMemoryArray(
@@ -1059,8 +1197,8 @@ function searchIndexedMemories(
     query
   );
 
-  const matchedIds =
-  new Set();
+  const scoredResults =
+  new Map();
 
   tokens.forEach((token) => {
 
@@ -1074,8 +1212,14 @@ function searchIndexedMemories(
     )
     .forEach((memoryId) => {
 
-      matchedIds.add(
+      const current =
+      scoredResults.get(
         memoryId
+      ) || 0;
+
+      scoredResults.set(
+        memoryId,
+        current + 1
       );
 
     });
@@ -1084,16 +1228,24 @@ function searchIndexedMemories(
 
   return [
 
-    ...matchedIds
+    ...scoredResults.entries()
 
   ]
-  .map((memoryId) => {
+
+  .sort((a,b) => {
+
+    return b[1] - a[1];
+
+  })
+
+  .map(([memoryId]) => {
 
     return getMemoryById(
       memoryId
     );
 
   })
+
   .filter(Boolean);
 
 }
@@ -1219,10 +1371,53 @@ function cleanupMemoryIndexes(){
 
     );
 
-    Object.values(
+
+
+    // ===================================
+    // CLEAN PRIMARY LOOKUP
+    // ===================================
+
+    memoryState.indexes
+    .byId
+    .forEach((memory,key) => {
+
+      if(
+
+        !validIds.has(key)
+
+        ||
+
+        !isValidMemoryObject(
+          memory
+        )
+
+      ){
+
+        memoryState.indexes
+        .byId
+        .delete(key);
+
+      }
+
+    });
+
+
+
+    // ===================================
+    // CLEAN SECONDARY INDEXES
+    // ===================================
+
+    Object.entries(
       memoryState.indexes
     )
-    .forEach((indexMap) => {
+    .forEach(([key,indexMap]) => {
+
+      if(
+        key === "byId"
+      ){
+
+        return;
+      }
 
       if(
         !(indexMap instanceof Map)
@@ -1231,38 +1426,43 @@ function cleanupMemoryIndexes(){
         return;
       }
 
-      indexMap.forEach((value,key) => {
+      indexMap.forEach((value,indexKey) => {
 
         if(
-          value instanceof Set
+          !(value instanceof Set)
         ){
 
-          [...value]
-          .forEach((memoryId) => {
+          indexMap.delete(
+            indexKey
+          );
 
-            if(
-              !validIds.has(
-                memoryId
-              )
-            ){
+          return;
+        }
 
-              value.delete(
-                memoryId
-              );
-
-            }
-
-          });
+        [...value]
+        .forEach((memoryId) => {
 
           if(
-            value.size <= 0
+            !validIds.has(
+              memoryId
+            )
           ){
 
-            indexMap.delete(
-              key
+            value.delete(
+              memoryId
             );
 
           }
+
+        });
+
+        if(
+          value.size <= 0
+        ){
+
+          indexMap.delete(
+            indexKey
+          );
 
         }
 
