@@ -116,8 +116,17 @@ function showTypingIndicator(){
 
   if(!typingIndicator){
 
+    if(
+      typeof createTypingIndicatorElement !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
     typingIndicator =
-    createTypingIndicatorElement?.();
+    createTypingIndicatorElement();
 
     if(!typingIndicator){
 
@@ -159,9 +168,16 @@ function showTypingIndicator(){
     .isConnected
   ){
 
+    const appended =
     ChatElements.append(
       typingIndicator
     );
+
+    if(!appended){
+
+      return false;
+
+    }
 
   }
 
@@ -271,9 +287,18 @@ function renderStreamingMessage(
     .activeMessageId =
     createMessageId();
 
+    const appended =
     ChatElements.append(
       messageElement
     );
+
+    if(!appended){
+
+      resetStreamingMessageState();
+
+      return false;
+
+    }
 
   }
 
@@ -448,9 +473,15 @@ function finalizeStreamingMessage(){
   });
 
   if(
+
+    currentChat
+
+    &&
+
     Array.isArray(
-      currentChat?.messages
+      currentChat.messages
     )
+
   ){
 
     currentChat.messages
