@@ -77,6 +77,8 @@ function startChatStream(
 
   }
 
+  resetStreamingMessageState?.();
+
   const streamId =
   createStreamId();
 
@@ -361,6 +363,18 @@ function flushStreamChunks(){
   const combined =
   chunks.join("");
 
+  if(
+    combined.length <= 0
+  ){
+
+    chatStreamState
+    .flushing =
+    false;
+
+    return false;
+
+  }
+
   chatStreamState
   .renderQueue
   .push(
@@ -441,9 +455,20 @@ function processRenderQueue(){
 
         }
 
-        chatStreamState
-        .renderQueue
-        .shift();
+        const chunk =
+
+          chatStreamState
+          .renderQueue
+          .shift();
+
+        if(
+          typeof chunk !==
+          "string"
+        ){
+
+          continue;
+
+        }
 
         try{
 
@@ -453,10 +478,7 @@ function processRenderQueue(){
           ){
 
             renderStreamingMessage(
-
-              chatStreamState
-              .partialContent
-
+              chunk
             );
 
           }
@@ -532,6 +554,8 @@ function completeChatStream(){
   }
 
   flushStreamChunks();
+
+  finalizeStreamingMessage?.();
 
   chatStreamState
   .status =
@@ -654,6 +678,22 @@ function abortChatStream(){
 
   }
 
+  if(
+    chatStreamState.flushTimer
+  ){
+
+    clearTimeout(
+      chatStreamState.flushTimer
+    );
+
+    chatStreamState
+    .flushTimer =
+    null;
+
+  }
+
+  abortStreamingMessage?.();
+
   chatStreamState
   .active =
   false;
@@ -700,6 +740,22 @@ function abortChatStream(){
 function failChatStream(
   error = null
 ){
+
+  if(
+    chatStreamState.flushTimer
+  ){
+
+    clearTimeout(
+      chatStreamState.flushTimer
+    );
+
+    chatStreamState
+    .flushTimer =
+    null;
+
+  }
+
+  abortStreamingMessage?.();
 
   chatStreamState
   .active =
