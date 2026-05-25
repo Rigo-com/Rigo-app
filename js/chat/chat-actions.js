@@ -14,6 +14,14 @@ async function sendMessage(){
 
   try{
 
+    if(
+      chatRuntimeState?.generating
+    ){
+
+      return false;
+
+    }
+
     const messageInput =
     ChatElements?.getInput?.();
 
@@ -62,7 +70,9 @@ async function sendMessage(){
     }
 
     if(
-      !chatRuntimeState.queue
+      !Array.isArray(
+        chatRuntimeState.queue
+      )
     ){
 
       chatRuntimeState.queue =
@@ -92,20 +102,24 @@ async function sendMessage(){
 
     }
 
-    const userMessage = {
+    const messageId =
+
+      typeof createMessageId ===
+      "function"
+
+      ?
+
+      createMessageId()
+
+      :
+
+      String(Date.now());
+
+    const userMessage =
+    freezeChatObject({
 
       id:
-
-        typeof createMessageId ===
-        "function"
-
-        ?
-
-        createMessageId()
-
-        :
-
-        String(Date.now()),
+      messageId,
 
       role:"user",
 
@@ -113,7 +127,7 @@ async function sendMessage(){
 
       timestamp:Date.now()
 
-    };
+    });
 
 
 
@@ -121,26 +135,9 @@ async function sendMessage(){
     // STORE MESSAGE
     // =========================
 
-    if(
-      typeof addMessage ===
-      "function"
-    ){
-
-      try{
-
-        addMessage(
-          userMessage
-        );
-
-      }
-
-      catch(error){
-
-        console.error(error);
-
-      }
-
-    }
+    addMessage(
+      userMessage
+    );
 
 
 
@@ -177,27 +174,13 @@ async function sendMessage(){
 
 
     // =========================
-    // TEMP AI RESPONSE
+    // GENERATION STATE
     // =========================
 
-    setTimeout(() => {
+    chatRuntimeState.generating =
+    true;
 
-      addMessage({
-
-        id:
-        "ai_" + Date.now(),
-
-        role:"assistant",
-
-        content:
-        "RIGO AI RESPONSE",
-
-        timestamp:
-        Date.now()
-
-      });
-
-    },500);
+    continueQueueProcessing?.();
 
     return true;
 
@@ -209,6 +192,9 @@ async function sendMessage(){
       "SEND_MESSAGE_ERROR:",
       error
     );
+
+    chatRuntimeState.generating =
+    false;
 
     return false;
 
@@ -229,15 +215,10 @@ async function abortMessageGeneration(){
     chatRuntimeState
     ?.generationController;
 
-  if(!controller){
-
-    return false;
-
-  }
-
   try{
 
     if(
+      controller &&
       !controller.signal.aborted
     ){
 
@@ -256,11 +237,42 @@ async function abortMessageGeneration(){
 
   }
 
+  try{
+
+    ChatStreamManager
+    ?.abort?.();
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
+  try{
+
+    abortStreamingMessage?.();
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
   chatRuntimeState.generating =
   false;
 
   chatRuntimeState.streaming =
   false;
+
+  chatRuntimeState.activeMessageId =
+  null;
+
+  chatRuntimeState.generationController =
+  null;
 
   return true;
 
@@ -278,6 +290,14 @@ function addMessage(
 
   try{
 
+    if(
+      !messageData
+    ){
+
+      return false;
+
+    }
+
     const chatContainer =
     ChatElements
     ?.getContainer?.();
@@ -288,7 +308,37 @@ function addMessage(
 
     }
 
-    if(!messageData){
+    if(
+
+      !Array.isArray(
+        currentChat?.messages
+      )
+    ){
+
+      currentChat.messages =
+      [];
+
+    }
+
+
+
+    // =========================
+    // DUPLICATE CHECK
+    // =========================
+
+    const duplicate =
+
+      currentChat.messages
+      .some((message) => {
+
+        return (
+          message?.id ===
+          messageData?.id
+        );
+
+      });
+
+    if(duplicate){
 
       return false;
 
@@ -297,52 +347,73 @@ function addMessage(
 
 
     // =========================
-    // WRAPPER
+    // CREATE ELEMENT
     // =========================
 
     const messageElement =
-    document.createElement("div");
 
-    messageElement.className =
-
-      messageData.role === "user"
+      typeof createMessageElement ===
+      "function"
 
       ?
 
-      "message user-message"
+      createMessageElement(
+        messageData
+      )
 
       :
 
-      "message ai-message";
+      null;
+
+    if(!messageElement){
+
+      return false;
+
+    }
 
 
 
     // =========================
-    // CONTENT
+    // STORE
     // =========================
 
-    const content =
-    document.createElement("div");
+    currentChat.messages
+    .push(
 
-    content.className =
-    "message-content";
+      freezeChatObject(
+        messageData
+      )
 
-    content.textContent =
-    messageData.content || "";
-
-
-
-    // =========================
-    // APPEND
-    // =========================
-
-    messageElement.appendChild(
-      content
     );
 
-    chatContainer.appendChild(
+    currentChat.updatedAt =
+    Date.now();
+
+    currentChat.lastMessageAt =
+    Date.now();
+
+    currentChat.messageCount =
+    currentChat.messages.length;
+
+
+
+    // =========================
+    // RENDER
+    // =========================
+
+    ChatElements.append(
       messageElement
     );
+
+
+
+    // =========================
+    // DIAGNOSTICS
+    // =========================
+
+    chatRuntimeState
+    .diagnostics
+    .messages++;
 
 
 
@@ -352,10 +423,11 @@ function addMessage(
 
     requestAnimationFrame(() => {
 
-      chatContainer.scrollTop =
-      chatContainer.scrollHeight;
+      scrollToBottom?.();
 
     });
+
+    debouncedSaveCurrentChat?.();
 
     return true;
 
@@ -391,6 +463,26 @@ async function resetCurrentChat(){
       chatRuntimeState.queue =
       [];
 
+      chatRuntimeState.renderQueue =
+      [];
+
+      chatRuntimeState.processing =
+      false;
+
+      chatRuntimeState.generating =
+      false;
+
+      chatRuntimeState.streaming =
+      false;
+    }
+
+    if(
+      typeof resetStreamingMessageState ===
+      "function"
+    ){
+
+      resetStreamingMessageState();
+
     }
 
     const container =
@@ -399,8 +491,25 @@ async function resetCurrentChat(){
 
     if(container){
 
-      container.innerHTML = "";
+      container.replaceChildren();
 
+    }
+
+    if(
+      currentChat
+    ){
+
+      currentChat.messages =
+      [];
+
+      currentChat.updatedAt =
+      Date.now();
+
+      currentChat.lastMessageAt =
+      null;
+
+      currentChat.messageCount =
+      0;
     }
 
     return true;
