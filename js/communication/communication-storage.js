@@ -6,6 +6,40 @@
 
 
 // =====================================
+// STORAGE KEY
+// =====================================
+
+const COMMUNICATION_STORAGE_KEY =
+"rigo_communication_state";
+
+
+
+// =====================================
+// STORAGE AVAILABLE
+// =====================================
+
+function isCommunicationStorageAvailable(){
+
+  try{
+
+    return (
+      typeof localStorage !==
+      "undefined"
+    );
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // PERSIST STATE
 // =====================================
 
@@ -16,6 +50,14 @@ function persistCommunicationState(){
     !COMMUNICATION_RUNTIME_CONFIG
     .ENABLE_PERSISTENCE
 
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !isCommunicationStorageAvailable()
   ){
 
     return false;
@@ -74,7 +116,7 @@ function persistCommunicationState(){
 
     localStorage.setItem(
 
-      "rigo_communication_state",
+      COMMUNICATION_STORAGE_KEY,
 
       JSON.stringify({
 
@@ -125,11 +167,19 @@ function persistCommunicationState(){
 
 function restoreCommunicationState(){
 
+  if(
+    !isCommunicationStorageAvailable()
+  ){
+
+    return false;
+
+  }
+
   try{
 
     const raw =
     localStorage.getItem(
-      "rigo_communication_state"
+      COMMUNICATION_STORAGE_KEY
     );
 
     if(!raw){
@@ -177,11 +227,36 @@ function restoreCommunicationState(){
       )
     ){
 
+      const safeConversations =
+      parsed.conversations
+      .filter((entry) => {
+
+        return (
+
+          Array.isArray(entry)
+
+          &&
+
+          entry.length === 2
+
+          &&
+
+          typeof entry[0] ===
+          "string"
+
+          &&
+
+          typeof entry[1] ===
+          "object"
+
+        );
+
+      });
+
       communicationRuntimeState
       .conversations =
       new Map(
-
-        parsed.conversations
+        safeConversations
       );
 
       trimConversationHistory();
@@ -234,10 +309,18 @@ function restoreCommunicationState(){
 
 function clearCommunicationStorage(){
 
+  if(
+    !isCommunicationStorageAvailable()
+  ){
+
+    return false;
+
+  }
+
   try{
 
     localStorage.removeItem(
-      "rigo_communication_state"
+      COMMUNICATION_STORAGE_KEY
     );
 
     return true;
