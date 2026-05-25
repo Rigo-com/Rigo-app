@@ -36,7 +36,9 @@ async function processAIQueue(){
   }
 
   if(
-    chatRuntimeState.generating
+    !Array.isArray(
+      chatRuntimeState.queue
+    )
   ){
 
     return false;
@@ -52,10 +54,6 @@ async function processAIQueue(){
 
   }
 
-  chatRuntimeState
-  .processing =
-  true;
-
   const queueItem =
 
     chatRuntimeState
@@ -68,12 +66,15 @@ async function processAIQueue(){
   ){
 
     chatRuntimeState
-    .processing =
-    false;
+    .queue.shift();
 
     return false;
 
   }
+
+  chatRuntimeState
+  .processing =
+  true;
 
   const startedAt =
   Date.now();
@@ -97,28 +98,39 @@ async function processAIQueue(){
   .generationController =
   new AbortController();
 
-  ChatStreamManager.start(
-    queueItem.id
-  );
+  try{
 
-  await emitChatRuntimeEvent(
+    if(
 
-    CHAT_RUNTIME_EVENTS
-    .GENERATION_STARTED,
+      typeof ChatStreamManager !==
+      "undefined"
 
-    {
+      &&
 
-      messageId:
-      queueItem.id
+      typeof ChatStreamManager.start ===
+      "function"
+
+    ){
+
+      ChatStreamManager.start(
+        queueItem.id
+      );
 
     }
 
-  );
+    await emitChatRuntimeEvent(
 
-  let generated =
-  false;
+      CHAT_RUNTIME_EVENTS
+      .GENERATION_STARTED,
 
-  try{
+      {
+
+        messageId:
+        queueItem.id
+
+      }
+
+    );
 
     if(
 
@@ -136,7 +148,7 @@ async function processAIQueue(){
 
     }
 
-    generated =
+    const generated =
     await generateAIResponse(
 
       queueItem.id,
@@ -162,7 +174,7 @@ async function processAIQueue(){
           }
 
           ChatStreamManager
-          .push(
+          ?.push?.(
             chunk
           );
 
@@ -181,7 +193,7 @@ async function processAIQueue(){
     }
 
     ChatStreamManager
-    .complete();
+    ?.complete?.();
 
     if(
       streamingMessageState
@@ -215,6 +227,8 @@ async function processAIQueue(){
 
     );
 
+    return true;
+
   }
 
   catch(error){
@@ -227,7 +241,7 @@ async function processAIQueue(){
     if(aborted){
 
       ChatStreamManager
-      .abort();
+      ?.abort?.();
 
       abortStreamingMessage?.();
 
@@ -254,7 +268,7 @@ async function processAIQueue(){
     else{
 
       ChatStreamManager
-      .fail(
+      ?.fail?.(
         error
       );
 
@@ -337,6 +351,8 @@ async function processAIQueue(){
 
     }
 
+    return false;
+
   }
 
   finally{
@@ -377,7 +393,5 @@ async function processAIQueue(){
     continueQueueProcessing();
 
   }
-
-  return generated;
 
 }
