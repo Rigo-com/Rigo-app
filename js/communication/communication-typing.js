@@ -35,12 +35,32 @@ async function startTypingIndicator(){
   .typing =
   true;
 
-  await emitCommunicationEvent(
+  try{
 
-    COMMUNICATION_RUNTIME_EVENTS
-    .TYPING_STARTED
+    await emitCommunicationEvent(
 
-  );
+      COMMUNICATION_RUNTIME_EVENTS
+      .TYPING_STARTED
+
+    );
+
+  }
+
+  catch(error){
+
+    if(
+      COMMUNICATION_RUNTIME_CONFIG
+      .DEBUG
+    ){
+
+      console.error(
+        "COMMUNICATION_TYPING_START_ERROR:",
+        error
+      );
+
+    }
+
+  }
 
   return true;
 
@@ -67,12 +87,32 @@ async function stopTypingIndicator(){
   .typing =
   false;
 
-  await emitCommunicationEvent(
+  try{
 
-    COMMUNICATION_RUNTIME_EVENTS
-    .TYPING_STOPPED
+    await emitCommunicationEvent(
 
-  );
+      COMMUNICATION_RUNTIME_EVENTS
+      .TYPING_STOPPED
+
+    );
+
+  }
+
+  catch(error){
+
+    if(
+      COMMUNICATION_RUNTIME_CONFIG
+      .DEBUG
+    ){
+
+      console.error(
+        "COMMUNICATION_TYPING_STOP_ERROR:",
+        error
+      );
+
+    }
+
+  }
 
   return true;
 
