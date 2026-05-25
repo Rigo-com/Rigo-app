@@ -168,7 +168,16 @@ function freezeChatObject(
 
   if(
 
-    value instanceof Element
+    (
+
+      typeof Element !==
+      "undefined"
+
+      &&
+
+      value instanceof Element
+
+    )
 
     ||
 
@@ -436,11 +445,25 @@ function getChatRuntimeStatus(){
 
     diagnostics:
 
+      typeof deepClone ===
+      "function"
+
+      ?
+
       deepClone(
 
         chatRuntimeState
         .diagnostics
 
+      )
+
+      :
+
+      JSON.parse(
+        JSON.stringify(
+          chatRuntimeState
+          .diagnostics
+        )
       )
 
   });
