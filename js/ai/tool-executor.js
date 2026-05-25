@@ -1,7 +1,8 @@
 // =====================================
 // RIGO AI
 // TOOL EXECUTOR
-// ENTERPRISE AI EXECUTION FINAL
+// ENTERPRISE EXECUTION ENGINE
+// FINAL STABLE EDITION
 // =====================================
 
 
@@ -15,91 +16,61 @@ Object.freeze({
 
   ENABLE_TOOL_EVENTS:true,
 
-  ENABLE_TOOL_DIAGNOSTICS:true,
-
   ENABLE_TOOL_TIMEOUTS:true,
 
   ENABLE_TOOL_RETRIES:true,
 
-  ENABLE_TOOL_PERMISSIONS:true,
+  ENABLE_TOOL_QUEUE:true,
 
-  ENABLE_SANDBOX_MODE:true,
+  ENABLE_TOOL_SANDBOX:true,
 
-  ENABLE_EXECUTION_QUEUE:true,
+  ENABLE_PRIORITY_QUEUE:true,
 
-  MAX_TOOLS:
-  1000,
+  ENABLE_CIRCUIT_BREAKER:true,
 
-  MAX_QUEUE_SIZE:
-  5000,
+  ENABLE_PERMISSION_CACHE:true,
 
-  MAX_RETRIES:
-  3,
+  ENABLE_EXECUTION_HISTORY:true,
 
-  EXECUTION_TIMEOUT:
-  30000,
+  MAX_TOOLS:1000,
 
-  RETRY_DELAY:
-  500,
+  MAX_QUEUE_SIZE:5000,
 
-  MAX_PAYLOAD_SIZE:
-  100000,
+  MAX_CONCURRENT_EXECUTIONS:50,
 
-  MAX_CONCURRENT_EXECUTIONS:
-  50,
+  MAX_RETRIES:3,
 
-  MAX_EXECUTION_HISTORY:
-  500
+  EXECUTION_TIMEOUT:30000,
 
-});
+  RETRY_DELAY:500,
 
+  MAX_HISTORY:500,
 
+  MAX_PAYLOAD_SIZE:100000,
 
-// =====================================
-// TOOL STATES
-// =====================================
+  CIRCUIT_BREAKER_THRESHOLD:5,
 
-const TOOL_STATES =
-Object.freeze({
-
-  REGISTERED:"registered",
-
-  READY:"ready",
-
-  RUNNING:"running",
-
-  FAILED:"failed",
-
-  DISABLED:"disabled"
+  CIRCUIT_BREAKER_RESET:
+  1000 * 30
 
 });
 
 
 
 // =====================================
-// TOOL EVENTS
+// TOOL PRIORITIES
 // =====================================
 
-const TOOL_EVENTS =
+const TOOL_PRIORITIES =
 Object.freeze({
 
-  REGISTERED:
-  "tool.registered",
+  LOW:1,
 
-  EXECUTION_STARTED:
-  "tool.execution.started",
+  NORMAL:5,
 
-  EXECUTION_COMPLETED:
-  "tool.execution.completed",
+  HIGH:10,
 
-  EXECUTION_FAILED:
-  "tool.execution.failed",
-
-  EXECUTION_TIMEOUT:
-  "tool.execution.timeout",
-
-  DISABLED:
-  "tool.disabled"
+  CRITICAL:20
 
 });
 
@@ -116,9 +87,14 @@ Object.seal({
 
   initializing:false,
 
-  processingQueue:false,
+  startupPromise:null,
+
+  processing:false,
 
   tools:
+  new Map(),
+
+  toolIndex:
   new Map(),
 
   executionQueue:[],
@@ -128,8 +104,14 @@ Object.seal({
 
   executionHistory:[],
 
+  permissionCache:
+  new Map(),
+
   disabledTools:
   new Set(),
+
+  circuitBreakers:
+  new Map(),
 
   diagnostics:{
 
@@ -141,11 +123,15 @@ Object.seal({
 
     retries:0,
 
-    timeouts:0,
+    rejected:0,
 
-    executionsProcessed:0,
+    queued:0,
 
-    rejected:0
+    timedOut:0,
+
+    cancelled:0,
+
+    sandboxed:0
 
   },
 
@@ -160,11 +146,11 @@ Object.seal({
 // =====================================
 
 function normalizeToolName(
-  toolName
+  value
 ){
 
   return String(
-    toolName || ""
+    value || ""
   )
   .trim()
   .toLowerCase();
@@ -173,77 +159,34 @@ function normalizeToolName(
 
 
 
-function freezeToolObject(
-  value,
-  visited = new WeakSet()
-){
+function createExecutionId(){
 
-  if(
+  return (
 
-    !value ||
+    "exec_" +
 
-    typeof value !==
-    "object"
+    Date.now() +
 
-  ){
+    "_" +
 
-    return value;
+    Math.random()
+    .toString(36)
+    .slice(2,10)
 
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
   );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezeToolObject(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
 
 }
 
 
 
-function cloneToolObject(
+function safeClone(
   value
 ){
 
   try{
 
     return JSON.parse(
-      JSON.stringify(
-        value
-      )
+      JSON.stringify(value)
     );
 
   }
@@ -258,69 +201,44 @@ function cloneToolObject(
 
 
 
-function cloneToolDiagnostics(){
+function freezeToolObject(
+  value,
+  visited = new WeakSet()
+){
 
-  return freezeToolObject({
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
 
-    ...toolExecutorState
-    .diagnostics
-
-  });
-
-}
-
-
-
-function createToolId(){
-
-  try{
-
-    if(
-      typeof createMemoryId ===
-      "function"
-    ){
-
-      return createMemoryId();
-
-    }
+    return value;
 
   }
 
-  catch(error){}
+  if(
+    visited.has(value)
+  ){
 
-  return (
+    return value;
 
-    "tool_" +
+  }
 
-    Date.now() +
+  visited.add(value);
 
-    "_" +
+  Object.freeze(value);
 
-    Math.random()
-    .toString(36)
-    .slice(2,10)
+  Object.values(value)
+  .forEach((nested) => {
 
-  );
+    freezeToolObject(
+      nested,
+      visited
+    );
 
-}
+  });
 
-
-
-function createToolExecutionId(){
-
-  return (
-
-    "tool_exec_" +
-
-    Date.now() +
-
-    "_" +
-
-    Math.random()
-    .toString(36)
-    .slice(2,10)
-
-  );
+  return value;
 
 }
 
@@ -343,59 +261,16 @@ function delayExecution(
 
 
 
-function serializeToolPayload(
-  value
-){
-
-  try{
-
-    return JSON.stringify(
-      value
-    );
-
-  }
-
-  catch(error){
-
-    return "";
-  }
-
-}
-
-
-
-function isPayloadValid(
-  value
-){
-
-  const serialized =
-  serializeToolPayload(
-    value
-  );
-
-  return (
-
-    serialized.length <=
-
-    TOOL_EXECUTOR_CONFIG
-    .MAX_PAYLOAD_SIZE
-
-  );
-
-}
-
-
-
 function trimExecutionHistory(){
 
-  if(
+  while(
 
     toolExecutorState
     .executionHistory
     .length >
 
     TOOL_EXECUTOR_CONFIG
-    .MAX_EXECUTION_HISTORY
+    .MAX_HISTORY
 
   ){
 
@@ -405,101 +280,29 @@ function trimExecutionHistory(){
 
   }
 
-  return true;
-
 }
 
 
 
-function createToolExecutorSnapshot(){
+// =====================================
+// PAYLOAD VALIDATION
+// =====================================
 
-  return freezeToolObject({
-
-    initialized:
-    toolExecutorState
-    .initialized,
-
-    tools:
-
-      toolExecutorState
-      .tools
-      .size,
-
-    queueSize:
-
-      toolExecutorState
-      .executionQueue
-      .length,
-
-    activeExecutions:
-
-      toolExecutorState
-      .activeExecutions
-      .size,
-
-    history:
-
-      toolExecutorState
-      .executionHistory
-      .length,
-
-    disabledTools:
-
-      toolExecutorState
-      .disabledTools
-      .size,
-
-    timestamp:
-    Date.now()
-
-  });
-
-}
-
-
-
-async function emitToolEvent(
-  eventName,
-  payload = {}
+function validatePayload(
+  payload
 ){
-
-  if(
-
-    !TOOL_EXECUTOR_CONFIG
-    .ENABLE_TOOL_EVENTS
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
 
   try{
 
-    await emitSystemEvent(
+    return (
 
-      eventName,
+      JSON.stringify(payload)
+      .length <=
 
-      {
-
-        source:"tool-executor",
-
-        ...payload
-
-      }
+      TOOL_EXECUTOR_CONFIG
+      .MAX_PAYLOAD_SIZE
 
     );
-
-    return true;
 
   }
 
@@ -508,6 +311,164 @@ async function emitToolEvent(
     return false;
 
   }
+
+}
+
+
+
+// =====================================
+// TOOL INDEXING
+// =====================================
+
+function indexTool(
+  tool
+){
+
+  const tokens = [
+
+    tool.id,
+
+    tool.name,
+
+    tool.description
+
+  ]
+  .join(" ")
+  .toLowerCase()
+  .split(/\s+/)
+  .filter(Boolean);
+
+  tokens.forEach((token) => {
+
+    if(
+
+      !toolExecutorState
+      .toolIndex
+      .has(token)
+
+    ){
+
+      toolExecutorState
+      .toolIndex
+      .set(
+        token,
+        new Set()
+      );
+
+    }
+
+    toolExecutorState
+    .toolIndex
+    .get(token)
+    .add(tool.id);
+
+  });
+
+}
+
+
+
+// =====================================
+// CIRCUIT BREAKER
+// =====================================
+
+function getCircuitBreaker(
+  toolId
+){
+
+  if(
+
+    !toolExecutorState
+    .circuitBreakers
+    .has(toolId)
+
+  ){
+
+    toolExecutorState
+    .circuitBreakers
+    .set(toolId,{
+
+      failures:0,
+
+      blockedUntil:0
+
+    });
+
+  }
+
+  return toolExecutorState
+  .circuitBreakers
+  .get(toolId);
+
+}
+
+
+
+function isCircuitBlocked(
+  toolId
+){
+
+  const breaker =
+  getCircuitBreaker(
+    toolId
+  );
+
+  return (
+
+    breaker.blockedUntil >
+    Date.now()
+
+  );
+
+}
+
+
+
+function registerCircuitFailure(
+  toolId
+){
+
+  const breaker =
+  getCircuitBreaker(
+    toolId
+  );
+
+  breaker.failures++;
+
+  if(
+
+    breaker.failures >=
+
+    TOOL_EXECUTOR_CONFIG
+    .CIRCUIT_BREAKER_THRESHOLD
+
+  ){
+
+    breaker.blockedUntil =
+
+      Date.now() +
+
+      TOOL_EXECUTOR_CONFIG
+      .CIRCUIT_BREAKER_RESET;
+
+  }
+
+}
+
+
+
+function resetCircuitBreaker(
+  toolId
+){
+
+  const breaker =
+  getCircuitBreaker(
+    toolId
+  );
+
+  breaker.failures = 0;
+
+  breaker.blockedUntil = 0;
 
 }
 
@@ -528,7 +489,9 @@ function createToolObject(
 
       config.id ||
 
-      createToolId()
+      config.name ||
+
+      "tool"
 
     ),
 
@@ -552,25 +515,20 @@ function createToolObject(
         config.permissions
       )
 
-      ? freezeToolObject([
-          ...config.permissions
-        ])
+      ? [...config.permissions]
 
       : [],
 
-    execute:
-    config.execute,
+    priority:
 
+      Number(
+        config.priority
+      )
 
+      ||
 
-    // ================================
-    // FUTURE SANDBOX ISOLATION LAYER
-    // ================================
-
-    sandboxed:
-
-      config.sandboxed !==
-      false,
+      TOOL_PRIORITIES
+      .NORMAL,
 
     timeout:
 
@@ -582,6 +540,24 @@ function createToolObject(
 
       TOOL_EXECUTOR_CONFIG
       .EXECUTION_TIMEOUT,
+
+    retries:
+
+      Number(
+        config.retries
+      )
+
+      ||
+
+      TOOL_EXECUTOR_CONFIG
+      .MAX_RETRIES,
+
+    sandboxed:
+    config.sandboxed !==
+    false,
+
+    execute:
+    config.execute,
 
     createdAt:
     Date.now()
@@ -648,23 +624,11 @@ async function registerTool(
     tool
   );
 
+  indexTool(tool);
+
   toolExecutorState
   .diagnostics
   .registered++;
-
-  await emitToolEvent(
-
-    TOOL_EVENTS
-    .REGISTERED,
-
-    {
-
-      toolId:
-      tool.id
-
-    }
-
-  );
 
   return tool;
 
@@ -673,59 +637,78 @@ async function registerTool(
 
 
 // =====================================
-// TOOL PERMISSIONS
+// PERMISSION VALIDATION
 // =====================================
 
-function validateToolPermissions(
+function validatePermissions(
   tool,
   context = {}
 ){
 
   if(
-
-    !TOOL_EXECUTOR_CONFIG
-    .ENABLE_TOOL_PERMISSIONS
-
+    tool.permissions
+    .length <= 0
   ){
 
     return true;
 
   }
+
+  const cacheKey =
+
+    tool.id +
+
+    "::" +
+
+    JSON.stringify(
+      context.permissions || []
+    );
+
+  const cached =
+  toolExecutorState
+  .permissionCache
+  .get(cacheKey);
 
   if(
-    tool.permissions.length <= 0
+    cached !== undefined
   ){
 
-    return true;
-
+    return cached;
   }
 
-  const grantedPermissions =
+  const granted =
+  Array.isArray(
+    context.permissions
+  )
 
-    Array.isArray(
-      context.permissions
-    )
+  ? context.permissions
 
-    ? context.permissions
+  : [];
 
-    : [];
+  const valid =
+  tool.permissions.every((permission) => {
 
-  return tool.permissions
-  .every((permission) => {
-
-    return grantedPermissions
-    .includes(
+    return granted.includes(
       permission
     );
 
   });
+
+  toolExecutorState
+  .permissionCache
+  .set(
+    cacheKey,
+    valid
+  );
+
+  return valid;
 
 }
 
 
 
 // =====================================
-// TIMEOUT WRAPPER
+// TIMEOUT EXECUTION
 // =====================================
 
 async function executeWithTimeout(
@@ -733,7 +716,8 @@ async function executeWithTimeout(
   timeout
 ){
 
-  let timeoutId = null;
+  let timeoutId =
+  null;
 
   try{
 
@@ -746,7 +730,7 @@ async function executeWithTimeout(
         reject(
 
           new Error(
-            "TOOL EXECUTION TIMEOUT"
+            "TOOL_TIMEOUT"
           )
 
         );
@@ -768,9 +752,7 @@ async function executeWithTimeout(
 
   finally{
 
-    if(
-      timeoutId
-    ){
+    if(timeoutId){
 
       clearTimeout(
         timeoutId
@@ -785,59 +767,7 @@ async function executeWithTimeout(
 
 
 // =====================================
-// NORMALIZE RESULT
-// =====================================
-
-function normalizeToolResult(
-  result
-){
-
-  try{
-
-    return freezeToolObject({
-
-      success:true,
-
-      result:
-      cloneToolObject(
-
-        result === undefined
-
-        ? null
-
-        : result
-
-      ),
-
-      timestamp:
-      Date.now()
-
-    });
-
-  }
-
-  catch(error){
-
-    return freezeToolObject({
-
-      success:false,
-
-      error:
-      String(error),
-
-      timestamp:
-      Date.now()
-
-    });
-
-  }
-
-}
-
-
-
-// =====================================
-// EXECUTE TOOL
+// EXECUTION
 // =====================================
 
 async function executeTool(
@@ -852,12 +782,11 @@ async function executeTool(
   );
 
   const tool =
-
-    toolExecutorState
-    .tools
-    .get(
-      normalizedId
-    );
+  toolExecutorState
+  .tools
+  .get(
+    normalizedId
+  );
 
   if(!tool){
 
@@ -869,11 +798,48 @@ async function executeTool(
 
     toolExecutorState
     .disabledTools
-    .has(
-      normalizedId
-    )
+    .has(normalizedId)
 
   ){
+
+    return false;
+
+  }
+
+  if(
+    isCircuitBlocked(
+      normalizedId
+    )
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !validatePayload(
+      payload
+    )
+  ){
+
+    toolExecutorState
+    .diagnostics
+    .rejected++;
+
+    return false;
+
+  }
+
+  if(
+    !validatePermissions(
+      tool,
+      context
+    )
+  ){
+
+    toolExecutorState
+    .diagnostics
+    .rejected++;
 
     return false;
 
@@ -890,45 +856,22 @@ async function executeTool(
 
   ){
 
-    return false;
+    return queueExecution(
 
-  }
+      normalizedId,
 
-  if(
-    !isPayloadValid(
-      payload
-    )
-  ){
+      payload,
 
-    toolExecutorState
-    .diagnostics
-    .rejected++;
+      context,
 
-    return false;
+      tool.priority
 
-  }
-
-  const validPermissions =
-  validateToolPermissions(
-
-    tool,
-
-    context
-
-  );
-
-  if(!validPermissions){
-
-    toolExecutorState
-    .diagnostics
-    .rejected++;
-
-    return false;
+    );
 
   }
 
   const executionId =
-  createToolExecutionId();
+  createExecutionId();
 
   toolExecutorState
   .activeExecutions
@@ -948,91 +891,114 @@ async function executeTool(
 
   );
 
-  await emitToolEvent(
-
-    TOOL_EVENTS
-    .EXECUTION_STARTED,
-
-    {
-
-      toolId:
-      normalizedId,
-
-      executionId
-
-    }
-
-  );
-
   let attempts = 0;
 
   try{
 
     while(
-
-      attempts <
-
-      TOOL_EXECUTOR_CONFIG
-      .MAX_RETRIES
-
+      attempts < tool.retries
     ){
+
+      attempts++;
 
       try{
 
-        const result =
-        await executeWithTimeout(
+        let result = null;
 
-          () => {
+        if(
+
+          tool.sandboxed
+
+          &&
+
+          typeof SecuritySandbox !==
+          "undefined"
+
+        ){
+
+          toolExecutorState
+          .diagnostics
+          .sandboxed++;
+
+          const sandboxResult =
+          await SecuritySandbox
+          .execute(() => {
 
             return tool.execute({
 
               payload:
-              cloneToolObject(
-                payload
-              ),
+              safeClone(payload),
 
               context:
-              cloneToolObject(
-                context
-              ),
-
-              sandboxed:
-              tool.sandboxed,
-
-              state:
-              StateManager,
-
-              memory:
-
-                typeof MemorySystem !==
-                "undefined"
-
-                ? MemorySystem
-
-                : null,
-
-              agent:
-              AgentManager,
-
-              diagnostics:
-              diagnosticsState
+              safeClone(context)
 
             });
 
           },
 
-          tool.timeout
+          {
 
+            timeout:
+            tool.timeout
+
+          });
+
+          if(
+            !sandboxResult.success
+          ){
+
+            throw new Error(
+
+              sandboxResult.error ||
+
+              "SANDBOX_EXECUTION_FAILED"
+
+            );
+
+          }
+
+          result =
+          sandboxResult.result;
+
+        }
+
+        else{
+
+          result =
+          await executeWithTimeout(
+
+            () => {
+
+              return tool.execute({
+
+                payload:
+                safeClone(payload),
+
+                context:
+                safeClone(context)
+
+              });
+
+            },
+
+            tool.timeout
+
+          );
+
+        }
+
+        resetCircuitBreaker(
+          normalizedId
         );
 
         toolExecutorState
         .executionHistory
         .push({
 
+          executionId,
+
           toolId:
           normalizedId,
-
-          executionId,
 
           success:true,
 
@@ -1051,31 +1017,27 @@ async function executeTool(
         .lastExecutionAt =
         Date.now();
 
-        await emitToolEvent(
+        return freezeToolObject({
 
-          TOOL_EVENTS
-          .EXECUTION_COMPLETED,
+          success:true,
 
-          {
+          executionId,
 
-            toolId:
-            normalizedId,
+          result:
+          safeClone(result),
 
-            executionId
+          timestamp:
+          Date.now()
 
-          }
-
-        );
-
-        return normalizeToolResult(
-          result
-        );
+        });
 
       }
 
       catch(error){
 
-        attempts++;
+        registerCircuitFailure(
+          normalizedId
+        );
 
         toolExecutorState
         .diagnostics
@@ -1084,70 +1046,28 @@ async function executeTool(
         if(
 
           String(error)
-          .includes(
-            "TIMEOUT"
-          )
+          .includes("TIMEOUT")
 
         ){
 
           toolExecutorState
           .diagnostics
-          .timeouts++;
-
-          await emitToolEvent(
-
-            TOOL_EVENTS
-            .EXECUTION_TIMEOUT,
-
-            {
-
-              toolId:
-              normalizedId,
-
-              executionId
-
-            }
-
-          );
+          .timedOut++;
 
         }
 
-        await emitToolEvent(
-
-          TOOL_EVENTS
-          .EXECUTION_FAILED,
-
-          {
-
-            toolId:
-            normalizedId,
-
-            executionId,
-
-            error:
-            String(error)
-
-          }
-
-        );
-
         if(
-
-          attempts >=
-
-          TOOL_EXECUTOR_CONFIG
-          .MAX_RETRIES
-
+          attempts >= tool.retries
         ){
 
           toolExecutorState
           .executionHistory
           .push({
 
+            executionId,
+
             toolId:
             normalizedId,
-
-            executionId,
 
             success:false,
 
@@ -1164,6 +1084,8 @@ async function executeTool(
           return freezeToolObject({
 
             success:false,
+
+            executionId,
 
             error:
             String(error),
@@ -1207,13 +1129,14 @@ async function executeTool(
 
 
 // =====================================
-// QUEUE EXECUTION
+// PRIORITY QUEUE
 // =====================================
 
-async function queueToolExecution(
+function queueExecution(
   toolId,
-  payload = {},
-  context = {}
+  payload,
+  context,
+  priority = 1
 ){
 
   if(
@@ -1231,40 +1154,22 @@ async function queueToolExecution(
 
   }
 
-  if(
-    !isPayloadValid(
-      payload
-    )
-  ){
-
-    toolExecutorState
-    .diagnostics
-    .rejected++;
-
-    return false;
-
-  }
-
-  const queuedTask =
-  freezeToolObject({
+  toolExecutorState
+  .executionQueue
+  .push({
 
     id:
-    createToolExecutionId(),
+    createExecutionId(),
 
-    toolId:
-    normalizeToolName(
-      toolId
-    ),
+    toolId,
 
     payload:
-    cloneToolObject(
-      payload
-    ),
+    safeClone(payload),
 
     context:
-    cloneToolObject(
-      context
-    ),
+    safeClone(context),
+
+    priority,
 
     createdAt:
     Date.now()
@@ -1273,9 +1178,18 @@ async function queueToolExecution(
 
   toolExecutorState
   .executionQueue
-  .push(
-    queuedTask
-  );
+  .sort((a,b) => {
+
+    return (
+      b.priority -
+      a.priority
+    );
+
+  });
+
+  toolExecutorState
+  .diagnostics
+  .queued++;
 
   return true;
 
@@ -1284,14 +1198,14 @@ async function queueToolExecution(
 
 
 // =====================================
-// PROCESS QUEUE
+// QUEUE PROCESSOR
 // =====================================
 
 async function processExecutionQueue(){
 
   if(
     toolExecutorState
-    .processingQueue
+    .processing
   ){
 
     return false;
@@ -1299,7 +1213,7 @@ async function processExecutionQueue(){
   }
 
   toolExecutorState
-  .processingQueue =
+  .processing =
   true;
 
   try{
@@ -1312,49 +1226,43 @@ async function processExecutionQueue(){
 
     ){
 
-      if(
+      while(
 
         toolExecutorState
         .activeExecutions
-        .size >=
+        .size <
 
         TOOL_EXECUTOR_CONFIG
         .MAX_CONCURRENT_EXECUTIONS
 
-      ){
-
-        await delayExecution(
-          50
-        );
-
-        continue;
-
-      }
-
-      const queuedTask =
+        &&
 
         toolExecutorState
         .executionQueue
-        .shift();
+        .length > 0
 
-      if(!queuedTask){
+      ){
 
-        continue;
+        const queued =
+
+          toolExecutorState
+          .executionQueue
+          .shift();
+
+        executeTool(
+
+          queued.toolId,
+
+          queued.payload,
+
+          queued.context
+
+        );
 
       }
 
-      toolExecutorState
-      .diagnostics
-      .executionsProcessed++;
-
-      await executeTool(
-
-        queuedTask.toolId,
-
-        queuedTask.payload,
-
-        queuedTask.context
-
+      await delayExecution(
+        10
       );
 
     }
@@ -1366,7 +1274,7 @@ async function processExecutionQueue(){
   finally{
 
     toolExecutorState
-    .processingQueue =
+    .processing =
     false;
 
   }
@@ -1376,114 +1284,10 @@ async function processExecutionQueue(){
 
 
 // =====================================
-// DISABLE TOOL
-// =====================================
-
-async function disableTool(
-  toolId
-){
-
-  const normalizedId =
-  normalizeToolName(
-    toolId
-  );
-
-  if(
-
-    !toolExecutorState
-    .tools
-    .has(
-      normalizedId
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  toolExecutorState
-  .disabledTools
-  .add(
-    normalizedId
-  );
-
-  await emitToolEvent(
-
-    TOOL_EVENTS
-    .DISABLED,
-
-    {
-
-      toolId:
-      normalizedId
-
-    }
-
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// HEALTH REPORT
-// =====================================
-
-function getToolExecutorHealthReport(){
-
-  return freezeToolObject({
-
-    initialized:
-    toolExecutorState
-    .initialized,
-
-    healthy:
-
-      toolExecutorState
-      .activeExecutions
-      .size <=
-
-      TOOL_EXECUTOR_CONFIG
-      .MAX_CONCURRENT_EXECUTIONS,
-
-    tools:
-
-      toolExecutorState
-      .tools
-      .size,
-
-    queueSize:
-
-      toolExecutorState
-      .executionQueue
-      .length,
-
-    activeExecutions:
-
-      toolExecutorState
-      .activeExecutions
-      .size,
-
-    diagnostics:
-    cloneToolDiagnostics(),
-
-    timestamp:
-    Date.now()
-
-  });
-
-}
-
-
-
-// =====================================
 // DIAGNOSTICS
 // =====================================
 
-function getToolExecutorDiagnostics(){
+function getToolDiagnostics(){
 
   return freezeToolObject({
 
@@ -1497,22 +1301,16 @@ function getToolExecutorDiagnostics(){
       .tools
       .size,
 
-    queueSize:
+    queue:
 
       toolExecutorState
       .executionQueue
       .length,
 
-    activeExecutions:
+    active:
 
       toolExecutorState
       .activeExecutions
-      .size,
-
-    disabledTools:
-
-      toolExecutorState
-      .disabledTools
       .size,
 
     history:
@@ -1522,12 +1320,16 @@ function getToolExecutorDiagnostics(){
       .length,
 
     diagnostics:
-    cloneToolDiagnostics(),
-
-    lastExecutionAt:
+    safeClone(
 
       toolExecutorState
-      .lastExecutionAt
+      .diagnostics
+
+    ),
+
+    lastExecutionAt:
+    toolExecutorState
+    .lastExecutionAt
 
   });
 
@@ -1546,43 +1348,33 @@ async function resetToolExecutor(){
   .clear();
 
   toolExecutorState
-  .executionQueue =
-  [];
+  .toolIndex
+  .clear();
+
+  toolExecutorState
+  .executionQueue = [];
 
   toolExecutorState
   .activeExecutions
   .clear();
 
   toolExecutorState
-  .executionHistory =
-  [];
+  .executionHistory = [];
+
+  toolExecutorState
+  .permissionCache
+  .clear();
 
   toolExecutorState
   .disabledTools
   .clear();
 
   toolExecutorState
-  .processingQueue =
-  false;
+  .circuitBreakers
+  .clear();
 
   toolExecutorState
-  .diagnostics = {
-
-    registered:0,
-
-    executed:0,
-
-    failed:0,
-
-    retries:0,
-
-    timeouts:0,
-
-    executionsProcessed:0,
-
-    rejected:0
-
-  };
+  .processing = false;
 
   return true;
 
@@ -1607,55 +1399,147 @@ async function initializeToolExecutor(){
 
   if(
     toolExecutorState
-    .initializing
+    .startupPromise
   ){
 
-    return false;
+    return toolExecutorState
+    .startupPromise;
 
   }
 
   toolExecutorState
-  .initializing =
-  true;
+  .startupPromise =
 
-  try{
-
-    toolExecutorState
-    .initialized =
-    true;
-
-
-
-    // ================================
-    // MODULE REGISTRATION
-    // ================================
+  (async() => {
 
     if(
-      typeof registerModule ===
-      "function"
+      toolExecutorState
+      .initializing
     ){
 
-      await registerModule(
-
-        "tool-executor",
-
-        async () => ToolExecutor
-
-      );
+      return false;
 
     }
 
-    return true;
-
-  }
-
-  finally{
-
     toolExecutorState
     .initializing =
-    false;
+    true;
 
-  }
+    try{
+
+      toolExecutorState
+      .initialized =
+      true;
+
+      processExecutionQueue();
+
+      if(
+        typeof registerModule ===
+        "function"
+      ){
+
+        await registerModule(
+
+          "tool-executor",
+
+          async () => ToolExecutor
+
+        );
+
+      }
+
+      return true;
+
+    }
+
+    finally{
+
+      toolExecutorState
+      .initializing =
+      false;
+
+      toolExecutorState
+      .startupPromise =
+      null;
+
+    }
+
+  })();
+
+  return toolExecutorState
+  .startupPromise;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createToolExecutorSnapshot(){
+
+  return freezeToolObject({
+
+    initialized:
+    toolExecutorState
+    .initialized,
+
+    tools:
+
+      toolExecutorState
+      .tools
+      .size,
+
+    queue:
+
+      toolExecutorState
+      .executionQueue
+      .length,
+
+    active:
+
+      toolExecutorState
+      .activeExecutions
+      .size,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
+// HEALTH
+// =====================================
+
+function getToolExecutorHealth(){
+
+  return freezeToolObject({
+
+    initialized:
+    toolExecutorState
+    .initialized,
+
+    healthy:
+
+      toolExecutorState
+      .activeExecutions
+      .size <=
+
+      TOOL_EXECUTOR_CONFIG
+      .MAX_CONCURRENT_EXECUTIONS,
+
+    diagnostics:
+    getToolDiagnostics(),
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -1678,22 +1562,19 @@ Object.freeze({
   executeTool,
 
   queue:
-  queueToolExecution,
+  queueExecution,
 
   processQueue:
   processExecutionQueue,
 
-  disable:
-  disableTool,
-
   diagnostics:
-  getToolExecutorDiagnostics,
-
-  health:
-  getToolExecutorHealthReport,
+  getToolDiagnostics,
 
   snapshot:
   createToolExecutorSnapshot,
+
+  health:
+  getToolExecutorHealth,
 
   reset:
   resetToolExecutor
