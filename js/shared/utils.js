@@ -13,9 +13,11 @@
 const SHARED_UTILS_CONFIG =
 Object.freeze({
 
-  MAX_TIMEOUT:60000,
+  MAX_TIMEOUT:
+  60000,
 
-  DEFAULT_DELAY:0
+  DEFAULT_DELAY:
+  0
 
 });
 
@@ -170,6 +172,93 @@ function safeParseBoolean(
   value
 ){
 
+  if(
+    typeof value ===
+    "boolean"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    typeof value ===
+    "number"
+  ){
+
+    return value !== 0;
+
+  }
+
+  if(
+    typeof value ===
+    "string"
+  ){
+
+    const normalized =
+    value
+    .trim()
+    .toLowerCase();
+
+    if(
+
+      normalized ===
+      "true"
+
+      ||
+
+      normalized ===
+      "1"
+
+      ||
+
+      normalized ===
+      "yes"
+
+      ||
+
+      normalized ===
+      "on"
+
+    ){
+
+      return true;
+
+    }
+
+    if(
+
+      normalized ===
+      "false"
+
+      ||
+
+      normalized ===
+      "0"
+
+      ||
+
+      normalized ===
+      "no"
+
+      ||
+
+      normalized ===
+      "off"
+
+      ||
+
+      normalized ===
+      ""
+
+    ){
+
+      return false;
+
+    }
+
+  }
+
   return Boolean(
     value
   );
@@ -223,7 +312,7 @@ function isPlainObject(
 // SAFE EXECUTION
 // =====================================
 
-function safeExecute(
+async function safeExecute(
   callback,
   fallback = null
 ){
@@ -239,7 +328,7 @@ function safeExecute(
 
   try{
 
-    return callback();
+    return await callback();
 
   }
 
@@ -538,6 +627,15 @@ function debounce(
 
 ){
 
+  if(
+    typeof callback !==
+    "function"
+  ){
+
+    return noop;
+
+  }
+
   let timeoutId =
   null;
 
@@ -550,11 +648,13 @@ function debounce(
     );
 
     timeoutId =
-    setTimeout(() => {
+    setTimeout(async() => {
 
-      callback.apply(
-        this,
-        args
+      await safeExecute(
+        () => callback.apply(
+          this,
+          args
+        )
       );
 
     },
@@ -583,6 +683,15 @@ function throttle(
 
 ){
 
+  if(
+    typeof callback !==
+    "function"
+  ){
+
+    return noop;
+
+  }
+
   let waiting =
   false;
 
@@ -597,10 +706,14 @@ function throttle(
 
     waiting = true;
 
-    callback.apply(
-      this,
-      args
-    );
+    safeExecute(() => {
+
+      return callback.apply(
+        this,
+        args
+      );
+
+    });
 
     setTimeout(() => {
 
@@ -655,3 +768,37 @@ Object.freeze({
   throttle
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SharedUtils",
+
+    {
+
+      value:
+      SharedUtils,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
