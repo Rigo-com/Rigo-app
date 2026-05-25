@@ -1,58 +1,77 @@
 // =====================================
-// STORAGE
+// RIGO AI
+// COMMUNICATION HEALTH
 // =====================================
 
-function persistCommunicationState(){
 
-  if(
 
-    !COMMUNICATION_RUNTIME_CONFIG
-    .ENABLE_PERSISTENCE
+// =====================================
+// HEALTH CHECK
+// =====================================
 
-  ){
-
-    return false;
-
-  }
+async function monitorCommunicationHealth(){
 
   try{
 
-    const safeQueue =
-    communicationRuntimeState
-    .messageQueue
-    .map((item) => {
+    if(
+      communicationRuntimeState
+      .destroyed
+    ){
 
-      return {
+      throw new Error(
+        "COMMUNICATION_DESTROYED"
+      );
 
-        id:item.id,
+    }
 
-        content:item.content,
+    if(
 
-        metadata:item.metadata,
+      communicationRuntimeState
+      .state ===
 
-        createdAt:item.createdAt
+      COMMUNICATION_RUNTIME_STATES
+      .FAILED
 
-      };
+    ){
 
-    });
+      throw new Error(
+        "COMMUNICATION_FAILED"
+      );
 
-    localStorage.setItem(
+    }
 
-      "rigo_communication_state",
+    cleanupProcessedHashes();
 
-      JSON.stringify({
-
-        queue:safeQueue
-
-      })
-
-    );
+    trimConversationHistory();
 
     return true;
 
   }
 
   catch(error){
+
+    if(
+      COMMUNICATION_RUNTIME_CONFIG
+      .DEBUG
+    ){
+
+      console.error(
+        "COMMUNICATION_HEALTH_ERROR:",
+        error
+      );
+
+    }
+
+    if(
+
+      COMMUNICATION_RUNTIME_CONFIG
+      .ENABLE_RECOVERY
+
+    ){
+
+      await recoverCommunicationRuntime();
+
+    }
 
     return false;
 
@@ -62,57 +81,84 @@ function persistCommunicationState(){
 
 
 
-function restoreCommunicationState(){
+// =====================================
+// RECOVERY
+// =====================================
+
+async function recoverCommunicationRuntime(){
+
+  if(
+    communicationRuntimeState
+    .recovering
+  ){
+
+    return false;
+
+  }
+
+  communicationRuntimeState
+  .recovering =
+  true;
+
+  communicationRuntimeState
+  .diagnostics
+  .recoveries++;
+
+  setCommunicationState(
+
+    COMMUNICATION_RUNTIME_STATES
+    .RECOVERING
+
+  );
+
+  await emitCommunicationEvent(
+
+    COMMUNICATION_RUNTIME_EVENTS
+    .RECOVERY_STARTED
+
+  );
 
   try{
 
-    const raw =
-    localStorage.getItem(
-      "rigo_communication_state"
-    );
-
-    if(!raw){
-
-      return false;
-
-    }
-
-    const parsed =
-    JSON.parse(raw);
-
-    if(
-      !parsed ||
-      typeof parsed !==
-      "object"
-    ){
-
-      return false;
-
-    }
-
-    if(
-      Array.isArray(
-        parsed.queue
-      )
-    ){
-
-      communicationRuntimeState
-      .messageQueue =
-
-      parsed.queue
-      .filter((item) => {
-
-        return validateCommunicationMessage(
-          item
-        );
-
-      });
-
-    }
+    communicationRuntimeState
+    .processing =
+    false;
 
     communicationRuntimeState
-    .diagnostics
-    .recoveredQueues++;
+    .streaming =
+    false;
+
+    communicationRuntimeState
+    .typing =
+    false;
+
+    communicationRuntimeState
+    .activeStreams
+    .clear();
+
+    communicationRuntimeState
+    .activeRequests
+    .clear();
+
+    communicationRuntimeState
+    .abortControllers
+    .clear();
+
+    await processCommunicationQueue();
+
+    setCommunicationState(
+
+      COMMUNICATION_RUNTIME_STATES
+      .READY
+
+    );
+
+    await emitCommunicationEvent(
+
+      COMMUNICATION_RUNTIME_EVENTS
+      .RECOVERY_COMPLETED
+
+    );
 
     return true;
 
@@ -120,7 +166,34 @@ function restoreCommunicationState(){
 
   catch(error){
 
+    if(
+      COMMUNICATION_RUNTIME_CONFIG
+      .DEBUG
+    ){
+
+      console.error(
+        "COMMUNICATION_RECOVERY_ERROR:",
+        error
+      );
+
+    }
+
+    setCommunicationState(
+
+      COMMUNICATION_RUNTIME_STATES
+      .FAILED
+
+    );
+
     return false;
+
+  }
+
+  finally{
+
+    communicationRuntimeState
+    .recovering =
+    false;
 
   }
 
