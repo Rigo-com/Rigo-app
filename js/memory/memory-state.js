@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY STATE
 // ENTERPRISE INFINITY ULTRA FINAL
+// HARDENED STABLE FINAL
 // =====================================
 
 
@@ -102,7 +103,7 @@ function createMemoryIndex(){
 
 function createMemoryHealth(){
 
-  return {
+  return Object.seal({
 
     score:100,
 
@@ -115,7 +116,7 @@ function createMemoryHealth(){
     lastHealthCheckAt:
     Date.now()
 
-  };
+  });
 
 }
 
@@ -127,7 +128,7 @@ function createMemoryHealth(){
 
 function createMemoryMetrics(){
 
-  return {
+  return Object.seal({
 
     totalMemories:0,
 
@@ -163,7 +164,7 @@ function createMemoryMetrics(){
 
     averageSaveDuration:0
 
-  };
+  });
 
 }
 
@@ -175,7 +176,7 @@ function createMemoryMetrics(){
 
 function createMemoryRuntime(){
 
-  return {
+  return Object.seal({
 
     initialized:false,
 
@@ -221,7 +222,7 @@ function createMemoryRuntime(){
     version:
     MEMORY_VERSION
 
-  };
+  });
 
 }
 
@@ -233,7 +234,7 @@ function createMemoryRuntime(){
 
 function createMemoryQueues(){
 
-  return {
+  return Object.seal({
 
     saveQueue:[],
 
@@ -245,7 +246,7 @@ function createMemoryQueues(){
 
     operationQueue:[]
 
-  };
+  });
 
 }
 
@@ -331,7 +332,7 @@ function createMemoryTracking(){
 
 function createMemorySession(){
 
-  return {
+  return Object.seal({
 
     sessionId:
     createMemoryId(),
@@ -344,7 +345,7 @@ function createMemorySession(){
 
     interactionCount:0
 
-  };
+  });
 
 }
 
@@ -356,7 +357,7 @@ function createMemorySession(){
 
 function createMemoryStatsState(){
 
-  return {
+  return Object.seal({
 
     searches:0,
 
@@ -374,7 +375,7 @@ function createMemoryStatsState(){
 
     deletions:0
 
-  };
+  });
 
 }
 
@@ -538,7 +539,43 @@ function setMemoryStateInitialized(
 
 function createMemoryStateSnapshot(){
 
-  return deepFreeze({
+  const safeClone =
+
+    typeof deepClone ===
+    "function"
+
+    ? deepClone
+
+    : (value) => {
+
+      try{
+
+        return structuredClone(
+          value
+        );
+
+      }
+
+      catch(error){
+
+        return JSON.parse(
+          JSON.stringify(value)
+        );
+
+      }
+
+    };
+
+  const safeFreeze =
+
+    typeof deepFreeze ===
+    "function"
+
+    ? deepFreeze
+
+    : Object.freeze;
+
+  return safeFreeze({
 
     initialized:
     memoryState.initialized,
@@ -547,25 +584,32 @@ function createMemoryStateSnapshot(){
     memoryState.activeMemoryId,
 
     memoryCount:
-    memoryState.memories.length,
+
+      Array.isArray(
+        memoryState.memories
+      )
+
+      ? memoryState.memories.length
+
+      : 0,
 
     metrics:
-    deepClone(
+    safeClone(
       memoryState.metrics
     ),
 
     runtime:
-    deepClone(
+    safeClone(
       memoryState.runtime
     ),
 
     health:
-    deepClone(
+    safeClone(
       memoryState.health
     ),
 
     stats:
-    deepClone(
+    safeClone(
       memoryState.stats
     ),
 
@@ -586,7 +630,7 @@ function isMemoryLocked(){
 
   return Boolean(
     memoryState.runtime
-    .locked
+    ?.locked
   );
 
 }
@@ -630,14 +674,19 @@ function unlockMemoryState(){
 
 function incrementMemoryOperations(){
 
+  const currentValue =
+  Number(
+    memoryState.runtime
+    .activeOperations || 0
+  );
+
   memoryState.runtime
   .activeOperations =
   Math.min(
 
     Number.MAX_SAFE_INTEGER,
 
-    memoryState.runtime
-    .activeOperations + 1
+    currentValue + 1
 
   );
 
@@ -650,14 +699,19 @@ function incrementMemoryOperations(){
 
 function decrementMemoryOperations(){
 
+  const currentValue =
+  Number(
+    memoryState.runtime
+    .activeOperations || 0
+  );
+
   memoryState.runtime
   .activeOperations =
   Math.max(
 
     0,
 
-    memoryState.runtime
-    .activeOperations - 1
+    currentValue - 1
 
   );
 
@@ -681,14 +735,33 @@ function registerMemoryRuntimeError(
     id:createMemoryId(),
 
     message:String(
+
       error?.message ||
-      error
-    ),
+      error ||
+      "Unknown error"
+
+    )
+    .slice(0,2000),
 
     timestamp:
     Date.now()
 
   };
+
+  if(
+
+    !Array.isArray(
+      memoryState.runtime
+      .runtimeErrors
+    )
+
+  ){
+
+    memoryState.runtime
+    .runtimeErrors =
+    [];
+
+  }
 
   memoryState.runtime
   .runtimeErrors
@@ -696,7 +769,7 @@ function registerMemoryRuntimeError(
     safeError
   );
 
-  if(
+  while(
 
     memoryState.runtime
     .runtimeErrors
@@ -749,24 +822,32 @@ function getMemoryById(
 
   }
 
-  const indexedMemory =
-
-    memoryState
-    .indexes
-    .byId
-    .get(
-      normalizedMemoryId
-    );
-
   if(
-    !indexedMemory
+
+    !(memoryState
+    ?.indexes
+    ?.byId instanceof Map)
+
   ){
 
     return null;
 
   }
 
-  return indexedMemory;
+  return (
+
+    memoryState
+    .indexes
+    .byId
+    .get(
+      normalizedMemoryId
+    )
+
+    ||
+
+    null
+
+  );
 
 }
 
@@ -786,6 +867,18 @@ function hasMemory(
   );
 
   if(!normalizedMemoryId){
+
+    return false;
+
+  }
+
+  if(
+
+    !(memoryState
+    ?.indexes
+    ?.byId instanceof Map)
+
+  ){
 
     return false;
 
@@ -849,9 +942,10 @@ function setActiveMemory(
 
 function getMemoryCount(){
 
-  return memoryState
-  .metrics
-  .totalMemories;
+  return Number(
+    memoryState.metrics
+    .totalMemories || 0
+  );
 
 }
 
@@ -860,9 +954,9 @@ function getMemoryCount(){
 function getPinnedMemoryCount(){
 
   return memoryState
-  .tracking
-  .pinnedMemoryIds
-  .size;
+  ?.tracking
+  ?.pinnedMemoryIds
+  ?.size || 0;
 
 }
 
@@ -871,9 +965,9 @@ function getPinnedMemoryCount(){
 function getSessionMemoryCount(){
 
   return memoryState
-  .tracking
-  .sessionMemoryIds
-  .size;
+  ?.tracking
+  ?.sessionMemoryIds
+  ?.size || 0;
 
 }
 
@@ -901,24 +995,27 @@ function updateMemoryMetrics(){
 
   memoryState.metrics
   .pinnedMemories =
-  memoryState
-  .tracking
-  .pinnedMemoryIds
-  .size;
+
+    memoryState
+    ?.tracking
+    ?.pinnedMemoryIds
+    ?.size || 0;
 
   memoryState.metrics
   .cachedMemories =
 
-    memoryState.cache
-    .memories
-    .size;
+    memoryState
+    ?.cache
+    ?.memories
+    ?.size || 0;
 
   memoryState.metrics
   .indexedMemories =
 
-    memoryState.indexes
-    .byId
-    .size;
+    memoryState
+    ?.indexes
+    ?.byId
+    ?.size || 0;
 
   let active = 0;
   let archived = 0;
@@ -978,9 +1075,10 @@ function cleanupTrackingState(){
     memoryState.memories
     .map((memory) => {
 
-      return memory.id;
+      return memory?.id;
 
     })
+    .filter(Boolean)
 
   );
 
@@ -1141,12 +1239,27 @@ function markMemoryAccessed(
     normalizedMemoryId
   );
 
+  if(
+    !memoryState.session
+  ){
+
+    memoryState.session =
+    createMemorySession();
+
+  }
+
   memoryState.session
   .lastActivityAt =
   Date.now();
 
   memoryState.session
-  .interactionCount++;
+  .interactionCount =
+  Number(
+
+    memoryState.session
+    .interactionCount || 0
+
+  ) + 1;
 
   return true;
 
@@ -1219,6 +1332,30 @@ function resetRuntimeMemoryIndexes(){
 function validateMemoryStateConsistency(){
 
   try{
+
+    if(
+
+      !(memoryState
+      ?.indexes
+      ?.byId instanceof Map)
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      !Array.isArray(
+        memoryState.memories
+      )
+
+    ){
+
+      return false;
+
+    }
 
     if(
 
@@ -1300,6 +1437,17 @@ function validateMemoryStateConsistency(){
 
 function refreshMemorySession(){
 
+  if(
+    !memoryState.session
+  ){
+
+    memoryState.session =
+    createMemorySession();
+
+    return true;
+
+  }
+
   const now =
   Date.now();
 
@@ -1308,8 +1456,11 @@ function refreshMemorySession(){
     (
       now -
 
-      memoryState.session
-      .lastActivityAt
+      (
+        memoryState.session
+        .lastActivityAt || 0
+      )
+
     ) >
 
     MEMORY_STATE_CONFIG
@@ -1344,6 +1495,12 @@ function emergencyResetMemoryRuntime(){
 
   memoryState.runtime
   .corrupted = false;
+
+  memoryState.runtime
+  .locked = false;
+
+  memoryState.runtime
+  .activeOperations = 0;
 
   clearMemoryCache();
 
@@ -1401,6 +1558,28 @@ function resetMemoryState(){
     ){
 
       clearMemoryEventHistory();
+
+    }
+
+    if(
+
+      typeof clearMemoryRankings ===
+      "function"
+
+    ){
+
+      clearMemoryRankings();
+
+    }
+
+    if(
+
+      typeof clearMemoryDebugData ===
+      "function"
+
+    ){
+
+      clearMemoryDebugData();
 
     }
 
