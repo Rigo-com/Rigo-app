@@ -1,70 +1,517 @@
 // =====================================
 // RIGO AI
 // CORE INDEX
+// ENTERPRISE MASTER ORCHESTRATOR
 // =====================================
 
 
 
 // =====================================
-// CORE SNAPSHOT
+// INTERNAL STATE
 // =====================================
 
-async function createCoreSnapshot(){
+const coreRuntimeState =
+Object.seal({
 
-  return Object.freeze({
+  initialized:
+  false,
 
-    timestamp:
-    Date.now(),
+  booting:
+  false,
 
-    runtime:
+  booted:
+  false,
 
-      typeof RuntimeManager !==
+  shuttingDown:
+  false,
+
+  recovering:
+  false,
+
+  startupStartedAt:
+  null,
+
+  startupCompletedAt:
+  null,
+
+  lastHealthcheckAt:
+  null,
+
+  lastError:
+  null,
+
+  diagnostics:{
+
+    boots:
+    0,
+
+    shutdowns:
+    0,
+
+    recoveries:
+    0,
+
+    healthchecks:
+    0,
+
+    runtimeErrors:
+    0
+
+  }
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function getCoreDependency(
+  dependencyName
+){
+
+  try{
+
+    if(
+      typeof window ===
       "undefined"
+    ){
 
-      ? RuntimeManager
-      .snapshot?.()
+      return null;
 
-      : null,
+    }
 
-    lifecycle:
+    const dependency =
+      window[dependencyName];
 
-      typeof ApplicationRuntime !==
+    if(
+      typeof dependency ===
       "undefined"
+    ){
 
-      ? ApplicationRuntime
-      .snapshot?.()
+      console.warn(
+        `[RIGOCore] Missing dependency: ${dependencyName}`
+      );
 
-      : null,
+      return null;
 
-    diagnostics:
+    }
 
-      typeof DiagnosticsRuntime !==
-      "undefined"
+    return dependency;
 
-      ? await DiagnosticsRuntime
-      .health?.()
+  }
 
-      : null,
+  catch(error){
 
-    modules:
+    console.warn(
+      `[RIGOCore] Failed resolving dependency: ${dependencyName}`,
+      error
+    );
 
-      typeof ModuleLoader !==
-      "undefined"
+    return null;
 
-      ? await ModuleLoader
-      .health?.()
+  }
 
-      : null,
+}
 
-    dependencies:
 
-      typeof DependencySystem !==
-      "undefined"
 
-      ? DependencySystem
-      .diagnostics?.()
+function isFunction(value){
 
-      : null
+  return typeof value ===
+  "function";
+
+}
+
+
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof HTMLElement
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    if(
+      nestedValue &&
+      typeof nestedValue ===
+      "object"
+    ){
+
+      safeFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+async function safelyExecuteCoreOperation(
+  label,
+  operation,
+  fallback = null
+){
+
+  try{
+
+    if(
+      !isFunction(operation)
+    ){
+
+      return fallback;
+
+    }
+
+    return await operation();
+
+  }
+
+  catch(error){
+
+    coreRuntimeState
+    .lastError =
+    error;
+
+    coreRuntimeState
+    .diagnostics
+    .runtimeErrors++;
+
+    console.error(
+      `[RIGOCore] ${label} failed`,
+      error
+    );
+
+    return fallback;
+
+  }
+
+}
+
+
+
+// =====================================
+// CORE VALIDATION
+// =====================================
+
+async function validateCoreSystems(){
+
+  return safelyExecuteCoreOperation(
+
+    "Core validation",
+
+    async() => {
+
+      const requiredSystems = [
+
+        "ConfigAPI",
+        "ConstantsAPI",
+        "StateAPI",
+        "EventsAPI",
+        "DependenciesAPI",
+        "ContainerAPI",
+        "RuntimeAPI",
+        "LifecycleIndex",
+        "HealthAPI"
+
+      ];
+
+      return requiredSystems.every((systemName) => {
+
+        return Boolean(
+          getCoreDependency(
+            systemName
+          )
+        );
+
+      });
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+// =====================================
+// INITIALIZATION
+// =====================================
+
+async function initializeCoreSystems(){
+
+  return safelyExecuteCoreOperation(
+
+    "Core initialization",
+
+    async() => {
+
+      if(
+        coreRuntimeState
+        .initialized
+      ){
+
+        return true;
+
+      }
+
+      const eventsAPI =
+        getCoreDependency(
+          "EventsAPI"
+        );
+
+      if(
+        eventsAPI &&
+        isFunction(
+          eventsAPI.initialize
+        )
+      ){
+
+        await eventsAPI
+        .initialize();
+
+      }
+
+      const healthAPI =
+        getCoreDependency(
+          "HealthAPI"
+        );
+
+      if(
+        healthAPI &&
+        isFunction(
+          healthAPI.initialize
+        )
+      ){
+
+        await healthAPI
+        .initialize();
+
+      }
+
+      coreRuntimeState
+      .initialized =
+      true;
+
+      return true;
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+// =====================================
+// STARTUP PIPELINE
+// =====================================
+
+async function bootCore(){
+
+  return safelyExecuteCoreOperation(
+
+    "Core boot",
+
+    async() => {
+
+      if(
+
+        coreRuntimeState
+        .booting ||
+
+        coreRuntimeState
+        .booted
+
+      ){
+
+        return false;
+
+      }
+
+      coreRuntimeState
+      .booting =
+      true;
+
+      coreRuntimeState
+      .startupStartedAt =
+      Date.now();
+
+      coreRuntimeState
+      .diagnostics
+      .boots++;
+
+      const validCore =
+        await validateCoreSystems();
+
+      if(!validCore){
+
+        throw new Error(
+          "CORE VALIDATION FAILED"
+        );
+
+      }
+
+      const initialized =
+        await initializeCoreSystems();
+
+      if(!initialized){
+
+        throw new Error(
+          "CORE INITIALIZATION FAILED"
+        );
+
+      }
+
+
+
+      // =================================
+      // LIFECYCLE
+      // =================================
+
+      const lifecycle =
+        getCoreDependency(
+          "LifecycleIndex"
+        );
+
+      if(
+        lifecycle &&
+        isFunction(
+          lifecycle.bootstrapApplication
+        )
+      ){
+
+        await lifecycle
+        .bootstrapApplication();
+
+      }
+
+      if(
+        lifecycle &&
+        isFunction(
+          lifecycle.boot
+        )
+      ){
+
+        await lifecycle
+        .boot();
+
+      }
+
+
+
+      // =================================
+      // RUNTIME
+      // =================================
+
+      const runtime =
+        getCoreDependency(
+          "RuntimeAPI"
+        );
+
+      if(
+        runtime &&
+        isFunction(
+          runtime.boot
+        )
+      ){
+
+        await runtime
+        .boot();
+
+      }
+
+
+
+      // =================================
+      // HEALTH
+      // =================================
+
+      const health =
+        getCoreDependency(
+          "HealthAPI"
+        );
+
+      if(
+        health &&
+        isFunction(
+          health.run
+        )
+      ){
+
+        await health
+        .run();
+
+      }
+
+      coreRuntimeState
+      .booted =
+      true;
+
+      coreRuntimeState
+      .startupCompletedAt =
+      Date.now();
+
+      return true;
+
+    },
+
+    false
+
+  )
+
+  .finally(() => {
+
+    coreRuntimeState
+    .booting =
+    false;
 
   });
 
@@ -73,72 +520,303 @@ async function createCoreSnapshot(){
 
 
 // =====================================
-// CORE HEALTH
+// SHUTDOWN
 // =====================================
 
-async function validateCoreSystems(){
+async function shutdownCore(){
 
-  try{
+  return safelyExecuteCoreOperation(
 
-    const checks = [
+    "Core shutdown",
 
-      typeof RuntimeManager !==
-      "undefined",
+    async() => {
 
-      typeof ApplicationRuntime !==
-      "undefined",
+      if(
+        coreRuntimeState
+        .shuttingDown
+      ){
 
-      typeof DiagnosticsRuntime !==
-      "undefined",
+        return false;
 
-      typeof ModuleLoader !==
-      "undefined",
+      }
 
-      typeof DependencySystem !==
-      "undefined"
+      coreRuntimeState
+      .shuttingDown =
+      true;
 
-    ];
+      coreRuntimeState
+      .diagnostics
+      .shutdowns++;
 
-    return checks.every(Boolean);
+      const runtime =
+        getCoreDependency(
+          "RuntimeAPI"
+        );
 
-  }
+      if(
+        runtime &&
+        isFunction(
+          runtime.shutdown
+        )
+      ){
 
-  catch(error){
+        await runtime
+        .shutdown();
 
-    return false;
+      }
 
-  }
+      const lifecycle =
+        getCoreDependency(
+          "LifecycleIndex"
+        );
+
+      if(
+        lifecycle &&
+        isFunction(
+          lifecycle.shutdownApplication
+        )
+      ){
+
+        await lifecycle
+        .shutdownApplication();
+
+      }
+
+      coreRuntimeState
+      .booted =
+      false;
+
+      return true;
+
+    },
+
+    false
+
+  )
+
+  .finally(() => {
+
+    coreRuntimeState
+    .shuttingDown =
+    false;
+
+  });
 
 }
 
 
 
 // =====================================
-// CORE READY
+// RECOVERY
+// =====================================
+
+async function recoverCore(){
+
+  return safelyExecuteCoreOperation(
+
+    "Core recovery",
+
+    async() => {
+
+      if(
+        coreRuntimeState
+        .recovering
+      ){
+
+        return false;
+
+      }
+
+      coreRuntimeState
+      .recovering =
+      true;
+
+      coreRuntimeState
+      .diagnostics
+      .recoveries++;
+
+      const runtime =
+        getCoreDependency(
+          "RuntimeAPI"
+        );
+
+      if(
+        runtime &&
+        isFunction(
+          runtime.recover
+        )
+      ){
+
+        await runtime
+        .recover();
+
+      }
+
+      return await bootCore();
+
+    },
+
+    false
+
+  )
+
+  .finally(() => {
+
+    coreRuntimeState
+    .recovering =
+    false;
+
+  });
+
+}
+
+
+
+// =====================================
+// HEALTH
 // =====================================
 
 async function isCoreReady(){
 
+  return safelyExecuteCoreOperation(
+
+    "Core readiness",
+
+    async() => {
+
+      if(
+        !coreRuntimeState
+        .booted
+      ){
+
+        return false;
+
+      }
+
+      const healthAPI =
+        getCoreDependency(
+          "HealthAPI"
+        );
+
+      if(
+        !healthAPI
+      ){
+
+        return false;
+
+      }
+
+      if(
+        !isFunction(
+          healthAPI.diagnostics
+        )
+      ){
+
+        return false;
+
+      }
+
+      const health =
+        await healthAPI
+        .diagnostics();
+
+      coreRuntimeState
+      .lastHealthcheckAt =
+      Date.now();
+
+      coreRuntimeState
+      .diagnostics
+      .healthchecks++;
+
+      return Boolean(
+        health
+      );
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+// =====================================
+// BROWSER LIFECYCLE
+// =====================================
+
+function bindBrowserLifecycle(){
+
+  if(
+    typeof window ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
   try{
 
-    const validCore =
-    await validateCoreSystems();
+    window.addEventListener(
 
-    if(!validCore){
+      "beforeunload",
 
-      return false;
+      async() => {
 
-    }
+        await shutdownCore();
 
-    if(
-      typeof validateApplicationHealth ===
-      "function"
-    ){
+      }
 
-      return await
-      validateApplicationHealth();
+    );
 
-    }
+    window.addEventListener(
+
+      "unhandledrejection",
+
+      async(event) => {
+
+        console.error(
+          "[RIGOCore] Unhandled rejection",
+          event?.reason
+        );
+
+      }
+
+    );
+
+    window.addEventListener(
+
+      "error",
+
+      async(event) => {
+
+        console.error(
+          "[RIGOCore] Runtime error",
+          event?.error
+        );
+
+      }
+
+    );
+
+    document.addEventListener(
+
+      "visibilitychange",
+
+      () => {
+
+        if(
+          document.hidden
+        ){
+
+          return;
+        }
+
+      }
+
+    );
 
     return true;
 
@@ -155,46 +833,256 @@ async function isCoreReady(){
 
 
 // =====================================
-// CORE EXPORTS
+// SNAPSHOT
+// =====================================
+
+async function createCoreSnapshot(){
+
+  return safelyExecuteCoreOperation(
+
+    "Core snapshot",
+
+    async() => {
+
+      const runtime =
+        getCoreDependency(
+          "RuntimeAPI");
+
+      const lifecycle =
+        getCoreDependency(
+          "LifecycleIndex"
+        );
+
+      const health =
+        getCoreDependency(
+          "HealthAPI"
+        );
+
+      const events =
+        getCoreDependency(
+          "EventsAPI"
+        );
+
+      return safeFreeze({
+
+        timestamp:
+        Date.now(),
+
+        coreState:{
+
+          initialized:
+          coreRuntimeState
+          .initialized,
+
+          booted:
+          coreRuntimeState
+          .booted,
+
+          booting:
+          coreRuntimeState
+          .booting,
+
+          shuttingDown:
+          coreRuntimeState
+          .shuttingDown,
+
+          recovering:
+          coreRuntimeState
+          .recovering
+
+        },
+
+        runtime:
+
+          runtime &&
+          isFunction(
+            runtime.diagnostics
+          )
+
+          ?
+
+          await runtime
+          .diagnostics()
+
+          :
+
+          null,
+
+        lifecycle:
+
+          lifecycle &&
+          isFunction(
+            lifecycle.diagnostics
+          )
+
+          ?
+
+          await lifecycle
+          .diagnostics()
+
+          :
+
+          null,
+
+        health:
+
+          health &&
+          isFunction(
+            health.diagnostics
+          )
+
+          ?
+
+          await health
+          .diagnostics()
+
+          :
+
+          null,
+
+        events:
+
+          events &&
+          isFunction(
+            events.diagnostics
+          )
+
+          ?
+
+          await events
+          .diagnostics()
+
+          :
+
+          null,
+
+        diagnostics:{
+
+          ...coreRuntimeState
+          .diagnostics
+
+        }
+
+      });
+
+    },
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// CORE API
 // =====================================
 
 const RIGOCore =
-Object.freeze({
+safeFreeze({
 
-  runtime:
-  RuntimeManager,
 
-  lifecycle:
-  ApplicationRuntime,
 
-  diagnostics:
-  DiagnosticsRuntime,
+  // ===================================
+  // SYSTEMS
+  // ===================================
 
-  modules:
-  ModuleLoader,
+  config:
+  () => getCoreDependency(
+    "ConfigAPI"
+  ),
+
+  constants:
+  () => getCoreDependency(
+    "ConstantsAPI"
+  ),
+
+  state:
+  () => getCoreDependency(
+    "StateAPI"
+  ),
+
+  events:
+  () => getCoreDependency(
+    "EventsAPI"
+  ),
 
   dependencies:
-  DependencySystem,
+  () => getCoreDependency(
+    "DependenciesAPI"
+  ),
 
   container:
-  DependencyContainer,
+  () => getCoreDependency(
+    "ContainerAPI"
+  ),
+
+  runtime:
+  () => getCoreDependency(
+    "RuntimeAPI"
+  ),
+
+  lifecycle:
+  () => getCoreDependency(
+    "LifecycleIndex"
+  ),
 
   health:
-  HealthSystem,
+  () => getCoreDependency(
+    "HealthAPI"
+  ),
 
-  analytics:
-  AnalyticsRuntime,
 
-  files:
-  FileRuntime,
+
+  // ===================================
+  // ORCHESTRATION
+  // ===================================
+
+  initialize:
+  initializeCoreSystems,
+
+  boot:
+  bootCore,
+
+  shutdown:
+  shutdownCore,
+
+  recover:
+  recoverCore,
+
+  ready:
+  isCoreReady,
+
+
+
+  // ===================================
+  // DIAGNOSTICS
+  // ===================================
 
   snapshot:
   createCoreSnapshot,
 
-  ready:
-  isCoreReady
+
+
+  // ===================================
+  // STATE
+  // ===================================
+
+  state:
+  safeFreeze(
+    coreRuntimeState
+  )
 
 });
+
+
+
+// =====================================
+// AUTO LIFECYCLE
+// =====================================
+
+bindBrowserLifecycle();
 
 
 
@@ -207,16 +1095,25 @@ if(
   "undefined"
 ){
 
-  window.RIGOCore =
-  RIGOCore;
+  Object.defineProperty(
 
-  window.createCoreSnapshot =
-  createCoreSnapshot;
+    window,
 
-  window.validateCoreSystems =
-  validateCoreSystems;
+    "RIGOCore",
 
-  window.isCoreReady =
-  isCoreReady;
+    {
+
+      value:
+      RIGOCore,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
