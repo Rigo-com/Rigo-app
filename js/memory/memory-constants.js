@@ -11,9 +11,7 @@
 // =====================================
 
 const MEMORY_VERSION =
-Object.freeze(
-  "1.0.0"
-);
+"1.0.0";
 
 
 
@@ -30,6 +28,44 @@ function normalizeMemoryValue(
   )
   .trim()
   .toLowerCase();
+
+}
+
+
+
+// =====================================
+// IMMUTABLE SET
+// =====================================
+
+function createImmutableSet(
+  values = []
+){
+
+  const internalSet =
+  new Set(values);
+
+  return Object.freeze({
+
+    has(value){
+
+      return internalSet.has(
+        value
+      );
+
+    },
+
+    values(){
+
+      return [
+        ...internalSet.values()
+      ];
+
+    },
+
+    size:
+    internalSet.size
+
+  });
 
 }
 
@@ -73,10 +109,8 @@ deepFreeze([
 
 
 const MEMORY_TYPE_SET =
-Object.freeze(
-  new Set(
-    MEMORY_TYPES
-  )
+createImmutableSet(
+  MEMORY_TYPES
 );
 
 
@@ -105,12 +139,12 @@ deepFreeze({
 
 
 const MEMORY_PRIORITY_SET =
-Object.freeze(
-  new Set(
-    Object.values(
-      MEMORY_PRIORITIES
-    )
+createImmutableSet(
+
+  Object.values(
+    MEMORY_PRIORITIES
   )
+
 );
 
 
@@ -165,12 +199,12 @@ deepFreeze({
 
 
 const MEMORY_EXPIRATION_SET =
-Object.freeze(
-  new Set(
-    Object.values(
-      MEMORY_EXPIRATION
-    )
+createImmutableSet(
+
+  Object.values(
+    MEMORY_EXPIRATION
   )
+
 );
 
 
@@ -423,10 +457,8 @@ deepFreeze([
 
 
 const MEMORY_STATE_SET =
-Object.freeze(
-  new Set(
-    MEMORY_STATES
-  )
+createImmutableSet(
+  MEMORY_STATES
 );
 
 
@@ -463,10 +495,8 @@ deepFreeze([
 
 
 const MEMORY_CATEGORY_SET =
-Object.freeze(
-  new Set(
-    MEMORY_CATEGORIES
-  )
+createImmutableSet(
+  MEMORY_CATEGORIES
 );
 
 
@@ -495,10 +525,8 @@ deepFreeze([
 
 
 const RESERVED_MEMORY_TAG_SET =
-Object.freeze(
-  new Set(
-    RESERVED_MEMORY_TAGS
-  )
+createImmutableSet(
+  RESERVED_MEMORY_TAGS
 );
 
 
@@ -527,10 +555,8 @@ deepFreeze([
 
 
 const MEMORY_SORT_OPTION_SET =
-Object.freeze(
-  new Set(
-    MEMORY_SORT_OPTIONS
-  )
+createImmutableSet(
+  MEMORY_SORT_OPTIONS
 );
 
 
@@ -555,10 +581,8 @@ deepFreeze([
 
 
 const MEMORY_SEARCH_MODE_SET =
-Object.freeze(
-  new Set(
-    MEMORY_SEARCH_MODES
-  )
+createImmutableSet(
+  MEMORY_SEARCH_MODES
 );
 
 
@@ -689,10 +713,8 @@ deepFreeze([
 
 
 const MEMORY_EXPORT_FORMAT_SET =
-Object.freeze(
-  new Set(
-    MEMORY_EXPORT_FORMATS
-  )
+createImmutableSet(
+  MEMORY_EXPORT_FORMATS
 );
 
 
