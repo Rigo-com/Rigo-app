@@ -1,102 +1,269 @@
 // =====================================
 // RIGO AI
 // MODULES INDEX
+// CLEAN COMPOSITION LAYER
 // =====================================
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// HELPERS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
+function isFunction(value){
+
+  return typeof value === "function";
+
+}
+
+
+
+function emitModulesIndexWarning(
+  message,
+  error = null
 ){
 
-  // ===================================
-  // CONSTANTS
-  // ===================================
+  console.warn(
+    `[ModulesIndex] ${message}`,
+    error || ""
+  );
 
-  window.MODULE_LOADER_CONFIG =
-  MODULE_LOADER_CONFIG;
-
-  window.MODULE_STATES =
-  MODULE_STATES;
-
-  window.MODULE_EVENTS =
-  MODULE_EVENTS;
+}
 
 
 
-  // ===================================
-  // STATE
-  // ===================================
+// =====================================
+// DEPENDENCY VALIDATION
+// =====================================
 
-  window.moduleLoaderState =
-  moduleLoaderState;
+function validateModulesLayer(){
 
+  const requiredSystems = [
 
+    "ModuleConstants",
+    "ModuleRegistry",
+    "ModuleRuntime",
+    "ModuleHealth",
+    "ModuleLoader",
+    "ModuleKernel"
 
-  // ===================================
-  // REGISTRY
-  // ===================================
+  ];
 
-  window.registerModule =
-  registerModule;
+  const missingSystems =
 
-  window.normalizeModuleName =
-  normalizeModuleName;
+    requiredSystems.filter((systemName) => {
 
+      return (
+        typeof window[systemName] ===
+        "undefined"
+      );
 
+    });
 
-  // ===================================
-  // ACTIVATION
-  // ===================================
+  if(missingSystems.length > 0){
 
-  window.loadModule =
-  loadModule;
+    emitModulesIndexWarning(
 
-  window.unloadModule =
-  unloadModule;
+      `Missing systems: ${missingSystems.join(", ")}`
 
-  window.activateModule =
-  activateModule;
+    );
 
-  window.loadModuleDependencies =
-  loadModuleDependencies;
+    return false;
 
-  window.detectModuleCircularDependency =
-  detectModuleCircularDependency;
+  }
 
+  return true;
 
-
-  // ===================================
-  // HEALTH
-  // ===================================
-
-  window.getModuleHealth =
-  getModuleHealth;
-
-  window.resetModuleLoader =
-  resetModuleLoader;
-
-  window.initializeModuleLoader =
-  initializeModuleLoader;
-
-  window.createModuleLoaderSnapshot =
-  createModuleLoaderSnapshot;
-
-  window.calculateModuleHealthScore =
-  calculateModuleHealthScore;
+}
 
 
 
-  // ===================================
-  // PUBLIC API
-  // ===================================
+// =====================================
+// STARTUP
+// =====================================
 
-  window.ModuleLoader =
-  ModuleLoader;
+async function initializeModulesLayer(){
+
+  try{
+
+    if(
+      !validateModulesLayer()
+    ){
+      return false;
+    }
+
+    if(
+      typeof window.__RIGO_MODULES_READY__ !==
+      "undefined"
+    ){
+
+      return true;
+
+    }
+
+    const kernel =
+      window.ModuleKernel;
+
+    if(
+      kernel &&
+      isFunction(kernel.initialize)
+    ){
+
+      const initialized =
+        await kernel.initialize();
+
+      if(!initialized){
+
+        throw new Error(
+          "MODULE KERNEL INITIALIZATION FAILED"
+        );
+
+      }
+
+    }
+
+    window.__RIGO_MODULES_READY__ =
+      true;
+
+    console.info(
+      "[ModulesIndex] Modules layer initialized"
+    );
+
+    return true;
+
+  }catch(error){
+
+    emitModulesIndexWarning(
+      "Modules initialization failed",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// OPTIONAL AUTO BOOT
+// =====================================
+
+async function autoBootModulesLayer(){
+
+  try{
+
+    const kernel =
+      window.ModuleKernel;
+
+    if(
+      !kernel ||
+      !isFunction(kernel.boot)
+    ){
+      return false;
+    }
+
+    return await kernel.boot();
+
+  }catch(error){
+
+    emitModulesIndexWarning(
+      "Auto boot failed",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// PUBLIC SURFACE
+// =====================================
+
+const RigoModules =
+Object.freeze({
+
+  constants:
+  window.ModuleConstants,
+
+  registry:
+  window.ModuleRegistry,
+
+  runtime:
+  window.ModuleRuntime,
+
+  health:
+  window.ModuleHealth,
+
+  loader:
+  window.ModuleLoader,
+
+  kernel:
+  window.ModuleKernel,
+
+  initialize:
+  initializeModulesLayer,
+
+  boot:
+  autoBootModulesLayer
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(typeof window !== "undefined"){
+
+  Object.defineProperty(
+    window,
+    "RigoModules",
+    {
+
+      value:
+      RigoModules,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+  );
+
+}
+
+
+
+// =====================================
+// SAFE AUTO INITIALIZATION
+// =====================================
+
+if(typeof window !== "undefined"){
+
+  queueMicrotask(async() => {
+
+    try{
+
+      await initializeModulesLayer();
+
+    }catch(error){
+
+      emitModulesIndexWarning(
+        "Queued initialization failed",
+        error
+      );
+
+    }
+
+  });
 
 }
