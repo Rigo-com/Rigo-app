@@ -1,61 +1,13 @@
 // =====================================
-// HELPERS
+// RIGO AI
+// COMMUNICATION HELPERS
 // =====================================
 
-function setCommunicationState(
-  state
-){
-
-  communicationRuntimeState
-  .state =
-  state;
-
-  return true;
-
-}
 
 
-
-function createCommunicationId(
-  prefix = "comm"
-){
-
-  return (
-
-    String(prefix) +
-
-    "_" +
-
-    Date.now() +
-
-    "_" +
-
-    Math.random()
-    .toString(36)
-    .slice(2,10)
-
-  );
-
-}
-
-
-
-function communicationWait(
-  duration = 0
-){
-
-  return new Promise((resolve) => {
-
-    setTimeout(
-      resolve,
-      duration
-    );
-
-  });
-
-}
-
-
+// =====================================
+// SAFE CLONE
+// =====================================
 
 function safeCommunicationClone(
   value
@@ -92,6 +44,10 @@ function safeCommunicationClone(
 
 
 
+// =====================================
+// MESSAGE HASH
+// =====================================
+
 function createMessageHash(
   message
 ){
@@ -126,7 +82,35 @@ function createMessageHash(
 
 
 
+// =====================================
+// CLEANUP HASHES
+// =====================================
+
 function cleanupProcessedHashes(){
+
+  const now =
+  Date.now();
+
+  communicationRuntimeState
+  .processedHashes
+  .forEach((timestamp,key) => {
+
+    if(
+
+      now - timestamp >
+
+      COMMUNICATION_RUNTIME_CONFIG
+      .HASH_TTL
+
+    ){
+
+      communicationRuntimeState
+      .processedHashes
+      .delete(key);
+
+    }
+
+  });
 
   if(
 
@@ -175,7 +159,42 @@ function cleanupProcessedHashes(){
 
 
 
+// =====================================
+// CLEANUP CONVERSATIONS
+// =====================================
+
 function trimConversationHistory(){
+
+  const now =
+  Date.now();
+
+  communicationRuntimeState
+  .conversations
+  .forEach((conversation,key) => {
+
+    if(
+
+      now -
+
+      (
+        conversation?.createdAt ||
+        0
+      )
+
+      >
+
+      COMMUNICATION_RUNTIME_CONFIG
+      .CONVERSATION_TTL
+
+    ){
+
+      communicationRuntimeState
+      .conversations
+      .delete(key);
+
+    }
+
+  });
 
   if(
 
@@ -223,6 +242,10 @@ function trimConversationHistory(){
 }
 
 
+
+// =====================================
+// EVENTS
+// =====================================
 
 async function emitCommunicationEvent(
   eventName,
@@ -272,6 +295,18 @@ async function emitCommunicationEvent(
 
   catch(error){
 
+    if(
+      COMMUNICATION_RUNTIME_CONFIG
+      .DEBUG
+    ){
+
+      console.error(
+        "COMMUNICATION_EVENT_ERROR:",
+        error
+      );
+
+    }
+
     return false;
 
   }
@@ -279,6 +314,10 @@ async function emitCommunicationEvent(
 }
 
 
+
+// =====================================
+// FREEZE OBJECT
+// =====================================
 
 function freezeCommunicationObject(
   value,
@@ -396,6 +435,21 @@ function validateCommunicationMessage(
     message.content
     .trim()
     .length === 0
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    message.content
+    .length >
+
+    APP_CONFIG
+    ?.CHAT
+    ?.MAX_MESSAGE_LENGTH
 
   ){
 
