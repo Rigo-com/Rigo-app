@@ -7,23 +7,32 @@
 
 
 // =====================================
-// SYSTEM EVENT STATE
+// INTERNAL STATE
 // =====================================
 
 const systemEventsState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  processingQueue:false,
+  processingQueue:
+  false,
 
-  totalEvents:0,
+  scheduledQueue:
+  false,
 
-  failedEvents:0,
+  totalEvents:
+  0,
 
-  activeEvents:0,
+  failedEvents:
+  0,
 
-  queuedEvents:0,
+  activeEvents:
+  0,
+
+  queuedEvents:
+  0,
 
   listeners:
   new Map(),
@@ -43,25 +52,33 @@ Object.seal({
   throttledEvents:
   new Map(),
 
-  eventQueue:[],
+  eventQueue:
+  [],
 
   diagnostics:{
 
-    emitted:0,
+    emitted:
+    0,
 
-    completed:0,
+    completed:
+    0,
 
-    failed:0,
+    failed:
+    0,
 
-    retries:0,
+    retries:
+    0,
 
-    cancelled:0,
+    cancelled:
+    0,
 
-    queueProcessed:0
+    queueProcessed:
+    0
 
   },
 
-  lastEventAt:null
+  lastEventAt:
+  null
 
 });
 
@@ -118,8 +135,72 @@ function isValidSystemListener(
 
 
 
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof HTMLElement
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    if(
+      nestedValue &&
+      typeof nestedValue ===
+      "object"
+    ){
+
+      safeFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
 // =====================================
-// SAFE CLONE
+// SAFE PAYLOAD CLONE
 // =====================================
 
 function cloneSystemPayload(
@@ -144,18 +225,65 @@ function cloneSystemPayload(
     visited.has(value)
   ){
 
-    return visited.get(
+    return visited.get(value);
+
+  }
+
+  if(
+    value instanceof Date
+  ){
+
+    return new Date(
+      value.getTime()
+    );
+
+  }
+
+  if(
+    value instanceof RegExp
+  ){
+
+    return new RegExp(
       value
     );
+
+  }
+
+  if(
+    value instanceof Map
+  ){
+
+    return new Map(
+      [...value.entries()]
+    );
+
+  }
+
+  if(
+    value instanceof Set
+  ){
+
+    return new Set(
+      [...value.values()]
+    );
+
+  }
+
+  if(
+    typeof HTMLElement !==
+    "undefined" &&
+
+    value instanceof HTMLElement
+  ){
+
+    return null;
 
   }
 
   const clone =
 
     Array.isArray(value)
-
     ? []
-
     : {};
 
   visited.set(
@@ -163,16 +291,25 @@ function cloneSystemPayload(
     clone
   );
 
-  Object.keys(value)
-  .forEach((key) => {
+  Object.keys(value).forEach((key) => {
+
+    const nestedValue =
+      value[key];
+
+    if(
+      typeof nestedValue ===
+      "function"
+    ){
+
+      return;
+
+    }
 
     clone[key] =
-    cloneSystemPayload(
-
-      value[key],
-      visited
-
-    );
+      cloneSystemPayload(
+        nestedValue,
+        visited
+      );
 
   });
 
@@ -192,7 +329,7 @@ function createSystemEvent(
   options = {}
 ){
 
-  return Object.freeze({
+  return safeFreeze({
 
     id:
     createSystemEventId(),
@@ -211,9 +348,7 @@ function createSystemEvent(
 
       Number(
         options.priority
-      )
-
-      ||
+      ) ||
 
       SYSTEM_EVENT_PRIORITIES
       .NORMAL,
@@ -221,14 +356,16 @@ function createSystemEvent(
     timestamp:
     Date.now(),
 
-    retries:0,
+    retries:
+    0,
 
     replay:
     Boolean(
       options.replay
     ),
 
-    cancelled:false
+    cancelled:
+    false
 
   });
 
@@ -237,7 +374,40 @@ function createSystemEvent(
 
 
 // =====================================
-// LISTENER REGISTRATION
+// EVENT MUTATION
+// =====================================
+
+function createRetriedEvent(
+  event,
+  retries
+){
+
+  return createSystemEvent(
+
+    event.type,
+
+    event.payload,
+
+    {
+
+      replay:
+      event.replay,
+
+      priority:
+      event.priority,
+
+      retries
+
+    }
+
+  );
+
+}
+
+
+
+// =====================================
+// LISTENERS
 // =====================================
 
 function onSystemEvent(
@@ -246,15 +416,15 @@ function onSystemEvent(
 ){
 
   const normalizedEvent =
-  normalizeSystemEvent(
-    eventName
-  );
+    normalizeSystemEvent(
+      eventName
+    );
 
   if(
     !normalizedEvent
   ){
 
-    return false;
+    return null;
 
   }
 
@@ -264,7 +434,7 @@ function onSystemEvent(
     )
   ){
 
-    return false;
+    return null;
 
   }
 
@@ -304,7 +474,7 @@ function onSystemEvent(
 
   ){
 
-    return false;
+    return null;
 
   }
 
@@ -312,15 +482,24 @@ function onSystemEvent(
     listener
   );
 
-  return true;
+
+
+  // ===================================
+  // UNSUBSCRIBE HANDLE
+  // ===================================
+
+  return () => {
+
+    offSystemEvent(
+      normalizedEvent,
+      listener
+    );
+
+  };
 
 }
 
 
-
-// =====================================
-// ONCE LISTENER
-// =====================================
 
 function onceSystemEvent(
   eventName,
@@ -328,15 +507,15 @@ function onceSystemEvent(
 ){
 
   const normalizedEvent =
-  normalizeSystemEvent(
-    eventName
-  );
+    normalizeSystemEvent(
+      eventName
+    );
 
   if(
     !normalizedEvent
   ){
 
-    return false;
+    return null;
 
   }
 
@@ -346,7 +525,7 @@ function onceSystemEvent(
     )
   ){
 
-    return false;
+    return null;
 
   }
 
@@ -378,15 +557,22 @@ function onceSystemEvent(
     listener
   );
 
-  return true;
+  return () => {
+
+    systemEventsState
+    .onceListeners
+    .get(
+      normalizedEvent
+    )
+    ?.delete(
+      listener
+    );
+
+  };
 
 }
 
 
-
-// =====================================
-// WILDCARD
-// =====================================
 
 function onAnySystemEvent(
   listener
@@ -398,7 +584,7 @@ function onAnySystemEvent(
     )
   ){
 
-    return false;
+    return null;
 
   }
 
@@ -408,7 +594,13 @@ function onAnySystemEvent(
     listener
   );
 
-  return true;
+  return () => {
+
+    offAnySystemEvent(
+      listener
+    );
+
+  };
 
 }
 
@@ -428,19 +620,15 @@ function offAnySystemEvent(
 
 
 
-// =====================================
-// REMOVE LISTENER
-// =====================================
-
 function offSystemEvent(
   eventName,
   listener
 ){
 
   const normalizedEvent =
-  normalizeSystemEvent(
-    eventName
-  );
+    normalizeSystemEvent(
+      eventName
+    );
 
   const listeners =
 
@@ -457,9 +645,9 @@ function offSystemEvent(
   }
 
   const removed =
-  listeners.delete(
-    listener
-  );
+    listeners.delete(
+      listener
+    );
 
   if(
     listeners.size <= 0
@@ -492,7 +680,7 @@ function useSystemEventMiddleware(
     "function"
   ){
 
-    return false;
+    return null;
 
   }
 
@@ -502,7 +690,13 @@ function useSystemEventMiddleware(
     middleware
   );
 
-  return true;
+  return () => {
+
+    removeSystemEventMiddleware(
+      middleware
+    );
+
+  };
 
 }
 
@@ -544,9 +738,9 @@ async function executeEventMiddleware(
     try{
 
       const result =
-      await middleware(
-        event
-      );
+        await middleware(
+          event
+        );
 
       if(
         result === false
@@ -566,6 +760,11 @@ async function executeEventMiddleware(
 
       systemEventsState
       .failedEvents++;
+
+      console.warn(
+        "[SystemEvents] Middleware failed",
+        error
+      );
 
     }
 
@@ -587,7 +786,7 @@ function isEventThrottled(
 ){
 
   const now =
-  Date.now();
+    Date.now();
 
   const previous =
 
@@ -627,16 +826,19 @@ function isEventThrottled(
 function cleanupThrottledEvents(){
 
   const now =
-  Date.now();
+    Date.now();
 
   systemEventsState
   .throttledEvents
   .forEach((timestamp,key) => {
 
     if(
+
       (now - timestamp) >
+
       SYSTEM_EVENTS_CONFIG
       .THROTTLE_CLEANUP_INTERVAL
+
     ){
 
       systemEventsState
@@ -669,7 +871,7 @@ function cleanupThrottledEvents(){
 
 
 // =====================================
-// SAFE EXECUTION
+// SAFE LISTENER EXECUTION
 // =====================================
 
 async function executeSystemListener(
@@ -707,6 +909,11 @@ async function executeSystemListener(
     systemEventsState
     .failedEvents++;
 
+    console.warn(
+      "[SystemEvents] Listener failed",
+      error
+    );
+
     return false;
 
   }
@@ -716,7 +923,7 @@ async function executeSystemListener(
 
 
 // =====================================
-// SORT LISTENERS
+// EXECUTION SORTING
 // =====================================
 
 function sortExecutionsByPriority(
@@ -739,7 +946,7 @@ function sortExecutionsByPriority(
 
 
 // =====================================
-// EVENT HISTORY
+// HISTORY
 // =====================================
 
 function storeSystemEventHistory(
@@ -763,22 +970,26 @@ function storeSystemEventHistory(
 
     event.id,
 
-    {
+    safeFreeze({
 
-      id:event.id,
+      id:
+      event.id,
 
-      type:event.type,
+      type:
+      event.type,
 
       payload:
       cloneSystemPayload(
         event.payload
       ),
 
-      timestamp:event.timestamp,
+      timestamp:
+      event.timestamp,
 
-      priority:event.priority
+      priority:
+      event.priority
 
-    }
+    })
 
   );
 
@@ -795,11 +1006,11 @@ function storeSystemEventHistory(
 
     const oldestKey =
 
-    systemEventsState
-    .eventHistory
-    .keys()
-    .next()
-    .value;
+      systemEventsState
+      .eventHistory
+      .keys()
+      .next()
+      .value;
 
     systemEventsState
     .eventHistory
@@ -810,6 +1021,38 @@ function storeSystemEventHistory(
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// QUEUE SCHEDULER
+// =====================================
+
+function scheduleQueueProcessing(){
+
+  if(
+    systemEventsState
+    .scheduledQueue
+  ){
+
+    return;
+  }
+
+  systemEventsState
+  .scheduledQueue =
+  true;
+
+  queueMicrotask(async() => {
+
+    systemEventsState
+    .scheduledQueue =
+    false;
+
+    await processSystemEventQueue();
+
+  });
 
 }
 
@@ -899,7 +1142,7 @@ async function processSystemEventQueue(){
 // =====================================
 
 async function executeSystemEvent(
-  event
+  originalEvent
 ){
 
   systemEventsState
@@ -908,6 +1151,9 @@ async function executeSystemEvent(
   try{
 
     let attempts = 0;
+
+    let currentEvent =
+      originalEvent;
 
     while(
 
@@ -920,11 +1166,13 @@ async function executeSystemEvent(
       try{
 
         const middlewareSuccess =
-        await executeEventMiddleware(
-          event
-        );
+          await executeEventMiddleware(
+            currentEvent
+          );
 
-        if(!middlewareSuccess){
+        if(
+          !middlewareSuccess
+        ){
 
           return false;
 
@@ -935,7 +1183,7 @@ async function executeSystemEvent(
           ...(systemEventsState
           .listeners
           .get(
-            event.type
+            currentEvent.type
           )
 
           ||
@@ -949,7 +1197,7 @@ async function executeSystemEvent(
           ...(systemEventsState
           .onceListeners
           .get(
-            event.type
+            currentEvent.type
           )
 
           ||
@@ -965,13 +1213,13 @@ async function executeSystemEvent(
           executions.push({
 
             priority:
-            event.priority,
+            currentEvent.priority,
 
             execute(){
 
               return executeSystemListener(
                 listener,
-                event
+                currentEvent
               );
 
             }
@@ -985,13 +1233,13 @@ async function executeSystemEvent(
           executions.push({
 
             priority:
-            event.priority,
+            currentEvent.priority,
 
             execute(){
 
               return executeSystemListener(
                 listener,
-                event
+                currentEvent
               );
 
             }
@@ -1014,7 +1262,7 @@ async function executeSystemEvent(
 
               return executeSystemListener(
                 listener,
-                event
+                currentEvent
               );
 
             }
@@ -1024,9 +1272,9 @@ async function executeSystemEvent(
         });
 
         const sortedExecutions =
-        sortExecutionsByPriority(
-          executions
-        );
+          sortExecutionsByPriority(
+            executions
+          );
 
         for(
           const execution
@@ -1044,7 +1292,7 @@ async function executeSystemEvent(
           systemEventsState
           .onceListeners
           .delete(
-            event.type
+            currentEvent.type
           );
 
         }
@@ -1061,7 +1309,7 @@ async function executeSystemEvent(
         Date.now();
 
         storeSystemEventHistory(
-          event
+          currentEvent
         );
 
         return true;
@@ -1071,9 +1319,6 @@ async function executeSystemEvent(
       catch(error){
 
         attempts++;
-
-        event.retries =
-        attempts;
 
         systemEventsState
         .diagnostics
@@ -1095,6 +1340,12 @@ async function executeSystemEvent(
 
         }
 
+        currentEvent =
+          createRetriedEvent(
+            currentEvent,
+            attempts
+          );
+
       }
 
     }
@@ -1111,6 +1362,11 @@ async function executeSystemEvent(
     systemEventsState
     .diagnostics
     .failed++;
+
+    console.warn(
+      "[SystemEvents] Event execution failed",
+      error
+    );
 
     return false;
 
@@ -1137,7 +1393,7 @@ async function executeSystemEvent(
 
 
 // =====================================
-// EMIT EVENT
+// EMIT
 // =====================================
 
 async function emitSystemEvent(
@@ -1147,11 +1403,13 @@ async function emitSystemEvent(
 ){
 
   const normalizedEvent =
-  normalizeSystemEvent(
-    eventName
-  );
+    normalizeSystemEvent(
+      eventName
+    );
 
-  if(!normalizedEvent){
+  if(
+    !normalizedEvent
+  ){
 
     return false;
 
@@ -1196,13 +1454,13 @@ async function emitSystemEvent(
   }
 
   const event =
-  createSystemEvent(
+    createSystemEvent(
 
-    normalizedEvent,
-    payload,
-    options
+      normalizedEvent,
+      payload,
+      options
 
-  );
+    );
 
   systemEventsState
   .eventQueue
@@ -1219,7 +1477,7 @@ async function emitSystemEvent(
   .diagnostics
   .emitted++;
 
-  await processSystemEventQueue();
+  scheduleQueueProcessing();
 
   return true;
 
@@ -1228,7 +1486,7 @@ async function emitSystemEvent(
 
 
 // =====================================
-// EVENT REPLAY
+// REPLAY
 // =====================================
 
 async function replaySystemEvents(
@@ -1278,7 +1536,8 @@ async function replaySystemEvents(
 
       {
 
-        replay:true,
+        replay:
+        true,
 
         priority:
         event.priority
@@ -1296,7 +1555,7 @@ async function replaySystemEvents(
 
 
 // =====================================
-// CLEAR HISTORY
+// HISTORY
 // =====================================
 
 function clearSystemEventHistory(){
@@ -1348,6 +1607,10 @@ function resetSystemEvents(){
   false;
 
   systemEventsState
+  .scheduledQueue =
+  false;
+
+  systemEventsState
   .totalEvents =
   0;
 
@@ -1370,17 +1633,23 @@ function resetSystemEvents(){
   systemEventsState
   .diagnostics = {
 
-    emitted:0,
+    emitted:
+    0,
 
-    completed:0,
+    completed:
+    0,
 
-    failed:0,
+    failed:
+    0,
 
-    retries:0,
+    retries:
+    0,
 
-    cancelled:0,
+    cancelled:
+    0,
 
-    queueProcessed:0
+    queueProcessed:
+    0
 
   };
 
@@ -1396,7 +1665,7 @@ function resetSystemEvents(){
 
 function getSystemEventDiagnostics(){
 
-  return Object.freeze({
+  return safeFreeze({
 
     initialized:
     systemEventsState
@@ -1496,7 +1765,7 @@ function initializeSystemEvents(){
 // =====================================
 
 const SystemEvents =
-Object.freeze({
+safeFreeze({
 
   on:
   onSystemEvent,
@@ -1544,13 +1813,67 @@ if(
   "undefined"
 ){
 
-  window.SystemEvents =
-  SystemEvents;
+  Object.defineProperty(
 
-  window.emitSystemEvent =
-  emitSystemEvent;
+    window,
 
-  window.initializeSystemEvents =
-  initializeSystemEvents;
+    "SystemEvents",
+
+    {
+
+      value:
+      SystemEvents,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "emitSystemEvent",
+
+    {
+
+      value:
+      emitSystemEvent,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "initializeSystemEvents",
+
+    {
+
+      value:
+      initializeSystemEvents,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
