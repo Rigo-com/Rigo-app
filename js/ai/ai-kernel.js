@@ -2,7 +2,7 @@
 // RIGO AI
 // AI KERNEL
 // ENTERPRISE AI ORCHESTRATOR
-// FINAL HARDENED ARCHITECTURE
+// FULL HARDENED PRODUCTION ARCHITECTURE
 // =====================================
 
 
@@ -44,8 +44,20 @@ Object.freeze({
   ENABLE_PLANNER_ROUTING:
   true,
 
+  ENABLE_REQUEST_QUEUE:
+  true,
+
+  ENABLE_ABORT_CONTROLLER:
+  true,
+
+  ENABLE_AUTO_REQUEST_CLEANUP:
+  true,
+
   MAX_CONCURRENT_REQUESTS:
   200,
+
+  MAX_QUEUE_SIZE:
+  500,
 
   MAX_RECOVERY_ATTEMPTS:
   3,
@@ -60,7 +72,16 @@ Object.freeze({
   500,
 
   MAX_FAILED_REQUESTS:
-  300
+  300,
+
+  CLEANUP_INTERVAL:
+  60000,
+
+  HEALTH_CHECK_INTERVAL:
+  30000,
+
+  STUCK_REQUEST_TIMEOUT:
+  120000
 
 });
 
@@ -120,16 +141,90 @@ Object.freeze({
   REQUEST_FAILED:
   "ai.kernel.request.failed",
 
+  REQUEST_ABORTED:
+  "ai.kernel.request.aborted",
+
+  REQUEST_QUEUED:
+  "ai.kernel.request.queued",
+
   RECOVERY_STARTED:
   "ai.kernel.recovery.started",
 
   RECOVERY_COMPLETED:
   "ai.kernel.recovery.completed",
 
+  HEALTH_CHECK:
+  "ai.kernel.health.check",
+
   SHUTDOWN:
   "ai.kernel.shutdown"
 
 });
+
+
+
+// =====================================
+// AI SYSTEM REGISTRY
+// =====================================
+
+const aiSystemRegistry =
+new Map();
+
+
+
+// =====================================
+// REGISTER SYSTEM
+// =====================================
+
+function registerAISystem(
+  name,
+  system
+){
+
+  if(
+    !name ||
+    typeof name !==
+    "string"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !system ||
+    typeof system !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  aiSystemRegistry
+  .set(
+    name,
+    system
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GET SYSTEM
+// =====================================
+
+function getAISystem(
+  name
+){
+
+  return aiSystemRegistry
+  .get(name);
+
+}
 
 
 
@@ -158,12 +253,21 @@ Object.seal({
   recoveryPromise:
   null,
 
+  cleanupInterval:
+  null,
+
+  healthInterval:
+  null,
+
   state:
   AI_KERNEL_STATES
   .IDLE,
 
   activeRequests:
   new Map(),
+
+  requestQueue:
+  [],
 
   completedRequests:
   [],
@@ -188,6 +292,10 @@ Object.seal({
     failed:0,
 
     recoveries:0,
+
+    queued:0,
+
+    aborted:0,
 
     routedToPlanner:0,
 
@@ -239,6 +347,26 @@ function freezeKernelObject(
 
   if(
     visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet ||
+
+    value instanceof AbortController ||
+
+    value instanceof AbortSignal
+
   ){
 
     return value;
@@ -303,11 +431,32 @@ function cloneKernelObject(
 
   try{
 
-    return JSON.parse(
-      JSON.stringify(
-        value
-      )
-    );
+    if(
+      Array.isArray(value)
+    ){
+
+      return [
+        ...value
+      ];
+
+    }
+
+    if(
+
+      value &&
+
+      typeof value ===
+      "object"
+
+    ){
+
+      return {
+        ...value
+      };
+
+    }
+
+    return value;
 
   }
 
@@ -513,7 +662,19 @@ function createKernelRequest(
   payload = {}
 ){
 
-  return freezeKernelObject({
+  const controller =
+  AI_KERNEL_CONFIG
+  .ENABLE_ABORT_CONTROLLER
+
+  ?
+
+  new AbortController()
+
+  :
+
+  null;
+
+  const request = {
 
     id:
     createKernelRequestId(),
@@ -538,7 +699,22 @@ function createKernelRequest(
 
       retries:0,
 
-      contextInjected:false
+      contextInjected:false,
+
+      startedAt:
+      null,
+
+      completedAt:
+      null,
+
+      queuedAt:
+      null,
+
+      controller,
+
+      signal:
+      controller
+      ?.signal || null
 
     },
 
@@ -558,7 +734,20 @@ function createKernelRequest(
     createdAt:
     Date.now()
 
-  });
+  };
+
+  return {
+
+    ...freezeKernelObject({
+
+      ...request
+
+    }),
+
+    runtime:
+    request.runtime
+
+  };
 
 }
 
@@ -570,32 +759,35 @@ function createKernelRequest(
 
 function validateAISystems(){
 
-  return (
+  const systems = [
 
-    typeof AgentManager !==
-    "undefined"
+    "agents",
 
-    &&
+    "contexts",
 
-    typeof ContextManager !==
-    "undefined"
+    "tools",
 
-    &&
+    "workflows",
 
-    typeof ToolExecutor !==
-    "undefined"
+    "planner"
 
-    &&
+  ];
 
-    typeof WorkflowEngine !==
-    "undefined"
+  return systems.every((name) => {
 
-    &&
+    const system =
+    getAISystem(name);
 
-    typeof PlannerEngine !==
-    "undefined"
+    return (
 
-  );
+      system &&
+
+      typeof system.initialize ===
+      "function"
+
+    );
+
+  });
 
 }
 
@@ -610,53 +802,23 @@ async function synchronizeAISystems(){
   const systems = [
 
     {
-
-      name:"agents",
-
-      initialize:
-      AgentManager
-      ?.initialize
-
+      name:"agents"
     },
 
     {
-
-      name:"contexts",
-
-      initialize:
-      ContextManager
-      ?.initialize
-
+      name:"contexts"
     },
 
     {
-
-      name:"tools",
-
-      initialize:
-      ToolExecutor
-      ?.initialize
-
+      name:"tools"
     },
 
     {
-
-      name:"workflows",
-
-      initialize:
-      WorkflowEngine
-      ?.initialize
-
+      name:"workflows"
     },
 
     {
-
-      name:"planner",
-
-      initialize:
-      PlannerEngine
-      ?.initialize
-
+      name:"planner"
     }
 
   ];
@@ -665,13 +827,23 @@ async function synchronizeAISystems(){
   .failedSystems
   .clear();
 
+  aiKernelState
+  .synchronizedSystems
+  .clear();
+
   for(
-    const system of systems
+    const systemInfo of systems
   ){
+
+    const system =
+    getAISystem(
+      systemInfo.name
+    );
 
     try{
 
       if(
+        !system ||
         typeof system.initialize !==
         "function"
       ){
@@ -679,19 +851,37 @@ async function synchronizeAISystems(){
         aiKernelState
         .failedSystems
         .add(
-          system.name
+          systemInfo.name
         );
 
         continue;
 
       }
 
-      await system.initialize();
+      await Promise.race([
+
+        system.initialize(),
+
+        new Promise((_, reject) => {
+
+          setTimeout(() => {
+
+            reject(
+              new Error(
+                "SYSTEM INITIALIZATION TIMEOUT"
+              )
+            );
+
+          }, 15000);
+
+        })
+
+      ]);
 
       aiKernelState
       .synchronizedSystems
       .add(
-        system.name
+        systemInfo.name
       );
 
     }
@@ -701,7 +891,7 @@ async function synchronizeAISystems(){
       aiKernelState
       .failedSystems
       .add(
-        system.name
+        systemInfo.name
       );
 
       await logKernelError(
@@ -711,7 +901,7 @@ async function synchronizeAISystems(){
         {
 
           system:
-          system.name,
+          systemInfo.name,
 
           error:
           String(error)
@@ -731,5 +921,1215 @@ async function synchronizeAISystems(){
     .size <= 0
 
   );
+
+}
+
+
+
+// =====================================
+// CLEANUP REQUESTS
+// =====================================
+
+function cleanupKernelRequests(){
+
+  try{
+
+    while(
+
+      aiKernelState
+      .completedRequests
+      .length >
+
+      AI_KERNEL_CONFIG
+      .MAX_COMPLETED_REQUESTS
+
+    ){
+
+      aiKernelState
+      .completedRequests
+      .shift();
+
+    }
+
+    while(
+
+      aiKernelState
+      .failedRequests
+      .length >
+
+      AI_KERNEL_CONFIG
+      .MAX_FAILED_REQUESTS
+
+    ){
+
+      aiKernelState
+      .failedRequests
+      .shift();
+
+    }
+
+    const now =
+    Date.now();
+
+    for(
+      const [id, request]
+      of
+      aiKernelState
+      .activeRequests
+    ){
+
+      if(
+
+        now -
+
+        request.runtime.startedAt >
+
+        AI_KERNEL_CONFIG
+        .STUCK_REQUEST_TIMEOUT
+
+      ){
+
+        request.runtime
+        .controller
+        ?.abort();
+
+        aiKernelState
+        .activeRequests
+        .delete(id);
+
+      }
+
+    }
+
+  }
+
+  catch(error){}
+
+}
+
+
+
+// =====================================
+// START CLEANUP
+// =====================================
+
+function startKernelCleanupLoop(){
+
+  if(
+    aiKernelState.cleanupInterval
+  ){
+
+    return;
+  }
+
+  aiKernelState
+  .cleanupInterval =
+  setInterval(() => {
+
+    cleanupKernelRequests();
+
+  },
+  AI_KERNEL_CONFIG
+  .CLEANUP_INTERVAL);
+
+}
+
+
+
+// =====================================
+// STOP CLEANUP
+// =====================================
+
+function stopKernelCleanupLoop(){
+
+  if(
+    !aiKernelState.cleanupInterval
+  ){
+
+    return;
+  }
+
+  clearInterval(
+    aiKernelState
+    .cleanupInterval
+  );
+
+  aiKernelState
+  .cleanupInterval =
+  null;
+
+}
+
+
+
+// =====================================
+// HEALTH CHECK
+// =====================================
+
+async function performKernelHealthCheck(){
+
+  const report = {
+
+    timestamp:
+    Date.now(),
+
+    activeRequests:
+    aiKernelState
+    .activeRequests
+    .size,
+
+    queuedRequests:
+    aiKernelState
+    .requestQueue
+    .length,
+
+    failedSystems:
+    [
+      ...aiKernelState
+      .failedSystems
+    ],
+
+    synchronizedSystems:
+    [
+      ...aiKernelState
+      .synchronizedSystems
+    ]
+
+  };
+
+  await emitKernelEvent(
+
+    AI_KERNEL_EVENTS
+    .HEALTH_CHECK,
+
+    report
+
+  );
+
+  return report;
+
+}
+
+
+
+// =====================================
+// START HEALTH LOOP
+// =====================================
+
+function startKernelHealthLoop(){
+
+  if(
+    aiKernelState.healthInterval
+  ){
+
+    return;
+  }
+
+  aiKernelState
+  .healthInterval =
+  setInterval(() => {
+
+    performKernelHealthCheck();
+
+  },
+  AI_KERNEL_CONFIG
+  .HEALTH_CHECK_INTERVAL);
+
+}
+
+
+
+// =====================================
+// STOP HEALTH LOOP
+// =====================================
+
+function stopKernelHealthLoop(){
+
+  if(
+    !aiKernelState.healthInterval
+  ){
+
+    return;
+  }
+
+  clearInterval(
+    aiKernelState
+    .healthInterval
+  );
+
+  aiKernelState
+  .healthInterval =
+  null;
+
+}
+
+
+
+// =====================================
+// ROUTE REQUEST
+// =====================================
+
+async function routeKernelRequest(
+  request
+){
+
+  if(
+    !request ||
+    typeof request !==
+    "object"
+  ){
+
+    throw new Error(
+      "INVALID KERNEL REQUEST"
+    );
+
+  }
+
+  const requestType =
+  String(
+    request.type || ""
+  )
+  .toLowerCase();
+
+  const planner =
+  getAISystem(
+    "planner"
+  );
+
+  const workflow =
+  getAISystem(
+    "workflows"
+  );
+
+  const tools =
+  getAISystem(
+    "tools"
+  );
+
+  const agents =
+  getAISystem(
+    "agents"
+  );
+
+  if(
+
+    requestType.includes(
+      "plan"
+    )
+
+    &&
+
+    planner
+    ?.process
+
+  ){
+
+    aiKernelState
+    .diagnostics
+    .routedToPlanner++;
+
+    return planner
+    .process(request);
+
+  }
+
+  if(
+
+    requestType.includes(
+      "workflow"
+    )
+
+    &&
+
+    workflow
+    ?.process
+
+  ){
+
+    aiKernelState
+    .diagnostics
+    .routedToWorkflow++;
+
+    return workflow
+    .process(request);
+
+  }
+
+  if(
+
+    requestType.includes(
+      "tool"
+    )
+
+    &&
+
+    tools
+    ?.execute
+
+  ){
+
+    aiKernelState
+    .diagnostics
+    .routedToTools++;
+
+    return tools
+    .execute(request);
+
+  }
+
+  if(
+    agents
+    ?.process
+  ){
+
+    aiKernelState
+    .diagnostics
+    .routedToAgents++;
+
+    return agents
+    .process(request);
+
+  }
+
+  throw new Error(
+    "NO AVAILABLE REQUEST ROUTER"
+  );
+
+}
+
+
+
+// =====================================
+// PROCESS REQUEST
+// =====================================
+
+async function processKernelRequest(
+  payload = {}
+){
+
+  if(
+    aiKernelState.shuttingDown
+  ){
+
+    throw new Error(
+      "KERNEL SHUTDOWN ACTIVE"
+    );
+
+  }
+
+  if(
+    !validateKernelPayload(
+      payload
+    )
+  ){
+
+    throw new Error(
+      "INVALID REQUEST PAYLOAD"
+    );
+
+  }
+
+  const request =
+  createKernelRequest(
+    payload
+  );
+
+  if(
+
+    aiKernelState
+    .activeRequests
+    .size >=
+
+    AI_KERNEL_CONFIG
+    .MAX_CONCURRENT_REQUESTS
+
+  ){
+
+    if(
+
+      !AI_KERNEL_CONFIG
+      .ENABLE_REQUEST_QUEUE
+
+    ){
+
+      throw new Error(
+        "MAX CONCURRENT REQUESTS REACHED"
+      );
+
+    }
+
+    if(
+
+      aiKernelState
+      .requestQueue
+      .length >=
+
+      AI_KERNEL_CONFIG
+      .MAX_QUEUE_SIZE
+
+    ){
+
+      throw new Error(
+        "REQUEST QUEUE FULL"
+      );
+
+    }
+
+    request.runtime
+    .queuedAt =
+    Date.now();
+
+    aiKernelState
+    .requestQueue
+    .push(request);
+
+    aiKernelState
+    .diagnostics
+    .queued++;
+
+    await emitKernelEvent(
+
+      AI_KERNEL_EVENTS
+      .REQUEST_QUEUED,
+
+      {
+        requestId:
+        request.id
+      }
+
+    );
+
+    return {
+      queued:true,
+      requestId:request.id
+    };
+
+  }
+
+  request.runtime.startedAt =
+  Date.now();
+
+  aiKernelState
+  .activeRequests
+  .set(
+    request.id,
+    request
+  );
+
+  aiKernelState
+  .diagnostics
+  .requests++;
+
+  aiKernelState
+  .lastRequestAt =
+  Date.now();
+
+  await emitKernelEvent(
+
+    AI_KERNEL_EVENTS
+    .REQUEST_RECEIVED,
+
+    {
+      requestId:
+      request.id
+    }
+
+  );
+
+  try{
+
+    setKernelState(
+      AI_KERNEL_STATES
+      .PROCESSING
+    );
+
+    const result =
+    await Promise.race([
+
+      routeKernelRequest(
+        request
+      ),
+
+      new Promise((_, reject) => {
+
+        setTimeout(() => {
+
+          request.runtime
+          .controller
+          ?.abort();
+
+          reject(
+            new Error(
+              "REQUEST TIMEOUT"
+            )
+          );
+
+        },
+        AI_KERNEL_CONFIG
+        .REQUEST_TIMEOUT);
+
+      })
+
+    ]);
+
+    request.runtime.completedAt =
+    Date.now();
+
+    aiKernelState
+    .completedRequests
+    .push({
+
+      id:
+      request.id,
+
+      completedAt:
+      Date.now()
+
+    });
+
+    aiKernelState
+    .diagnostics
+    .completed++;
+
+    await emitKernelEvent(
+
+      AI_KERNEL_EVENTS
+      .REQUEST_COMPLETED,
+
+      {
+        requestId:
+        request.id
+      }
+
+    );
+
+    return result;
+
+  }
+
+  catch(error){
+
+    aiKernelState
+    .failedRequests
+    .push({
+
+      id:
+      request.id,
+
+      error:
+      String(error),
+
+      failedAt:
+      Date.now()
+
+    });
+
+    aiKernelState
+    .diagnostics
+    .failed++;
+
+    if(
+
+      AI_KERNEL_CONFIG
+      .ENABLE_RECOVERY
+
+      &&
+
+      aiKernelState
+      .recoveryAttempts <
+
+      AI_KERNEL_CONFIG
+      .MAX_RECOVERY_ATTEMPTS
+
+    ){
+
+      recoverAIKernel()
+      .catch(() => {});
+
+    }
+
+    await emitKernelEvent(
+
+      AI_KERNEL_EVENTS
+      .REQUEST_FAILED,
+
+      {
+        requestId:
+        request.id,
+
+        error:
+        String(error)
+      }
+
+    );
+
+    throw error;
+
+  }
+
+  finally{
+
+    aiKernelState
+    .activeRequests
+    .delete(
+      request.id
+    );
+
+    if(
+
+      aiKernelState
+      .requestQueue
+      .length > 0
+
+      &&
+
+      aiKernelState
+      .activeRequests
+      .size <
+
+      AI_KERNEL_CONFIG
+      .MAX_CONCURRENT_REQUESTS
+
+    ){
+
+      const queuedRequest =
+      aiKernelState
+      .requestQueue
+      .shift();
+
+      processKernelRequest(
+        queuedRequest
+      )
+      .catch(() => {});
+
+    }
+
+    if(
+
+      aiKernelState
+      .activeRequests
+      .size <= 0
+
+    ){
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .READY
+      );
+
+    }
+
+  }
+
+}
+
+
+
+// =====================================
+// RECOVER KERNEL
+// =====================================
+
+async function recoverAIKernel(){
+
+  if(
+    aiKernelState.recovering
+  ){
+
+    return aiKernelState
+    .recoveryPromise;
+
+  }
+
+  aiKernelState
+  .recovering =
+  true;
+
+  aiKernelState
+  .recoveryPromise =
+  (async () => {
+
+    try{
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .RECOVERING
+      );
+
+      aiKernelState
+      .diagnostics
+      .recoveries++;
+
+      aiKernelState
+      .recoveryAttempts++;
+
+      aiKernelState
+      .lastRecoveryAt =
+      Date.now();
+
+      await emitKernelEvent(
+
+        AI_KERNEL_EVENTS
+        .RECOVERY_STARTED
+
+      );
+
+      await synchronizeAISystems();
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .READY
+      );
+
+      await emitKernelEvent(
+
+        AI_KERNEL_EVENTS
+        .RECOVERY_COMPLETED
+
+      );
+
+      return true;
+
+    }
+
+    catch(error){
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .FAILED
+      );
+
+      await logKernelError(
+
+        "KERNEL RECOVERY FAILED",
+
+        {
+          error:
+          String(error)
+        }
+
+      );
+
+      return false;
+
+    }
+
+    finally{
+
+      aiKernelState
+      .recovering =
+      false;
+
+      aiKernelState
+      .recoveryPromise =
+      null;
+
+    }
+
+  })();
+
+  return aiKernelState
+  .recoveryPromise;
+
+}
+
+
+
+// =====================================
+// INITIALIZE KERNEL
+// =====================================
+
+async function initializeAIKernel(){
+
+  if(
+    aiKernelState.initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    aiKernelState.initializing
+  ){
+
+    return aiKernelState
+    .startupPromise;
+
+  }
+
+  aiKernelState
+  .initializing =
+  true;
+
+  aiKernelState
+  .startupPromise =
+  (async () => {
+
+    try{
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .INITIALIZING
+      );
+
+      if(
+        !validateAISystems()
+      ){
+
+        throw new Error(
+          "INVALID AI SYSTEMS"
+        );
+
+      }
+
+      const synchronized =
+      await synchronizeAISystems();
+
+      if(
+        !synchronized
+      ){
+
+        throw new Error(
+          "AI SYSTEM SYNCHRONIZATION FAILED"
+        );
+
+      }
+
+      startKernelCleanupLoop();
+
+      startKernelHealthLoop();
+
+      aiKernelState
+      .initialized =
+      true;
+
+      aiKernelState
+      .startedAt =
+      Date.now();
+
+      aiKernelState
+      .diagnostics
+      .initialized++;
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .READY
+      );
+
+      await emitKernelEvent(
+
+        AI_KERNEL_EVENTS
+        .INITIALIZED
+
+      );
+
+      return true;
+
+    }
+
+    catch(error){
+
+      setKernelState(
+        AI_KERNEL_STATES
+        .FAILED
+      );
+
+      await logKernelError(
+
+        "AI KERNEL INITIALIZATION FAILED",
+
+        {
+          error:
+          String(error)
+        }
+
+      );
+
+      throw error;
+
+    }
+
+    finally{
+
+      aiKernelState
+      .initializing =
+      false;
+
+      aiKernelState
+      .startupPromise =
+      null;
+
+    }
+
+  })();
+
+  return aiKernelState
+  .startupPromise;
+
+}
+
+
+
+// =====================================
+// SHUTDOWN KERNEL
+// =====================================
+
+async function shutdownAIKernel(){
+
+  aiKernelState
+  .shuttingDown =
+  true;
+
+  setKernelState(
+    AI_KERNEL_STATES
+    .SHUTDOWN
+  );
+
+  stopKernelCleanupLoop();
+
+  stopKernelHealthLoop();
+
+  for(
+    const [, request]
+    of
+    aiKernelState
+    .activeRequests
+  ){
+
+    request.runtime
+    .controller
+    ?.abort();
+
+  }
+
+  aiKernelState
+  .activeRequests
+  .clear();
+
+  aiKernelState
+  .requestQueue =
+  [];
+
+  await emitKernelEvent(
+
+    AI_KERNEL_EVENTS
+    .SHUTDOWN
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GET KERNEL STATE
+// =====================================
+
+function getAIKernelState(){
+
+  return freezeKernelObject({
+
+    initialized:
+    aiKernelState
+    .initialized,
+
+    initializing:
+    aiKernelState
+    .initializing,
+
+    recovering:
+    aiKernelState
+    .recovering,
+
+    shuttingDown:
+    aiKernelState
+    .shuttingDown,
+
+    state:
+    aiKernelState
+    .state,
+
+    activeRequests:
+    aiKernelState
+    .activeRequests
+    .size,
+
+    queuedRequests:
+    aiKernelState
+    .requestQueue
+    .length,
+
+    synchronizedSystems:
+    [
+      ...aiKernelState
+      .synchronizedSystems
+    ],
+
+    failedSystems:
+    [
+      ...aiKernelState
+      .failedSystems
+    ],
+
+    diagnostics:
+    cloneKernelObject(
+      aiKernelState
+      .diagnostics
+    )
+
+  });
+
+}
+
+
+
+// =====================================
+// GET DIAGNOSTICS
+// =====================================
+
+function getAIKernelDiagnostics(){
+
+  return freezeKernelObject({
+
+    uptime:
+
+    aiKernelState
+    .startedAt
+
+    ?
+
+    Date.now() -
+
+    aiKernelState
+    .startedAt
+
+    :
+
+    0,
+
+    state:
+    aiKernelState
+    .state,
+
+    activeRequests:
+    aiKernelState
+    .activeRequests
+    .size,
+
+    queuedRequests:
+    aiKernelState
+    .requestQueue
+    .length,
+
+    completedRequests:
+    aiKernelState
+    .completedRequests
+    .length,
+
+    failedRequests:
+    aiKernelState
+    .failedRequests
+    .length,
+
+    diagnostics:
+    cloneKernelObject(
+      aiKernelState
+      .diagnostics
+    )
+
+  });
+
+}
+
+
+
+// =====================================
+// AUTO INITIALIZATION
+// =====================================
+
+if(
+  AI_KERNEL_CONFIG
+  .ENABLE_AUTO_INITIALIZATION
+){
+
+  initializeAIKernel()
+  .catch((error) => {
+
+    console.error(
+      "AI KERNEL AUTO INIT FAILED",
+      error
+    );
+
+  });
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+const AIKernel =
+Object.freeze({
+
+  config:
+  AI_KERNEL_CONFIG,
+
+  states:
+  AI_KERNEL_STATES,
+
+  events:
+  AI_KERNEL_EVENTS,
+
+  initialize:
+  initializeAIKernel,
+
+  shutdown:
+  shutdownAIKernel,
+
+  process:
+  processKernelRequest,
+
+  recover:
+  recoverAIKernel,
+
+  diagnostics:
+  getAIKernelDiagnostics,
+
+  state:
+  getAIKernelState,
+
+  registerSystem:
+  registerAISystem,
+
+  getSystem:
+  getAISystem
+
+});
+
+
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.AIKernel =
+  AIKernel;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.AIKernel =
+  AIKernel;
 
 }
