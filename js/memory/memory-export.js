@@ -43,6 +43,9 @@ Object.freeze({
 
   MAX_HISTORY_ITEMS:100,
 
+  MAX_TRANSACTION_AGE:
+  1000 * 60 * 30,
+
   DEFAULT_IMPORT_STRATEGY:
   "merge"
 
@@ -118,6 +121,11 @@ function normalizeExportStrategy(
   strategy
 ){
 
+  const normalized =
+  normalizeMemoryString(
+    strategy
+  );
+
   const allowed = [
 
     "merge",
@@ -133,10 +141,12 @@ function normalizeExportStrategy(
   ];
 
   if(
-    allowed.includes(strategy)
+    allowed.includes(
+      normalized
+    )
   ){
 
-    return strategy;
+    return normalized;
 
   }
 
@@ -189,6 +199,37 @@ function pruneExportHistory(){
 
 
 
+function cleanupExportTransactions(){
+
+  const now =
+  Date.now();
+
+  memoryExportState
+  .activeTransactions
+  .forEach((transaction,id) => {
+
+    if(
+
+      now -
+      transaction.startedAt >
+
+      MEMORY_EXPORT_CONFIG
+      .MAX_TRANSACTION_AGE
+
+    ){
+
+      memoryExportState
+      .activeTransactions
+      .delete(id);
+
+    }
+
+  });
+
+}
+
+
+
 function safeParseExportPayload(
   payload
 ){
@@ -227,6 +268,74 @@ function safeParseExportPayload(
     return null;
 
   }
+
+}
+
+
+
+function stableStringify(
+  value
+){
+
+  const visited =
+  new WeakSet();
+
+  return JSON.stringify(
+
+    value,
+
+    (key,currentValue) => {
+
+      if(
+
+        currentValue &&
+        typeof currentValue ===
+        "object"
+
+      ){
+
+        if(
+          visited.has(
+            currentValue
+          )
+        ){
+
+          return "[Circular]";
+        }
+
+        visited.add(
+          currentValue
+        );
+
+        if(
+          Array.isArray(
+            currentValue
+          )
+        ){
+
+          return currentValue;
+        }
+
+        return Object.keys(
+          currentValue
+        )
+        .sort()
+        .reduce((result,currentKey) => {
+
+          result[currentKey] =
+          currentValue[currentKey];
+
+          return result;
+
+        },{});
+
+      }
+
+      return currentValue;
+
+    }
+
+  );
 
 }
 
@@ -357,7 +466,7 @@ async function createExportChecksum(
 ){
 
   return createMemoryHash(
-    JSON.stringify(
+    stableStringify(
       payload
     )
   );
@@ -422,9 +531,14 @@ function createExportMetadata(
 // COMPRESS
 // =====================================
 
-function compressExportPayload(
+async function compressExportPayload(
   payload
 ){
+
+  const serialized =
+  stableStringify(
+    payload
+  );
 
   if(
 
@@ -433,27 +547,74 @@ function compressExportPayload(
 
   ){
 
-    return payload;
+    return serialized;
 
   }
 
-  const serialized =
-  JSON.stringify(
-    payload
-  );
+  try{
 
-  const compressed =
-  serialized;
+    if(
+      typeof CompressionStream !==
+      "function"
+    ){
 
-  memoryExportState
-  .compressionSavings +=
-  Math.max(
-    0,
-    serialized.length -
-    compressed.length
-  );
+      return serialized;
+    }
 
-  return compressed;
+    const stream =
+    new Blob([serialized])
+    .stream()
+    .pipeThrough(
+      new CompressionStream(
+        "gzip"
+      )
+    );
+
+    const response =
+    new Response(stream);
+
+    const buffer =
+    await response.arrayBuffer();
+
+    const compressed =
+    btoa(
+
+      String.fromCharCode(
+
+        ...new Uint8Array(
+          buffer
+        )
+
+      )
+
+    );
+
+    memoryExportState
+    .compressionSavings +=
+    Math.max(
+      0,
+      serialized.length -
+      compressed.length
+    );
+
+    return JSON.stringify({
+
+      compressed:true,
+
+      format:"gzip",
+
+      payload:
+      compressed
+
+    });
+
+  }
+
+  catch(error){
+
+    return serialized;
+
+  }
 
 }
 
@@ -463,13 +624,82 @@ function compressExportPayload(
 // DECOMPRESS
 // =====================================
 
-function decompressExportPayload(
+async function decompressExportPayload(
   payload
 ){
 
-  return safeParseExportPayload(
-    payload
-  );
+  try{
+
+    const parsed =
+    safeParseExportPayload(
+      payload
+    );
+
+    if(
+      !parsed
+    ){
+
+      return null;
+    }
+
+    if(
+      parsed.compressed !==
+      true
+    ){
+
+      return parsed;
+    }
+
+    if(
+      typeof DecompressionStream !==
+      "function"
+    ){
+
+      return null;
+    }
+
+    const binary =
+    atob(
+      parsed.payload
+    );
+
+    const bytes =
+    Uint8Array.from(
+      binary,
+      (character) => {
+
+        return character
+        .charCodeAt(0);
+
+      }
+    );
+
+    const stream =
+    new Blob([bytes])
+    .stream()
+    .pipeThrough(
+      new DecompressionStream(
+        "gzip"
+      )
+    );
+
+    const response =
+    new Response(stream);
+
+    const text =
+    await response.text();
+
+    return safeParseExportPayload(
+      text
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
 
 }
 
@@ -507,9 +737,11 @@ async function createMemoryExport(
       if(
 
         memoryState
-        .tracking
-        .corruptedIds
-        .has(memory.id)
+        ?.tracking
+        ?.corruptedIds
+        ?.has?.(
+          memory.id
+        )
 
       ){
 
@@ -539,14 +771,27 @@ async function createMemoryExport(
       ),
 
       diagnostics:
-      getMemoryDiagnostics(),
+
+        typeof getMemoryDiagnostics ===
+        "function"
+
+        ?
+
+        getMemoryDiagnostics()
+
+        :
+
+        {},
 
       embeddings:
       {
 
         enabled:
-        MEMORY_EMBEDDINGS_CONFIG
-        .ENABLE_EMBEDDINGS
+
+          MEMORY_EMBEDDINGS_CONFIG
+          ?.ENABLE_EMBEDDINGS
+
+          === true
 
       }
 
@@ -578,7 +823,7 @@ async function createMemoryExport(
     }
 
     const compressed =
-    compressExportPayload(
+    await compressExportPayload(
       exportPayload
     );
 
@@ -651,7 +896,7 @@ async function verifyMemoryExport(
 
       ?
 
-      decompressExportPayload(
+      await decompressExportPayload(
         exportPayload
       )
 
@@ -720,6 +965,8 @@ async function verifyMemoryExport(
 
 function createImportTransaction(){
 
+  cleanupExportTransactions();
+
   const transaction = {
 
     id:createMemoryId(),
@@ -737,7 +984,16 @@ function createImportTransaction(){
       memoryState.indexes,
 
       metrics:
-      memoryState.metrics
+      memoryState.metrics,
+
+      tracking:
+      memoryState.tracking,
+
+      runtime:
+      memoryState.runtime,
+
+      cache:
+      memoryState.cache
 
     }),
 
@@ -791,7 +1047,27 @@ function rollbackImportTransaction(
     .metrics
   );
 
+  memoryState.tracking =
+  cloneMemoryObject(
+    transaction.backup
+    .tracking
+  );
+
+  memoryState.runtime =
+  cloneMemoryObject(
+    transaction.backup
+    .runtime
+  );
+
+  memoryState.cache =
+  cloneMemoryObject(
+    transaction.backup
+    .cache
+  );
+
   rebuildMemoryIndexes();
+
+  clearSearchCache();
 
   updateMemoryMetrics();
 
@@ -963,7 +1239,7 @@ async function importMemoryData(
 
       ?
 
-      decompressExportPayload(
+      await decompressExportPayload(
         importPayload
       )
 
@@ -1018,9 +1294,14 @@ async function importMemoryData(
         continue;
       }
 
+      const normalizedId =
+      normalizeMemoryString(
+        importedMemory.id
+      );
+
       if(
         importedIds.has(
-          importedMemory.id
+          normalizedId
         )
       ){
 
@@ -1028,7 +1309,7 @@ async function importMemoryData(
       }
 
       importedIds.add(
-        importedMemory.id
+        normalizedId
       );
 
       const validation =
@@ -1045,7 +1326,7 @@ async function importMemoryData(
 
       const localMemory =
       getMemoryById(
-        importedMemory.id
+        normalizedId
       );
 
       const resolved =
@@ -1066,19 +1347,17 @@ async function importMemoryData(
     }
 
     memoryState.memories =
-    deduplicateMemoryArray([
-
-      ...memoryState.memories,
-
-      ...imported
-
-    ]);
+    deduplicateMemoryArray(
+      imported
+    );
 
     rebuildMemoryIndexes();
 
     rebuildMemoryEmbeddings();
 
     rebuildDirtySummaries();
+
+    clearSearchCache();
 
     updateMemoryMetrics();
 
@@ -1152,20 +1431,21 @@ async function importMemoryData(
 
 async function createIncrementalExport(){
 
-  const dirtyIds = [
+  const dirtyIds =
+  new Set([
 
     ...memoryState
     .tracking
     .dirtyIds
 
-  ];
+  ]);
 
   const memories =
 
     memoryState.memories
     .filter((memory) => {
 
-      return dirtyIds.includes(
+      return dirtyIds.has(
         memory.id
       );
 
@@ -1187,7 +1467,7 @@ async function createIncrementalExport(){
 
 function getMemoryExportDiagnostics(){
 
-  return {
+  return Object.freeze({
 
     initialized:
     memoryExportState
@@ -1259,6 +1539,6 @@ function getMemoryExportDiagnostics(){
     memoryExportState
     .lastRollbackAt
 
-  };
+  });
 
 }
