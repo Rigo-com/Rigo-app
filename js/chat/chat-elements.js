@@ -316,6 +316,21 @@ function setTypingIndicatorElement(
 
   }
 
+  if(
+
+    typeof Element !==
+    "undefined"
+
+    &&
+
+    !(element instanceof Element)
+
+  ){
+
+    return false;
+
+  }
+
   chatElementState
   .elements
   .typingIndicator =
@@ -346,7 +361,21 @@ function clearChatContainer(){
 
   }
 
-  container.replaceChildren();
+  if(
+    typeof container.replaceChildren ===
+    "function"
+  ){
+
+    container.replaceChildren();
+
+  }
+
+  else{
+
+    container.innerHTML =
+    "";
+
+  }
 
   chatElementState
   .typingIndicator =
