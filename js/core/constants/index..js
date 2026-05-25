@@ -1,32 +1,127 @@
 // =====================================
 // RIGO AI
 // CONSTANTS INDEX
+// SAFE CONSTANTS COMPOSITION LAYER
 // =====================================
 
 
 
 // =====================================
-// SAFE ACCESS
+// HELPERS
 // =====================================
 
-function resolveConstant(
-  constantReference
+function getConstant(
+  constantName
 ){
 
-  return (
+  try{
 
-    typeof constantReference !==
-    "undefined"
+    if(
+      typeof window ===
+      "undefined"
+    ){
 
-    ?
+      return null;
 
-    constantReference
+    }
 
-    :
+    const constantValue =
+      window[constantName];
 
-    null
+    if(
+      typeof constantValue ===
+      "undefined"
+    ){
 
-  );
+      console.warn(
+        `[ConstantsAPI] Missing constant: ${constantName}`
+      );
+
+      return null;
+
+    }
+
+    return constantValue;
+
+  }
+
+  catch(error){
+
+    console.warn(
+      `[ConstantsAPI] Failed resolving constant: ${constantName}`,
+      error
+    );
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE FREEZE
+// =====================================
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof Date ||
+    value instanceof RegExp
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    if(
+      nestedValue &&
+      typeof nestedValue ===
+      "object"
+    ){
+
+      safeFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
 
 }
 
@@ -37,7 +132,7 @@ function resolveConstant(
 // =====================================
 
 const ConstantsAPI =
-Object.freeze({
+safeFreeze({
 
 
 
@@ -46,17 +141,8 @@ Object.freeze({
   // ===================================
 
   phases:
-  resolveConstant(
-    typeof APP_PHASES !==
-    "undefined"
-
-    ?
-
-    APP_PHASES
-
-    :
-
-    undefined
+  getConstant(
+    "APP_PHASES"
   ),
 
 
@@ -65,51 +151,24 @@ Object.freeze({
   // RUNTIME
   // ===================================
 
-  runtimeEvents:
-  resolveConstant(
-    typeof RUNTIME_EVENTS !==
-    "undefined"
+  runtime:{
 
-    ?
+    events:
+    getConstant(
+      "RUNTIME_EVENTS"
+    ),
 
-    RUNTIME_EVENTS
+    states:
+    getConstant(
+      "RUNTIME_STATES"
+    ),
 
-    :
+    config:
+    getConstant(
+      "RUNTIME_MANAGER_CONFIG"
+    )
 
-    undefined
-  ),
-
-
-
-  runtimeStates:
-  resolveConstant(
-    typeof RUNTIME_STATES !==
-    "undefined"
-
-    ?
-
-    RUNTIME_STATES
-
-    :
-
-    undefined
-  ),
-
-
-
-  runtimeManager:
-  resolveConstant(
-    typeof RUNTIME_MANAGER_CONFIG !==
-    "undefined"
-
-    ?
-
-    RUNTIME_MANAGER_CONFIG
-
-    :
-
-    undefined
-  ),
+  },
 
 
 
@@ -117,58 +176,31 @@ Object.freeze({
   // SYSTEM EVENTS
   // ===================================
 
-  systemEventConfig:
-  resolveConstant(
-    typeof SYSTEM_EVENTS_CONFIG !==
-    "undefined"
+  systemEvents:{
 
-    ?
+    config:
+    getConstant(
+      "SYSTEM_EVENTS_CONFIG"
+    ),
 
-    SYSTEM_EVENTS_CONFIG
+    priorities:
+    getConstant(
+      "SYSTEM_EVENT_PRIORITIES"
+    ),
 
-    :
+    types:
+    getConstant(
+      "SYSTEM_EVENT_TYPES"
+    )
 
-    undefined
-  ),
-
-
-
-  systemEventPriorities:
-  resolveConstant(
-    typeof SYSTEM_EVENT_PRIORITIES !==
-    "undefined"
-
-    ?
-
-    SYSTEM_EVENT_PRIORITIES
-
-    :
-
-    undefined
-  ),
-
-
-
-  systemEventTypes:
-  resolveConstant(
-    typeof SYSTEM_EVENT_TYPES !==
-    "undefined"
-
-    ?
-
-    SYSTEM_EVENT_TYPES
-
-    :
-
-    undefined
-  )
+  }
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -187,9 +219,11 @@ if(
       value:
       ConstantsAPI,
 
-      writable:false,
+      writable:
+      false,
 
-      configurable:false
+      configurable:
+      false
 
     }
 
