@@ -6,35 +6,56 @@
 
 
 // =====================================
+// MODULE SYSTEM VERSION
+// =====================================
+
+const MODULE_SYSTEM_VERSION =
+"1.0.0";
+
+
+
+// =====================================
 // MODULE CONFIG
 // =====================================
 
 const MODULE_LOADER_CONFIG =
 Object.freeze({
 
-  ENABLE_LAZY_LOADING:true,
+  ENABLE_LAZY_LOADING:
+  true,
 
-  ENABLE_HEALTH_CHECKS:true,
+  ENABLE_HEALTH_CHECKS:
+  true,
 
-  ENABLE_RETRY_LOADING:true,
+  ENABLE_RETRY_LOADING:
+  true,
 
-  ENABLE_DEPENDENCY_GRAPH:true,
+  ENABLE_DEPENDENCY_GRAPH:
+  true,
 
-  ENABLE_FAILURE_ISOLATION:true,
+  ENABLE_FAILURE_ISOLATION:
+  true,
 
-  ENABLE_DIAGNOSTICS:true,
+  ENABLE_DIAGNOSTICS:
+  true,
 
-  ENABLE_RECOVERY:true,
+  ENABLE_RECOVERY:
+  true,
 
-  ENABLE_PARALLEL_LOADING:false,
+  ENABLE_PARALLEL_LOADING:
+  false,
 
-  ENABLE_MODULE_TIMEOUTS:true,
+  ENABLE_MODULE_TIMEOUTS:
+  true,
 
-  ENABLE_ACTIVATION_TIMEOUTS:true,
+  ENABLE_ACTIVATION_TIMEOUTS:
+  true,
 
-  ENABLE_EVENT_BRIDGE:true,
+  ENABLE_EVENT_BRIDGE:
+  true,
 
-  ENABLE_STATE_TRACKING:true,
+  ENABLE_STATE_TRACKING:
+  true,
 
   MAX_MODULES:
   1000,
@@ -44,6 +65,15 @@ Object.freeze({
 
   MAX_BOOT_DEPTH:
   50,
+
+  MAX_DEPENDENCIES:
+  100,
+
+  MAX_EVENT_LISTENERS:
+  500,
+
+  MAX_HEALTH_FAILURES:
+  5,
 
   MODULE_TIMEOUT:
   15000,
@@ -80,6 +110,12 @@ Object.freeze({
   FAILED:
   "failed",
 
+  RECOVERING:
+  "recovering",
+
+  SUSPENDED:
+  "suspended",
+
   DISABLED:
   "disabled",
 
@@ -87,7 +123,10 @@ Object.freeze({
   "unloading",
 
   UNLOADED:
-  "unloaded"
+  "unloaded",
+
+  DESTROYED:
+  "destroyed"
 
 });
 
@@ -161,6 +200,8 @@ Object.freeze({
 const MODULE_PRIORITIES =
 Object.freeze({
 
+  // Lower number = higher priority
+
   CRITICAL:
   1,
 
@@ -184,6 +225,9 @@ Object.freeze({
 const ModuleConstants =
 Object.freeze({
 
+  version:
+  MODULE_SYSTEM_VERSION,
+
   config:
   MODULE_LOADER_CONFIG,
 
@@ -204,7 +248,7 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -212,22 +256,21 @@ if(
   "undefined"
 ){
 
-  window.ModuleConstants =
-  ModuleConstants;
+  Object.defineProperty(
+    window,
+    "ModuleConstants",
+    {
 
-  window.MODULE_LOADER_CONFIG =
-  MODULE_LOADER_CONFIG;
+      value:
+      ModuleConstants,
 
-  window.MODULE_STATES =
-  MODULE_STATES;
+      writable:
+      false,
 
-  window.MODULE_EVENTS =
-  MODULE_EVENTS;
+      configurable:
+      false
 
-  window.MODULE_LIFECYCLES =
-  MODULE_LIFECYCLES;
-
-  window.MODULE_PRIORITIES =
-  MODULE_PRIORITIES;
+    }
+  );
 
 }
