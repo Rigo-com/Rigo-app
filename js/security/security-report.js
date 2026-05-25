@@ -2,6 +2,7 @@
 // RIGO AI
 // SECURITY REPORT
 // ENTERPRISE SECURITY REPORTING LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -17,24 +18,190 @@ function getSafeSecurityReportValue(
 
   try{
 
+    if(
+      typeof callback !==
+      "function"
+    ){
+
+      return fallback;
+
+    }
+
     return callback();
 
   }
 
   catch(error){
 
-    logSecurityEvent(
+    try{
 
-      "SECURITY REPORT SECTION FAILED",
+      logSecurityEvent(
 
-      {
-        error:
-        String(error)
-      }
+        "SECURITY REPORT SECTION FAILED",
+
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
+
+    catch(logError){}
+
+    return fallback;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE SECURITY NUMBER
+// =====================================
+
+function getSafeSecurityNumber(
+  value
+){
+
+  const normalized =
+  Number(value);
+
+  return Number.isFinite(
+    normalized
+  )
+
+  ?
+
+  normalized
+
+  :
+
+  0;
+
+}
+
+
+
+// =====================================
+// SAFE SECURITY SIZE
+// =====================================
+
+function getSafeSecuritySize(
+  value
+){
+
+  try{
+
+    if(
+      value instanceof Map
+    ){
+
+      return value.size;
+
+    }
+
+    if(
+      value instanceof Set
+    ){
+
+      return value.size;
+
+    }
+
+  }
+
+  catch(error){}
+
+  return 0;
+
+}
+
+
+
+// =====================================
+// SECURITY HEALTH
+// =====================================
+
+function getSecurityHealthStatus(
+  report
+){
+
+  try{
+
+    const suspicious =
+    getSafeSecurityNumber(
+
+      report
+      ?.suspiciousActivities
 
     );
 
-    return fallback;
+    const blocked =
+    getSafeSecurityNumber(
+
+      report
+      ?.blockedRequests
+
+    );
+
+    const failedSandbox =
+
+      getSafeSecurityNumber(
+
+        report
+        ?.sandbox
+        ?.failedExecutions
+
+      );
+
+    if(
+
+      suspicious > 100
+
+      ||
+
+      blocked > 100
+
+      ||
+
+      failedSandbox > 25
+
+    ){
+
+      return "critical";
+
+    }
+
+    if(
+
+      suspicious > 25
+
+      ||
+
+      blocked > 25
+
+      ||
+
+      failedSandbox > 10
+
+    ){
+
+      return "warning";
+
+    }
+
+    return "healthy";
+
+  }
+
+  catch(error){
+
+    return "unknown";
 
   }
 
@@ -54,12 +221,14 @@ function generateSecurityReport(){
   const createdAt =
 
     Number.isFinite(
-      securityState.createdAt
+      securityState
+      ?.createdAt
     )
 
     ?
 
-    securityState.createdAt
+    securityState
+    .createdAt
 
     :
 
@@ -73,7 +242,7 @@ function generateSecurityReport(){
     initialized:
     Boolean(
       securityState
-      .initialized
+      ?.initialized
     ),
 
     uptime:
@@ -84,102 +253,93 @@ function generateSecurityReport(){
 
 
 
-    // ================================
+    // =================================
     // CORE METRICS
-    // ================================
+    // =================================
 
     blockedRequests:
-    Number(
+    getSafeSecurityNumber(
+
       securityState
-      .blockedRequests || 0
+      ?.blockedRequests
+
     ),
 
     suspiciousActivities:
-    Number(
+    getSafeSecurityNumber(
+
       securityState
-      .suspiciousActivities || 0
+      ?.suspiciousActivities
+
     ),
 
     sanitizedPayloads:
-    Number(
+    getSafeSecurityNumber(
+
       securityState
-      .sanitizedPayloads || 0
+      ?.sanitizedPayloads
+
     ),
 
     blockedURLs:
-    Number(
+    getSafeSecurityNumber(
+
       securityState
-      .blockedURLs || 0
+      ?.blockedURLs
+
     ),
 
     blockedPrompts:
-    Number(
+    getSafeSecurityNumber(
+
       securityState
-      .blockedPrompts || 0
+      ?.blockedPrompts
+
     ),
 
     rateLimitHits:
-    Number(
+    getSafeSecurityNumber(
+
       securityState
-      .rateLimitHits || 0
+      ?.rateLimitHits
+
     ),
 
 
 
-    // ================================
+    // =================================
     // TRACKING
-    // ================================
+    // =================================
 
     activeRateLimitKeys:
+    getSafeSecuritySize(
 
       securityState
-      .requestTracker instanceof Map
+      ?.requestTracker
 
-      ?
-
-      securityState
-      .requestTracker
-      .size
-
-      :
-
-      0,
+    ),
 
     trustedOrigins:
+    getSafeSecuritySize(
 
       securityState
-      .trustedOrigins instanceof Set
+      ?.trustedOrigins
 
-      ?
-
-      securityState
-      .trustedOrigins
-      .size
-
-      :
-
-      0,
+    ),
 
     blockedPatterns:
+    getSafeSecuritySize(
 
       securityState
-      .blockedPatterns instanceof Set
+      ?.blockedPatterns
 
-      ?
-
-      securityState
-      .blockedPatterns
-      .size
-
-      :
-
-      0,
+    ),
 
 
 
-    // ================================
+    // =================================
     // RUNTIME
-    // ================================
+    // =================================
 
     runtime:
     getSafeSecurityReportValue(() => {
@@ -208,9 +368,9 @@ function generateSecurityReport(){
 
 
 
-    // ================================
+    // =================================
     // MONITOR
-    // ================================
+    // =================================
 
     monitor:
     getSafeSecurityReportValue(() => {
@@ -239,9 +399,9 @@ function generateSecurityReport(){
 
 
 
-    // ================================
+    // =================================
     // SANDBOX
-    // ================================
+    // =================================
 
     sandbox:
     getSafeSecurityReportValue(() => {
@@ -270,9 +430,9 @@ function generateSecurityReport(){
 
 
 
-    // ================================
+    // =================================
     // POLICY
-    // ================================
+    // =================================
 
     policy:
     getSafeSecurityReportValue(() => {
@@ -300,6 +460,17 @@ function generateSecurityReport(){
     })
 
   };
+
+
+
+  // ===================================
+  // HEALTH STATUS
+  // ===================================
+
+  report.health =
+  getSecurityHealthStatus(
+    report
+  );
 
   return deepFreezeSecurity(
     report
@@ -332,9 +503,13 @@ function exportSecurityReport(){
     }
 
     return JSON.stringify(
+
       report,
+
       null,
+
       2
+
     );
 
   }
@@ -346,8 +521,10 @@ function exportSecurityReport(){
       "SECURITY REPORT EXPORT FAILED",
 
       {
+
         error:
         String(error)
+
       }
 
     );
@@ -411,8 +588,10 @@ function printSecurityReport(){
       "SECURITY REPORT PRINT FAILED",
 
       {
+
         error:
         String(error)
+
       }
 
     );
@@ -442,3 +621,37 @@ Object.freeze({
   printSecurityReport
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SecurityReport",
+
+    {
+
+      value:
+      SecurityReport,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
