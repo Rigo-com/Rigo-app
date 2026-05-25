@@ -28,6 +28,11 @@ async function enqueueCommunicationMessage(
 
   }
 
+  const payloadHash =
+  createMessageHash(
+    payload
+  );
+
   const duplicate =
 
     communicationRuntimeState
@@ -35,8 +40,12 @@ async function enqueueCommunicationMessage(
     .some((message) => {
 
       return (
-        message.content ===
-        payload.content
+
+        createMessageHash(
+          message
+        ) ===
+        payloadHash
+
       );
 
     });
@@ -122,10 +131,13 @@ async function processCommunicationQueue(){
       const payload =
 
         communicationRuntimeState
-        .messageQueue
-        .shift();
+        .messageQueue[0];
 
       if(!payload){
+
+        communicationRuntimeState
+        .messageQueue
+        .shift();
 
         continue;
 
@@ -137,6 +149,10 @@ async function processCommunicationQueue(){
           payload
         );
 
+        communicationRuntimeState
+        .messageQueue
+        .shift();
+
       }
 
       catch(error){
@@ -144,6 +160,20 @@ async function processCommunicationQueue(){
         communicationRuntimeState
         .diagnostics
         .failed++;
+
+        if(
+          COMMUNICATION_RUNTIME_CONFIG
+          .DEBUG
+        ){
+
+          console.error(
+            "COMMUNICATION_QUEUE_ERROR:",
+            error
+          );
+
+        }
+
+        break;
 
       }
 
