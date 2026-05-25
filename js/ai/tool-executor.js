@@ -1,8 +1,7 @@
 // =====================================
 // RIGO AI
 // TOOL EXECUTOR
-// ENTERPRISE EXECUTION ENGINE
-// FINAL STABLE EDITION
+// FULL HARDENED PRODUCTION EXECUTION RUNTIME
 // =====================================
 
 
@@ -32,6 +31,10 @@ Object.freeze({
 
   ENABLE_EXECUTION_HISTORY:true,
 
+  ENABLE_ABORT_CONTROLLERS:true,
+
+  ENABLE_EXECUTION_CANCELLATION:true,
+
   MAX_TOOLS:1000,
 
   MAX_QUEUE_SIZE:5000,
@@ -47,6 +50,9 @@ Object.freeze({
   MAX_HISTORY:500,
 
   MAX_PAYLOAD_SIZE:100000,
+
+  MAX_PERMISSION_CACHE:
+  1000,
 
   CIRCUIT_BREAKER_THRESHOLD:5,
 
@@ -87,7 +93,11 @@ Object.seal({
 
   initializing:false,
 
+  shuttingDown:false,
+
   startupPromise:null,
+
+  queueProcessorPromise:null,
 
   processing:false,
 
@@ -161,6 +171,35 @@ function normalizeToolName(
 
 function createExecutionId(){
 
+  try{
+
+    if(
+
+      typeof crypto !==
+      "undefined"
+
+      &&
+
+      typeof crypto
+      .randomUUID ===
+      "function"
+
+    ){
+
+      return (
+
+        "exec_" +
+
+        crypto.randomUUID()
+
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
   return (
 
     "exec_" +
@@ -179,15 +218,55 @@ function createExecutionId(){
 
 
 
-function safeClone(
+function cloneToolObject(
   value
 ){
 
   try{
 
-    return JSON.parse(
-      JSON.stringify(value)
-    );
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  try{
+
+    if(
+      Array.isArray(value)
+    ){
+
+      return [
+        ...value
+      ];
+
+    }
+
+    if(
+
+      value &&
+
+      typeof value ===
+      "object"
+
+    ){
+
+      return {
+        ...value
+      };
+
+    }
+
+    return value;
 
   }
 
@@ -224,9 +303,27 @@ function freezeToolObject(
 
   }
 
-  visited.add(value);
+  if(
 
-  Object.freeze(value);
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet ||
+
+    value instanceof AbortController ||
+
+    value instanceof AbortSignal
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
 
   Object.values(value)
   .forEach((nested) => {
@@ -238,7 +335,9 @@ function freezeToolObject(
 
   });
 
-  return value;
+  return Object.freeze(
+    value
+  );
 
 }
 
@@ -277,6 +376,39 @@ function trimExecutionHistory(){
     toolExecutorState
     .executionHistory
     .shift();
+
+  }
+
+}
+
+
+
+function trimPermissionCache(){
+
+  while(
+
+    toolExecutorState
+    .permissionCache
+    .size >
+
+    TOOL_EXECUTOR_CONFIG
+    .MAX_PERMISSION_CACHE
+
+  ){
+
+    const firstKey =
+
+      toolExecutorState
+      .permissionCache
+      .keys()
+      .next()
+      .value;
+
+    toolExecutorState
+    .permissionCache
+    .delete(
+      firstKey
+    );
 
   }
 
@@ -482,87 +614,103 @@ function createToolObject(
   config = {}
 ){
 
-  return freezeToolObject({
+  const runtime = {
 
-    id:
-    normalizeToolName(
+    executions:0,
 
-      config.id ||
+    failures:0,
 
-      config.name ||
+    lastExecutedAt:null
 
-      "tool"
+  };
 
-    ),
+  return {
 
-    name:
+    ...freezeToolObject({
 
-      String(
+      id:
+      normalizeToolName(
+
+        config.id ||
+
         config.name ||
+
         "tool"
+
       ),
 
-    description:
+      name:
 
-      String(
-        config.description ||
-        ""
-      ),
+        String(
+          config.name ||
+          "tool"
+        ),
 
-    permissions:
+      description:
 
-      Array.isArray(
-        config.permissions
-      )
+        String(
+          config.description ||
+          ""
+        ),
 
-      ? [...config.permissions]
+      permissions:
 
-      : [],
+        Array.isArray(
+          config.permissions
+        )
 
-    priority:
+        ? [...config.permissions]
 
-      Number(
-        config.priority
-      )
+        : [],
 
-      ||
+      priority:
 
-      TOOL_PRIORITIES
-      .NORMAL,
+        Number(
+          config.priority
+        )
 
-    timeout:
+        ||
 
-      Number(
-        config.timeout
-      )
+        TOOL_PRIORITIES
+        .NORMAL,
 
-      ||
+      timeout:
 
-      TOOL_EXECUTOR_CONFIG
-      .EXECUTION_TIMEOUT,
+        Number(
+          config.timeout
+        )
 
-    retries:
+        ||
 
-      Number(
-        config.retries
-      )
+        TOOL_EXECUTOR_CONFIG
+        .EXECUTION_TIMEOUT,
 
-      ||
+      retries:
 
-      TOOL_EXECUTOR_CONFIG
-      .MAX_RETRIES,
+        Number(
+          config.retries
+        )
 
-    sandboxed:
-    config.sandboxed !==
-    false,
+        ||
 
-    execute:
-    config.execute,
+        TOOL_EXECUTOR_CONFIG
+        .MAX_RETRIES,
 
-    createdAt:
-    Date.now()
+      sandboxed:
+      config.sandboxed !==
+      false,
 
-  });
+      execute:
+      config.execute,
+
+      createdAt:
+      Date.now()
+
+    }),
+
+    runtime
+
+  };
 
 }
 
@@ -575,6 +723,15 @@ function createToolObject(
 async function registerTool(
   config = {}
 ){
+
+  if(
+    toolExecutorState
+    .shuttingDown
+  ){
+
+    return false;
+
+  }
 
   if(
 
@@ -630,7 +787,9 @@ async function registerTool(
   .diagnostics
   .registered++;
 
-  return tool;
+  return freezeToolObject(
+    cloneToolObject(tool)
+  );
 
 }
 
@@ -701,6 +860,8 @@ function validatePermissions(
     valid
   );
 
+  trimPermissionCache();
+
   return valid;
 
 }
@@ -713,7 +874,8 @@ function validatePermissions(
 
 async function executeWithTimeout(
   callback,
-  timeout
+  timeout,
+  controller = null
 ){
 
   let timeoutId =
@@ -726,6 +888,9 @@ async function executeWithTimeout(
 
       timeoutId =
       setTimeout(() => {
+
+        controller
+        ?.abort();
 
         reject(
 
@@ -873,21 +1038,40 @@ async function executeTool(
   const executionId =
   createExecutionId();
 
+  const controller =
+
+    TOOL_EXECUTOR_CONFIG
+    .ENABLE_ABORT_CONTROLLERS
+
+    ?
+
+    new AbortController()
+
+    :
+
+    null;
+
   toolExecutorState
   .activeExecutions
   .set(
 
     executionId,
 
-    freezeToolObject({
+    {
 
       toolId:
       normalizedId,
 
       startedAt:
-      Date.now()
+      Date.now(),
 
-    })
+      controller,
+
+      retries:0,
+
+      status:"running"
+
+    }
 
   );
 
@@ -902,6 +1086,18 @@ async function executeTool(
       attempts++;
 
       try{
+
+        if(
+          controller
+          ?.signal
+          ?.aborted
+        ){
+
+          throw new Error(
+            "EXECUTION_ABORTED"
+          );
+
+        }
 
         let result = null;
 
@@ -927,10 +1123,18 @@ async function executeTool(
             return tool.execute({
 
               payload:
-              safeClone(payload),
+              cloneToolObject(
+                payload
+              ),
 
               context:
-              safeClone(context)
+              cloneToolObject(
+                context
+              ),
+
+              signal:
+              controller
+              ?.signal || null
 
             });
 
@@ -972,16 +1176,26 @@ async function executeTool(
               return tool.execute({
 
                 payload:
-                safeClone(payload),
+                cloneToolObject(
+                  payload
+                ),
 
                 context:
-                safeClone(context)
+                cloneToolObject(
+                  context
+                ),
+
+                signal:
+                controller
+                ?.signal || null
 
               });
 
             },
 
-            tool.timeout
+            tool.timeout,
+
+            controller
 
           );
 
@@ -990,6 +1204,13 @@ async function executeTool(
         resetCircuitBreaker(
           normalizedId
         );
+
+        tool.runtime
+        .executions++;
+
+        tool.runtime
+        .lastExecutedAt =
+        Date.now();
 
         toolExecutorState
         .executionHistory
@@ -1001,6 +1222,15 @@ async function executeTool(
           normalizedId,
 
           success:true,
+
+          duration:
+
+            Date.now() -
+
+            toolExecutorState
+            .activeExecutions
+            .get(executionId)
+            .startedAt,
 
           timestamp:
           Date.now()
@@ -1024,7 +1254,9 @@ async function executeTool(
           executionId,
 
           result:
-          safeClone(result),
+          cloneToolObject(
+            result
+          ),
 
           timestamp:
           Date.now()
@@ -1038,6 +1270,9 @@ async function executeTool(
         registerCircuitFailure(
           normalizedId
         );
+
+        tool.runtime
+        .failures++;
 
         toolExecutorState
         .diagnostics
@@ -1053,6 +1288,19 @@ async function executeTool(
           toolExecutorState
           .diagnostics
           .timedOut++;
+
+        }
+
+        if(
+
+          String(error)
+          .includes("ABORTED")
+
+        ){
+
+          toolExecutorState
+          .diagnostics
+          .cancelled++;
 
         }
 
@@ -1129,6 +1377,43 @@ async function executeTool(
 
 
 // =====================================
+// EXECUTION CANCELLATION
+// =====================================
+
+async function cancelExecution(
+  executionId
+){
+
+  const execution =
+  toolExecutorState
+  .activeExecutions
+  .get(
+    executionId
+  );
+
+  if(!execution){
+
+    return false;
+
+  }
+
+  execution.controller
+  ?.abort();
+
+  execution.status =
+  "cancelled";
+
+  toolExecutorState
+  .diagnostics
+  .cancelled++;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // PRIORITY QUEUE
 // =====================================
 
@@ -1154,9 +1439,7 @@ function queueExecution(
 
   }
 
-  toolExecutorState
-  .executionQueue
-  .push({
+  const queuedExecution = {
 
     id:
     createExecutionId(),
@@ -1164,17 +1447,27 @@ function queueExecution(
     toolId,
 
     payload:
-    safeClone(payload),
+    cloneToolObject(
+      payload
+    ),
 
     context:
-    safeClone(context),
+    cloneToolObject(
+      context
+    ),
 
     priority,
 
     createdAt:
     Date.now()
 
-  });
+  };
+
+  toolExecutorState
+  .executionQueue
+  .push(
+    queuedExecution
+  );
 
   toolExecutorState
   .executionQueue
@@ -1191,7 +1484,20 @@ function queueExecution(
   .diagnostics
   .queued++;
 
-  return true;
+  return freezeToolObject({
+
+    queued:true,
+
+    queueId:
+    queuedExecution.id,
+
+    position:
+
+      toolExecutorState
+      .executionQueue
+      .length
+
+  });
 
 }
 
@@ -1221,8 +1527,12 @@ async function processExecutionQueue(){
     while(
 
       toolExecutorState
-      .executionQueue
-      .length > 0
+      .initialized
+
+      &&
+
+      !toolExecutorState
+      .shuttingDown
 
     ){
 
@@ -1257,7 +1567,8 @@ async function processExecutionQueue(){
 
           queued.context
 
-        );
+        )
+        .catch(() => {});
 
       }
 
@@ -1278,6 +1589,24 @@ async function processExecutionQueue(){
     false;
 
   }
+
+}
+
+
+
+// =====================================
+// TOOL LIST
+// =====================================
+
+function listTools(){
+
+  return freezeToolObject([
+
+    ...toolExecutorState
+    .tools
+    .values()
+
+  ]);
 
 }
 
@@ -1320,7 +1649,7 @@ function getToolDiagnostics(){
       .length,
 
     diagnostics:
-    safeClone(
+    cloneToolObject(
 
       toolExecutorState
       .diagnostics
@@ -1342,6 +1671,21 @@ function getToolDiagnostics(){
 // =====================================
 
 async function resetToolExecutor(){
+
+  for(
+    const executionId
+    of
+    toolExecutorState
+    .activeExecutions
+    .keys()
+  ){
+
+    cancelExecution(
+      executionId
+    )
+    .catch(() => {});
+
+  }
 
   toolExecutorState
   .tools
@@ -1375,6 +1719,43 @@ async function resetToolExecutor(){
 
   toolExecutorState
   .processing = false;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownToolExecutor(){
+
+  toolExecutorState
+  .shuttingDown =
+  true;
+
+  for(
+    const executionId
+    of
+    toolExecutorState
+    .activeExecutions
+    .keys()
+  ){
+
+    cancelExecution(
+      executionId
+    )
+    .catch(() => {});
+
+  }
+
+  await resetToolExecutor();
+
+  toolExecutorState
+  .initialized =
+  false;
 
   return true;
 
@@ -1431,6 +1812,12 @@ async function initializeToolExecutor(){
       .initialized =
       true;
 
+      toolExecutorState
+      .shuttingDown =
+      false;
+
+      toolExecutorState
+      .queueProcessorPromise =
       processExecutionQueue();
 
       if(
@@ -1555,17 +1942,26 @@ Object.freeze({
   initialize:
   initializeToolExecutor,
 
+  shutdown:
+  shutdownToolExecutor,
+
   register:
   registerTool,
 
   execute:
   executeTool,
 
+  cancel:
+  cancelExecution,
+
   queue:
   queueExecution,
 
   processQueue:
   processExecutionQueue,
+
+  list:
+  listTools,
 
   diagnostics:
   getToolDiagnostics,
@@ -1580,3 +1976,27 @@ Object.freeze({
   resetToolExecutor
 
 });
+
+
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.ToolExecutor =
+  ToolExecutor;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.ToolExecutor =
+  ToolExecutor;
+
+}
