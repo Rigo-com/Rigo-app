@@ -1,28 +1,29 @@
 // =====================================
 // RIGO AI
 // MODULE ACTIVATION
+// PURE EXECUTION LAYER
 // =====================================
 
 
 
 // =====================================
-// CIRCULAR CHECK
+// CIRCUIT SAFETY
 // =====================================
 
 function detectModuleCircularDependency(moduleName){
 
-  const normalized = normalizeModuleName(moduleName);
+  const name = normalizeModuleName(moduleName);
 
   return moduleLoaderState.loadingStack
     .map(normalizeModuleName)
-    .includes(normalized);
+    .includes(name);
 
 }
 
 
 
 // =====================================
-// SAFE EVENT
+// SAFE EVENT EMITTER
 // =====================================
 
 async function emitModuleEvent(eventName, payload = {}){
@@ -34,7 +35,7 @@ async function emitModuleEvent(eventName, payload = {}){
     }
 
     await emitSystemEvent(eventName, {
-      source:"module-loader",
+      source:"module-activation",
       timestamp:Date.now(),
       ...payload
     });
@@ -50,7 +51,7 @@ async function emitModuleEvent(eventName, payload = {}){
 
 
 // =====================================
-// TIMEOUT
+// TIMEOUT WRAPPER
 // =====================================
 
 function createModuleTimeout(timeout){
@@ -60,9 +61,7 @@ function createModuleTimeout(timeout){
   return new Promise((_, reject) => {
 
     setTimeout(() => {
-
       reject(new Error("MODULE TIMEOUT"));
-
     }, t);
 
   });
@@ -72,7 +71,7 @@ function createModuleTimeout(timeout){
 
 
 // =====================================
-// CONTEXT
+// MODULE CONTEXT (READ ONLY)
 // =====================================
 
 function createModuleContext(moduleDefinition){
@@ -91,73 +90,39 @@ function createModuleContext(moduleDefinition){
 
 
 // =====================================
-// LOAD DEPENDENCIES (SAFE)
-// =====================================
-
-async function loadModuleDependencies(dependencies = []){
-
-  for(const dep of dependencies){
-
-    const name = normalizeModuleName(dep);
-
-    const module = moduleLoaderState.modules.get(name);
-
-    if(!module){
-      throw new Error("MISSING DEPENDENCY: " + name);
-    }
-
-    const loaded = await loadModule(name);
-
-    if(!loaded){
-      return false;
-    }
-
-  }
-
-  await emitModuleEvent(
-    MODULE_EVENTS.DEPENDENCIES_RESOLVED,
-    { dependencies }
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// ACTIVATE MODULE
+// EXECUTE MODULE (ONLY FACTORY RUN)
 // =====================================
 
 async function activateModule(moduleDefinition){
 
+  const startedAt = Date.now();
+
+  const context = createModuleContext(moduleDefinition);
+
   try{
 
-    const startedAt = Date.now();
-
-    const moduleContext = createModuleContext(moduleDefinition);
-
-    const moduleInstance = await Promise.race([
+    const instance = await Promise.race([
 
       moduleDefinition.factory({
-        module: moduleContext,
+        module: context,
         container: DependencyContainer,
-        dependencies: DependencySystem,
         state: StateManager,
         diagnostics: DiagnosticsRuntime,
         events: SystemEvents
       }),
 
-      createModuleTimeout(
+/* timeout */ createModuleTimeout(
         MODULE_LOADER_CONFIG.ACTIVATION_TIMEOUT
       )
 
     ]);
 
-    moduleLoaderState.instances.set(
-      moduleDefinition.metadata.name,
-      moduleInstance
-    );
+    if(instance && typeof moduleLoaderState.instances !== "undefined"){
+      moduleLoaderState.instances.set(
+        moduleDefinition.metadata.name,
+        instance
+      );
+    }
 
     moduleLoaderState.activeModules.add(
       moduleDefinition.metadata.name
@@ -167,16 +132,12 @@ async function activateModule(moduleDefinition){
       moduleDefinition.metadata.name
     );
 
-    moduleLoaderState.diagnostics.activated++;
-
     if(typeof trackPerformanceMetric === "function"){
-
       trackPerformanceMetric(
         "module.activation",
         Date.now() - startedAt,
         { module: moduleDefinition.metadata.name }
       );
-
     }
 
     await emitModuleEvent(
@@ -184,15 +145,13 @@ async function activateModule(moduleDefinition){
       { module: moduleDefinition.metadata.name }
     );
 
-    return moduleInstance;
+    return instance;
 
   }catch(error){
 
     moduleLoaderState.failedModules.add(
       moduleDefinition.metadata.name
     );
-
-    moduleLoaderState.diagnostics.failed++;
 
     if(typeof logDiagnosticError === "function"){
 
@@ -215,7 +174,7 @@ async function activateModule(moduleDefinition){
 
 
 // =====================================
-// LOAD MODULE
+// LOAD MODULE (ORCHESTRATED EXECUTION ONLY)
 // =====================================
 
 async function loadModule(moduleName){
@@ -242,17 +201,10 @@ async function loadModule(moduleName){
 
     moduleDefinition.state = MODULE_STATES.LOADING;
 
-    const deps = await loadModuleDependencies(
-      moduleDefinition.metadata.dependencies
-    );
+    // dependencies are assumed pre-resolved by loader layer
+    const instance = await activateModule(moduleDefinition);
 
-    if(!deps){
-      throw new Error("DEPENDENCY LOAD FAILED");
-    }
-
-    const activated = await activateModule(moduleDefinition);
-
-    if(!activated){
+    if(!instance){
       throw new Error("ACTIVATION FAILED");
     }
 
@@ -285,21 +237,6 @@ async function loadModule(moduleName){
 
     }
 
-    if(
-      MODULE_LOADER_CONFIG.ENABLE_RETRY_LOADING &&
-      moduleDefinition.retries < MODULE_LOADER_CONFIG.MAX_RETRIES
-    ){
-
-      await new Promise(r => setTimeout(r, MODULE_LOADER_CONFIG.RETRY_DELAY));
-      return loadModule(name);
-
-    }
-
-    await emitModuleEvent(MODULE_EVENTS.FAILED, {
-      module: name,
-      error: String(error)
-    });
-
     return false;
 
   }finally{
@@ -314,7 +251,7 @@ async function loadModule(moduleName){
 
 
 // =====================================
-// UNLOAD MODULE (SAFE GRAPH)
+// UNLOAD MODULE (EXECUTION CLEANUP ONLY)
 // =====================================
 
 async function unloadModule(moduleName){
@@ -325,17 +262,13 @@ async function unloadModule(moduleName){
 
   if(!moduleLoaderState.modules.has(name)) return false;
 
-  const moduleDefinition = moduleLoaderState.modules.get(name);
-
-  moduleDefinition.state = MODULE_STATES.UNLOADING;
-
-  await emitModuleEvent(MODULE_EVENTS.UNLOADING, { module: name });
-
   const instance = moduleLoaderState.instances.get(name);
 
   if(instance?.destroy){
 
-    try{ await instance.destroy(); }catch{}
+    try{
+      await instance.destroy();
+    }catch{}
 
   }
 
@@ -343,9 +276,15 @@ async function unloadModule(moduleName){
   moduleLoaderState.activeModules.delete(name);
   moduleLoaderState.failedModules.delete(name);
 
-  moduleDefinition.state = MODULE_STATES.UNLOADED;
+  await emitModuleEvent(
+    MODULE_EVENTS.UNLOADING,
+    { module: name }
+  );
 
-  await emitModuleEvent(MODULE_EVENTS.UNLOADED, { module: name });
+  await emitModuleEvent(
+    MODULE_EVENTS.UNLOADED,
+    { module: name }
+  );
 
   return true;
 
