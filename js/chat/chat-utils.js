@@ -1,8 +1,8 @@
 // =====================================
-// SAFE CLONE
+// SAFE CHAT CLONE
 // =====================================
 
-function safeClone(
+function safeChatClone(
   value
 ){
 
@@ -41,7 +41,7 @@ function safeClone(
   catch(error){
 
     safeLogError?.(
-      "SAFE CLONE ERROR:",
+      "SAFE CHAT CLONE ERROR:",
       error
     );
 
