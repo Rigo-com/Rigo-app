@@ -12,11 +12,43 @@
 
 function normalizeModuleLoaderError(error){
 
-  if(typeof getSafeErrorMessage === "function"){
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
     return getSafeErrorMessage(error);
+
   }
 
-  return String(error || "UNKNOWN ERROR");
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+function isFunction(value){
+
+  return typeof value === "function";
+
+}
+
+
+
+function safeFreeze(value){
+
+  if(
+    typeof freezeModuleObject ===
+    "function"
+  ){
+
+    return freezeModuleObject(value);
+
+  }
+
+  return Object.freeze(value);
 
 }
 
@@ -28,33 +60,67 @@ function normalizeModuleLoaderError(error){
 
 function createModuleLoaderPublicSnapshot(){
 
-  if(typeof createModuleLoaderSnapshot !== "function"){
+  if(
+    !isFunction(createModuleLoaderSnapshot)
+  ){
     return null;
   }
 
-  return createModuleLoaderSnapshot();
+  try{
+
+    return createModuleLoaderSnapshot();
+
+  }catch(error){
+
+    console.error(
+      "[ModuleLoader] Snapshot failed:",
+      normalizeModuleLoaderError(error)
+    );
+
+    return null;
+
+  }
 
 }
 
 
 
 // =====================================
-// RECOVERY (DELEGATED ONLY)
+// RECOVERY (DELEGATED)
 // =====================================
 
 async function recoverModule(moduleName){
 
-  const normalizedName = normalizeModuleName(moduleName);
+  const normalizedName =
+    normalizeModuleName(moduleName);
 
   if(!normalizedName){
     return false;
   }
 
-  if(typeof recoverModuleRuntime === "function"){
-    return await recoverModuleRuntime();
+  if(
+    !isFunction(recoverModuleRuntime)
+  ){
+    return false;
   }
 
-  return false;
+  try{
+
+    return await recoverModuleRuntime(
+      normalizedName
+    );
+
+  }catch(error){
+
+    console.error(
+      "[ModuleLoader] Recovery failed:",
+      normalizedName,
+      normalizeModuleLoaderError(error)
+    );
+
+    return false;
+
+  }
 
 }
 
@@ -64,43 +130,90 @@ async function recoverModule(moduleName){
 // INSTANCE ACCESS
 // =====================================
 
-function getModuleInstance(moduleName){
+function getModuleLoaderInstance(moduleName){
 
-  const normalizedName = normalizeModuleName(moduleName);
+  const normalizedName =
+    normalizeModuleName(moduleName);
 
   if(!normalizedName){
     return null;
   }
 
-  return moduleLoaderState?.instances?.get(normalizedName) || null;
+  if(
+    typeof ModuleRegistry !== "undefined" &&
+    isFunction(ModuleRegistry.getModuleInstance)
+  ){
+
+    return ModuleRegistry.getModuleInstance(
+      normalizedName
+    );
+
+  }
+
+  return null;
 
 }
 
 
 
 // =====================================
-// MODULE STATUS (READ ONLY INSPECTOR)
+// MODULE STATUS
 // =====================================
 
 function getModuleStatus(moduleName){
 
-  const moduleDefinition = getRegisteredModule(moduleName);
+  if(
+    !isFunction(getRegisteredModule)
+  ){
+    return null;
+  }
+
+  const moduleDefinition =
+    getRegisteredModule(moduleName);
 
   if(!moduleDefinition){
     return null;
   }
 
-  return freezeModuleObject({
+  return safeFreeze({
 
-    name: moduleDefinition.metadata.name,
-    state: moduleDefinition.state,
-    retries: moduleDefinition.retries,
+    name:
+    moduleDefinition.metadata.name,
 
-    dependencies: moduleDefinition.metadata.dependencies,
+    state:
+    moduleDefinition.state,
 
-    active: moduleLoaderState.activeModules.has(moduleDefinition.metadata.name),
+    retries:
+    moduleDefinition.retries,
 
-    failed: moduleLoaderState.failedModules.has(moduleDefinition.metadata.name)
+    dependencies:
+    moduleDefinition.metadata.dependencies,
+
+    lifecycle:
+    moduleDefinition.metadata.lifecycle,
+
+    priority:
+    moduleDefinition.metadata.priority,
+
+    lazy:
+    moduleDefinition.metadata.lazy,
+
+    createdAt:
+    moduleDefinition.metadata.createdAt,
+
+    active:
+    typeof moduleLoaderState !== "undefined"
+      ? moduleLoaderState.activeModules.has(
+          moduleDefinition.metadata.name
+        )
+      : false,
+
+    failed:
+    typeof moduleLoaderState !== "undefined"
+      ? moduleLoaderState.failedModules.has(
+          moduleDefinition.metadata.name
+        )
+      : false
 
   });
 
@@ -109,35 +222,149 @@ function getModuleStatus(moduleName){
 
 
 // =====================================
-// PUBLIC API (FACADE ONLY)
+// SAFE WRAPPERS
 // =====================================
 
-const ModuleLoader = Object.freeze({
+async function safeInitializeModuleLoader(){
 
-  initialize: initializeModuleLoader,
-  register: registerModule,
-  load: loadModule,
-  unload: unloadModule,
-  reset: resetModuleLoader,
+  if(
+    !isFunction(initializeModuleLoader)
+  ){
+    return false;
+  }
 
-  health: getModuleHealth,
-  snapshot: createModuleLoaderPublicSnapshot,
+  return await initializeModuleLoader();
 
-  recover: recoverModule,
+}
 
-  status: getModuleStatus,
-  instance: getModuleInstance
+
+
+async function safeRegisterModule(
+  ...args
+){
+
+  if(
+    !isFunction(registerModule)
+  ){
+    return false;
+  }
+
+  return await registerModule(...args);
+
+}
+
+
+
+async function safeLoadModule(
+  ...args
+){
+
+  if(
+    !isFunction(loadModule)
+  ){
+    return false;
+  }
+
+  return await loadModule(...args);
+
+}
+
+
+
+async function safeUnloadModule(
+  ...args
+){
+
+  if(
+    !isFunction(unloadModule)
+  ){
+    return false;
+  }
+
+  return await unloadModule(...args);
+
+}
+
+
+
+async function safeResetModuleLoader(){
+
+  if(
+    !isFunction(resetModuleLoader)
+  ){
+    return false;
+  }
+
+  return await resetModuleLoader();
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ModuleLoader =
+Object.freeze({
+
+  initialize:
+  safeInitializeModuleLoader,
+
+  register:
+  safeRegisterModule,
+
+  load:
+  safeLoadModule,
+
+  unload:
+  safeUnloadModule,
+
+  reset:
+  safeResetModuleLoader,
+
+  health:
+  typeof getModuleHealth === "function"
+    ? getModuleHealth
+    : () => null,
+
+  snapshot:
+  createModuleLoaderPublicSnapshot,
+
+  recover:
+  recoverModule,
+
+  status:
+  getModuleStatus,
+
+  instance:
+  getModuleLoaderInstance
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(typeof window !== "undefined"){
 
-  window.ModuleLoader = ModuleLoader;
+  Object.defineProperty(
+    window,
+    "ModuleLoader",
+    {
+
+      value:
+      ModuleLoader,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+  );
 
 }
