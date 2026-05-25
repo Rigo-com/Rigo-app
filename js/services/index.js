@@ -2,8 +2,28 @@
 // RIGO AI
 // SERVICES INDEX
 // ENTERPRISE SERVICE RUNTIME
-// FINAL STABLE EDITION
+// FINAL STABILIZED EDITION
 // =====================================
+
+
+
+// =====================================
+// SERVICES CONFIG
+// =====================================
+
+const SERVICES_RUNTIME_CONFIG =
+Object.freeze({
+
+  INIT_TIMEOUT:
+  15000,
+
+  ENABLE_LOGGING:true,
+
+  ENABLE_EVENTS:true,
+
+  ENABLE_HEALTHCHECK:true
+
+});
 
 
 
@@ -18,9 +38,15 @@ Object.seal({
 
   initializing:false,
 
+  shuttingDown:false,
+
   crashed:false,
 
   initializedAt:null,
+
+  shutdownAt:null,
+
+  startupPromise:null,
 
   lastError:null,
 
@@ -47,7 +73,9 @@ Object.freeze([
 
     required:true,
 
-    initialize(){
+    dependencies:[],
+
+    async initialize(){
 
       return (
 
@@ -62,10 +90,16 @@ Object.freeze([
 
         &&
 
-        ServiceRegistry
+        await ServiceRegistry
         .initialize()
 
       );
+
+    },
+
+    async shutdown(){
+
+      return true;
 
     }
 
@@ -79,7 +113,11 @@ Object.freeze([
 
     required:true,
 
-    initialize(){
+    dependencies:[
+      "registry"
+    ],
+
+    async initialize(){
 
       return (
 
@@ -94,10 +132,34 @@ Object.freeze([
 
         &&
 
-        APIService
+        await APIService
         .initialize()
 
       );
+
+    },
+
+    async shutdown(){
+
+      if(
+
+        typeof APIService !==
+        "undefined"
+
+        &&
+
+        typeof APIService
+        .cancelAll ===
+        "function"
+
+      ){
+
+        APIService
+        .cancelAll();
+
+      }
+
+      return true;
 
     }
 
@@ -111,7 +173,12 @@ Object.freeze([
 
     required:true,
 
-    initialize(){
+    dependencies:[
+      "registry",
+      "api"
+    ],
+
+    async initialize(){
 
       return (
 
@@ -126,10 +193,34 @@ Object.freeze([
 
         &&
 
-        AIService
+        await AIService
         .initialize()
 
       );
+
+    },
+
+    async shutdown(){
+
+      if(
+
+        typeof AIService !==
+        "undefined"
+
+        &&
+
+        typeof AIService
+        .abort ===
+        "function"
+
+      ){
+
+        AIService
+        .abort();
+
+      }
+
+      return true;
 
     }
 
@@ -147,6 +238,17 @@ function logServicesInfo(
   message,
   metadata = null
 ){
+
+  if(
+
+    SERVICES_RUNTIME_CONFIG
+    .ENABLE_LOGGING !== true
+
+  ){
+
+    return false;
+
+  }
 
   try{
 
@@ -169,7 +271,7 @@ function logServicesInfo(
 
       );
 
-      return;
+      return true;
 
     }
 
@@ -190,6 +292,8 @@ function logServicesInfo(
     console.error(error);
 
   }
+
+  return true;
 
 }
 
@@ -221,7 +325,7 @@ function logServicesError(
 
       );
 
-      return;
+      return true;
 
     }
 
@@ -242,6 +346,108 @@ function logServicesError(
     console.error(error);
 
   }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// EVENTS
+// =====================================
+
+async function emitServicesEvent(
+  eventName,
+  payload = {}
+){
+
+  if(
+
+    !SERVICES_RUNTIME_CONFIG
+    .ENABLE_EVENTS
+
+  ){
+
+    return false;
+
+  }
+
+  try{
+
+    if(
+      typeof emitRuntimeEvent ===
+      "function"
+    ){
+
+      await emitRuntimeEvent(
+        eventName,
+        payload
+      );
+
+    }
+
+  }
+
+  catch(error){
+
+    logServicesError(
+
+      "EVENT_EMIT_FAILED",
+
+      {
+
+        event:eventName,
+
+        error:String(error)
+
+      }
+
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// TIMEOUT WRAPPER
+// =====================================
+
+async function executeServiceWithTimeout(
+  callback,
+  timeout =
+  SERVICES_RUNTIME_CONFIG
+  .INIT_TIMEOUT
+){
+
+  return Promise.race([
+
+    Promise.resolve()
+    .then(callback),
+
+    new Promise((_,reject) => {
+
+      setTimeout(() => {
+
+        reject(
+
+          new Error(
+            "SERVICE_TIMEOUT"
+          )
+
+        );
+
+      },
+
+      timeout);
+
+    })
+
+  ]);
 
 }
 
@@ -285,6 +491,43 @@ function validateServicesRuntime(){
 
 
 // =====================================
+// VALIDATE DEPENDENCIES
+// =====================================
+
+function validateServiceDependencies(
+  service
+){
+
+  const dependencies =
+
+    Array.isArray(
+      service.dependencies
+    )
+
+    ?
+
+    service.dependencies
+
+    :
+
+    [];
+
+  return dependencies
+  .every((dependency) => {
+
+    return servicesRuntimeState
+    .loadedServices
+    .has(
+      dependency
+    );
+
+  });
+
+}
+
+
+
+// =====================================
 // REGISTER LOADED SERVICE
 // =====================================
 
@@ -292,16 +535,19 @@ function registerLoadedService(
   serviceName
 ){
 
+  const normalizedName =
+  String(serviceName);
+
   servicesRuntimeState
   .loadedServices
   .add(
-    String(serviceName)
+    normalizedName
   );
 
   servicesRuntimeState
   .failedServices
   .delete(
-    String(serviceName)
+    normalizedName
   );
 
   return true;
@@ -346,51 +592,113 @@ async function initializeServicesRuntime(){
   }
 
   if(
+
     servicesRuntimeState
-    .initializing
+    .startupPromise
+
   ){
 
-    return false;
+    return servicesRuntimeState
+    .startupPromise;
 
   }
 
   servicesRuntimeState
-  .initializing =
-  true;
+  .startupPromise =
+  (async() => {
 
-  try{
+    servicesRuntimeState
+    .initializing = true;
 
-    const valid =
-    validateServicesRuntime();
+    try{
 
-    if(!valid){
+      const valid =
+      validateServicesRuntime();
 
-      throw new Error(
-        "INVALID_SERVICES_RUNTIME"
-      );
+      if(!valid){
 
-    }
+        throw new Error(
+          "INVALID_SERVICES_RUNTIME"
+        );
 
-    for(
-      const service of
-      SERVICES_RUNTIME
-    ){
+      }
 
-      try{
+      for(
+        const service of
+        SERVICES_RUNTIME
+      ){
 
-        const initialized =
-        await service
-        .initialize();
+        try{
 
-        if(!initialized){
+          const dependenciesValid =
+          validateServiceDependencies(
+            service
+          );
 
-          registerFailedService(
+          if(
+            !dependenciesValid
+          ){
+
+            throw new Error(
+              "DEPENDENCY_VALIDATION_FAILED"
+            );
+
+          }
+
+          const initialized =
+          await executeServiceWithTimeout(
+
+            () => {
+
+              return service
+              .initialize();
+
+            }
+
+          );
+
+          if(!initialized){
+
+            registerFailedService(
+              service.name
+            );
+
+            await emitServicesEvent(
+
+              "service.failed",
+
+              {
+
+                service:
+                service.name
+
+              }
+
+            );
+
+            if(
+              service.required
+            ){
+
+              throw new Error(
+
+                "REQUIRED_SERVICE_FAILED"
+
+              );
+
+            }
+
+            continue;
+
+          }
+
+          registerLoadedService(
             service.name
           );
 
-          logServicesError(
+          await emitServicesEvent(
 
-            "SERVICE INIT FAILED",
+            "service.loaded",
 
             {
 
@@ -401,50 +709,209 @@ async function initializeServicesRuntime(){
 
           );
 
+          logServicesInfo(
+
+            "SERVICE_READY",
+
+            {
+
+              service:
+              service.name
+
+            }
+
+          );
+
+        }
+
+        catch(error){
+
+          registerFailedService(
+            service.name
+          );
+
+          logServicesError(
+
+            "SERVICE_CRASHED",
+
+            {
+
+              service:
+              service.name,
+
+              error:
+              String(error)
+
+            }
+
+          );
+
+          await emitServicesEvent(
+
+            "service.crashed",
+
+            {
+
+              service:
+              service.name,
+
+              error:
+              String(error)
+
+            }
+
+          );
+
           if(
             service.required
           ){
 
-            throw new Error(
-
-              "REQUIRED_SERVICE_FAILED"
-
-            );
+            throw error;
 
           }
-
-          continue;
 
         }
 
-        registerLoadedService(
-          service.name
-        );
+      }
 
-        logServicesInfo(
+      servicesRuntimeState
+      .initialized = true;
 
-          "SERVICE READY",
+      servicesRuntimeState
+      .initializedAt =
+      Date.now();
 
-          {
+      await emitServicesEvent(
+        "services.ready"
+      );
 
-            service:
-            service.name
+      logServicesInfo(
+        "SERVICES_RUNTIME_READY"
+      );
 
-          }
+      return true;
 
-        );
+    }
+
+    catch(error){
+
+      servicesRuntimeState
+      .crashed = true;
+
+      servicesRuntimeState
+      .lastError = error;
+
+      await emitServicesEvent(
+
+        "services.failed",
+
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+      logServicesError(
+
+        "SERVICES_RUNTIME_FAILED",
+
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+      return false;
+
+    }
+
+    finally{
+
+      servicesRuntimeState
+      .initializing = false;
+
+    }
+
+  })();
+
+  try{
+
+    return await servicesRuntimeState
+    .startupPromise;
+
+  }
+
+  finally{
+
+    servicesRuntimeState
+    .startupPromise = null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SHUTDOWN SERVICES
+// =====================================
+
+async function shutdownServicesRuntime(){
+
+  if(
+    servicesRuntimeState
+    .shuttingDown
+  ){
+
+    return false;
+
+  }
+
+  servicesRuntimeState
+  .shuttingDown = true;
+
+  try{
+
+    const reversedServices = [
+
+      ...SERVICES_RUNTIME
+
+    ]
+    .reverse();
+
+    for(
+      const service of
+      reversedServices
+    ){
+
+      try{
+
+        if(
+
+          typeof service
+          .shutdown ===
+          "function"
+
+        ){
+
+          await service
+          .shutdown();
+
+        }
 
       }
 
       catch(error){
 
-        registerFailedService(
-          service.name
-        );
-
         logServicesError(
 
-          "SERVICE CRASHED",
+          "SERVICE_SHUTDOWN_FAILED",
 
           {
 
@@ -458,66 +925,41 @@ async function initializeServicesRuntime(){
 
         );
 
-        if(
-          service.required
-        ){
-
-          throw error;
-
-        }
-
       }
 
     }
 
     servicesRuntimeState
-    .initialized =
-    true;
+    .loadedServices
+    .clear();
 
     servicesRuntimeState
-    .initializedAt =
+    .failedServices
+    .clear();
+
+    servicesRuntimeState
+    .initialized = false;
+
+    servicesRuntimeState
+    .shutdownAt =
     Date.now();
 
+    await emitServicesEvent(
+      "services.shutdown"
+    );
+
     logServicesInfo(
-      "SERVICES RUNTIME READY"
+      "SERVICES_RUNTIME_STOPPED"
     );
 
     return true;
 
   }
 
-  catch(error){
-
-    servicesRuntimeState
-    .crashed =
-    true;
-
-    servicesRuntimeState
-    .lastError =
-    error;
-
-    logServicesError(
-
-      "SERVICES RUNTIME FAILED",
-
-      {
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    return false;
-
-  }
-
   finally{
 
     servicesRuntimeState
-    .initializing =
-    false;
+    .shuttingDown = false;
 
   }
 
@@ -531,25 +973,13 @@ async function initializeServicesRuntime(){
 
 async function resetServicesRuntime(){
 
-  servicesRuntimeState
-  .loadedServices
-  .clear();
+  await shutdownServicesRuntime();
 
   servicesRuntimeState
-  .failedServices
-  .clear();
+  .crashed = false;
 
   servicesRuntimeState
-  .initialized =
-  false;
-
-  servicesRuntimeState
-  .crashed =
-  false;
-
-  servicesRuntimeState
-  .lastError =
-  null;
+  .lastError = null;
 
   return initializeServicesRuntime();
 
@@ -564,6 +994,17 @@ async function resetServicesRuntime(){
 function runServicesHealthcheck(){
 
   if(
+
+    !SERVICES_RUNTIME_CONFIG
+    .ENABLE_HEALTHCHECK
+
+  ){
+
+    return true;
+
+  }
+
+  if(
     !servicesRuntimeState
     .initialized
   ){
@@ -572,13 +1013,32 @@ function runServicesHealthcheck(){
 
   }
 
-  return (
-
+  if(
     servicesRuntimeState
-    .failedServices
-    .size === 0
+    .crashed
+  ){
 
-  );
+    return false;
+
+  }
+
+  const requiredServices =
+  SERVICES_RUNTIME
+  .filter((service) => {
+
+    return service.required;
+  });
+
+  return requiredServices
+  .every((service) => {
+
+    return servicesRuntimeState
+    .loadedServices
+    .has(
+      service.name
+    );
+
+  });
 
 }
 
@@ -637,6 +1097,10 @@ function getServicesDiagnostics(){
     servicesRuntimeState
     .initializing,
 
+    shuttingDown:
+    servicesRuntimeState
+    .shuttingDown,
+
     crashed:
     servicesRuntimeState
     .crashed,
@@ -644,6 +1108,10 @@ function getServicesDiagnostics(){
     initializedAt:
     servicesRuntimeState
     .initializedAt,
+
+    shutdownAt:
+    servicesRuntimeState
+    .shutdownAt,
 
     loadedServices:[
 
@@ -705,6 +1173,9 @@ Object.freeze({
 
   initialize:
   initializeServicesRuntime,
+
+  shutdown:
+  shutdownServicesRuntime,
 
   reset:
   resetServicesRuntime,
