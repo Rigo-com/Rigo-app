@@ -59,7 +59,16 @@ Object.freeze({
   30000,
 
   HEALTH_INTERVAL:
-  30000
+  30000,
+
+  HASH_TTL:
+  600000,
+
+  CONVERSATION_TTL:
+  86400000,
+
+  DEBUG:
+  false
 
 });
 
@@ -224,3 +233,62 @@ Object.seal({
   }
 
 });
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function setCommunicationState(
+  state
+){
+
+  communicationRuntimeState
+  .state =
+  state;
+
+  return true;
+
+}
+
+
+
+function createCommunicationId(
+  prefix = "comm"
+){
+
+  return (
+
+    String(prefix) +
+
+    "_" +
+
+    Date.now() +
+
+    "_" +
+
+    Math.random()
+    .toString(36)
+    .slice(2,10)
+
+  );
+
+}
+
+
+
+function wait(
+  duration = 0
+){
+
+  return new Promise((resolve) => {
+
+    setTimeout(
+      resolve,
+      duration
+    );
+
+  });
+
+}
