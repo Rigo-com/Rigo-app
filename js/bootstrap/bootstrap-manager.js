@@ -323,6 +323,19 @@ function safeBootstrapLog(
 
 
 
+function isValidInitializer(
+  target
+){
+
+  return (
+    typeof target ===
+    "function"
+  );
+
+}
+
+
+
 // =====================================
 // DEPENDENCY GRAPH
 // =====================================
@@ -394,65 +407,46 @@ function buildDependencyGraph(){
 
 function validateBootstrapSystems(){
 
-  return (
+  const requiredSystems = [
 
-    typeof initializeDiagnosticsSystem ===
-    "function"
+    initializeDiagnosticsSystem,
 
-    &&
+    initializeSystemEvents,
 
-    typeof initializeSystemEvents ===
-    "function"
+    RuntimeManager
+    ?.initialize,
 
-    &&
+    AgentManager
+    ?.initialize,
 
-    typeof RuntimeManager
-    ?.initialize ===
-    "function"
+    ContextManager
+    ?.initialize,
 
-    &&
+    ToolExecutor
+    ?.initialize,
 
-    typeof AgentManager
-    ?.initialize ===
-    "function"
+    WorkflowEngine
+    ?.initialize,
 
-    &&
+    PlannerEngine
+    ?.initialize,
 
-    typeof ContextManager
-    ?.initialize ===
-    "function"
+    AIKernel
+    ?.initialize,
 
-    &&
+    AIRuntimeBridge
+    ?.initialize
 
-    typeof ToolExecutor
-    ?.initialize ===
-    "function"
+  ];
 
-    &&
+  return requiredSystems
+  .every((system) => {
 
-    typeof WorkflowEngine
-    ?.initialize ===
-    "function"
+    return isValidInitializer(
+      system
+    );
 
-    &&
-
-    typeof PlannerEngine
-    ?.initialize ===
-    "function"
-
-    &&
-
-    typeof AIKernel
-    ?.initialize ===
-    "function"
-
-    &&
-
-    typeof AIRuntimeBridge
-    ?.initialize ===
-    "function"
-
-  );
+  });
 
 }
 
@@ -544,8 +538,9 @@ async function initializeBootstrapSystems(){
     try{
 
       if(
-        typeof system.initialize !==
-        "function"
+        !isValidInitializer(
+          system.initialize
+        )
       ){
 
         continue;
@@ -763,10 +758,9 @@ async function bootRigoPlatform(
 
     buildDependencyGraph();
 
-    const systemsValid =
-    validateBootstrapSystems();
-
-    if(!systemsValid){
+    if(
+      !validateBootstrapSystems()
+    ){
 
       throw new Error(
         "INVALID_BOOTSTRAP_SYSTEMS"
@@ -885,6 +879,11 @@ async function bootRigoPlatform(
       .ENABLE_RECOVERY
       &&
       !recoveryMode
+      &&
+      bootstrapState
+      .bootRetries <
+      BOOTSTRAP_CONFIG
+      .MAX_BOOT_RETRIES
     ){
 
       await recoverBootstrap();
@@ -1116,6 +1115,10 @@ async function shutdownRigoPlatform(){
     .lastError =
     null;
 
+    bootstrapState
+    .bootRetries =
+    0;
+
     setBootstrapState(
       BOOTSTRAP_STATES
       .IDLE
@@ -1329,3 +1332,19 @@ Object.freeze({
   resetBootstrapManager
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.BootstrapManager =
+  BootstrapManager;
+
+}
