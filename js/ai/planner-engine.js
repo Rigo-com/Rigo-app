@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // PLANNER ENGINE
-// SELF ORCHESTRATING AI FINAL
+// FULL HARDENED PRODUCTION ORCHESTRATION RUNTIME
 // =====================================
 
 
@@ -29,6 +29,12 @@ Object.freeze({
 
   ENABLE_DIAGNOSTICS:true,
 
+  ENABLE_PLAN_ABORT:
+  true,
+
+  ENABLE_PLAN_QUEUE:
+  true,
+
   MAX_PLANS:
   1000,
 
@@ -40,6 +46,9 @@ Object.freeze({
 
   MAX_PARALLEL_PLANS:
   50,
+
+  MAX_QUEUE_SIZE:
+  500,
 
   MAX_CONTEXT_SIZE:
   100000,
@@ -151,6 +160,10 @@ Object.seal({
 
   initializing:false,
 
+  shuttingDown:false,
+
+  startupPromise:null,
+
   plans:
   new Map(),
 
@@ -159,6 +172,9 @@ Object.seal({
 
   executionLocks:
   new Set(),
+
+  executionQueue:
+  [],
 
   executionHistory:[],
 
@@ -184,7 +200,11 @@ Object.seal({
 
     replans:0,
 
-    rejected:0
+    rejected:0,
+
+    queued:0,
+
+    terminated:0
 
   },
 
@@ -238,11 +258,27 @@ function freezePlannerObject(
 
   }
 
-  visited.add(
-    value
-  );
+  if(
 
-  Object.freeze(
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet ||
+
+    value instanceof AbortController ||
+
+    value instanceof AbortSignal
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
     value
   );
 
@@ -267,7 +303,9 @@ function freezePlannerObject(
 
   });
 
-  return value;
+  return Object.freeze(
+    value
+  );
 
 }
 
@@ -279,36 +317,57 @@ function clonePlannerObject(
 
   try{
 
-    return JSON.parse(
-      JSON.stringify(
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
         value
-      )
-    );
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  try{
+
+    if(
+      Array.isArray(value)
+    ){
+
+      return [
+        ...value
+      ];
+
+    }
+
+    if(
+
+      value &&
+
+      typeof value ===
+      "object"
+
+    ){
+
+      return {
+        ...value
+      };
+
+    }
+
+    return value;
 
   }
 
   catch(error){
 
-    return null;
+    return {};
 
   }
-
-}
-
-
-
-function safeClonePlannerObject(
-  value,
-  fallback = {}
-){
-
-  const cloned =
-  clonePlannerObject(
-    value
-  );
-
-  return cloned ??
-  fallback;
 
 }
 
@@ -347,13 +406,17 @@ async function emitPlannerEvent(
 
       eventName,
 
-      {
+      freezePlannerObject({
 
-        source:"planner-engine",
+        source:
+        "planner-engine",
+
+        timestamp:
+        Date.now(),
 
         ...payload
 
-      }
+      })
 
     );
 
@@ -376,11 +439,20 @@ function createPlannerId(){
   try{
 
     if(
-      typeof createMemoryId ===
+
+      typeof crypto !==
+      "undefined"
+
+      &&
+
+      typeof crypto
+      .randomUUID ===
       "function"
+
     ){
 
-      return createMemoryId();
+      return crypto
+      .randomUUID();
 
     }
 
@@ -468,7 +540,7 @@ function isPlannerContextValid(
 
 function trimPlannerHistory(){
 
-  if(
+  while(
 
     plannerEngineState
     .executionHistory
@@ -529,6 +601,12 @@ function createPlannerSnapshot(){
       .executionHistory
       .length,
 
+    queue:
+
+      plannerEngineState
+      .executionQueue
+      .length,
+
     timestamp:
     Date.now()
 
@@ -540,7 +618,8 @@ function createPlannerSnapshot(){
 
 async function executeWithPlanTimeout(
   callback,
-  timeout
+  timeout,
+  controller = null
 ){
 
   let timeoutId = null;
@@ -552,6 +631,9 @@ async function executeWithPlanTimeout(
 
       timeoutId =
       setTimeout(() => {
+
+        controller
+        ?.abort();
 
         reject(
 
@@ -609,29 +691,15 @@ function getRegisteredTools(){
     }
 
     if(
-      typeof ToolExecutor
-      .diagnostics !==
+      typeof ToolExecutor.list !==
       "function"
     ){
 
       return [];
     }
 
-    if(
-      typeof toolExecutorState ===
-      "undefined"
-    ){
-
-      return [];
-    }
-
-    return [
-
-      ...toolExecutorState
-      .tools
-      .values()
-
-    ];
+    return ToolExecutor
+    .list();
 
   }
 
@@ -658,20 +726,15 @@ function getAvailableAgents(){
     }
 
     if(
-      typeof agentManagerState ===
-      "undefined"
+      typeof AgentManager.list !==
+      "function"
     ){
 
       return [];
     }
 
-    return [
-
-      ...agentManagerState
-      .agents
-      .values()
-
-    ];
+    return AgentManager
+    .list();
 
   }
 
@@ -693,90 +756,118 @@ function createPlanObject(
   config = {}
 ){
 
+  const runtime = {
+
+    running:false,
+
+    startedAt:null,
+
+    completedAt:null,
+
+    controller:
+
+      PLANNER_ENGINE_CONFIG
+      .ENABLE_PLAN_ABORT
+
+      ?
+
+      new AbortController()
+
+      :
+
+      null
+
+  };
+
   return {
 
-    id:
-    normalizePlanId(
+    ...freezePlannerObject({
 
-      config.id ||
+      id:
+      normalizePlanId(
 
-      createPlannerId()
+        config.id ||
 
-    ),
+        createPlannerId()
 
-    goal:
-
-      String(
-        config.goal ||
-        ""
       ),
 
-    description:
+      goal:
 
-      String(
-        config.description ||
-        ""
-      ),
+        String(
+          config.goal ||
+          ""
+        ),
 
-    priority:
+      description:
 
-      Number(
-        config.priority
-      )
+        String(
+          config.description ||
+          ""
+        ),
 
-      || 1,
+      priority:
 
-    retries:0,
-
-    state:
-    PLAN_STATES
-    .CREATED,
-
-    strategy:
-
-      String(
-        config.strategy ||
-        "adaptive"
-      ),
-
-    assignedAgent:
-
-      config.assignedAgent ||
-
-      null,
-
-    selectedTools:
-
-      Array.isArray(
-        config.selectedTools
-      )
-
-      ? safeClonePlannerObject(
-          config.selectedTools,
-          []
+        Number(
+          config.priority
         )
 
-      : [],
+        || 1,
 
-    steps:[],
+      retries:0,
 
-    context:
-    safeClonePlannerObject(
-      config.context,
-      {}
-    ),
+      state:
+      PLAN_STATES
+      .CREATED,
 
-    metadata:
-    safeClonePlannerObject(
-      config.metadata,
-      {}
-    ),
+      strategy:
 
-    createdAt:
-    Date.now(),
+        String(
+          config.strategy ||
+          "adaptive"
+        ),
 
-    updatedAt:
-    Date.now()
+      assignedAgent:
+
+        config.assignedAgent ||
+
+        null,
+
+      selectedTools:
+
+        Array.isArray(
+          config.selectedTools
+        )
+
+        ?
+
+        clonePlannerObject(
+          config.selectedTools
+        )
+
+        : [],
+
+      steps:[],
+
+      context:
+      clonePlannerObject(
+        config.context || {}
+      ),
+
+      metadata:
+      clonePlannerObject(
+        config.metadata || {}
+      ),
+
+      createdAt:
+      Date.now(),
+
+      updatedAt:
+      Date.now()
+
+    }),
+
+    runtime
 
   };
 
@@ -825,6 +916,10 @@ function decomposeGoal(
       segment.trim(),
 
       executable:true,
+
+      dependencies:[],
+
+      parallel:false,
 
       state:
 
@@ -958,6 +1053,15 @@ async function generateExecutionPlan(
 ){
 
   if(
+    plannerEngineState
+    .shuttingDown
+  ){
+
+    return false;
+
+  }
+
+  if(
 
     plannerEngineState
     .plans
@@ -1067,8 +1171,6 @@ async function generateExecutionPlan(
 
         assignedAgent,
 
-        parallel:false,
-
         state:
 
           PLAN_STEP_STATES
@@ -1096,8 +1198,7 @@ async function generateExecutionPlan(
 
     );
 
-    const finalizedPlan =
-    freezePlannerObject({
+    const finalizedPlan = {
 
       ...basePlan,
 
@@ -1115,7 +1216,7 @@ async function generateExecutionPlan(
       updatedAt:
       Date.now()
 
-    });
+    };
 
     plannerEngineState
     .plans
@@ -1142,7 +1243,11 @@ async function generateExecutionPlan(
 
     );
 
-    return finalizedPlan;
+    return freezePlannerObject(
+      clonePlannerObject(
+        finalizedPlan
+      )
+    );
 
   }
 
@@ -1184,9 +1289,8 @@ async function executePlanStep(
 
   const step = {
 
-    ...safeClonePlannerObject(
-      originalStep,
-      {}
+    ...clonePlannerObject(
+      originalStep
     )
 
   };
@@ -1205,6 +1309,21 @@ async function executePlanStep(
     attempts++;
 
     try{
+
+      if(
+
+        plan.runtime
+        .controller
+        ?.signal
+        ?.aborted
+
+      ){
+
+        throw new Error(
+          "PLAN ABORTED"
+        );
+
+      }
 
       if(
 
@@ -1238,7 +1357,12 @@ async function executePlanStep(
 
             objective:
             step
-            .objective
+            .objective,
+
+            signal:
+            plan.runtime
+            .controller
+            ?.signal || null
 
           },
 
@@ -1282,7 +1406,7 @@ async function executePlanStep(
 
       );
 
-      return freezePlannerObject({
+      return {
 
         ...step,
 
@@ -1293,7 +1417,7 @@ async function executePlanStep(
         PLAN_STEP_STATES
         .COMPLETED
 
-      });
+      };
 
     }
 
@@ -1308,7 +1432,7 @@ async function executePlanStep(
 
       ){
 
-        return freezePlannerObject({
+        return {
 
           ...step,
 
@@ -1319,7 +1443,7 @@ async function executePlanStep(
           PLAN_STEP_STATES
           .FAILED
 
-        });
+        };
 
       }
 
@@ -1398,11 +1522,38 @@ async function executePlan(
 
   ){
 
+    if(
+
+      plannerEngineState
+      .executionQueue
+      .length >=
+
+      PLANNER_ENGINE_CONFIG
+      .MAX_QUEUE_SIZE
+
+    ){
+
+      plannerEngineState
+      .diagnostics
+      .rejected++;
+
+      return false;
+
+    }
+
+    plannerEngineState
+    .executionQueue
+    .push(
+      normalizedId
+    );
+
     plannerEngineState
     .diagnostics
-    .rejected++;
+    .queued++;
 
-    return false;
+    return {
+      queued:true
+    };
 
   }
 
@@ -1421,6 +1572,18 @@ async function executePlan(
   plannerEngineState
   .diagnostics
   .executed++;
+
+  originalPlan.runtime
+  .running =
+  true;
+
+  originalPlan.runtime
+  .startedAt =
+  Date.now();
+
+  originalPlan.state =
+  PLAN_STATES
+  .EXECUTING;
 
   await emitPlannerEvent(
 
@@ -1464,6 +1627,22 @@ async function executePlan(
               of originalPlan.steps
             ){
 
+              if(
+
+                originalPlan
+                .runtime
+                .controller
+                ?.signal
+                ?.aborted
+
+              ){
+
+                throw new Error(
+                  "PLAN TERMINATED"
+                );
+
+              }
+
               const result =
               await executePlanStep(
                 originalPlan,
@@ -1493,36 +1672,27 @@ async function executePlan(
           },
 
           PLANNER_ENGINE_CONFIG
-          .PLAN_TIMEOUT
+          .PLAN_TIMEOUT,
+
+          originalPlan.runtime
+          .controller
 
         );
 
-        const completedPlan =
-        freezePlannerObject({
+        originalPlan.runtime
+        .running =
+        false;
 
-          ...originalPlan,
+        originalPlan.runtime
+        .completedAt =
+        Date.now();
 
-          retries:
-          attempts - 1,
+        originalPlan.state =
+        PLAN_STATES
+        .COMPLETED;
 
-          state:
-          PLAN_STATES
-          .COMPLETED,
-
-          steps:
-          completedSteps,
-
-          updatedAt:
-          Date.now()
-
-        });
-
-        plannerEngineState
-        .plans
-        .set(
-          normalizedId,
-          completedPlan
-        );
+        originalPlan.steps =
+        completedSteps;
 
         plannerEngineState
         .completedPlans
@@ -1600,29 +1770,12 @@ async function executePlan(
 
         ){
 
-          const failedPlan =
-          freezePlannerObject({
+          originalPlan.state =
+          PLAN_STATES
+          .FAILED;
 
-            ...originalPlan,
-
-            retries:
-            attempts,
-
-            state:
-            PLAN_STATES
-            .FAILED,
-
-            updatedAt:
-            Date.now()
-
-          });
-
-          plannerEngineState
-          .plans
-          .set(
-            normalizedId,
-            failedPlan
-          );
+          originalPlan.retries =
+          attempts;
 
           plannerEngineState
           .failedPlans
@@ -1672,6 +1825,10 @@ async function executePlan(
 
   finally{
 
+    originalPlan.runtime
+    .running =
+    false;
+
     plannerEngineState
     .activePlans
     .delete(
@@ -1683,6 +1840,26 @@ async function executePlan(
     .delete(
       normalizedId
     );
+
+    if(
+
+      plannerEngineState
+      .executionQueue
+      .length > 0
+
+    ){
+
+      const queuedPlan =
+      plannerEngineState
+      .executionQueue
+      .shift();
+
+      executePlan(
+        queuedPlan
+      )
+      .catch(() => {});
+
+    }
 
   }
 
@@ -1717,26 +1894,17 @@ async function terminatePlan(
 
   }
 
-  const terminatedPlan =
-  freezePlannerObject({
+  plan.runtime
+  .controller
+  ?.abort();
 
-    ...plan,
+  plan.runtime
+  .running =
+  false;
 
-    state:
-    PLAN_STATES
-    .TERMINATED,
-
-    updatedAt:
-    Date.now()
-
-  });
-
-  plannerEngineState
-  .plans
-  .set(
-    normalizedId,
-    terminatedPlan
-  );
+  plan.state =
+  PLAN_STATES
+  .TERMINATED;
 
   plannerEngineState
   .activePlans
@@ -1749,6 +1917,10 @@ async function terminatePlan(
   .delete(
     normalizedId
   );
+
+  plannerEngineState
+  .diagnostics
+  .terminated++;
 
   await emitPlannerEvent(
 
@@ -1805,6 +1977,12 @@ function getPlannerHealthReport(){
       .activePlans
       .size,
 
+    queue:
+
+      plannerEngineState
+      .executionQueue
+      .length,
+
     diagnostics:
     clonePlannerDiagnostics(),
 
@@ -1859,6 +2037,12 @@ function getPlannerDiagnostics(){
       .executionHistory
       .length,
 
+    queue:
+
+      plannerEngineState
+      .executionQueue
+      .length,
+
     diagnostics:
     clonePlannerDiagnostics(),
 
@@ -1892,6 +2076,10 @@ async function resetPlannerEngine(){
   .clear();
 
   plannerEngineState
+  .executionQueue =
+  [];
+
+  plannerEngineState
   .executionHistory =
   [];
 
@@ -1920,9 +2108,49 @@ async function resetPlannerEngine(){
 
     replans:0,
 
-    rejected:0
+    rejected:0,
+
+    queued:0,
+
+    terminated:0
 
   };
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownPlannerEngine(){
+
+  plannerEngineState
+  .shuttingDown =
+  true;
+
+  for(
+    const planId
+    of
+    plannerEngineState
+    .activePlans
+  ){
+
+    terminatePlan(
+      planId
+    )
+    .catch(() => {});
+
+  }
+
+  await resetPlannerEngine();
+
+  plannerEngineState
+  .initialized =
+  false;
 
   return true;
 
@@ -1947,55 +2175,77 @@ async function initializePlannerEngine(){
 
   if(
     plannerEngineState
-    .initializing
+    .startupPromise
   ){
 
-    return false;
+    return plannerEngineState
+    .startupPromise;
 
   }
 
   plannerEngineState
-  .initializing =
-  true;
+  .startupPromise =
 
-  try{
-
-    plannerEngineState
-    .initialized =
-    true;
-
-
-
-    // ================================
-    // MODULE REGISTRATION
-    // ================================
+  (async () => {
 
     if(
-      typeof registerModule ===
-      "function"
+      plannerEngineState
+      .initializing
     ){
 
-      await registerModule(
-
-        "planner-engine",
-
-        async () => PlannerEngine
-
-      );
+      return false;
 
     }
 
-    return true;
-
-  }
-
-  finally{
-
     plannerEngineState
     .initializing =
-    false;
+    true;
 
-  }
+    try{
+
+      plannerEngineState
+      .initialized =
+      true;
+
+      plannerEngineState
+      .shuttingDown =
+      false;
+
+      if(
+        typeof registerModule ===
+        "function"
+      ){
+
+        await registerModule(
+
+          "planner-engine",
+
+          async () => PlannerEngine
+
+        );
+
+      }
+
+      return true;
+
+    }
+
+    finally{
+
+      plannerEngineState
+      .initializing =
+      false;
+
+      plannerEngineState
+      .startupPromise =
+      null;
+
+    }
+
+  })();
+
+  return plannerEngineState
+  .startupPromise;
 
 }
 
@@ -2010,6 +2260,9 @@ Object.freeze({
 
   initialize:
   initializePlannerEngine,
+
+  shutdown:
+  shutdownPlannerEngine,
 
   generate:
   generateExecutionPlan,
@@ -2033,3 +2286,27 @@ Object.freeze({
   resetPlannerEngine
 
 });
+
+
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.PlannerEngine =
+  PlannerEngine;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.PlannerEngine =
+  PlannerEngine;
+
+}
