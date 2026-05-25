@@ -25,6 +25,8 @@ Object.freeze({
 
   MAX_TAGS:10,
 
+  MAX_SEARCHABLE_PART_LENGTH:500,
+
   PINNED_BOOST:5,
 
   RECENT_BOOST:3,
@@ -43,13 +45,15 @@ Object.freeze({
 // =====================================
 
 const SAFE_CONVERSATION_ROLES =
-Object.freeze(
-  new Set([
-    "user",
-    "assistant",
-    "system"
-  ])
-);
+createImmutableSet([
+
+  "user",
+
+  "assistant",
+
+  "system"
+
+]);
 
 
 
@@ -253,8 +257,12 @@ function sanitizeConversationRole(
 ){
 
   const normalizedRole =
-  normalizeMemoryString(
-    role
+  String(
+
+    normalizeMemoryString(
+      role
+    ) || ""
+
   )
   .toLowerCase();
 
@@ -487,6 +495,14 @@ function calculateContextScore(
 
     return normalizeMemoryContent(
       value
+    )
+    .slice(
+
+      0,
+
+      MEMORY_CONTEXT_CONFIG
+      .MAX_SEARCHABLE_PART_LENGTH
+
     );
 
   })
@@ -847,27 +863,32 @@ function deduplicateContextSections(
   sections = []
 ){
 
-  const uniqueSections =
+  const seenTitles =
   new Set();
 
   return sections.filter((section) => {
 
-    const normalized =
+    const normalizedSection =
     sanitizeContextText(
       section
     );
 
     if(
-      !normalized
+      !normalizedSection
     ){
 
       return false;
 
     }
 
+    const firstLine =
+    normalizedSection
+    .split("\n")[0]
+    .trim();
+
     if(
-      uniqueSections.has(
-        normalized
+      seenTitles.has(
+        firstLine
       )
     ){
 
@@ -875,8 +896,8 @@ function deduplicateContextSections(
 
     }
 
-    uniqueSections.add(
-      normalized
+    seenTitles.add(
+      firstLine
     );
 
     return true;
