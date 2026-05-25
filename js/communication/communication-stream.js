@@ -14,6 +14,14 @@ async function startCommunicationStream(
 ){
 
   if(
+    !streamId
+  ){
+
+    return false;
+
+  }
+
+  if(
 
     communicationRuntimeState
     .activeStreams
@@ -83,6 +91,14 @@ async function stopCommunicationStream(
 ){
 
   if(
+    !streamId
+  ){
+
+    return false;
+
+  }
+
+  if(
 
     !communicationRuntimeState
     .activeStreams
@@ -112,12 +128,32 @@ async function stopCommunicationStream(
     .streaming =
     false;
 
-    setCommunicationState(
+    if(
 
-      COMMUNICATION_RUNTIME_STATES
-      .READY
+      communicationRuntimeState
+      .processing
 
-    );
+    ){
+
+      setCommunicationState(
+
+        COMMUNICATION_RUNTIME_STATES
+        .PROCESSING
+
+      );
+
+    }
+
+    else{
+
+      setCommunicationState(
+
+        COMMUNICATION_RUNTIME_STATES
+        .READY
+
+      );
+
+    }
 
   }
 
