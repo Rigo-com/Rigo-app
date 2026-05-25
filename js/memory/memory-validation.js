@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY VALIDATION
 // ENTERPRISE INFINITY FINAL
+// PATCHED + STABILIZED
 // =====================================
 
 
@@ -667,8 +668,9 @@ function validateMemoryMetadata(
   try{
 
     const serialized =
-    JSON.stringify(
-      metadata
+    safeJsonStringify(
+      metadata,
+      ""
     );
 
     if(
@@ -1346,7 +1348,14 @@ function validateMemoryShallow(
   }
 
   if(
+
+    typeof memory.id !==
+    "string"
+
+    ||
+
     !memory.id
+
   ){
 
     addValidationError(
@@ -1357,7 +1366,14 @@ function validateMemoryShallow(
   }
 
   if(
+
+    typeof memory.content !==
+    "string"
+
+    ||
+
     !memory.content
+
   ){
 
     addValidationError(
@@ -1393,6 +1409,21 @@ function sanitizeMemoryContent(
   )
 
   .replace(
+    /<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi,
+    ""
+  )
+
+  .replace(
+    /<object[\s\S]*?>[\s\S]*?<\/object>/gi,
+    ""
+  )
+
+  .replace(
+    /<embed[\s\S]*?>[\s\S]*?<\/embed>/gi,
+    ""
+  )
+
+  .replace(
     /javascript:/gi,
     ""
   )
@@ -1404,6 +1435,26 @@ function sanitizeMemoryContent(
 
   .replace(
     /data:text\/html/gi,
+    ""
+  )
+
+  .replace(
+    /onerror=/gi,
+    ""
+  )
+
+  .replace(
+    /onload=/gi,
+    ""
+  )
+
+  .replace(
+    /eval\s*\(/gi,
+    ""
+  )
+
+  .replace(
+    /Function\s*\(/gi,
     ""
   )
 
@@ -1618,34 +1669,9 @@ function createMemoryContentHash(
 
   }
 
-  let hash = 0;
-
-  for(
-
-    let i = 0;
-
-    i < normalizedContent.length;
-
-    i++
-
-  ){
-
-    hash =
-
-      (
-        hash << 5
-      ) -
-
-      hash +
-
-      normalizedContent
-      .charCodeAt(i);
-
-    hash |= 0;
-
-  }
-
-  return String(hash);
+  return createUtilityMemoryHash(
+    normalizedContent
+  );
 
 }
 
