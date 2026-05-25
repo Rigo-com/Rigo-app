@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // WORKFLOW ENGINE
-// ENTERPRISE AUTONOMOUS RUNTIME FINAL
+// FULL HARDENED PRODUCTION WORKFLOW RUNTIME
 // =====================================
 
 
@@ -27,6 +27,10 @@ Object.freeze({
 
   ENABLE_DIAGNOSTICS:true,
 
+  ENABLE_ABORT_CONTROLLERS:true,
+
+  ENABLE_QUEUE:true,
+
   MAX_WORKFLOWS:
   1000,
 
@@ -41,6 +45,9 @@ Object.freeze({
 
   MAX_PARALLEL_STEPS:
   10,
+
+  MAX_QUEUE_SIZE:
+  500,
 
   WORKFLOW_TIMEOUT:
   600000,
@@ -150,6 +157,10 @@ Object.seal({
 
   initializing:false,
 
+  shuttingDown:false,
+
+  startupPromise:null,
+
   workflows:
   new Map(),
 
@@ -158,6 +169,9 @@ Object.seal({
 
   executionLocks:
   new Set(),
+
+  executionQueue:
+  [],
 
   executionHistory:[],
 
@@ -182,6 +196,8 @@ Object.seal({
     executedSteps:0,
 
     retries:0,
+
+    queued:0,
 
     rejected:0
 
@@ -237,11 +253,27 @@ function freezeWorkflowObject(
 
   }
 
-  visited.add(
-    value
-  );
+  if(
 
-  Object.freeze(
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet ||
+
+    value instanceof AbortController ||
+
+    value instanceof AbortSignal
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
     value
   );
 
@@ -266,7 +298,9 @@ function freezeWorkflowObject(
 
   });
 
-  return value;
+  return Object.freeze(
+    value
+  );
 
 }
 
@@ -278,17 +312,56 @@ function cloneWorkflowObject(
 
   try{
 
-    return JSON.parse(
-      JSON.stringify(
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
         value
-      )
-    );
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  try{
+
+    if(
+      Array.isArray(value)
+    ){
+
+      return [
+        ...value
+      ];
+
+    }
+
+    if(
+
+      value &&
+
+      typeof value ===
+      "object"
+
+    ){
+
+      return {
+        ...value
+      };
+
+    }
+
+    return value;
 
   }
 
   catch(error){
 
     return {};
+
   }
 
 }
@@ -313,11 +386,20 @@ function createWorkflowId(){
   try{
 
     if(
-      typeof createMemoryId ===
+
+      typeof crypto !==
+      "undefined"
+
+      &&
+
+      typeof crypto
+      .randomUUID ===
       "function"
+
     ){
 
-      return createMemoryId();
+      return crypto
+      .randomUUID();
 
     }
 
@@ -460,6 +542,12 @@ function createWorkflowSnapshot(){
       .failedWorkflows
       .size,
 
+    queue:
+
+      workflowEngineState
+      .executionQueue
+      .length,
+
     history:
 
       workflowEngineState
@@ -506,13 +594,17 @@ async function emitWorkflowEvent(
 
       eventName,
 
-      {
+      freezeWorkflowObject({
 
-        source:"workflow-engine",
+        source:
+        "workflow-engine",
+
+        timestamp:
+        Date.now(),
 
         ...payload
 
-      }
+      })
 
     );
 
@@ -532,7 +624,8 @@ async function emitWorkflowEvent(
 
 async function executeWithWorkflowTimeout(
   callback,
-  timeout
+  timeout,
+  controller = null
 ){
 
   let timeoutId = null;
@@ -544,6 +637,9 @@ async function executeWithWorkflowTimeout(
 
       timeoutId =
       setTimeout(() => {
+
+        controller
+        ?.abort();
 
         reject(
 
@@ -593,6 +689,7 @@ async function executeWithWorkflowTimeout(
 // =====================================
 
 async function safelyExecuteStep(
+  workflow,
   step,
   payload
 ){
@@ -603,6 +700,21 @@ async function safelyExecuteStep(
   ){
 
     return true;
+
+  }
+
+  if(
+
+    workflow.runtime
+    .controller
+    ?.signal
+    ?.aborted
+
+  ){
+
+    throw new Error(
+      "WORKFLOW TERMINATED"
+    );
 
   }
 
@@ -617,7 +729,10 @@ async function safelyExecuteStep(
     },
 
     WORKFLOW_ENGINE_CONFIG
-    .WORKFLOW_TIMEOUT
+    .WORKFLOW_TIMEOUT,
+
+    workflow.runtime
+    .controller
 
   );
 
@@ -651,103 +766,132 @@ function createWorkflowObject(
 
     : [];
 
+  const runtime = {
+
+    running:false,
+
+    startedAt:null,
+
+    completedAt:null,
+
+    controller:
+
+      WORKFLOW_ENGINE_CONFIG
+      .ENABLE_ABORT_CONTROLLERS
+
+      ?
+
+      new AbortController()
+
+      :
+
+      null
+
+  };
+
   return {
 
-    id:
-    normalizeWorkflowId(
+    ...freezeWorkflowObject({
 
-      config.id ||
+      id:
+      normalizeWorkflowId(
 
-      createWorkflowId()
+        config.id ||
 
-    ),
+        createWorkflowId()
 
-    name:
-
-      String(
-        config.name ||
-        "workflow"
       ),
 
-    description:
+      name:
 
-      String(
-        config.description ||
-        ""
+        String(
+          config.name ||
+          "workflow"
+        ),
+
+      description:
+
+        String(
+          config.description ||
+          ""
+        ),
+
+      state:
+      WORKFLOW_STATES
+      .CREATED,
+
+      retries:0,
+
+      steps:
+      steps.map((step) => {
+
+        return freezeWorkflowObject({
+
+          id:
+
+            normalizeWorkflowId(
+
+              step.id ||
+
+              createWorkflowId()
+
+            ),
+
+          name:
+
+            String(
+              step.name ||
+              "step"
+            ),
+
+          type:
+
+            String(
+              step.type ||
+              "generic"
+            ),
+
+          condition:
+          step.condition,
+
+          execute:
+          step.execute,
+
+          parallel:
+          step.parallel ===
+          true,
+
+          state:
+
+            WORKFLOW_STEP_STATES
+            .PENDING,
+
+          retries:0,
+
+          createdAt:
+          Date.now()
+
+        });
+
+      }),
+
+      metadata:
+      cloneWorkflowObject(
+
+        config.metadata ||
+        {}
+
       ),
 
-    state:
-    WORKFLOW_STATES
-    .CREATED,
+      createdAt:
+      Date.now(),
 
-    retries:0,
-
-    steps:
-    steps.map((step) => {
-
-      return {
-
-        id:
-
-          normalizeWorkflowId(
-
-            step.id ||
-
-            createWorkflowId()
-
-          ),
-
-        name:
-
-          String(
-            step.name ||
-            "step"
-          ),
-
-        type:
-
-          String(
-            step.type ||
-            "generic"
-          ),
-
-        condition:
-        step.condition,
-
-        execute:
-        step.execute,
-
-        parallel:
-        step.parallel ===
-        true,
-
-        state:
-
-          WORKFLOW_STEP_STATES
-          .PENDING,
-
-        retries:0,
-
-        createdAt:
-        Date.now()
-
-      };
+      updatedAt:
+      Date.now()
 
     }),
 
-    metadata:
-    cloneWorkflowObject(
-
-      config.metadata ||
-      {}
-
-    ),
-
-    createdAt:
-    Date.now(),
-
-    updatedAt:
-    Date.now()
+    runtime
 
   };
 
@@ -762,6 +906,15 @@ function createWorkflowObject(
 async function registerWorkflow(
   config = {}
 ){
+
+  if(
+    workflowEngineState
+    .shuttingDown
+  ){
+
+    return false;
+
+  }
 
   if(
 
@@ -803,22 +956,15 @@ async function registerWorkflow(
 
   }
 
-  const readyWorkflow =
-  freezeWorkflowObject({
-
-    ...workflow,
-
-    state:
-    WORKFLOW_STATES
-    .READY
-
-  });
+  workflow.state =
+  WORKFLOW_STATES
+  .READY;
 
   workflowEngineState
   .workflows
   .set(
     workflow.id,
-    readyWorkflow
+    workflow
   );
 
   workflowEngineState
@@ -843,7 +989,11 @@ async function registerWorkflow(
 
   );
 
-  return readyWorkflow;
+  return freezeWorkflowObject(
+    cloneWorkflowObject(
+      workflow
+    )
+  );
 
 }
 
@@ -914,13 +1064,10 @@ async function executeWorkflowStep(
   context = {}
 ){
 
-  const step = {
-
-    ...cloneWorkflowObject(
-      originalStep
-    )
-
-  };
+  const step =
+  cloneWorkflowObject(
+    originalStep
+  );
 
   const validCondition =
   await validateStepCondition(
@@ -933,7 +1080,7 @@ async function executeWorkflowStep(
 
   if(!validCondition){
 
-    return freezeWorkflowObject({
+    return {
 
       ...step,
 
@@ -941,7 +1088,7 @@ async function executeWorkflowStep(
       WORKFLOW_STEP_STATES
       .SKIPPED
 
-    });
+    };
 
   }
 
@@ -979,20 +1126,15 @@ async function executeWorkflowStep(
 
       await safelyExecuteStep(
 
+        workflow,
+
         step,
 
         {
 
-          workflow:
+          workflow,
 
-            cloneWorkflowObject(
-              workflow
-            ),
-
-          step:
-          cloneWorkflowObject(
-            step
-          ),
+          step,
 
           context:
           cloneWorkflowObject(
@@ -1017,21 +1159,12 @@ async function executeWorkflowStep(
 
             : null,
 
-          state:
+          planner:
 
-            typeof StateManager !==
+            typeof PlannerEngine !==
             "undefined"
 
-            ? StateManager
-
-            : null,
-
-          memory:
-
-            typeof MemorySystem !==
-            "undefined"
-
-            ? MemorySystem
+            ? PlannerEngine
 
             : null,
 
@@ -1069,7 +1202,7 @@ async function executeWorkflowStep(
 
       );
 
-      return freezeWorkflowObject({
+      return {
 
         ...step,
 
@@ -1080,7 +1213,7 @@ async function executeWorkflowStep(
         WORKFLOW_STEP_STATES
         .COMPLETED
 
-      });
+      };
 
     }
 
@@ -1115,7 +1248,7 @@ async function executeWorkflowStep(
 
       ){
 
-        return freezeWorkflowObject({
+        return {
 
           ...step,
 
@@ -1126,7 +1259,7 @@ async function executeWorkflowStep(
           WORKFLOW_STEP_STATES
           .FAILED
 
-        });
+        };
 
       }
 
@@ -1287,7 +1420,42 @@ async function executeWorkflow(
 
   ){
 
-    return false;
+    if(
+
+      workflowEngineState
+      .executionQueue
+      .length >=
+
+      WORKFLOW_ENGINE_CONFIG
+      .MAX_QUEUE_SIZE
+
+    ){
+
+      workflowEngineState
+      .diagnostics
+      .rejected++;
+
+      return false;
+
+    }
+
+    workflowEngineState
+    .executionQueue
+    .push({
+
+      workflowId:
+      normalizedId,
+
+      context
+    });
+
+    workflowEngineState
+    .diagnostics
+    .queued++;
+
+    return {
+      queued:true
+    };
 
   }
 
@@ -1302,6 +1470,18 @@ async function executeWorkflow(
   .add(
     normalizedId
   );
+
+  workflow.runtime
+  .running =
+  true;
+
+  workflow.runtime
+  .startedAt =
+  Date.now();
+
+  workflow.state =
+  WORKFLOW_STATES
+  .RUNNING;
 
   workflowEngineState
   .diagnostics
@@ -1388,6 +1568,21 @@ async function executeWorkflow(
           of sequentialSteps
         ){
 
+          if(
+
+            workflow.runtime
+            .controller
+            ?.signal
+            ?.aborted
+
+          ){
+
+            throw new Error(
+              "WORKFLOW TERMINATED"
+            );
+
+          }
+
           const result =
           await executeWorkflowStep(
 
@@ -1414,6 +1609,18 @@ async function executeWorkflow(
           }
 
         }
+
+        workflow.runtime
+        .running =
+        false;
+
+        workflow.runtime
+        .completedAt =
+        Date.now();
+
+        workflow.state =
+        WORKFLOW_STATES
+        .COMPLETED;
 
         workflowEngineState
         .completedWorkflows
@@ -1497,6 +1704,13 @@ async function executeWorkflow(
 
         ){
 
+          workflow.state =
+          WORKFLOW_STATES
+          .FAILED;
+
+          workflow.retries =
+          attempts;
+
           workflowEngineState
           .failedWorkflows
           .add(
@@ -1545,6 +1759,10 @@ async function executeWorkflow(
 
   finally{
 
+    workflow.runtime
+    .running =
+    false;
+
     workflowEngineState
     .activeWorkflows
     .delete(
@@ -1556,6 +1774,32 @@ async function executeWorkflow(
     .delete(
       normalizedId
     );
+
+    if(
+
+      workflowEngineState
+      .executionQueue
+      .length > 0
+
+    ){
+
+      const queuedWorkflow =
+      workflowEngineState
+      .executionQueue
+      .shift();
+
+      executeWorkflow(
+
+        queuedWorkflow
+        .workflowId,
+
+        queuedWorkflow
+        .context
+
+      )
+      .catch(() => {});
+
+    }
 
   }
 
@@ -1597,6 +1841,18 @@ async function terminateWorkflow(
     return false;
 
   }
+
+  workflow.runtime
+  .controller
+  ?.abort();
+
+  workflow.runtime
+  .running =
+  false;
+
+  workflow.state =
+  WORKFLOW_STATES
+  .TERMINATED;
 
   workflowEngineState
   .activeWorkflows
@@ -1667,6 +1923,12 @@ function getWorkflowHealthReport(){
       .activeWorkflows
       .size,
 
+    queue:
+
+      workflowEngineState
+      .executionQueue
+      .length,
+
     diagnostics:
     cloneWorkflowDiagnostics(),
 
@@ -1715,6 +1977,12 @@ function getWorkflowDiagnostics(){
       .failedWorkflows
       .size,
 
+    queue:
+
+      workflowEngineState
+      .executionQueue
+      .length,
+
     history:
 
       workflowEngineState
@@ -1754,6 +2022,10 @@ async function resetWorkflowEngine(){
   .clear();
 
   workflowEngineState
+  .executionQueue =
+  [];
+
+  workflowEngineState
   .executionHistory =
   [];
 
@@ -1782,6 +2054,8 @@ async function resetWorkflowEngine(){
 
     retries:0,
 
+    queued:0,
+
     rejected:0
 
   };
@@ -1789,6 +2063,42 @@ async function resetWorkflowEngine(){
   workflowEngineState
   .lastWorkflowAt =
   null;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownWorkflowEngine(){
+
+  workflowEngineState
+  .shuttingDown =
+  true;
+
+  for(
+    const workflowId
+    of
+    workflowEngineState
+    .activeWorkflows
+  ){
+
+    terminateWorkflow(
+      workflowId
+    )
+    .catch(() => {});
+
+  }
+
+  await resetWorkflowEngine();
+
+  workflowEngineState
+  .initialized =
+  false;
 
   return true;
 
@@ -1813,59 +2123,87 @@ async function initializeWorkflowEngine(){
 
   if(
     workflowEngineState
-    .initializing
+    .startupPromise
   ){
 
-    return false;
+    return workflowEngineState
+    .startupPromise;
 
   }
 
   workflowEngineState
-  .initializing =
-  true;
+  .startupPromise =
 
-  try{
-
-    workflowEngineState
-    .initialized =
-    true;
+  (async () => {
 
     if(
-      typeof registerModule ===
-      "function"
+      workflowEngineState
+      .initializing
     ){
 
-      await registerModule(
-
-        "workflow-engine",
-
-        async () => WorkflowEngine
-
-      );
+      return false;
 
     }
 
-    return true;
-
-  }
-
-  catch(error){
-
-    workflowEngineState
-    .initialized =
-    false;
-
-    return false;
-
-  }
-
-  finally{
-
     workflowEngineState
     .initializing =
-    false;
+    true;
 
-  }
+    try{
+
+      workflowEngineState
+      .initialized =
+      true;
+
+      workflowEngineState
+      .shuttingDown =
+      false;
+
+      if(
+        typeof registerModule ===
+        "function"
+      ){
+
+        await registerModule(
+
+          "workflow-engine",
+
+          async () => WorkflowEngine
+
+        );
+
+      }
+
+      return true;
+
+    }
+
+    catch(error){
+
+      workflowEngineState
+      .initialized =
+      false;
+
+      return false;
+
+    }
+
+    finally{
+
+      workflowEngineState
+      .initializing =
+      false;
+
+      workflowEngineState
+      .startupPromise =
+      null;
+
+    }
+
+  })();
+
+  return workflowEngineState
+  .startupPromise;
 
 }
 
@@ -1880,6 +2218,9 @@ Object.freeze({
 
   initialize:
   initializeWorkflowEngine,
+
+  shutdown:
+  shutdownWorkflowEngine,
 
   register:
   registerWorkflow,
@@ -1903,3 +2244,27 @@ Object.freeze({
   resetWorkflowEngine
 
 });
+
+
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.WorkflowEngine =
+  WorkflowEngine;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.WorkflowEngine =
+  WorkflowEngine;
+
+}
