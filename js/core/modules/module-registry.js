@@ -7,28 +7,38 @@
 
 
 // =====================================
-// STATE (DATA ONLY)
+// INTERNAL STATE (PRIVATE)
 // =====================================
 
-const moduleLoaderState = Object.seal({
+const moduleLoaderState = {
 
-  modules: new Map(),
-  instances: new Map(),
+  modules:
+  new Map(),
 
-  activeModules: new Set(),
-  failedModules: new Set(),
+  instances:
+  new Map(),
 
-  dependencyGraph: new Map(),
-  reverseDependencies: new Map(),
+  activeModules:
+  new Set(),
 
-  loadingStack: []
+  failedModules:
+  new Set(),
 
-});
+  dependencyGraph:
+  new Map(),
+
+  reverseDependencies:
+  new Map(),
+
+  loadingStack:
+  []
+
+};
 
 
 
 // =====================================
-// HELPERS (PURE)
+// HELPERS
 // =====================================
 
 function normalizeModuleName(moduleName){
@@ -36,6 +46,27 @@ function normalizeModuleName(moduleName){
   return String(moduleName || "")
     .trim()
     .toLowerCase();
+
+}
+
+
+
+function normalizeDependencies(dependencies){
+
+  if(!Array.isArray(dependencies)){
+    return [];
+  }
+
+  return [
+    ...new Set(
+
+      dependencies
+        .filter(Boolean)
+        .map(normalizeModuleName)
+        .filter(Boolean)
+
+    )
+  ];
 
 }
 
@@ -49,9 +80,36 @@ function isValidModuleFactory(factory){
 
 
 
-function freezeModuleObject(value, visited = new WeakSet()){
+function isPlainObject(value){
 
   if(!value || typeof value !== "object"){
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+
+  return (
+    prototype === Object.prototype ||
+    prototype === null
+  );
+
+}
+
+
+
+// =====================================
+// SAFE DEEP FREEZE
+// =====================================
+
+function freezeModuleObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !== "object"
+  ){
     return value;
   }
 
@@ -59,15 +117,29 @@ function freezeModuleObject(value, visited = new WeakSet()){
     return value;
   }
 
+  if(
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof Date ||
+    value instanceof RegExp
+  ){
+    return value;
+  }
+
+  if(!Array.isArray(value) && !isPlainObject(value)){
+    return value;
+  }
+
   visited.add(value);
 
   Object.freeze(value);
 
-  Object.values(value).forEach((v) => {
+  Object.values(value).forEach((nestedValue) => {
 
-    if(v && typeof v === "object"){
-      freezeModuleObject(v, visited);
-    }
+    freezeModuleObject(
+      nestedValue,
+      visited
+    );
 
   });
 
@@ -81,36 +153,48 @@ function freezeModuleObject(value, visited = new WeakSet()){
 // MODULE DEFINITION CREATION
 // =====================================
 
-function createModuleDefinition(moduleName, factory, options = {}){
+function createModuleDefinition(
+  moduleName,
+  factory,
+  options = {}
+){
 
   return {
 
-    metadata: freezeModuleObject({
+    metadata:
+    freezeModuleObject({
 
-      name: moduleName,
+      name:
+      moduleName,
 
-      dependencies: Array.isArray(options.dependencies)
-        ? options.dependencies.filter(Boolean)
-        : [],
+      dependencies:
+      normalizeDependencies(
+        options.dependencies
+      ),
 
       lifecycle:
-        options.lifecycle ?? MODULE_LIFECYCLES.SINGLETON,
+      options.lifecycle ??
+      MODULE_LIFECYCLES.SINGLETON,
 
       priority:
-        options.priority ?? MODULE_PRIORITIES.NORMAL,
+      options.priority ??
+      MODULE_PRIORITIES.NORMAL,
 
       lazy:
-        options.lazy ?? false,
+      options.lazy ?? false,
 
-      createdAt: Date.now()
+      createdAt:
+      Date.now()
 
     }),
 
     factory,
 
-    retries: 0,
+    retries:
+    0,
 
-    state: MODULE_STATES.REGISTERED
+    state:
+    MODULE_STATES.REGISTERED
 
   };
 
@@ -119,12 +203,17 @@ function createModuleDefinition(moduleName, factory, options = {}){
 
 
 // =====================================
-// REGISTER (NO SIDE EFFECTS)
+// REGISTER MODULE
 // =====================================
 
-function registerModuleDefinition(moduleName, factory, options = {}){
+function registerModuleDefinition(
+  moduleName,
+  factory,
+  options = {}
+){
 
-  const normalizedName = normalizeModuleName(moduleName);
+  const normalizedName =
+    normalizeModuleName(moduleName);
 
   if(!normalizedName){
     return false;
@@ -134,29 +223,49 @@ function registerModuleDefinition(moduleName, factory, options = {}){
     return false;
   }
 
-  if(moduleLoaderState.modules.has(normalizedName)){
+  if(
+    moduleLoaderState.modules.has(
+      normalizedName
+    )
+  ){
     return false;
   }
 
   const definition =
-    createModuleDefinition(normalizedName, factory, options);
+    createModuleDefinition(
+      normalizedName,
+      factory,
+      options
+    );
 
-  moduleLoaderState.modules.set(normalizedName, definition);
+  moduleLoaderState.modules.set(
+    normalizedName,
+    definition
+  );
 
   moduleLoaderState.dependencyGraph.set(
     normalizedName,
     definition.metadata.dependencies
   );
 
-  definition.metadata.dependencies.forEach(dep => {
+  definition.metadata.dependencies.forEach((dependency) => {
 
-    const normalizedDep = normalizeModuleName(dep);
+    if(
+      !moduleLoaderState.reverseDependencies.has(
+        dependency
+      )
+    ){
 
-    if(!moduleLoaderState.reverseDependencies.has(normalizedDep)){
-      moduleLoaderState.reverseDependencies.set(normalizedDep, new Set());
+      moduleLoaderState.reverseDependencies.set(
+        dependency,
+        new Set()
+      );
+
     }
 
-    moduleLoaderState.reverseDependencies.get(normalizedDep).add(normalizedName);
+    moduleLoaderState.reverseDependencies
+      .get(dependency)
+      .add(normalizedName);
 
   });
 
@@ -172,9 +281,11 @@ function registerModuleDefinition(moduleName, factory, options = {}){
 
 function getRegisteredModule(moduleName){
 
-  const normalizedName = normalizeModuleName(moduleName);
-
-  return moduleLoaderState.modules.get(normalizedName) || null;
+  return (
+    moduleLoaderState.modules.get(
+      normalizeModuleName(moduleName)
+    ) || null
+  );
 
 }
 
@@ -192,41 +303,67 @@ function hasRegisteredModule(moduleName){
 
 function getRegisteredModules(){
 
-  return [...moduleLoaderState.modules.keys()];
+  return [
+    ...moduleLoaderState.modules.keys()
+  ];
 
 }
 
 
 
 // =====================================
-// INSTANCE ACCESS (READ ONLY)
+// INSTANCE ACCESS
 // =====================================
 
 function getModuleInstance(moduleName){
 
-  const normalizedName = normalizeModuleName(moduleName);
-
-  return moduleLoaderState.instances.get(normalizedName) || null;
+  return (
+    moduleLoaderState.instances.get(
+      normalizeModuleName(moduleName)
+    ) || null
+  );
 
 }
 
 
 
 // =====================================
-// SNAPSHOT (READ ONLY SAFE VIEW)
+// SAFE SNAPSHOT
 // =====================================
 
 function createModuleRegistrySnapshot(){
 
+  const reverseDependencies = {};
+
+  moduleLoaderState.reverseDependencies.forEach(
+    (value, key) => {
+
+      reverseDependencies[key] =
+        [...value];
+
+    }
+  );
+
   return freezeModuleObject({
 
-    modules: [...moduleLoaderState.modules.keys()],
-    activeModules: [...moduleLoaderState.activeModules],
-    failedModules: [...moduleLoaderState.failedModules],
-    dependencyGraph: Object.fromEntries(moduleLoaderState.dependencyGraph),
-    reverseDependencies: Object.fromEntries(moduleLoaderState.reverseDependencies),
+    modules:
+    [...moduleLoaderState.modules.keys()],
 
-    timestamp: Date.now()
+    activeModules:
+    [...moduleLoaderState.activeModules],
+
+    failedModules:
+    [...moduleLoaderState.failedModules],
+
+    dependencyGraph:
+    Object.fromEntries(
+      moduleLoaderState.dependencyGraph
+    ),
+
+    reverseDependencies,
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -235,23 +372,49 @@ function createModuleRegistrySnapshot(){
 
 
 // =====================================
-// GLOBAL EXPORTS
+// PUBLIC API
+// =====================================
+
+const ModuleRegistry =
+Object.freeze({
+
+  registerModuleDefinition,
+
+  getRegisteredModule,
+
+  hasRegisteredModule,
+
+  getRegisteredModules,
+
+  getModuleInstance,
+
+  createModuleRegistrySnapshot
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
 // =====================================
 
 if(typeof window !== "undefined"){
 
-  window.moduleLoaderState = moduleLoaderState;
+  Object.defineProperty(
+    window,
+    "ModuleRegistry",
+    {
 
-  window.registerModuleDefinition = registerModuleDefinition;
+      value:
+      ModuleRegistry,
 
-  window.getRegisteredModule = getRegisteredModule;
+      writable:
+      false,
 
-  window.hasRegisteredModule = hasRegisteredModule;
+      configurable:
+      false
 
-  window.getRegisteredModules = getRegisteredModules;
-
-  window.getModuleInstance = getModuleInstance;
-
-  window.createModuleRegistrySnapshot = createModuleRegistrySnapshot;
+    }
+  );
 
 }
