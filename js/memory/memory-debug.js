@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY DEBUG
 // ENTERPRISE INFINITY ULTRA FINAL
+// PATCHED + STABILIZED
 // =====================================
 
 
@@ -10,7 +11,7 @@
 // DEBUG CONFIG
 // =====================================
 
-const MEMORY_DEBUG =
+const MEMORY_DEBUG_CONFIG =
 Object.freeze({
 
   ENABLE_DEBUG:true,
@@ -95,13 +96,28 @@ Object.seal({
 
 
 // =====================================
+// INITIALIZE DEBUG
+// =====================================
+
+function initializeMemoryDebug(){
+
+  memoryDebugState
+  .initialized = true;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // DEBUG HELPERS
 // =====================================
 
 function isDebugEnabled(){
 
   return (
-    MEMORY_DEBUG
+    MEMORY_DEBUG_CONFIG
     .ENABLE_DEBUG === true
   );
 
@@ -160,7 +176,7 @@ function truncateDebugText(
 
     normalized.length <=
 
-    MEMORY_DEBUG
+    MEMORY_DEBUG_CONFIG
     .LOG_TRUNCATE_LENGTH
 
   ){
@@ -175,7 +191,7 @@ function truncateDebugText(
 
       0,
 
-      MEMORY_DEBUG
+      MEMORY_DEBUG_CONFIG
       .LOG_TRUNCATE_LENGTH
 
     )
@@ -296,7 +312,7 @@ function addMemoryDebugLog(
 
     message:
     truncateDebugText(
-      message
+      String(message ?? "")
     ),
 
     metadata:
@@ -321,7 +337,7 @@ function addMemoryDebugLog(
     .logs
     .length >
 
-    MEMORY_DEBUG
+    MEMORY_DEBUG_CONFIG
     .MAX_LOGS
 
   ){
@@ -349,7 +365,7 @@ function addMemoryTrace(
 
   if(
 
-    !MEMORY_DEBUG
+    !MEMORY_DEBUG_CONFIG
     .ENABLE_TRACING
 
   ){
@@ -391,7 +407,7 @@ function addMemoryTrace(
     .traces
     .length >
 
-    MEMORY_DEBUG
+    MEMORY_DEBUG_CONFIG
     .MAX_TRACES
 
   ){
@@ -417,7 +433,7 @@ function startMemoryProfile(
 ){
 
   if(
-    !MEMORY_DEBUG
+    !MEMORY_DEBUG_CONFIG
     .ENABLE_PROFILING
   ){
 
@@ -425,7 +441,14 @@ function startMemoryProfile(
 
   }
 
+  const profileId =
+  createDebugId(
+    "profile"
+  );
+
   const profile = {
+
+    id:profileId,
 
     operation:
     String(
@@ -450,18 +473,18 @@ function startMemoryProfile(
   memoryDebugState
   .activeProfiles
   .set(
-    operation,
+    profileId,
     profile
   );
 
-  return profile;
+  return profileId;
 
 }
 
 
 
 function endMemoryProfile(
-  operation
+  profileId
 ){
 
   const profile =
@@ -469,7 +492,7 @@ function endMemoryProfile(
     memoryDebugState
     .activeProfiles
     .get(
-      operation
+      profileId
     );
 
   if(!profile){
@@ -498,14 +521,14 @@ function endMemoryProfile(
   memoryDebugState
   .activeProfiles
   .delete(
-    operation
+    profileId
   );
 
   if(
 
     duration >
 
-    MEMORY_DEBUG
+    MEMORY_DEBUG_CONFIG
     .SLOW_OPERATION_THRESHOLD
 
   ){
@@ -514,7 +537,7 @@ function endMemoryProfile(
 
       "warn",
 
-      `Slow operation: ${operation}`,
+      `Slow operation: ${profile.operation}`,
 
       {
         duration
@@ -528,7 +551,9 @@ function endMemoryProfile(
 
     memoryDebugState
     .operationStats
-    .get(operation)
+    .get(
+      profile.operation
+    )
 
     ||
 
@@ -555,7 +580,7 @@ function endMemoryProfile(
   memoryDebugState
   .operationStats
   .set(
-    operation,
+    profile.operation,
     stats
   );
 
@@ -722,14 +747,27 @@ function analyzeMemoryHealth(){
   // CACHE PRESSURE
   // ===================================
 
-  if(
+  const cacheSize =
+
+    memoryState?.cache
+    ?.memories instanceof Map
+
+    ?
 
     memoryState
-    ?.cache
-    ?.memories
-    ?.size >
+    .cache
+    .memories
+    .size
 
-    MEMORY_DEBUG
+    :
+
+    0;
+
+  if(
+
+    cacheSize >
+
+    MEMORY_DEBUG_CONFIG
     .MEMORY_WARNING_THRESHOLD
 
   ){
@@ -738,12 +776,7 @@ function analyzeMemoryHealth(){
 
       type:"cache-pressure",
 
-      size:
-
-      memoryState
-      .cache
-      .memories
-      .size
+      size:cacheSize
 
     });
 
@@ -791,7 +824,7 @@ function analyzeMemoryHealth(){
 
       0,
 
-      MEMORY_DEBUG
+      MEMORY_DEBUG_CONFIG
       .MAX_REPORT_WARNINGS
 
     ),
@@ -801,7 +834,7 @@ function analyzeMemoryHealth(){
 
       0,
 
-      MEMORY_DEBUG
+      MEMORY_DEBUG_CONFIG
       .MAX_REPORT_WARNINGS
 
     ),
@@ -829,7 +862,7 @@ function attemptMemoryRepair(){
 
   if(
 
-    !MEMORY_DEBUG
+    !MEMORY_DEBUG_CONFIG
     .ENABLE_AUTO_REPAIR
 
   ){
@@ -930,7 +963,7 @@ function createMemorySnapshot(){
 
   if(
 
-    !MEMORY_DEBUG
+    !MEMORY_DEBUG_CONFIG
     .ENABLE_SNAPSHOTS
 
   ){
@@ -1006,7 +1039,7 @@ function createMemorySnapshot(){
     .snapshots
     .length >
 
-    MEMORY_DEBUG
+    MEMORY_DEBUG_CONFIG
     .MAX_SNAPSHOTS
 
   ){
@@ -1103,7 +1136,7 @@ async function benchmarkMemoryOperation(
       .benchmarks
       .length >
 
-      MEMORY_DEBUG
+      MEMORY_DEBUG_CONFIG
       .MAX_BENCHMARKS
 
     ){
@@ -1166,6 +1199,23 @@ async function benchmarkMemoryOperation(
 
     });
 
+    while(
+
+      memoryDebugState
+      .benchmarks
+      .length >
+
+      MEMORY_DEBUG_CONFIG
+      .MAX_BENCHMARKS
+
+    ){
+
+      memoryDebugState
+      .benchmarks
+      .shift();
+
+    }
+
     throw error;
 
   }
@@ -1183,7 +1233,7 @@ function generateMemoryDebugReport(){
   const health =
   analyzeMemoryHealth();
 
-  return {
+  return deepFreeze({
 
     generatedAt:
     Date.now(),
@@ -1315,7 +1365,7 @@ function generateMemoryDebugReport(){
 
     }
 
-  };
+  });
 
 }
 
