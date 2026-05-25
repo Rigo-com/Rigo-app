@@ -2,7 +2,25 @@
 // RIGO AI
 // SECURITY URL
 // ENTERPRISE URL SECURITY LAYER
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// URL CONFIG
+// =====================================
+
+const SECURITY_URL_CONFIG =
+Object.freeze({
+
+  MAX_TRUSTED_ORIGINS:
+  100,
+
+  MAX_HOSTNAME_LENGTH:
+  255
+
+});
 
 
 
@@ -32,6 +50,33 @@ Object.freeze([
   "1433",
   "3306",
   "3389"
+
+]);
+
+
+
+// =====================================
+// PRIVATE NETWORKS
+// =====================================
+
+const PRIVATE_NETWORK_PATTERNS =
+Object.freeze([
+
+  /^127\./,
+  /^10\./,
+  /^192\.168\./,
+
+  /^172\.(1[6-9]|2\d|3[0-1])\./,
+
+  /^0\.0\.0\.0$/,
+
+  /^169\.254\./,
+
+  /^::1$/i,
+
+  /^fc/i,
+  /^fd/i,
+  /^fe80:/i
 
 ]);
 
@@ -85,33 +130,78 @@ function validateURLProtocol(
 
 
 // =====================================
-// VALIDATE LOCALHOST
+// NORMALIZE HOSTNAME
 // =====================================
 
-function isLocalhostHostname(
+function normalizeHostname(
+  hostname
+){
+
+  try{
+
+    return safeString(hostname)
+
+    .normalize("NFKC")
+
+    .trim()
+    .toLowerCase();
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
+
+// =====================================
+// PRIVATE NETWORK CHECK
+// =====================================
+
+function isPrivateHostname(
   hostname
 ){
 
   const normalized =
-  safeString(hostname)
-  .toLowerCase();
+  normalizeHostname(
+    hostname
+  );
 
-  return (
+  if(!normalized){
+
+    return true;
+
+  }
+
+  if(
 
     normalized ===
     "localhost"
 
     ||
 
-    normalized ===
-    "127.0.0.1"
+    normalized.endsWith(
+      ".localhost"
+    )
 
-    ||
+  ){
 
-    normalized ===
-    "::1"
+    return true;
 
-  );
+  }
+
+  return PRIVATE_NETWORK_PATTERNS
+  .some((pattern) => {
+
+    return pattern.test(
+      normalized
+    );
+
+  });
 
 }
 
@@ -125,17 +215,18 @@ function validateURLPort(
   port
 ){
 
-  if(
-    !port
-  ){
+  if(!port){
 
     return true;
 
   }
 
+  const normalized =
+  safeString(port);
+
   return !BLOCKED_URL_PORTS
   .includes(
-    safeString(port)
+    normalized
   );
 
 }
@@ -151,8 +242,9 @@ function validateURLHostname(
 ){
 
   const normalized =
-  safeString(hostname)
-  .toLowerCase();
+  normalizeHostname(
+    hostname
+  );
 
   if(!normalized){
 
@@ -161,7 +253,12 @@ function validateURLHostname(
   }
 
   if(
-    normalized.length > 255
+
+    normalized.length >
+
+    SECURITY_URL_CONFIG
+    .MAX_HOSTNAME_LENGTH
+
   ){
 
     return false;
@@ -169,9 +266,36 @@ function validateURLHostname(
   }
 
   if(
-    /[^\w.-]/u
-    .test(normalized)
+    normalized.includes("..")
   ){
+
+    return false;
+
+  }
+
+  if(
+    normalized.startsWith("-")
+  ){
+
+    return false;
+
+  }
+
+  if(
+    normalized.endsWith("-")
+  ){
+
+    return false;
+
+  }
+
+  const validHostname =
+  /^[a-z0-9.-]+$/i
+  .test(
+    normalized
+  );
+
+  if(!validHostname){
 
     return false;
 
@@ -234,6 +358,21 @@ function addTrustedOrigin(
 
   }
 
+  if(
+
+    securityState
+    .trustedOrigins
+    .size >=
+
+    SECURITY_URL_CONFIG
+    .MAX_TRUSTED_ORIGINS
+
+  ){
+
+    return false;
+
+  }
+
   try{
 
     const parsed =
@@ -255,14 +394,6 @@ function addTrustedOrigin(
       )
     ){
 
-      logSecurityEvent(
-
-        "UNTRUSTED PROTOCOL BLOCKED",
-
-        { protocol }
-
-      );
-
       return false;
 
     }
@@ -271,12 +402,6 @@ function addTrustedOrigin(
       parsed.username ||
       parsed.password
     ){
-
-      logSecurityEvent(
-
-        "URL CREDENTIALS BLOCKED"
-
-      );
 
       return false;
 
@@ -288,12 +413,6 @@ function addTrustedOrigin(
       )
     ){
 
-      logSecurityEvent(
-
-        "INVALID HOSTNAME BLOCKED"
-
-      );
-
       return false;
 
     }
@@ -304,27 +423,15 @@ function addTrustedOrigin(
       )
     ){
 
-      logSecurityEvent(
-
-        "BLOCKED PORT DETECTED"
-
-      );
-
       return false;
 
     }
 
     if(
-      isLocalhostHostname(
+      isPrivateHostname(
         parsed.hostname
       )
     ){
-
-      logSecurityEvent(
-
-        "LOCALHOST ORIGIN BLOCKED"
-
-      );
 
       return false;
 
@@ -347,37 +454,11 @@ function addTrustedOrigin(
       normalizedOrigin
     );
 
-    logSecurityEvent(
-
-      "TRUSTED ORIGIN ADDED",
-
-      {
-
-        origin:
-        normalizedOrigin
-
-      }
-
-    );
-
     return true;
 
   }
 
   catch(error){
-
-    logSecurityEvent(
-
-      "ADD TRUSTED ORIGIN FAILED",
-
-      {
-
-        error:
-        String(error)
-
-      }
-
-    );
 
     return false;
 
@@ -481,7 +562,14 @@ function safeURL(
   }
 
   const normalized =
-  safeString(url);
+  safeString(
+    url,
+    {
+
+      trim:true
+
+    }
+  );
 
   if(!normalized){
 
@@ -498,12 +586,15 @@ function safeURL(
 
   ){
 
-    securityState
-    .blockedURLs++;
+    if(
+      typeof securityState ===
+      "object"
+    ){
 
-    logSecurityEvent(
-      "URL LENGTH BLOCKED"
-    );
+      securityState
+      .blockedURLs++;
+
+    }
 
     return null;
 
@@ -515,12 +606,15 @@ function safeURL(
       normalized.includes("@")
     ){
 
-      securityState
-      .blockedURLs++;
+      if(
+        typeof securityState ===
+        "object"
+      ){
 
-      logSecurityEvent(
-        "URL USERINFO BLOCKED"
-      );
+        securityState
+        .blockedURLs++;
+
+      }
 
       return null;
 
@@ -541,17 +635,6 @@ function safeURL(
       )
     ){
 
-      securityState
-      .blockedURLs++;
-
-      logSecurityEvent(
-
-        "URL PROTOCOL BLOCKED",
-
-        { protocol }
-
-      );
-
       return null;
 
     }
@@ -560,13 +643,6 @@ function safeURL(
       parsed.username ||
       parsed.password
     ){
-
-      securityState
-      .blockedURLs++;
-
-      logSecurityEvent(
-        "URL CREDENTIALS BLOCKED"
-      );
 
       return null;
 
@@ -578,13 +654,6 @@ function safeURL(
       )
     ){
 
-      securityState
-      .blockedURLs++;
-
-      logSecurityEvent(
-        "INVALID HOSTNAME BLOCKED"
-      );
-
       return null;
 
     }
@@ -595,29 +664,15 @@ function safeURL(
       )
     ){
 
-      securityState
-      .blockedURLs++;
-
-      logSecurityEvent(
-        "BLOCKED URL PORT"
-      );
-
       return null;
 
     }
 
     if(
-      isLocalhostHostname(
+      isPrivateHostname(
         parsed.hostname
       )
     ){
-
-      securityState
-      .blockedURLs++;
-
-      logSecurityEvent(
-        "LOCALHOST URL BLOCKED"
-      );
 
       return null;
 
@@ -625,28 +680,21 @@ function safeURL(
 
     parsed.hash = "";
 
-    return parsed
-    .toString();
+    return parsed.href;
 
   }
 
   catch(error){
 
-    securityState
-    .blockedURLs++;
+    if(
+      typeof securityState ===
+      "object"
+    ){
 
-    logSecurityEvent(
+      securityState
+      .blockedURLs++;
 
-      "URL PARSE FAILED",
-
-      {
-
-        error:
-        String(error)
-
-      }
-
-    );
+    }
 
     return null;
 
@@ -680,22 +728,7 @@ function normalizeURL(
 
     parsed.hash = "";
 
-    let normalized =
-    parsed.toString();
-
-    if(
-      normalized.endsWith("/")
-    ){
-
-      normalized =
-      normalized.slice(
-        0,
-        -1
-      );
-
-    }
-
-    return normalized;
+    return parsed.href;
 
   }
 
@@ -718,13 +751,7 @@ function validateTrustedURL(
 ){
 
   const safe =
-  safeURL(
-
-    safeString(
-      url
-    )
-
-  );
+  safeURL(url);
 
   if(!safe){
 
@@ -752,27 +779,21 @@ function validateTrustedURL(
 
     ){
 
-      securityState
-      .blockedURLs++;
+      if(
+        typeof securityState ===
+        "object"
+      ){
 
-      logSecurityEvent(
+        securityState
+        .blockedURLs++;
 
-        "UNTRUSTED URL BLOCKED",
-
-        {
-
-          origin:
-          normalizedOrigin
-
-        }
-
-      );
+      }
 
       return null;
 
     }
 
-    return parsed.toString();
+    return parsed.href;
 
   }
 
@@ -797,12 +818,11 @@ function getURLSecurityDiagnostics(){
     allowedProtocols:
     getAllowedURLProtocols(),
 
-    trustedOrigins:[
+    trustedOriginsCount:
 
-      ...securityState
+      securityState
       .trustedOrigins
-
-    ],
+      .size,
 
     blockedPorts:
     BLOCKED_URL_PORTS,
@@ -855,3 +875,37 @@ Object.freeze({
   getURLSecurityDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SecurityURL",
+
+    {
+
+      value:
+      SecurityURL,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
