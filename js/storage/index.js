@@ -1,149 +1,430 @@
 // =====================================
-// STORAGE DIAGNOSTICS
+// RIGO AI
+// STORAGE INDEX
+// ENTERPRISE STORAGE ORCHESTRATOR
+// FINAL STABLE EDITION
 // =====================================
 
-function getStorageDiagnostics(){
-
-  return Object.freeze({
-
-    initialized:
-    storageState
-    .initialized,
-
-    available:
-    storageState
-    .available,
-
-    hydrated:
-    storageState
-    .hydrated,
-
-    pendingHydration:
-    storageState
-    .pendingHydration,
-
-    writing:
-    storageState
-    .writing,
-
-    destroyed:
-    storageState
-    .destroyed,
 
 
+// =====================================
+// STORAGE RUNTIME STATE
+// =====================================
 
-    // ===================================
-    // TIMESTAMPS
-    // ===================================
+const storageRuntimeIndexState =
+Object.seal({
 
-    lastSyncAt:
-    storageState
-    .lastSyncAt,
+  initialized:false,
 
-    lastWriteAt:
-    storageState
-    .lastWriteAt,
+  initializing:false,
 
-    lastHydrationAt:
-    storageState
-    .lastHydrationAt,
+  crashed:false,
 
-    lastMemoryWriteVersion:
-    storageState
-    .lastMemoryWriteVersion,
+  initializedAt:null,
+
+  lastError:null,
+
+  loadedModules:
+  new Set(),
+
+  failedModules:
+  new Set()
+
+});
 
 
 
-    // ===================================
-    // QUEUE
-    // ===================================
+// =====================================
+// STORAGE MODULES
+// =====================================
 
-    queueSize:
+const STORAGE_RUNTIME_MODULES =
+Object.freeze([
 
-      Array.isArray(
+  {
 
-        storageState
-        .writeQueue
+    name:"config",
 
-      )
+    required:true,
 
-      ?
+    validate(){
 
-      storageState
-      .writeQueue
-      .length
+      return (
 
-      :
+        typeof STORAGE_CONFIG !==
+        "undefined"
 
-      0,
+      );
 
+    }
 
-
-    // ===================================
-    // METRICS
-    // ===================================
-
-    failedWrites:
-    storageState
-    .failedWrites,
-
-    quotaRecoveries:
-    storageState
-    .quotaRecoveries,
+  },
 
 
 
-    // ===================================
-    // CACHE
-    // ===================================
+  {
 
-    cachedChats:
+    name:"utils",
 
-      Array.isArray(
+    required:true,
 
-        storageState
-        .cache
-        .chats
+    validate(){
 
-      )
+      return (
 
-      ?
+        typeof deepClone ===
+        "function"
 
-      storageState
-      .cache
-      .chats
-      .length
+      );
 
-      :
+    }
 
-      0,
+  },
 
-    cachedMemoryKeys:
 
-      storageState
-      .cache
-      .memory
+
+  {
+
+    name:"validators",
+
+    required:true,
+
+    validate(){
+
+      return (
+
+        typeof validateStorageKey ===
+        "function"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"state",
+
+    required:true,
+
+    validate(){
+
+      return (
+
+        typeof storageState !==
+        "undefined"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"engine",
+
+    required:true,
+
+    validate(){
+
+      return (
+
+        typeof initializeStorageEngine ===
+        "function"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"queue",
+
+    required:true,
+
+    validate(){
+
+      return (
+
+        typeof processStorageQueue ===
+        "function"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"chat",
+
+    required:true,
+
+    validate(){
+
+      return (
+
+        typeof saveChats ===
+        "function"
+
+        &&
+
+        typeof loadChats ===
+        "function"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"memory",
+
+    required:true,
+
+    validate(){
+
+      return (
+
+        typeof saveMemory ===
+        "function"
+
+        &&
+
+        typeof loadMemory ===
+        "function"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:"runtime",
+
+    required:true,
+
+    validate(){
+
+      return (
+
+        typeof initializeStorageRuntime ===
+        "function"
+
+      );
+
+    }
+
+  }
+
+]);
+
+
+
+// =====================================
+// LOG HELPERS
+// =====================================
+
+function logStorageIndexInfo(
+  message,
+  metadata = null
+){
+
+  try{
+
+    if(
+      typeof logInfo ===
+      "function"
+    ){
+
+      logInfo(
+
+        "[STORAGE]",
+
+        {
+
+          message,
+
+          ...(metadata || {})
+
+        }
+
+      );
+
+      return;
+
+    }
+
+    console.info(
+
+      "[STORAGE]",
+
+      message,
+
+      metadata || ""
+
+    );
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+
+function logStorageIndexError(
+  message,
+  metadata = null
+){
+
+  try{
+
+    if(
+      typeof logError ===
+      "function"
+    ){
+
+      logError(
+
+        "[STORAGE]",
+
+        {
+
+          message,
+
+          ...(metadata || {})
+
+        }
+
+      );
+
+      return;
+
+    }
+
+    console.error(
+
+      "[STORAGE]",
+
+      message,
+
+      metadata || ""
+
+    );
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+
+// =====================================
+// REGISTER LOADED MODULE
+// =====================================
+
+function registerLoadedStorageModule(
+  moduleName
+){
+
+  storageRuntimeIndexState
+  .loadedModules
+  .add(
+    String(moduleName)
+  );
+
+  storageRuntimeIndexState
+  .failedModules
+  .delete(
+    String(moduleName)
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// REGISTER FAILED MODULE
+// =====================================
+
+function registerFailedStorageModule(
+  moduleName
+){
+
+  storageRuntimeIndexState
+  .failedModules
+  .add(
+    String(moduleName)
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// VALIDATE STORAGE MODULES
+// =====================================
+
+function validateStorageModules(){
+
+  return STORAGE_RUNTIME_MODULES
+  .every((module) => {
+
+    return (
+
+      module
 
       &&
 
-      typeof storageState
-      .cache
-      .memory ===
+      typeof module ===
       "object"
 
-      ?
+      &&
 
-      Object.keys(
+      typeof module.name ===
+      "string"
 
-        storageState
-        .cache
-        .memory
+      &&
 
-      ).length
+      typeof module.validate ===
+      "function"
 
-      :
-
-      0
+    );
 
   });
 
@@ -152,72 +433,395 @@ function getStorageDiagnostics(){
 
 
 // =====================================
-// STORAGE AVAILABILITY STATUS
+// INITIALIZE STORAGE INDEX
 // =====================================
 
-function isStorageReady(){
+async function initializeStorageIndex(){
 
-  return (
+  if(
+    storageRuntimeIndexState
+    .initialized
+  ){
 
-    storageState
-    .initialized ===
-    true
+    return true;
 
-    &&
+  }
 
-    storageState
-    .available ===
-    true
+  if(
+    storageRuntimeIndexState
+    .initializing
+  ){
 
-    &&
+    return false;
 
-    storageState
-    .hydrated ===
-    true
+  }
 
-    &&
+  storageRuntimeIndexState
+  .initializing = true;
 
-    storageState
-    .destroyed ===
-    false
+  try{
 
-  );
+    const valid =
+    validateStorageModules();
+
+    if(!valid){
+
+      throw new Error(
+        "INVALID_STORAGE_MODULES"
+      );
+
+    }
+
+    for(
+      const module
+      of STORAGE_RUNTIME_MODULES
+    ){
+
+      try{
+
+        const validated =
+        await module
+        .validate();
+
+        if(!validated){
+
+          registerFailedStorageModule(
+            module.name
+          );
+
+          logStorageIndexError(
+
+            "STORAGE MODULE FAILED",
+
+            {
+
+              module:
+              module.name
+
+            }
+
+          );
+
+          if(
+            module.required
+          ){
+
+            throw new Error(
+
+              "REQUIRED_STORAGE_MODULE_FAILED"
+
+            );
+
+          }
+
+          continue;
+
+        }
+
+        registerLoadedStorageModule(
+          module.name
+        );
+
+        logStorageIndexInfo(
+
+          "STORAGE MODULE READY",
+
+          {
+
+            module:
+            module.name
+
+          }
+
+        );
+
+      }
+
+      catch(error){
+
+        registerFailedStorageModule(
+          module.name
+        );
+
+        logStorageIndexError(
+
+          "STORAGE MODULE CRASHED",
+
+          {
+
+            module:
+            module.name,
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+        if(
+          module.required
+        ){
+
+          throw error;
+
+        }
+
+      }
+
+    }
+
+    const runtimeInitialized =
+    await initializeStorageRuntime();
+
+    if(!runtimeInitialized){
+
+      throw new Error(
+        "STORAGE_RUNTIME_INIT_FAILED"
+      );
+
+    }
+
+    storageRuntimeIndexState
+    .initialized =
+    true;
+
+    storageRuntimeIndexState
+    .initializedAt =
+    Date.now();
+
+    logStorageIndexInfo(
+      "STORAGE INDEX READY"
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    storageRuntimeIndexState
+    .crashed =
+    true;
+
+    storageRuntimeIndexState
+    .lastError =
+    error;
+
+    logStorageIndexError(
+
+      "STORAGE INDEX FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    return false;
+
+  }
+
+  finally{
+
+    storageRuntimeIndexState
+    .initializing =
+    false;
+
+  }
 
 }
 
 
 
 // =====================================
-// SAFE STATE SNAPSHOT
+// RESET STORAGE INDEX
 // =====================================
 
-function getStorageStateSnapshot(){
+async function resetStorageIndex(){
 
-  return deepClone({
+  storageRuntimeIndexState
+  .loadedModules
+  .clear();
+
+  storageRuntimeIndexState
+  .failedModules
+  .clear();
+
+  storageRuntimeIndexState
+  .initialized =
+  false;
+
+  storageRuntimeIndexState
+  .crashed =
+  false;
+
+  storageRuntimeIndexState
+  .lastError =
+  null;
+
+  try{
+
+    if(
+      typeof destroyStorageRuntime ===
+      "function"
+    ){
+
+      await destroyStorageRuntime();
+
+    }
+
+  }
+
+  catch(error){
+
+    logStorageIndexError(
+
+      "STORAGE DESTROY FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+  }
+
+  return initializeStorageIndex();
+
+}
+
+
+
+// =====================================
+// STORAGE HEALTHCHECK
+// =====================================
+
+function runStorageHealthcheck(){
+
+  if(
+    !storageRuntimeIndexState
+    .initialized
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    storageRuntimeIndexState
+    .failedModules
+    .size > 0
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof isStorageReady ===
+    "function"
+  ){
+
+    return isStorageReady();
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STORAGE DIAGNOSTICS
+// =====================================
+
+function getFullStorageDiagnostics(){
+
+  return Object.freeze({
 
     initialized:
-    storageState
+    storageRuntimeIndexState
     .initialized,
 
-    available:
-    storageState
-    .available,
+    initializing:
+    storageRuntimeIndexState
+    .initializing,
 
-    hydrated:
-    storageState
-    .hydrated,
+    crashed:
+    storageRuntimeIndexState
+    .crashed,
 
-    pendingHydration:
-    storageState
-    .pendingHydration,
+    initializedAt:
+    storageRuntimeIndexState
+    .initializedAt,
 
-    writing:
-    storageState
-    .writing,
+    loadedModules:[
 
-    destroyed:
-    storageState
-    .destroyed
+      ...storageRuntimeIndexState
+      .loadedModules
+
+    ],
+
+    failedModules:[
+
+      ...storageRuntimeIndexState
+      .failedModules
+
+    ],
+
+    modulesCount:
+
+      storageRuntimeIndexState
+      .loadedModules
+      .size,
+
+    failedCount:
+
+      storageRuntimeIndexState
+      .failedModules
+      .size,
+
+    healthcheck:
+    runStorageHealthcheck(),
+
+    runtime:
+
+      typeof getStorageDiagnostics ===
+      "function"
+
+      ?
+
+      getStorageDiagnostics()
+
+      :
+
+      null,
+
+    lastError:
+
+      storageRuntimeIndexState
+      .lastError
+
+      ?
+
+      String(
+        storageRuntimeIndexState
+        .lastError
+      )
+
+      :
+
+      null
 
   });
 
@@ -233,7 +837,10 @@ const StorageRuntime =
 Object.freeze({
 
   initialize:
-  initializeStorageRuntime,
+  initializeStorageIndex,
+
+  reset:
+  resetStorageIndex,
 
   destroy:
   destroyStorageRuntime,
@@ -266,7 +873,10 @@ Object.freeze({
   // ===================================
 
   diagnostics:
-  getStorageDiagnostics,
+  getFullStorageDiagnostics,
+
+  healthcheck:
+  runStorageHealthcheck,
 
   isReady:
   isStorageReady,
