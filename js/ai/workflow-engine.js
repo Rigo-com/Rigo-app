@@ -288,8 +288,7 @@ function cloneWorkflowObject(
 
   catch(error){
 
-    return null;
-
+    return {};
   }
 
 }
@@ -406,7 +405,7 @@ function isWorkflowContextValid(
 
 function trimWorkflowHistory(){
 
-  if(
+  while(
 
     workflowEngineState
     .executionHistory
@@ -590,6 +589,43 @@ async function executeWithWorkflowTimeout(
 
 
 // =====================================
+// SAFE STEP EXECUTION
+// =====================================
+
+async function safelyExecuteStep(
+  step,
+  payload
+){
+
+  if(
+    typeof step.execute !==
+    "function"
+  ){
+
+    return true;
+
+  }
+
+  return executeWithWorkflowTimeout(
+
+    () => {
+
+      return step.execute(
+        payload
+      );
+
+    },
+
+    WORKFLOW_ENGINE_CONFIG
+    .WORKFLOW_TIMEOUT
+
+  );
+
+}
+
+
+
+// =====================================
 // WORKFLOW OBJECT
 // =====================================
 
@@ -748,6 +784,14 @@ async function registerWorkflow(
   );
 
   if(
+    !workflow.id
+  ){
+
+    return false;
+
+  }
+
+  if(
 
     workflowEngineState
     .workflows
@@ -836,10 +880,14 @@ async function validateStepCondition(
 
   try{
 
-    return await step.condition(
+    return Boolean(
 
-      cloneWorkflowObject(
-        context
+      await step.condition(
+
+        cloneWorkflowObject(
+          context
+        )
+
       )
 
     );
@@ -929,64 +977,76 @@ async function executeWorkflowStep(
 
     try{
 
-      if(
-        typeof step.execute ===
-        "function"
-      ){
+      await safelyExecuteStep(
 
-        await executeWithWorkflowTimeout(
+        step,
 
-          () => {
+        {
 
-            return step.execute({
+          workflow:
 
-              workflow:
+            cloneWorkflowObject(
+              workflow
+            ),
 
-                cloneWorkflowObject(
-                  workflow
-                ),
+          step:
+          cloneWorkflowObject(
+            step
+          ),
 
-              step:
-              cloneWorkflowObject(
-                step
-              ),
+          context:
+          cloneWorkflowObject(
+            context
+          ),
 
-              context:
-              cloneWorkflowObject(
-                context
-              ),
+          tools:
 
-              tools:
-              ToolExecutor,
+            typeof ToolExecutor !==
+            "undefined"
 
-              agents:
-              AgentManager,
+            ? ToolExecutor
 
-              state:
-              StateManager,
+            : null,
 
-              memory:
+          agents:
 
-                typeof MemorySystem !==
-                "undefined"
+            typeof AgentManager !==
+            "undefined"
 
-                ? MemorySystem
+            ? AgentManager
 
-                : null,
+            : null,
 
-              contexts:
-              ContextManager
+          state:
 
-            });
+            typeof StateManager !==
+            "undefined"
 
-          },
+            ? StateManager
 
-          WORKFLOW_ENGINE_CONFIG
-          .WORKFLOW_TIMEOUT
+            : null,
 
-        );
+          memory:
 
-      }
+            typeof MemorySystem !==
+            "undefined"
+
+            ? MemorySystem
+
+            : null,
+
+          contexts:
+
+            typeof ContextManager !==
+            "undefined"
+
+            ? ContextManager
+
+            : null
+
+        }
+
+      );
 
       workflowEngineState
       .diagnostics
@@ -1167,6 +1227,14 @@ async function executeWorkflow(
   );
 
   if(
+    !normalizedId
+  ){
+
+    return false;
+
+  }
+
+  if(
 
     workflowEngineState
     .executionLocks
@@ -1290,12 +1358,6 @@ async function executeWorkflow(
 
         });
 
-
-
-        // ================================
-        // PARALLEL STEPS
-        // ================================
-
         if(
           parallelSteps.length > 0
         ){
@@ -1320,12 +1382,6 @@ async function executeWorkflow(
           }
 
         }
-
-
-
-        // ================================
-        // SEQUENTIAL STEPS
-        // ================================
 
         for(
           const step
@@ -1362,6 +1418,12 @@ async function executeWorkflow(
         workflowEngineState
         .completedWorkflows
         .add(
+          normalizedId
+        );
+
+        workflowEngineState
+        .failedWorkflows
+        .delete(
           normalizedId
         );
 
@@ -1513,6 +1575,14 @@ async function terminateWorkflow(
   normalizeWorkflowId(
     workflowId
   );
+
+  if(
+    !normalizedId
+  ){
+
+    return false;
+
+  }
 
   const workflow =
 
@@ -1716,6 +1786,10 @@ async function resetWorkflowEngine(){
 
   };
 
+  workflowEngineState
+  .lastWorkflowAt =
+  null;
+
   return true;
 
 }
@@ -1756,12 +1830,6 @@ async function initializeWorkflowEngine(){
     .initialized =
     true;
 
-
-
-    // ================================
-    // MODULE REGISTRATION
-    // ================================
-
     if(
       typeof registerModule ===
       "function"
@@ -1778,6 +1846,16 @@ async function initializeWorkflowEngine(){
     }
 
     return true;
+
+  }
+
+  catch(error){
+
+    workflowEngineState
+    .initialized =
+    false;
+
+    return false;
 
   }
 
