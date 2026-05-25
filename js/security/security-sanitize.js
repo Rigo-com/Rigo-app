@@ -2,7 +2,122 @@
 // RIGO AI
 // SECURITY SANITIZE
 // ENTERPRISE SANITIZATION ENGINE
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// SANITIZER CONFIG
+// =====================================
+
+const SECURITY_SANITIZE_CONFIG =
+Object.freeze({
+
+  MAX_DEPTH:
+  10,
+
+  MAX_KEYS:
+  1000,
+
+  MAX_ARRAY_LENGTH:
+  5000
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isPlainSanitizeObject(
+  value
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype
+
+    ||
+
+    prototype === null
+
+  );
+
+}
+
+
+
+function safeFreezeSanitized(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Reflect
+  .ownKeys(value)
+  .forEach((key) => {
+
+    try{
+
+      safeFreezeSanitized(
+        value[key],
+        visited
+      );
+
+    }
+
+    catch(error){}
+
+  });
+
+  return Object.freeze(
+    value
+  );
+
+}
 
 
 
@@ -45,29 +160,49 @@ function safeString(
 
   catch(error){
 
-    logSecurityEvent(
-      "STRING_CONVERSION_FAILED"
-    );
+    if(
+      typeof logSecurityEvent ===
+      "function"
+    ){
+
+      logSecurityEvent(
+        "STRING_CONVERSION_FAILED"
+      );
+
+    }
 
     return "";
 
   }
 
-  if(
-    typeof normalized.normalize ===
-    "function"
-  ){
+  try{
 
-    normalized =
-    normalized.normalize(
-      "NFKC"
-    );
+    if(
+      typeof normalized.normalize ===
+      "function"
+    ){
+
+      normalized =
+      normalized.normalize(
+        "NFKC"
+      );
+
+    }
 
   }
 
+  catch(error){}
+
   normalized =
-  normalized.replace(
+  normalized
+
+  .replace(
     /[\u0000-\u001F\u007F]/g,
+    ""
+  )
+
+  .replace(
+    /[\u202A-\u202E]/g,
     ""
   );
 
@@ -129,8 +264,7 @@ function escapeHTML(
   .replace(/>/g,"&gt;")
   .replace(/"/g,"&quot;")
   .replace(/'/g,"&#39;")
-  .replace(/`/g,"&#96;")
-  .replace(/=/g,"&#61;");
+  .replace(/`/g,"&#96;");
 
 }
 
@@ -144,18 +278,12 @@ function sanitizeHTML(
   input
 ){
 
-  const sanitized =
+  const escaped =
   escapeHTML(input);
 
   if(
-
-    Number.isFinite(
-
-      securityState
-      .sanitizedPayloads
-
-    )
-
+    typeof securityState ===
+    "object"
   ){
 
     securityState
@@ -163,19 +291,7 @@ function sanitizeHTML(
 
   }
 
-  else{
-
-    securityState
-    .sanitizedPayloads =
-    1;
-
-  }
-
-  logSecurityEvent(
-    "HTML SANITIZED"
-  );
-
-  return sanitized;
+  return escaped;
 
 }
 
@@ -190,7 +306,14 @@ function sanitizeURL(
 ){
 
   const normalized =
-  safeString(url);
+  safeString(
+    url,
+    {
+
+      trim:true
+
+    }
+  );
 
   if(!normalized){
 
@@ -206,81 +329,111 @@ function sanitizeURL(
 
   ){
 
-    securityState
-    .blockedURLs++;
+    if(
+      typeof securityState ===
+      "object"
+    ){
 
-    logSecurityEvent(
-      "URL LENGTH BLOCKED"
-    );
+      securityState
+      .blockedURLs++;
 
-    return "";
-  }
-
-  const blockedProtocols = [
-
-    "javascript:",
-
-    "data:",
-
-    "vbscript:",
-
-    "file:"
-
-  ];
-
-  const lowered =
-  normalized
-  .toLowerCase();
-
-  const blocked =
-  blockedProtocols
-  .some((protocol) => {
-
-    return lowered.startsWith(
-      protocol
-    );
-
-  });
-
-  if(blocked){
-
-    securityState
-    .blockedURLs++;
-
-    logSecurityEvent(
-      "BLOCKED URL",
-      { url }
-    );
+    }
 
     return "";
   }
 
-  if(
+  try{
 
-    SECURITY_CONFIG
-    .ENABLE_HTTP_PROTOCOL ===
-    false
+    const parsed =
+    new URL(
 
-    &&
+      normalized,
 
-    lowered.startsWith(
+      typeof window !==
+      "undefined"
+
+      ?
+
+      window.location.origin
+
+      :
+
+      "https://localhost"
+
+    );
+
+    const protocol =
+    parsed.protocol
+    .toLowerCase();
+
+    const blockedProtocols =
+
+      new Set([
+
+        "javascript:",
+
+        "data:",
+
+        "vbscript:",
+
+        "file:"
+
+      ]);
+
+    if(
+      blockedProtocols.has(
+        protocol
+      )
+    ){
+
+      if(
+        typeof securityState ===
+        "object"
+      ){
+
+        securityState
+        .blockedURLs++;
+
+      }
+
+      return "";
+    }
+
+    if(
+
+      SECURITY_CONFIG
+      .ENABLE_HTTP_PROTOCOL ===
+      false
+
+      &&
+
+      protocol ===
       "http:"
-    )
 
-  ){
+    ){
 
-    securityState
-    .blockedURLs++;
+      if(
+        typeof securityState ===
+        "object"
+      ){
 
-    logSecurityEvent(
-      "INSECURE HTTP BLOCKED",
-      { url }
-    );
+        securityState
+        .blockedURLs++;
 
-    return "";
+      }
+
+      return "";
+    }
+
+    return parsed.href;
+
   }
 
-  return normalized;
+  catch(error){
+
+    return "";
+
+  }
 
 }
 
@@ -292,7 +445,8 @@ function sanitizeURL(
 
 function sanitizeArray(
   values = [],
-  visited = new WeakSet()
+  visited = new WeakSet(),
+  depth = 0
 ){
 
   if(
@@ -303,6 +457,7 @@ function sanitizeArray(
   }
 
   return values
+
   .slice(
 
     0,
@@ -311,11 +466,17 @@ function sanitizeArray(
     .MAX_ARRAY_LENGTH
 
   )
+
   .map((item) => {
 
     return sanitizeObject(
+
       item,
-      visited
+
+      visited,
+
+      depth + 1
+
     );
 
   });
@@ -346,8 +507,8 @@ function sanitizeObject(
 
     depth >
 
-    SECURITY_CONFIG
-    .MAX_JSON_DEPTH
+    SECURITY_SANITIZE_CONFIG
+    .MAX_DEPTH
 
   ){
 
@@ -355,11 +516,15 @@ function sanitizeObject(
 
   }
 
+
+
+  // ===================================
+  // PRESERVE PRIMITIVES
+  // ===================================
+
   if(
-
-    typeof object !==
-    "object"
-
+    typeof object ===
+    "string"
   ){
 
     return safeString(
@@ -369,10 +534,128 @@ function sanitizeObject(
   }
 
   if(
+
+    typeof object ===
+    "number"
+
+    ||
+
+    typeof object ===
+    "boolean"
+
+    ||
+
+    typeof object ===
+    "bigint"
+
+  ){
+
+    return object;
+
+  }
+
+
+
+  // ===================================
+  // SPECIAL OBJECTS
+  // ===================================
+
+  if(
+    object instanceof Date
+  ){
+
+    return new Date(
+      object.getTime()
+    );
+
+  }
+
+  if(
+    object instanceof RegExp
+  ){
+
+    return new RegExp(
+      object.source,
+      object.flags
+    );
+
+  }
+
+  if(
+    object instanceof URL
+  ){
+
+    return sanitizeURL(
+      object.href
+    );
+
+  }
+
+  if(
+    object instanceof Error
+  ){
+
+    return {
+
+      name:
+      safeString(
+        object.name
+      ),
+
+      message:
+      safeString(
+        object.message
+      )
+
+    };
+
+  }
+
+  if(
+    object instanceof Map
+  ){
+
+    return sanitizeObject(
+
+      Object.fromEntries(
+        object.entries()
+      ),
+
+      visited,
+
+      depth + 1
+
+    );
+
+  }
+
+  if(
+    object instanceof Set
+  ){
+
+    return sanitizeArray(
+
+      [...object],
+
+      visited,
+
+      depth + 1
+
+    );
+
+  }
+
+
+
+  // ===================================
+  // CIRCULAR
+  // ===================================
+
+  if(
     visited.has(object)
   ){
 
-    return "[Circular]";
+    return null;
 
   }
 
@@ -380,16 +663,49 @@ function sanitizeObject(
     object
   );
 
+
+
+  // ===================================
+  // ARRAYS
+  // ===================================
+
   if(
     Array.isArray(object)
   ){
 
     return sanitizeArray(
+
       object,
-      visited
+
+      visited,
+
+      depth + 1
+
     );
 
   }
+
+
+
+  // ===================================
+  // NON-PLAIN OBJECTS
+  // ===================================
+
+  if(
+    !isPlainSanitizeObject(
+      object
+    )
+  ){
+
+    return null;
+
+  }
+
+
+
+  // ===================================
+  // CLEAN OBJECT
+  // ===================================
 
   const keys =
   Object.keys(object)
@@ -397,8 +713,8 @@ function sanitizeObject(
 
     0,
 
-    SECURITY_CONFIG
-    .MAX_OBJECT_KEYS
+    SECURITY_SANITIZE_CONFIG
+    .MAX_KEYS
 
   );
 
@@ -407,13 +723,23 @@ function sanitizeObject(
 
   keys.forEach((key) => {
 
+    const normalizedKey =
+    safeString(key);
+
     if(
 
-      key === "__proto__" ||
+      normalizedKey ===
+      "__proto__"
 
-      key === "constructor" ||
+      ||
 
-      key === "prototype"
+      normalizedKey ===
+      "constructor"
+
+      ||
+
+      normalizedKey ===
+      "prototype"
 
     ){
 
@@ -424,7 +750,7 @@ function sanitizeObject(
     try{
 
       cleanObject[
-        safeString(key)
+        normalizedKey
       ] = sanitizeObject(
 
         object[key],
@@ -440,7 +766,7 @@ function sanitizeObject(
     catch(error){
 
       cleanObject[
-        safeString(key)
+        normalizedKey
       ] = null;
 
     }
@@ -464,51 +790,58 @@ function sanitizePrompt(
   const normalized =
   safeString(prompt);
 
-  const sanitized =
-  normalized
+  const blockedPatterns = [
 
-  .replace(
-    /ignore previous instructions/gi,
-    ""
-  )
+    /ignore\s+previous\s+instructions/gi,
 
-  .replace(
-    /ignore all previous instructions/gi,
-    ""
-  )
+    /ignore\s+all\s+previous/gi,
 
-  .replace(
-    /system prompt/gi,
-    ""
-  )
+    /system\s+prompt/gi,
 
-  .replace(
-    /developer message/gi,
-    ""
-  )
+    /developer\s+message/gi,
 
-  .replace(
-    /reveal hidden prompt/gi,
-    ""
-  )
+    /reveal\s+hidden/gi,
 
-  .replace(
-    /show internal instructions/gi,
-    ""
-  )
+    /show\s+internal/gi,
 
-  .trim();
+    /disable\s+safety/gi,
+
+    /bypass\s+restrictions/gi,
+
+    /jailbreak/gi
+
+  ];
+
+  let sanitized =
+  normalized;
+
+  blockedPatterns
+  .forEach((pattern) => {
+
+    sanitized =
+    sanitized.replace(
+      pattern,
+      ""
+    );
+
+  });
+
+  sanitized =
+  sanitized.trim();
 
   if(
     sanitized !== normalized
   ){
 
-    securityState
-    .blockedPrompts++;
+    if(
+      typeof securityState ===
+      "object"
+    ){
 
-    logSecurityEvent(
-      "PROMPT SANITIZED"
-    );
+      securityState
+      .blockedPrompts++;
+
+    }
 
   }
 
@@ -534,23 +867,51 @@ function safeJSONStringify(
     );
 
     return JSON.stringify(
-      sanitized
+
+      sanitized,
+
+      (_, currentValue) => {
+
+        if(
+          typeof currentValue ===
+          "bigint"
+        ){
+
+          return String(
+            currentValue
+          );
+
+        }
+
+        return currentValue;
+
+      }
+
     );
 
   }
 
   catch(error){
 
-    logSecurityEvent(
+    if(
+      typeof logSecurityEvent ===
+      "function"
+    ){
 
-      "JSON_STRINGIFY_FAILED",
+      logSecurityEvent(
 
-      {
-        error:
-        String(error)
-      }
+        "JSON_STRINGIFY_FAILED",
 
-    );
+        {
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
 
     return "{}";
 
@@ -565,13 +926,15 @@ function safeJSONStringify(
 // =====================================
 
 const SecuritySanitize =
-Object.freeze({
+safeFreezeSanitized({
 
   string:
   safeString,
 
   html:
   sanitizeHTML,
+
+  escapeHTML,
 
   url:
   sanitizeURL,
@@ -589,3 +952,37 @@ Object.freeze({
   safeJSONStringify
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SecuritySanitize",
+
+    {
+
+      value:
+      SecuritySanitize,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
