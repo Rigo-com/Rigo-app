@@ -58,84 +58,42 @@ Object.seal({
 // HELPERS
 // =====================================
 
-function normalizeModuleName(
-  moduleName
-){
+function normalizeModuleName(moduleName){
 
-  return String(
-    moduleName || ""
-  )
-  .trim()
-  .toLowerCase();
+  return String(moduleName || "")
+    .trim()
+    .toLowerCase();
 
 }
 
 
 
-function isValidModuleFactory(
-  factory
-){
+function isValidModuleFactory(factory){
 
-  return (
-    typeof factory ===
-    "function"
-  );
+  return typeof factory === "function";
 
 }
 
 
 
-function freezeModuleObject(
-  value,
-  visited = new WeakSet()
-){
+function freezeModuleObject(value, visited = new WeakSet()){
 
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
+  if(!value || typeof value !== "object"){
     return value;
-
   }
 
-  if(
-    visited.has(value)
-  ){
-
+  if(visited.has(value)){
     return value;
-
   }
 
-  visited.add(
-    value
-  );
+  visited.add(value);
 
-  Object.freeze(
-    value
-  );
+  Object.freeze(value);
 
-  Object.values(value)
-  .forEach((nestedValue) => {
+  Object.values(value).forEach((nestedValue) => {
 
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezeModuleObject(
-        nestedValue,
-        visited
-      );
-
+    if(nestedValue && typeof nestedValue === "object"){
+      freezeModuleObject(nestedValue, visited);
     }
 
   });
@@ -146,20 +104,15 @@ function freezeModuleObject(
 
 
 
-function createModuleError(
-  message,
-  metadata = {}
-){
+// =====================================
+// ERROR HANDLER
+// =====================================
 
-  if(
-    typeof logDiagnosticError ===
-    "function"
-  ){
+function createModuleError(message, metadata = {}){
 
-    logDiagnosticError(
-      message,
-      metadata
-    );
+  if(typeof logDiagnosticError === "function"){
+
+    logDiagnosticError(message, metadata);
 
   }
 
@@ -173,49 +126,25 @@ function createModuleError(
 // DEPENDENCY GRAPH
 // =====================================
 
-function registerReverseDependencies(
-  moduleName,
-  dependencies = []
-){
+function registerReverseDependencies(moduleName, dependencies = []){
 
-  dependencies
-  .forEach((dependency) => {
+  dependencies.forEach((dependency) => {
 
     const normalizedDependency =
-    normalizeModuleName(
-      dependency
-    );
+      normalizeModuleName(dependency);
 
-    if(
+    if(!moduleLoaderState.reverseDependencies.has(normalizedDependency)){
 
-      !moduleLoaderState
-      .reverseDependencies
-      .has(
-        normalizedDependency
-      )
-
-    ){
-
-      moduleLoaderState
-      .reverseDependencies
-      .set(
-
+      moduleLoaderState.reverseDependencies.set(
         normalizedDependency,
-
         new Set()
-
       );
 
     }
 
-    moduleLoaderState
-    .reverseDependencies
-    .get(
-      normalizedDependency
-    )
-    .add(
-      moduleName
-    );
+    moduleLoaderState.reverseDependencies
+      .get(normalizedDependency)
+      .add(moduleName);
 
   });
 
@@ -229,71 +158,39 @@ function registerReverseDependencies(
 // CREATE MODULE DEFINITION
 // =====================================
 
-function createModuleDefinition(
-  normalizedName,
-  factory,
-  options = {}
-){
+function createModuleDefinition(moduleName, factory, options = {}){
 
   return {
-
-    // ================================
-    // IMMUTABLE
-    // ================================
 
     metadata:
     freezeModuleObject({
 
-      name:
-      normalizedName,
+      name: moduleName,
 
-      dependencies:
-
-        Array.isArray(
-          options.dependencies
-        )
-
-        ? options.dependencies
-
+      dependencies: Array.isArray(options.dependencies)
+        ? options.dependencies.filter(Boolean)
         : [],
 
       lifecycle:
-
-        options.lifecycle ||
-
-        MODULE_LIFECYCLES
-        .SINGLETON,
+        options.lifecycle ?? MODULE_LIFECYCLES.SINGLETON,
 
       priority:
-
-        options.priority ||
-
-        MODULE_PRIORITIES
-        .NORMAL,
+        options.priority ?? MODULE_PRIORITIES.NORMAL,
 
       lazy:
-
-        options.lazy !==
-        false,
+        options.lazy ?? false,
 
       createdAt:
-      Date.now()
+        Date.now()
 
     }),
-
-
-
-    // ================================
-    // MUTABLE
-    // ================================
 
     factory,
 
     retries:0,
 
     state:
-    MODULE_STATES
-    .REGISTERED
+    MODULE_STATES.REGISTERED
 
   };
 
@@ -305,147 +202,48 @@ function createModuleDefinition(
 // REGISTER MODULE
 // =====================================
 
-async function registerModule(
-  moduleName,
-  factory,
-  options = {}
-){
+async function registerModule(moduleName, factory, options = {}){
 
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
+  const normalizedName = normalizeModuleName(moduleName);
 
   if(!normalizedName){
-
-    return createModuleError(
-      "INVALID MODULE NAME"
-    );
-
+    return createModuleError("INVALID MODULE NAME");
   }
 
-  if(
-    !isValidModuleFactory(
-      factory
-    )
-  ){
-
-    return createModuleError(
-      "INVALID MODULE FACTORY",
-
-      {
-        module:
-        normalizedName
-      }
-
-    );
-
+  if(!isValidModuleFactory(factory)){
+    return createModuleError("INVALID MODULE FACTORY", { module: normalizedName });
   }
 
-  if(
-
-    moduleLoaderState
-    .modules
-    .size >=
-
-    MODULE_LOADER_CONFIG
-    .MAX_MODULES
-
-  ){
-
-    return createModuleError(
-      "MAX MODULES REACHED"
-    );
-
+  if(moduleLoaderState.modules.size >= MODULE_LOADER_CONFIG.MAX_MODULES){
+    return createModuleError("MAX MODULES REACHED");
   }
 
-  if(
-
-    moduleLoaderState
-    .modules
-    .has(
-      normalizedName
-    )
-
-  ){
-
-    return createModuleError(
-
-      "MODULE ALREADY REGISTERED",
-
-      {
-        module:
-        normalizedName
-      }
-
-    );
-
+  if(moduleLoaderState.modules.has(normalizedName)){
+    return createModuleError("MODULE ALREADY REGISTERED", { module: normalizedName });
   }
 
   const moduleDefinition =
-  createModuleDefinition(
+    createModuleDefinition(normalizedName, factory, options);
 
+  moduleLoaderState.modules.set(normalizedName, moduleDefinition);
+
+  moduleLoaderState.dependencyGraph.set(
     normalizedName,
-
-    factory,
-
-    options
-
-  );
-
-  moduleLoaderState
-  .modules
-  .set(
-
-    normalizedName,
-
-    moduleDefinition
-
-  );
-
-  moduleLoaderState
-  .dependencyGraph
-  .set(
-
-    normalizedName,
-
-    moduleDefinition
-    .metadata
-    .dependencies
-
+    moduleDefinition.metadata.dependencies
   );
 
   registerReverseDependencies(
-
     normalizedName,
-
-    moduleDefinition
-    .metadata
-    .dependencies
-
+    moduleDefinition.metadata.dependencies
   );
 
-  moduleLoaderState
-  .diagnostics
-  .registered++;
+  moduleLoaderState.diagnostics.registered++;
 
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
+  if(typeof emitSystemEvent === "function"){
 
     await emitSystemEvent(
-
-      MODULE_EVENTS
-      .REGISTERED,
-
-      {
-
-        module:
-        normalizedName
-
-      }
-
+      MODULE_EVENTS.REGISTERED,
+      { module: normalizedName }
     );
 
   }
@@ -460,54 +258,24 @@ async function registerModule(
 // GET MODULE
 // =====================================
 
-function getRegisteredModule(
-  moduleName
-){
+function getRegisteredModule(moduleName){
 
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
+  const normalizedName = normalizeModuleName(moduleName);
 
-  return (
-
-    moduleLoaderState
-    .modules
-    .get(
-      normalizedName
-    )
-
-    ||
-
-    null
-
-  );
+  return moduleLoaderState.modules.get(normalizedName) || null;
 
 }
 
 
 
 // =====================================
-// MODULE EXISTS
+// HAS MODULE
 // =====================================
 
-function hasRegisteredModule(
-  moduleName
-){
+function hasRegisteredModule(moduleName){
 
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  return (
-
-    moduleLoaderState
-    .modules
-    .has(
-      normalizedName
-    )
-
+  return moduleLoaderState.modules.has(
+    normalizeModuleName(moduleName)
   );
 
 }
@@ -520,13 +288,7 @@ function hasRegisteredModule(
 
 function getRegisteredModules(){
 
-  return [
-
-    ...moduleLoaderState
-    .modules
-    .keys()
-
-  ];
+  return [...moduleLoaderState.modules.keys()];
 
 }
 
@@ -536,24 +298,16 @@ function getRegisteredModules(){
 // GLOBAL EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+if(typeof window !== "undefined"){
 
-  window.moduleLoaderState =
-  moduleLoaderState;
+  window.moduleLoaderState = moduleLoaderState;
 
-  window.registerModule =
-  registerModule;
+  window.registerModule = registerModule;
 
-  window.getRegisteredModule =
-  getRegisteredModule;
+  window.getRegisteredModule = getRegisteredModule;
 
-  window.hasRegisteredModule =
-  hasRegisteredModule;
+  window.hasRegisteredModule = hasRegisteredModule;
 
-  window.getRegisteredModules =
-  getRegisteredModules;
+  window.getRegisteredModules = getRegisteredModules;
 
 }
