@@ -1,13 +1,13 @@
 // =====================================
 // RIGO AI
 // MODULE KERNEL
-// FINAL PRODUCTION CORE
+// CLEAN ORCHESTRATION LAYER
 // =====================================
 
 
 
 // =====================================
-// STATE (READ ONLY OUTSIDE)
+// STATE (READ ONLY EXTERNAL USE)
 // =====================================
 
 const moduleRuntimeState = Object.seal({
@@ -44,7 +44,7 @@ const moduleRuntimeState = Object.seal({
 
 
 // =====================================
-// INTERNAL SAFETY
+// SAFETY
 // =====================================
 
 function assertKernelReady(){
@@ -54,53 +54,6 @@ function assertKernelReady(){
   }
 
 }
-
-
-
-// =====================================
-// FREEZE UTILITY
-// =====================================
-
-function freeze(obj, seen = new WeakSet()){
-
-  if(!obj || typeof obj !== "object") return obj;
-
-  if(seen.has(obj)) return obj;
-
-  seen.add(obj);
-
-  Object.freeze(obj);
-
-  Object.values(obj).forEach(v => {
-
-    if(v && typeof v === "object"){
-      freeze(v, seen);
-    }
-
-  });
-
-  return obj;
-
-}
-
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-const EVENTS = Object.freeze({
-
-  INIT:"module.runtime.initialized",
-  BOOT_START:"module.runtime.boot.started",
-  BOOT_END:"module.runtime.boot.completed",
-  SHUTDOWN_START:"module.runtime.shutdown.started",
-  SHUTDOWN_END:"module.runtime.shutdown.completed",
-  RECOVERY_START:"module.runtime.recovery.started",
-  RECOVERY_END:"module.runtime.recovery.completed",
-  HEALTH:"module.runtime.healthcheck"
-
-});
 
 
 
@@ -127,56 +80,7 @@ async function emit(event, payload = {}){
 
 
 // =====================================
-// CORE OPERATIONS WRAPPERS
-// =====================================
-
-async function bootModules(){
-
-  const mods = [...moduleLoaderState.modules.values()]
-    .sort((a,b)=>a.metadata.priority-b.metadata.priority);
-
-  for(const m of mods){
-
-    if(m.metadata.lazy) continue;
-
-    try{
-      await loadModule(m.metadata.name);
-    }catch{
-
-      moduleRuntimeState.diagnostics.runtimeErrors++;
-
-    }
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// HEALTH
-// =====================================
-
-async function health(){
-
-  moduleRuntimeState.diagnostics.healthchecks++;
-
-  moduleRuntimeState.lastHealthcheckAt = Date.now();
-
-  const result = await getModuleHealth();
-
-  await emit(EVENTS.HEALTH, { result });
-
-  return result;
-
-}
-
-
-
-// =====================================
-// BOOT
+// KERNEL LIFECYCLE (ORCHESTRATION ONLY)
 // =====================================
 
 async function boot(){
@@ -187,24 +91,26 @@ async function boot(){
 
   moduleRuntimeState.booting = true;
   moduleRuntimeState.runtimeLocked = true;
-
   moduleRuntimeState.startedAt = Date.now();
   moduleRuntimeState.lastError = null;
-
   moduleRuntimeState.diagnostics.boots++;
 
   try{
 
-    await emit(EVENTS.BOOT_START);
+    await emit("module.runtime.boot.started");
 
-    await initializeModuleLoader();
+    if(typeof initializeModuleRuntime === "function"){
+      await initializeModuleRuntime();
+    }
 
-    await bootModules();
+    if(typeof bootModuleRuntime === "function"){
+      await bootModuleRuntime();
+    }
 
     moduleRuntimeState.booted = true;
     moduleRuntimeState.completedAt = Date.now();
 
-    await emit(EVENTS.BOOT_END, {
+    await emit("module.runtime.boot.completed", {
       duration: moduleRuntimeState.completedAt - moduleRuntimeState.startedAt
     });
 
@@ -229,52 +135,6 @@ async function boot(){
 
 
 // =====================================
-// RECOVERY
-// =====================================
-
-async function recover(){
-
-  if(moduleRuntimeState.recovering) return false;
-
-  moduleRuntimeState.recovering = true;
-
-  moduleRuntimeState.diagnostics.recoveries++;
-
-  moduleRuntimeState.lastRecoveryAt = Date.now();
-
-  try{
-
-    await emit(EVENTS.RECOVERY_START);
-
-    for(const m of [...moduleLoaderState.failedModules]){
-
-      if(moduleLoaderState.failedModules.has(m)){
-        await recoverModule(m);
-      }
-
-    }
-
-    await emit(EVENTS.RECOVERY_END);
-
-    return true;
-
-  }catch(e){
-
-    moduleRuntimeState.lastError = e;
-
-    return false;
-
-  }finally{
-
-    moduleRuntimeState.recovering = false;
-
-  }
-
-}
-
-
-
-// =====================================
 // SHUTDOWN
 // =====================================
 
@@ -283,24 +143,19 @@ async function shutdown(){
   if(moduleRuntimeState.shuttingDown) return false;
 
   moduleRuntimeState.shuttingDown = true;
-
   moduleRuntimeState.diagnostics.shutdowns++;
 
   try{
 
-    await emit(EVENTS.SHUTDOWN_START);
+    await emit("module.runtime.shutdown.started");
 
-    if(typeof stopModuleRuntimeMonitoring === "function"){
-      stopModuleRuntimeMonitoring();
-    }
-
-    if(typeof resetModuleLoader === "function"){
-      await resetModuleLoader();
+    if(typeof shutdownModuleRuntime === "function"){
+      await shutdownModuleRuntime();
     }
 
     moduleRuntimeState.booted = false;
 
-    await emit(EVENTS.SHUTDOWN_END);
+    await emit("module.runtime.shutdown.completed");
 
     return true;
 
@@ -321,7 +176,70 @@ async function shutdown(){
 
 
 // =====================================
-// KERNEL API (ONLY PUBLIC SURFACE)
+// RECOVERY (DELEGATED)
+// =====================================
+
+async function recover(){
+
+  if(moduleRuntimeState.recovering) return false;
+
+  moduleRuntimeState.recovering = true;
+  moduleRuntimeState.diagnostics.recoveries++;
+  moduleRuntimeState.lastRecoveryAt = Date.now();
+
+  try{
+
+    await emit("module.runtime.recovery.started");
+
+    if(typeof recoverModuleRuntime === "function"){
+      await recoverModuleRuntime();
+    }
+
+    await emit("module.runtime.recovery.completed");
+
+    return true;
+
+  }catch(e){
+
+    moduleRuntimeState.lastError = e;
+
+    return false;
+
+  }finally{
+
+    moduleRuntimeState.recovering = false;
+
+  }
+
+}
+
+
+
+// =====================================
+// HEALTH (DELEGATED)
+// =====================================
+
+async function health(){
+
+  moduleRuntimeState.diagnostics.healthchecks++;
+  moduleRuntimeState.lastHealthcheckAt = Date.now();
+
+  let result = null;
+
+  if(typeof getModuleHealth === "function"){
+    result = await getModuleHealth();
+  }
+
+  await emit("module.runtime.healthcheck", { result });
+
+  return result;
+
+}
+
+
+
+// =====================================
+// PUBLIC KERNEL API
 // =====================================
 
 const ModuleKernel = Object.freeze({
@@ -337,11 +255,9 @@ const ModuleKernel = Object.freeze({
 
 
 // =====================================
-// EXPORT (ONLY ONE ENTRY)
+// EXPORT (SINGLE ENTRY)
 // =====================================
 
 if(typeof window !== "undefined"){
-
   window.ModuleKernel = ModuleKernel;
-
 }
