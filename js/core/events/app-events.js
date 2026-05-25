@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // APP EVENTS
+// SAFE APPLICATION EVENT FACADE
 // =====================================
 
 
@@ -35,50 +36,266 @@ Object.freeze({
 
 
 // =====================================
-// VALIDATION
+// INTERNAL STATE
 // =====================================
 
-function validateAppEventName(
-  eventName
+const appEventsState =
+Object.seal({
+
+  emitted:
+  0,
+
+  failed:
+  0,
+
+  lastEventAt:
+  null
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
 ){
 
-  return (
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
 
-    typeof eventName ===
-    "string" &&
+    return value;
 
-    eventName
-    .trim()
-    .length > 0
+  }
 
-  );
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof HTMLElement
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    if(
+      nestedValue &&
+      typeof nestedValue ===
+      "object"
+    ){
+
+      safeFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
 
 }
 
 
 
-// =====================================
-// APP SNAPSHOT
-// =====================================
+function sanitizeAppPayload(
+  payload,
+  visited = new WeakMap()
+){
 
-function getAppEventSnapshot(){
+  if(
+
+    payload === null ||
+
+    typeof payload !==
+    "object"
+
+  ){
+
+    return payload;
+
+  }
+
+  if(
+    visited.has(payload)
+  ){
+
+    return visited.get(payload);
+
+  }
+
+  if(
+    payload instanceof Date
+  ){
+
+    return new Date(
+      payload.getTime()
+    );
+
+  }
+
+  if(
+    payload instanceof RegExp
+  ){
+
+    return new RegExp(
+      payload
+    );
+
+  }
+
+  if(
+    payload instanceof Map
+  ){
+
+    return new Map(
+      [...payload.entries()]
+    );
+
+  }
+
+  if(
+    payload instanceof Set
+  ){
+
+    return new Set(
+      [...payload.values()]
+    );
+
+  }
+
+  if(
+    typeof HTMLElement !==
+    "undefined" &&
+
+    payload instanceof HTMLElement
+  ){
+
+    return null;
+
+  }
+
+  const clone =
+
+    Array.isArray(payload)
+    ? []
+    : {};
+
+  visited.set(
+    payload,
+    clone
+  );
+
+  Object.keys(payload).forEach((key) => {
+
+    const value =
+      payload[key];
+
+    if(
+      typeof value ===
+      "function"
+    ){
+
+      return;
+
+    }
+
+    clone[key] =
+      sanitizeAppPayload(
+        value,
+        visited
+      );
+
+  });
+
+  return clone;
+
+}
+
+
+
+function validateAppEventName(
+  eventName
+){
+
+  if(
+    typeof eventName !==
+    "string"
+  ){
+
+    return false;
+
+  }
+
+  const normalizedEvent =
+    eventName
+    .trim()
+    .toLowerCase();
+
+  if(
+    !normalizedEvent
+  ){
+
+    return false;
+
+  }
+
+  return normalizedEvent
+    .startsWith("app.");
+
+}
+
+
+
+function getSafeAppSnapshot(){
 
   try{
 
-    return (
-
-      typeof AppState !==
+    if(
+      typeof StateAPI ===
       "undefined"
+    ){
 
-      ?
+      return null;
 
-      AppState
-      .get?.()
+    }
 
-      :
+    if(
+      typeof StateAPI.get !==
+      "function"
+    ){
 
-      null
+      return null;
 
+    }
+
+    return safeFreeze(
+      StateAPI.get()
     );
 
   }
@@ -94,7 +311,7 @@ function getAppEventSnapshot(){
 
 
 // =====================================
-// CREATE PAYLOAD
+// PAYLOAD CREATION
 // =====================================
 
 function createAppEventPayload(
@@ -102,9 +319,9 @@ function createAppEventPayload(
 ){
 
   const appSnapshot =
-  getAppEventSnapshot();
+    getSafeAppSnapshot();
 
-  return Object.freeze({
+  return safeFreeze({
 
     source:
     "app",
@@ -118,7 +335,10 @@ function createAppEventPayload(
     timestamp:
     Date.now(),
 
-    ...payload
+    payload:
+    sanitizeAppPayload(
+      payload
+    )
 
   });
 
@@ -127,7 +347,7 @@ function createAppEventPayload(
 
 
 // =====================================
-// EMIT APP EVENT
+// EMIT
 // =====================================
 
 async function emitAppEvent(
@@ -136,11 +356,15 @@ async function emitAppEvent(
 ){
 
   const validEvent =
-  validateAppEventName(
-    eventName
-  );
+    validateAppEventName(
+      eventName
+    );
 
-  if(!validEvent){
+  if(
+    !validEvent
+  ){
+
+    appEventsState.failed++;
 
     return false;
 
@@ -153,32 +377,64 @@ async function emitAppEvent(
 
   ){
 
+    appEventsState.failed++;
+
     return false;
 
   }
 
   try{
 
-    await emitSystemEvent(
+    const result =
+      await emitSystemEvent(
 
-      eventName,
+        eventName,
 
-      createAppEventPayload(
-        payload
-      )
+        createAppEventPayload(
+          payload
+        )
 
-    );
+      );
 
-    return true;
+    if(result){
+
+      appEventsState.emitted++;
+
+      appEventsState.lastEventAt =
+        Date.now();
+
+    }
+
+    return Boolean(result);
 
   }
 
   catch(error){
 
-    console.error(
-      "APP EVENT ERROR:",
-      error
-    );
+    appEventsState.failed++;
+
+    if(
+      typeof logDiagnosticError ===
+      "function"
+    ){
+
+      await logDiagnosticError(
+
+        "APP EVENT FAILED",
+
+        {
+
+          event:
+          eventName,
+
+          error:
+          String(error)
+
+        }
+
+      );
+
+    }
 
     return false;
 
@@ -189,17 +445,194 @@ async function emitAppEvent(
 
 
 // =====================================
+// SUBSCRIPTIONS
+// =====================================
+
+function onAppEvent(
+  eventName,
+  listener
+){
+
+  if(
+    !validateAppEventName(
+      eventName
+    )
+  ){
+
+    return null;
+
+  }
+
+  if(
+
+    typeof SystemEvents ===
+    "undefined"
+
+  ){
+
+    return null;
+
+  }
+
+  if(
+    typeof SystemEvents.on !==
+    "function"
+  ){
+
+    return null;
+
+  }
+
+  return SystemEvents.on(
+    eventName,
+    listener
+  );
+
+}
+
+
+
+function onceAppEvent(
+  eventName,
+  listener
+){
+
+  if(
+    !validateAppEventName(
+      eventName
+    )
+  ){
+
+    return null;
+
+  }
+
+  if(
+
+    typeof SystemEvents ===
+    "undefined"
+
+  ){
+
+    return null;
+
+  }
+
+  if(
+    typeof SystemEvents.once !==
+    "function"
+  ){
+
+    return null;
+
+  }
+
+  return SystemEvents.once(
+    eventName,
+    listener
+  );
+
+}
+
+
+
+function offAppEvent(
+  eventName,
+  listener
+){
+
+  if(
+    !validateAppEventName(
+      eventName
+    )
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    typeof SystemEvents ===
+    "undefined"
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof SystemEvents.off !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  return SystemEvents.off(
+    eventName,
+    listener
+  );
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getAppEventDiagnostics(){
+
+  return safeFreeze({
+
+    emitted:
+    appEventsState
+    .emitted,
+
+    failed:
+    appEventsState
+    .failed,
+
+    lastEventAt:
+    appEventsState
+    .lastEventAt,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
 const AppEvents =
-Object.freeze({
+safeFreeze({
 
   EVENTS:
   APP_EVENTS,
 
   emit:
-  emitAppEvent
+  emitAppEvent,
+
+  on:
+  onAppEvent,
+
+  once:
+  onceAppEvent,
+
+  off:
+  offAppEvent,
+
+  diagnostics:
+  getAppEventDiagnostics
 
 });
 
@@ -214,13 +647,67 @@ if(
   "undefined"
 ){
 
-  window.APP_EVENTS =
-  APP_EVENTS;
+  Object.defineProperty(
 
-  window.AppEvents =
-  AppEvents;
+    window,
 
-  window.emitAppEvent =
-  emitAppEvent;
+    "APP_EVENTS",
+
+    {
+
+      value:
+      APP_EVENTS,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "AppEvents",
+
+    {
+
+      value:
+      AppEvents,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "emitAppEvent",
+
+    {
+
+      value:
+      emitAppEvent,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
