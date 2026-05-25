@@ -96,7 +96,8 @@ async function initializeChatRuntime(){
 
       ){
 
-        ChatMarkdownRenderer.initialize();
+        await ChatMarkdownRenderer
+        .initialize();
 
       }
 
@@ -139,7 +140,8 @@ async function initializeChatRuntime(){
 
       ){
 
-        ChatStreamManager.initialize();
+        await ChatStreamManager
+        .initialize();
 
       }
 
@@ -185,6 +187,8 @@ async function initializeChatRuntime(){
       "CHAT_RUNTIME_INIT_ERROR:",
       error
     );
+
+    await resetChatRuntime();
 
     return false;
 
@@ -284,6 +288,12 @@ async function resetChatRuntime(){
 
     }
 
+    chatRuntimeState.initialized =
+    false;
+
+    chatRuntimeState.initializing =
+    false;
+
     return true;
 
   }
@@ -318,6 +328,14 @@ Object.freeze({
   send:async function(){
 
     try{
+
+      if(
+        !chatRuntimeState?.initialized
+      ){
+
+        return false;
+
+      }
 
       if(
         typeof sendMessage ===
@@ -356,6 +374,22 @@ Object.freeze({
     try{
 
       if(
+        !chatRuntimeState?.initialized
+      ){
+
+        return false;
+
+      }
+
+      if(
+        chatRuntimeState.processing
+      ){
+
+        return false;
+
+      }
+
+      if(
         typeof processAIQueue ===
         "function"
       ){
@@ -383,6 +417,14 @@ Object.freeze({
   add:function(message){
 
     try{
+
+      if(
+        !chatRuntimeState?.initialized
+      ){
+
+        return false;
+
+      }
 
       if(
         typeof addMessage ===
