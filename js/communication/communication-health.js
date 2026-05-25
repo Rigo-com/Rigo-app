@@ -120,6 +120,10 @@ async function recoverCommunicationRuntime(){
 
   try{
 
+    await stopTypingIndicator();
+
+    abortAllCommunicationMessages();
+
     communicationRuntimeState
     .processing =
     false;
@@ -144,7 +148,17 @@ async function recoverCommunicationRuntime(){
     .abortControllers
     .clear();
 
-    await processCommunicationQueue();
+    if(
+
+      communicationRuntimeState
+      .messageQueue
+      .length > 0
+
+    ){
+
+      await processCommunicationQueue();
+
+    }
 
     setCommunicationState(
 
@@ -182,6 +196,20 @@ async function recoverCommunicationRuntime(){
 
       COMMUNICATION_RUNTIME_STATES
       .FAILED
+
+    );
+
+    await emitCommunicationEvent(
+
+      COMMUNICATION_RUNTIME_EVENTS
+      .MESSAGE_FAILED,
+
+      {
+
+        error:
+        String(error)
+
+      }
 
     );
 
