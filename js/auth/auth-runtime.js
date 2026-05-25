@@ -11,7 +11,9 @@
 // =====================================
 
 const AUTH_RUNTIME_CONFIG =
-deepFreeze({
+(typeof deepFreeze === "function"
+? deepFreeze
+: Object.freeze)({
 
   STORAGE_KEY:
   "rigo_auth_session",
@@ -547,10 +549,6 @@ function validateAuthStateValue(
 
 
 
-// =====================================
-// UPDATE STATE
-// =====================================
-
 function updateAuthRuntimeState(
   updates = {}
 ){
@@ -634,62 +632,43 @@ function resetAuthRuntimeState(){
 
 
 
-// =====================================
-// GET STATE
-// =====================================
-
 function getAuthRuntimeState(){
 
   return safeCloneAuth({
 
     initialized:
-    authRuntimeState
-    .initialized,
+    authRuntimeState.initialized,
 
     initializing:
-    authRuntimeState
-    .initializing,
+    authRuntimeState.initializing,
 
     authenticated:
-    authRuntimeState
-    .authenticated,
+    authRuntimeState.authenticated,
 
     loading:
-    authRuntimeState
-    .loading,
+    authRuntimeState.loading,
 
     user:
     safeCloneAuth(
-      authRuntimeState
-      .user
+      authRuntimeState.user
     ),
 
     token:
-    authRuntimeState
-    .token,
+    authRuntimeState.token,
 
     sessionExpiresAt:
-
-      authRuntimeState
-      .sessionExpiresAt,
+    authRuntimeState.sessionExpiresAt,
 
     lastActivityAt:
-
-      authRuntimeState
-      .lastActivityAt,
+    authRuntimeState.lastActivityAt,
 
     error:
-    authRuntimeState
-    .error,
+    authRuntimeState.error,
 
     diagnostics:
-
-      safeCloneAuth(
-
-        authRuntimeState
-        .diagnostics
-
-      )
+    safeCloneAuth(
+      authRuntimeState.diagnostics
+    )
 
   });
 
@@ -705,16 +684,11 @@ function validateEmail(
   email
 ){
 
-  const normalizedEmail =
-  String(
-    email || ""
-  )
-  .trim()
-  .toLowerCase();
-
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   .test(
-    normalizedEmail
+    String(email || "")
+    .trim()
+    .toLowerCase()
   );
 
 }
@@ -725,15 +699,11 @@ function validatePassword(
   password
 ){
 
-  const normalizedPassword =
-  String(
-    password || ""
-  )
-  .trim();
-
   return (
 
-    normalizedPassword.length >=
+    String(password || "")
+    .trim()
+    .length >=
 
     AUTH_RUNTIME_CONFIG
     .MIN_PASSWORD_LENGTH
@@ -814,11 +784,6 @@ function validateAuthSession(
       session.expiresAt
     )
 
-    &&
-
-    session.expiresAt >
-    0
-
   );
 
 }
@@ -838,9 +803,7 @@ function createAuthSession({
 } = {}){
 
   if(
-    !validateToken(
-      token
-    )
+    !validateToken(token)
   ){
 
     return null;
@@ -850,9 +813,7 @@ function createAuthSession({
   return freezeAuthObject({
 
     user:
-    safeCloneAuth(
-      user
-    ),
+    safeCloneAuth(user),
 
     token,
 
@@ -886,12 +847,11 @@ function saveAuthSession(
 
     }
 
-    const valid =
-    validateAuthSession(
-      session
-    );
-
-    if(!valid){
+    if(
+      !validateAuthSession(
+        session
+      )
+    ){
 
       return false;
 
@@ -902,9 +862,7 @@ function saveAuthSession(
       AUTH_RUNTIME_CONFIG
       .STORAGE_KEY,
 
-      JSON.stringify(
-        session
-      )
+      JSON.stringify(session)
 
     );
 
@@ -935,13 +893,12 @@ function loadAuthSession(){
     }
 
     const raw =
+    localStorage.getItem(
 
-      localStorage.getItem(
+      AUTH_RUNTIME_CONFIG
+      .STORAGE_KEY
 
-        AUTH_RUNTIME_CONFIG
-        .STORAGE_KEY
-
-      );
+    );
 
     if(!raw){
 
@@ -953,21 +910,12 @@ function loadAuthSession(){
     JSON.parse(raw);
 
     if(
-
       !validateAuthSession(
         parsed
       )
-
     ){
 
       clearAuthSession();
-
-      emitAuthRuntimeEvent(
-
-        AUTH_RUNTIME_EVENTS
-        .TOKEN_INVALID
-
-      );
 
       return null;
 
@@ -1008,13 +956,6 @@ function clearAuthSession(){
 
     );
 
-    emitAuthRuntimeEvent(
-
-      AUTH_RUNTIME_EVENTS
-      .SESSION_CLEARED
-
-    );
-
     return true;
 
   }
@@ -1033,13 +974,8 @@ function isSessionExpired(
   session
 ){
 
-  if(!session){
-
-    return true;
-
-  }
-
   return (
+    !session ||
     Date.now() >=
     session.expiresAt
   );
@@ -1060,24 +996,14 @@ function updateLastActivity(){
 
 
 
-// =====================================
-// LOGIN PROTECTION
-// =====================================
-
 function isLoginBlocked(){
 
-  if(
+  return (
 
-    !authRuntimeState
+    authRuntimeState
     .loginBlockedUntil
 
-  ){
-
-    return false;
-
-  }
-
-  return (
+    &&
 
     Date.now() <
 
@@ -1134,26 +1060,13 @@ function startSessionMonitor(){
   }
 
   if(
-
-    !AUTH_RUNTIME_CONFIG
-    .ENABLE_SESSION_MONITORING
-
-  ){
-
-    return false;
-
-  }
-
-  if(
     authRuntimeState
     .sessionMonitorTimer
   ){
 
     clearInterval(
-
       authRuntimeState
       .sessionMonitorTimer
-
     );
 
   }
@@ -1162,13 +1075,16 @@ function startSessionMonitor(){
   .sessionMonitorTimer =
   setInterval(async() => {
 
-    const session =
-    loadAuthSession();
-
-    if(!session){
+    if(
+      !authRuntimeState
+      .authenticated
+    ){
 
       return;
     }
+
+    const session =
+    loadAuthSession();
 
     if(
       isSessionExpired(
@@ -1179,13 +1095,6 @@ function startSessionMonitor(){
       authRuntimeState
       .diagnostics
       .expired++;
-
-      await emitAuthRuntimeEvent(
-
-        AUTH_RUNTIME_EVENTS
-        .SESSION_EXPIRED
-
-      );
 
       await logout();
 
@@ -1221,14 +1130,6 @@ async function restoreAuthSession(){
     const session =
     loadAuthSession();
 
-    if(!session){
-
-      resetAuthRuntimeState();
-
-      return false;
-
-    }
-
     if(
       isSessionExpired(
         session
@@ -1236,6 +1137,14 @@ async function restoreAuthSession(){
     ){
 
       clearAuthSession();
+
+      resetAuthRuntimeState();
+
+      return false;
+
+    }
+
+    if(!session){
 
       resetAuthRuntimeState();
 
@@ -1262,8 +1171,6 @@ async function restoreAuthSession(){
       Date.now()
 
     });
-
-    updateLastActivity();
 
     authRuntimeState
     .diagnostics
@@ -1334,17 +1241,6 @@ async function login({
       isLoginBlocked()
     ){
 
-      authRuntimeState
-      .diagnostics
-      .blocked++;
-
-      await emitAuthRuntimeEvent(
-
-        AUTH_RUNTIME_EVENTS
-        .LOGIN_BLOCKED
-
-      );
-
       throw new Error(
         "LOGIN_BLOCKED"
       );
@@ -1352,9 +1248,7 @@ async function login({
     }
 
     if(
-      !validateEmail(
-        email
-      )
+      !validateEmail(email)
     ){
 
       registerFailedLogin();
@@ -1366,9 +1260,7 @@ async function login({
     }
 
     if(
-      !validatePassword(
-        password
-      )
+      !validatePassword(password)
     ){
 
       registerFailedLogin();
@@ -1382,7 +1274,8 @@ async function login({
     const user =
     freezeAuthObject({
 
-      id:createUniqueId(
+      id:
+      createUniqueId(
         "user"
       ),
 
@@ -1405,14 +1298,6 @@ async function login({
 
     });
 
-    if(!session){
-
-      throw new Error(
-        "SESSION_FAILED"
-      );
-
-    }
-
     if(
       !saveAuthSession(
         session
@@ -1433,16 +1318,12 @@ async function login({
     .loginBlockedUntil =
     null;
 
-    updateLastActivity();
-
     updateAuthRuntimeState({
 
       authenticated:true,
 
       user:
-      safeCloneAuth(
-        user
-      ),
+      safeCloneAuth(user),
 
       token,
 
@@ -1493,22 +1374,6 @@ async function login({
 
     });
 
-    await emitAuthRuntimeEvent(
-
-      AUTH_RUNTIME_EVENTS
-      .AUTH_ERROR,
-
-      {
-
-        error:
-        getSafeErrorMessage(
-          error
-        )
-
-      }
-
-    );
-
     return false;
 
   }
@@ -1539,7 +1404,7 @@ async function register({
 
 } = {}){
 
-  const result =
+  const success =
   await login({
 
     email,
@@ -1548,7 +1413,7 @@ async function register({
 
   });
 
-  if(result){
+  if(success){
 
     authRuntimeState
     .diagnostics
@@ -1563,7 +1428,7 @@ async function register({
 
   }
 
-  return result;
+  return success;
 
 }
 
@@ -1617,15 +1482,6 @@ async function logout(){
     authRuntimeState
     .diagnostics
     .errors++;
-
-    updateAuthRuntimeState({
-
-      error:
-      getSafeErrorMessage(
-        error
-      )
-
-    });
 
     return false;
 
@@ -1681,6 +1537,21 @@ async function initializeAuthRuntime(){
 
     startSessionMonitor();
 
+    if(
+      typeof registerModule ===
+      "function"
+    ){
+
+      await registerModule(
+
+        "auth-runtime",
+
+        async () => AuthRuntime
+
+      );
+
+    }
+
     return restored;
 
   }
@@ -1690,15 +1561,6 @@ async function initializeAuthRuntime(){
     authRuntimeState
     .diagnostics
     .errors++;
-
-    updateAuthRuntimeState({
-
-      error:
-      getSafeErrorMessage(
-        error
-      )
-
-    });
 
     return false;
 
@@ -1745,6 +1607,14 @@ function resetAuthRuntime(){
     null;
 
   }
+
+  authRuntimeState
+  .initialized =
+  false;
+
+  authRuntimeState
+  .initializing =
+  false;
 
   authRuntimeState
   .failedLoginAttempts =
@@ -1805,3 +1675,19 @@ Object.freeze({
   resetAuthRuntime
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.AuthRuntime =
+  AuthRuntime;
+
+}
