@@ -2,7 +2,7 @@
 // RIGO AI
 // SERVICE REGISTRY
 // ENTERPRISE SERVICE CONTAINER
-// FINAL STABLE EDITION
+// FINAL STABLE PATCHED EDITION
 // =====================================
 
 
@@ -18,7 +18,17 @@ Object.freeze({
 
   ENABLE_FREEZE:true,
 
-  ENABLE_LOGGING:true
+  ENABLE_LOGGING:true,
+
+  ENABLE_DUPLICATE_PROTECTION:true,
+
+  ENABLE_ASYNC_BOOT:true,
+
+  ENABLE_LIFECYCLE_TRACKING:true,
+
+  ENABLE_FAILURE_TRACKING:true,
+
+  ENABLE_IMMUTABLE_SERVICES:true
 
 });
 
@@ -33,6 +43,10 @@ Object.seal({
 
   initialized:false,
 
+  booting:false,
+
+  shuttingDown:false,
+
   createdAt:
   Date.now(),
 
@@ -45,7 +59,16 @@ Object.seal({
   failed:
   new Set(),
 
+  immutable:
+  new Set(),
+
   metadata:
+  new Map(),
+
+  dependencies:
+  new Map(),
+
+  lifecycle:
   new Map()
 
 });
@@ -91,14 +114,11 @@ function sanitizeServiceMetadata(
 
   try{
 
-    const cloned =
-    JSON.parse(
+    return JSON.parse(
       JSON.stringify(
         metadata
       )
     );
-
-    return cloned;
 
   }
 
@@ -179,7 +199,7 @@ function logServiceRegistryEvent(
 
 
 // =====================================
-// VALIDATE SERVICE INSTANCE
+// VALIDATE INSTANCE
 // =====================================
 
 function validateServiceInstance(
@@ -224,6 +244,100 @@ function validateRegistryLimit(){
 
 
 // =====================================
+// VALIDATE DEPENDENCIES
+// =====================================
+
+function validateServiceDependencies(
+  dependencies = []
+){
+
+  if(
+    !Array.isArray(
+      dependencies
+    )
+  ){
+
+    return false;
+
+  }
+
+  return dependencies.every((dependency) => {
+
+    return Boolean(
+      normalizeServiceName(
+        dependency
+      )
+    );
+
+  });
+
+}
+
+
+
+// =====================================
+// CHECK CIRCULAR DEPENDENCIES
+// =====================================
+
+function hasCircularDependency(
+  serviceName,
+  dependencies = []
+){
+
+  const normalizedService =
+  normalizeServiceName(
+    serviceName
+  );
+
+  return dependencies.some((dependency) => {
+
+    return (
+
+      normalizeServiceName(
+        dependency
+      ) === normalizedService
+
+    );
+
+  });
+
+}
+
+
+
+// =====================================
+// CREATE LIFECYCLE
+// =====================================
+
+function createServiceLifecycle(
+  serviceName
+){
+
+  return Object.freeze({
+
+    service:
+    serviceName,
+
+    createdAt:
+    Date.now(),
+
+    activatedAt:null,
+
+    failedAt:null,
+
+    removedAt:null,
+
+    restartCount:0,
+
+    status:"registered"
+
+  });
+
+}
+
+
+
+// =====================================
 // REGISTER SERVICE
 // =====================================
 
@@ -233,105 +347,292 @@ function registerService(
   metadata = {}
 ){
 
-  const normalizedName =
-  normalizeServiceName(
-    serviceName
-  );
+  try{
 
-  if(
-    !normalizedName
-  ){
+    const normalizedName =
+    normalizeServiceName(
+      serviceName
+    );
 
-    return false;
+    if(
+      !normalizedName
+    ){
 
-  }
-
-  if(
-
-    !validateServiceInstance(
-      serviceInstance
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    !hasService(
-      normalizedName
-    )
-
-    &&
-
-    !validateRegistryLimit()
-
-  ){
-
-    return false;
-
-  }
-
-  const safeMetadata =
-  sanitizeServiceMetadata(
-    metadata
-  );
-
-  serviceRegistryState
-  .services
-  .set(
-
-    normalizedName,
-
-    serviceInstance
-
-  );
-
-  serviceRegistryState
-  .metadata
-  .set(
-
-    normalizedName,
-
-    Object.freeze({
-
-      registeredAt:
-      Date.now(),
-
-      updatedAt:
-      Date.now(),
-
-      name:
-      normalizedName,
-
-      ...safeMetadata
-
-    })
-
-  );
-
-  serviceRegistryState
-  .failed
-  .delete(
-    normalizedName
-  );
-
-  logServiceRegistryEvent(
-
-    "SERVICE_REGISTERED",
-
-    {
-
-      service:
-      normalizedName
+      return false;
 
     }
 
-  );
+    if(
 
-  return true;
+      !validateServiceInstance(
+        serviceInstance
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      !hasService(
+        normalizedName
+      )
+
+      &&
+
+      !validateRegistryLimit()
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      SERVICE_REGISTRY_CONFIG
+      .ENABLE_DUPLICATE_PROTECTION
+
+      &&
+
+      hasService(
+        normalizedName
+      )
+
+      &&
+
+      serviceRegistryState
+      .immutable
+      .has(
+        normalizedName
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    const safeMetadata =
+    sanitizeServiceMetadata(
+      metadata
+    );
+
+    const dependencies =
+    Array.isArray(
+      safeMetadata.dependencies
+    )
+
+    ? safeMetadata.dependencies
+
+    : [];
+
+    if(
+
+      !validateServiceDependencies(
+        dependencies
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      hasCircularDependency(
+
+        normalizedName,
+
+        dependencies
+
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    const previousMetadata =
+    serviceRegistryState
+    .metadata
+    .get(
+      normalizedName
+    );
+
+
+
+    // ===================================
+    // REGISTER INSTANCE
+    // ===================================
+
+    serviceRegistryState
+    .services
+    .set(
+
+      normalizedName,
+
+      serviceInstance
+
+    );
+
+
+
+    // ===================================
+    // IMMUTABLE
+    // ===================================
+
+    if(
+
+      SERVICE_REGISTRY_CONFIG
+      .ENABLE_IMMUTABLE_SERVICES
+
+      &&
+
+      safeMetadata.immutable ===
+      true
+
+    ){
+
+      serviceRegistryState
+      .immutable
+      .add(
+        normalizedName
+      );
+
+    }
+
+
+
+    // ===================================
+    // DEPENDENCIES
+    // ===================================
+
+    serviceRegistryState
+    .dependencies
+    .set(
+
+      normalizedName,
+
+      Object.freeze([
+        ...dependencies
+      ])
+
+    );
+
+
+
+    // ===================================
+    // METADATA
+    // ===================================
+
+    serviceRegistryState
+    .metadata
+    .set(
+
+      normalizedName,
+
+      Object.freeze({
+
+        registeredAt:
+
+          previousMetadata
+          ?.registeredAt ||
+
+          Date.now(),
+
+        updatedAt:
+        Date.now(),
+
+        version:
+        safeMetadata.version ||
+        "1.0.0",
+
+        status:
+        "registered",
+
+        name:
+        normalizedName,
+
+        ...previousMetadata,
+
+        ...safeMetadata
+
+      })
+
+    );
+
+
+
+    // ===================================
+    // LIFECYCLE
+    // ===================================
+
+    if(
+
+      SERVICE_REGISTRY_CONFIG
+      .ENABLE_LIFECYCLE_TRACKING
+
+    ){
+
+      if(
+
+        !serviceRegistryState
+        .lifecycle
+        .has(
+          normalizedName
+        )
+
+      ){
+
+        serviceRegistryState
+        .lifecycle
+        .set(
+
+          normalizedName,
+
+          createServiceLifecycle(
+            normalizedName
+          )
+
+        );
+
+      }
+
+    }
+
+    serviceRegistryState
+    .failed
+    .delete(
+      normalizedName
+    );
+
+    logServiceRegistryEvent(
+
+      "SERVICE_REGISTERED",
+
+      {
+
+        service:
+        normalizedName
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
 
 }
 
@@ -408,6 +709,33 @@ function getServiceMetadata(
 
 
 // =====================================
+// GET DEPENDENCIES
+// =====================================
+
+function getServiceDependencies(
+  serviceName
+){
+
+  const normalizedName =
+  normalizeServiceName(
+    serviceName
+  );
+
+  return [
+
+    ...(serviceRegistryState
+    .dependencies
+    .get(
+      normalizedName
+    ) || [])
+
+  ];
+
+}
+
+
+
+// =====================================
 // ACTIVATE SERVICE
 // =====================================
 
@@ -445,6 +773,42 @@ function activateService(
   .delete(
     normalizedName
   );
+
+
+
+  // ===================================
+  // LIFECYCLE
+  // ===================================
+
+  const lifecycle =
+  serviceRegistryState
+  .lifecycle
+  .get(
+    normalizedName
+  );
+
+  if(lifecycle){
+
+    serviceRegistryState
+    .lifecycle
+    .set(
+
+      normalizedName,
+
+      Object.freeze({
+
+        ...lifecycle,
+
+        activatedAt:
+        Date.now(),
+
+        status:"active"
+
+      })
+
+    );
+
+  }
 
   logServiceRegistryEvent(
 
@@ -498,6 +862,42 @@ function failService(
     normalizedName
   );
 
+
+
+  // ===================================
+  // LIFECYCLE
+  // ===================================
+
+  const lifecycle =
+  serviceRegistryState
+  .lifecycle
+  .get(
+    normalizedName
+  );
+
+  if(lifecycle){
+
+    serviceRegistryState
+    .lifecycle
+    .set(
+
+      normalizedName,
+
+      Object.freeze({
+
+        ...lifecycle,
+
+        failedAt:
+        Date.now(),
+
+        status:"failed"
+
+      })
+
+    );
+
+  }
+
   logServiceRegistryEvent(
 
     "SERVICE_FAILED",
@@ -525,58 +925,124 @@ function removeService(
   serviceName
 ){
 
-  const normalizedName =
-  normalizeServiceName(
-    serviceName
-  );
+  try{
 
-  if(
-    !normalizedName
-  ){
+    const normalizedName =
+    normalizeServiceName(
+      serviceName
+    );
+
+    if(
+      !normalizedName
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      serviceRegistryState
+      .immutable
+      .has(
+        normalizedName
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    serviceRegistryState
+    .active
+    .delete(
+      normalizedName
+    );
+
+    serviceRegistryState
+    .failed
+    .delete(
+      normalizedName
+    );
+
+    serviceRegistryState
+    .immutable
+    .delete(
+      normalizedName
+    );
+
+    serviceRegistryState
+    .metadata
+    .delete(
+      normalizedName
+    );
+
+    serviceRegistryState
+    .dependencies
+    .delete(
+      normalizedName
+    );
+
+    const lifecycle =
+    serviceRegistryState
+    .lifecycle
+    .get(
+      normalizedName
+    );
+
+    if(lifecycle){
+
+      serviceRegistryState
+      .lifecycle
+      .set(
+
+        normalizedName,
+
+        Object.freeze({
+
+          ...lifecycle,
+
+          removedAt:
+          Date.now(),
+
+          status:"removed"
+
+        })
+
+      );
+
+    }
+
+    const removed =
+    serviceRegistryState
+    .services
+    .delete(
+      normalizedName
+    );
+
+    logServiceRegistryEvent(
+
+      "SERVICE_REMOVED",
+
+      {
+
+        service:
+        normalizedName
+
+      }
+
+    );
+
+    return removed;
+
+  }
+
+  catch(error){
 
     return false;
 
   }
-
-  serviceRegistryState
-  .active
-  .delete(
-    normalizedName
-  );
-
-  serviceRegistryState
-  .failed
-  .delete(
-    normalizedName
-  );
-
-  serviceRegistryState
-  .metadata
-  .delete(
-    normalizedName
-  );
-
-  const removed =
-  serviceRegistryState
-  .services
-  .delete(
-    normalizedName
-  );
-
-  logServiceRegistryEvent(
-
-    "SERVICE_REMOVED",
-
-    {
-
-      service:
-      normalizedName
-
-    }
-
-  );
-
-  return removed;
 
 }
 
@@ -623,10 +1089,122 @@ function listServices(){
 
 
 // =====================================
+// BOOT SERVICES
+// =====================================
+
+async function bootRegisteredServices(){
+
+  if(
+
+    !SERVICE_REGISTRY_CONFIG
+    .ENABLE_ASYNC_BOOT
+
+  ){
+
+    return true;
+
+  }
+
+  if(
+    serviceRegistryState
+    .booting
+  ){
+
+    return false;
+
+  }
+
+  serviceRegistryState
+  .booting = true;
+
+  try{
+
+    for(
+
+      const [
+
+        serviceName,
+
+        serviceInstance
+
+      ]
+
+      of
+
+      serviceRegistryState
+      .services
+
+    ){
+
+      try{
+
+        if(
+
+          serviceInstance &&
+
+          typeof serviceInstance
+          .initialize ===
+          "function"
+
+        ){
+
+          await serviceInstance
+          .initialize();
+
+        }
+
+        activateService(
+          serviceName
+        );
+
+      }
+
+      catch(error){
+
+        failService(
+          serviceName
+        );
+
+      }
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+  finally{
+
+    serviceRegistryState
+    .booting = false;
+
+  }
+
+}
+
+
+
+// =====================================
 // CLEAR REGISTRY
 // =====================================
 
-function clearServiceRegistry(){
+function clearServiceRegistry(
+  force = false
+){
+
+  if(
+    force !== true
+  ){
+
+    return false;
+
+  }
 
   serviceRegistryState
   .services
@@ -641,7 +1219,19 @@ function clearServiceRegistry(){
   .clear();
 
   serviceRegistryState
+  .immutable
+  .clear();
+
+  serviceRegistryState
   .metadata
+  .clear();
+
+  serviceRegistryState
+  .dependencies
+  .clear();
+
+  serviceRegistryState
+  .lifecycle
   .clear();
 
   return true;
@@ -662,6 +1252,16 @@ function getServiceRegistryDiagnostics(){
 
       serviceRegistryState
       .initialized,
+
+    booting:
+
+      serviceRegistryState
+      .booting,
+
+    shuttingDown:
+
+      serviceRegistryState
+      .shuttingDown,
 
     createdAt:
 
@@ -684,6 +1284,12 @@ function getServiceRegistryDiagnostics(){
 
       serviceRegistryState
       .failed
+      .size,
+
+    immutableServices:
+
+      serviceRegistryState
+      .immutable
       .size,
 
     active:[
@@ -713,7 +1319,7 @@ function getServiceRegistryDiagnostics(){
 // INITIALIZE
 // =====================================
 
-function initializeServiceRegistry(){
+async function initializeServiceRegistry(){
 
   if(
     serviceRegistryState
@@ -727,6 +1333,8 @@ function initializeServiceRegistry(){
   serviceRegistryState
   .initialized =
   true;
+
+  await bootRegisteredServices();
 
   logServiceRegistryEvent(
     "SERVICE_REGISTRY_READY"
@@ -757,6 +1365,9 @@ Object.freeze({
   getMetadata:
   getServiceMetadata,
 
+  getDependencies:
+  getServiceDependencies,
+
   activate:
   activateService,
 
@@ -771,6 +1382,9 @@ Object.freeze({
 
   list:
   listServices,
+
+  boot:
+  bootRegisteredServices,
 
   clear:
   clearServiceRegistry,
