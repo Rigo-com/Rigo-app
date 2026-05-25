@@ -54,7 +54,7 @@ function createMessageHash(
 
   try{
 
-    return btoa(
+    const normalized =
 
       JSON.stringify({
 
@@ -64,7 +64,13 @@ function createMessageHash(
         metadata:
         message?.metadata
 
-      })
+      });
+
+    return btoa(
+
+      encodeURIComponent(
+        normalized
+      )
 
     );
 
@@ -324,75 +330,85 @@ function freezeCommunicationObject(
   visited = new WeakSet()
 ){
 
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof AbortController ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    value instanceof WeakMap ||
-
-    value instanceof WeakSet
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
+  try{
 
     if(
 
-      nestedValue &&
+      !value ||
 
-      typeof nestedValue ===
+      typeof value !==
       "object"
 
     ){
 
-      freezeCommunicationObject(
-        nestedValue,
-        visited
-      );
+      return value;
 
     }
 
-  });
+    if(
 
-  return value;
+      value instanceof AbortController ||
+
+      value instanceof Map ||
+
+      value instanceof Set ||
+
+      value instanceof WeakMap ||
+
+      value instanceof WeakSet
+
+    ){
+
+      return value;
+
+    }
+
+    if(
+      visited.has(value)
+    ){
+
+      return value;
+
+    }
+
+    visited.add(
+      value
+    );
+
+    Object.freeze(
+      value
+    );
+
+    Object.values(value)
+    .forEach((nestedValue) => {
+
+      if(
+
+        nestedValue &&
+
+        typeof nestedValue ===
+        "object"
+
+      ){
+
+        freezeCommunicationObject(
+          nestedValue,
+          visited
+        );
+
+      }
+
+    });
+
+    return value;
+
+  }
+
+  catch(error){
+
+    return value;
+
+  }
 
 }
 
@@ -442,14 +458,20 @@ function validateCommunicationMessage(
 
   }
 
+  const maxLength =
+
+    APP_CONFIG
+    ?.CHAT
+    ?.MAX_MESSAGE_LENGTH ||
+
+    10000;
+
   if(
 
     message.content
     .length >
 
-    APP_CONFIG
-    ?.CHAT
-    ?.MAX_MESSAGE_LENGTH
+    maxLength
 
   ){
 
