@@ -7,67 +7,156 @@
 
 
 // =====================================
-// STATE (RUNTIME ONLY)
+// INTERNAL STATE
 // =====================================
 
-const moduleRuntimeState = Object.seal({
+const moduleRuntimeState = {
 
-  initialized:false,
+  initialized:
+  false,
 
-  booting:false,
-  shuttingDown:false,
-  recovering:false,
+  booting:
+  false,
 
-  monitoring:false,
-  booted:false,
-  runtimeLocked:false,
+  shuttingDown:
+  false,
 
-  healthTimer:null,
+  recovering:
+  false,
 
-  startedAt:null,
-  completedAt:null,
+  monitoring:
+  false,
 
-  lastHealthcheckAt:null,
-  lastRecoveryAt:null,
-  lastError:null,
+  booted:
+  false,
+
+  runtimeLocked:
+  false,
+
+  healthTimer:
+  null,
+
+  startedAt:
+  null,
+
+  completedAt:
+  null,
+
+  lastHealthcheckAt:
+  null,
+
+  lastRecoveryAt:
+  null,
+
+  lastError:
+  null,
 
   diagnostics:{
 
-    boots:0,
-    shutdowns:0,
-    recoveries:0,
-    healthchecks:0,
-    runtimeErrors:0
+    boots:
+    0,
+
+    shutdowns:
+    0,
+
+    recoveries:
+    0,
+
+    healthchecks:
+    0,
+
+    runtimeErrors:
+    0
 
   }
 
-});
+};
 
 
 
 // =====================================
-// IMMUTABLE UTILITY
+// HELPERS
 // =====================================
 
-function freeze(obj, seen = new WeakSet()){
+function isFunction(value){
 
-  if(!obj || typeof obj !== "object") return obj;
+  return typeof value === "function";
 
-  if(seen.has(obj)) return obj;
+}
 
-  seen.add(obj);
 
-  Object.freeze(obj);
 
-  Object.values(obj).forEach(v => {
+function isPlainObject(value){
 
-    if(v && typeof v === "object"){
-      freeze(v, seen);
-    }
+  if(
+    !value ||
+    typeof value !== "object"
+  ){
+    return false;
+  }
+
+  const prototype =
+    Object.getPrototypeOf(value);
+
+  return (
+    prototype === Object.prototype ||
+    prototype === null
+  );
+
+}
+
+
+
+// =====================================
+// SAFE IMMUTABLE FREEZE
+// =====================================
+
+function freeze(
+  value,
+  seen = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !== "object"
+  ){
+    return value;
+  }
+
+  if(seen.has(value)){
+    return value;
+  }
+
+  if(
+    value instanceof Date ||
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof RegExp
+  ){
+    return value;
+  }
+
+  if(
+    !Array.isArray(value) &&
+    !isPlainObject(value)
+  ){
+    return value;
+  }
+
+  seen.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    freeze(
+      nestedValue,
+      seen
+    );
 
   });
 
-  return obj;
+  return value;
 
 }
 
@@ -77,16 +166,32 @@ function freeze(obj, seen = new WeakSet()){
 // EVENTS
 // =====================================
 
-const MODULE_RUNTIME_EVENTS = Object.freeze({
+const MODULE_RUNTIME_EVENTS =
+Object.freeze({
 
-  INITIALIZED:"module.runtime.initialized",
-  BOOT_STARTED:"module.runtime.boot.started",
-  BOOT_COMPLETED:"module.runtime.boot.completed",
-  SHUTDOWN_STARTED:"module.runtime.shutdown.started",
-  SHUTDOWN_COMPLETED:"module.runtime.shutdown.completed",
-  RECOVERY_STARTED:"module.runtime.recovery.started",
-  RECOVERY_COMPLETED:"module.runtime.recovery.completed",
-  HEALTHCHECK:"module.runtime.healthcheck"
+  INITIALIZED:
+  "module.runtime.initialized",
+
+  BOOT_STARTED:
+  "module.runtime.boot.started",
+
+  BOOT_COMPLETED:
+  "module.runtime.boot.completed",
+
+  SHUTDOWN_STARTED:
+  "module.runtime.shutdown.started",
+
+  SHUTDOWN_COMPLETED:
+  "module.runtime.shutdown.completed",
+
+  RECOVERY_STARTED:
+  "module.runtime.recovery.started",
+
+  RECOVERY_COMPLETED:
+  "module.runtime.recovery.completed",
+
+  HEALTHCHECK:
+  "module.runtime.healthcheck"
 
 });
 
@@ -96,22 +201,46 @@ const MODULE_RUNTIME_EVENTS = Object.freeze({
 // EVENT EMITTER
 // =====================================
 
-async function emit(event, payload = {}){
+async function emit(
+  event,
+  payload = {}
+){
 
   try{
 
-    if(typeof emitSystemEvent !== "function") return false;
+    if(
+      !isFunction(emitSystemEvent)
+    ){
+      return false;
+    }
 
-    await emitSystemEvent(event, {
-      source:"module-runtime",
-      timestamp:Date.now(),
-      ...payload
-    });
+    await emitSystemEvent(
+      event,
+      {
+
+        source:
+        "module-runtime",
+
+        timestamp:
+        Date.now(),
+
+        ...payload
+
+      }
+    );
 
     return true;
 
-  }catch{
+  }catch(error){
+
+    console.warn(
+      "[ModuleRuntime] Event failed:",
+      event,
+      error
+    );
+
     return false;
+
   }
 
 }
@@ -119,16 +248,41 @@ async function emit(event, payload = {}){
 
 
 // =====================================
-// INITIALIZE (RUNTIME ONLY)
+// RUNTIME GUARDS
+// =====================================
+
+function isRuntimeBusy(){
+
+  return (
+
+    moduleRuntimeState.booting ||
+    moduleRuntimeState.shuttingDown ||
+    moduleRuntimeState.recovering
+
+  );
+
+}
+
+
+
+// =====================================
+// INITIALIZE
 // =====================================
 
 async function initializeModuleRuntime(){
 
-  if(moduleRuntimeState.initialized) return true;
+  if(
+    moduleRuntimeState.initialized
+  ){
+    return true;
+  }
 
-  moduleRuntimeState.initialized = true;
+  moduleRuntimeState.initialized =
+    true;
 
-  await emit(MODULE_RUNTIME_EVENTS.INITIALIZED);
+  await emit(
+    MODULE_RUNTIME_EVENTS.INITIALIZED
+  );
 
   return true;
 
@@ -137,45 +291,77 @@ async function initializeModuleRuntime(){
 
 
 // =====================================
-// BOOT (DELEGATED FROM KERNEL)
+// BOOT
 // =====================================
 
 async function bootModuleRuntime(){
 
-  if(moduleRuntimeState.booting) return false;
+  if(
+    isRuntimeBusy() ||
+    moduleRuntimeState.booted
+  ){
+    return false;
+  }
 
-  moduleRuntimeState.booting = true;
-  moduleRuntimeState.runtimeLocked = true;
+  moduleRuntimeState.booting =
+    true;
 
-  moduleRuntimeState.startedAt = Date.now();
-  moduleRuntimeState.lastError = null;
+  moduleRuntimeState.runtimeLocked =
+    true;
+
+  moduleRuntimeState.startedAt =
+    Date.now();
+
+  moduleRuntimeState.lastError =
+    null;
 
   moduleRuntimeState.diagnostics.boots++;
 
   try{
 
-    await emit(MODULE_RUNTIME_EVENTS.BOOT_STARTED);
+    await emit(
+      MODULE_RUNTIME_EVENTS.BOOT_STARTED
+    );
 
-    moduleRuntimeState.booted = true;
-    moduleRuntimeState.completedAt = Date.now();
+    moduleRuntimeState.booted =
+      true;
 
-    await emit(MODULE_RUNTIME_EVENTS.BOOT_COMPLETED, {
-      duration: moduleRuntimeState.completedAt - moduleRuntimeState.startedAt
-    });
+    moduleRuntimeState.completedAt =
+      Date.now();
+
+    await emit(
+
+      MODULE_RUNTIME_EVENTS.BOOT_COMPLETED,
+
+      {
+
+        duration:
+
+        moduleRuntimeState.completedAt -
+        moduleRuntimeState.startedAt
+
+      }
+
+    );
 
     return true;
 
   }catch(error){
 
-    moduleRuntimeState.lastError = error;
+    moduleRuntimeState.lastError =
+      error;
+
     moduleRuntimeState.diagnostics.runtimeErrors++;
 
     return false;
 
   }finally{
 
-    moduleRuntimeState.booting = false;
-    moduleRuntimeState.runtimeLocked = false;
+    moduleRuntimeState.booting =
+      false;
+
+    moduleRuntimeState.runtimeLocked =
+      false;
 
   }
 
@@ -184,56 +370,110 @@ async function bootModuleRuntime(){
 
 
 // =====================================
-// HEALTH (RUNTIME ONLY)
+// HEALTHCHECK
 // =====================================
 
 async function executeModuleRuntimeHealthcheck(){
 
   moduleRuntimeState.diagnostics.healthchecks++;
-  moduleRuntimeState.lastHealthcheckAt = Date.now();
 
-  await emit(MODULE_RUNTIME_EVENTS.HEALTHCHECK, {
-    status: moduleRuntimeState.booted ? "healthy" : "not_ready"
+  moduleRuntimeState.lastHealthcheckAt =
+    Date.now();
+
+  await emit(
+
+    MODULE_RUNTIME_EVENTS.HEALTHCHECK,
+
+    {
+
+      status:
+
+      moduleRuntimeState.booted
+        ? "healthy"
+        : "not_ready"
+
+    }
+
+  );
+
+  return freeze({
+
+    booted:
+    moduleRuntimeState.booted,
+
+    initialized:
+    moduleRuntimeState.initialized,
+
+    monitoring:
+    moduleRuntimeState.monitoring,
+
+    diagnostics:{
+      ...moduleRuntimeState.diagnostics
+    },
+
+    timestamp:
+    Date.now()
+
   });
-
-  return {
-    booted: moduleRuntimeState.booted,
-    diagnostics: moduleRuntimeState.diagnostics,
-    timestamp: Date.now()
-  };
 
 }
 
 
 
 // =====================================
-// RECOVERY (DELEGATED ONLY)
+// RECOVERY
 // =====================================
 
 async function recoverModuleRuntime(){
 
-  if(moduleRuntimeState.recovering) return false;
+  if(
+    isRuntimeBusy()
+  ){
+    return false;
+  }
 
-  moduleRuntimeState.recovering = true;
+  moduleRuntimeState.recovering =
+    true;
+
+  moduleRuntimeState.runtimeLocked =
+    true;
+
   moduleRuntimeState.diagnostics.recoveries++;
-  moduleRuntimeState.lastRecoveryAt = Date.now();
+
+  moduleRuntimeState.lastRecoveryAt =
+    Date.now();
 
   try{
 
-    await emit(MODULE_RUNTIME_EVENTS.RECOVERY_STARTED);
+    await emit(
+      MODULE_RUNTIME_EVENTS.RECOVERY_STARTED
+    );
 
-    await emit(MODULE_RUNTIME_EVENTS.RECOVERY_COMPLETED);
+    moduleRuntimeState.lastError =
+      null;
+
+    await emit(
+      MODULE_RUNTIME_EVENTS.RECOVERY_COMPLETED
+    );
 
     return true;
 
   }catch(error){
 
-    moduleRuntimeState.lastError = error;
+    moduleRuntimeState.lastError =
+      error;
+
+    moduleRuntimeState.diagnostics.runtimeErrors++;
+
     return false;
 
   }finally{
 
-    moduleRuntimeState.recovering = false;
+    moduleRuntimeState.recovering =
+      false;
+
+    moduleRuntimeState.runtimeLocked =
+      false;
 
   }
 
@@ -242,34 +482,73 @@ async function recoverModuleRuntime(){
 
 
 // =====================================
-// SHUTDOWN (RUNTIME ONLY)
+// SHUTDOWN
 // =====================================
 
 async function shutdownModuleRuntime(){
 
-  if(moduleRuntimeState.shuttingDown) return false;
+  if(
+    isRuntimeBusy() ||
+    !moduleRuntimeState.booted
+  ){
+    return false;
+  }
 
-  moduleRuntimeState.shuttingDown = true;
+  moduleRuntimeState.shuttingDown =
+    true;
+
+  moduleRuntimeState.runtimeLocked =
+    true;
+
   moduleRuntimeState.diagnostics.shutdowns++;
 
   try{
 
-    await emit(MODULE_RUNTIME_EVENTS.SHUTDOWN_STARTED);
+    await emit(
+      MODULE_RUNTIME_EVENTS.SHUTDOWN_STARTED
+    );
 
-    moduleRuntimeState.booted = false;
+    if(
+      moduleRuntimeState.healthTimer
+    ){
 
-    await emit(MODULE_RUNTIME_EVENTS.SHUTDOWN_COMPLETED);
+      clearInterval(
+        moduleRuntimeState.healthTimer
+      );
+
+      moduleRuntimeState.healthTimer =
+        null;
+
+    }
+
+    moduleRuntimeState.monitoring =
+      false;
+
+    moduleRuntimeState.booted =
+      false;
+
+    await emit(
+      MODULE_RUNTIME_EVENTS.SHUTDOWN_COMPLETED
+    );
 
     return true;
 
   }catch(error){
 
-    moduleRuntimeState.lastError = error;
+    moduleRuntimeState.lastError =
+      error;
+
+    moduleRuntimeState.diagnostics.runtimeErrors++;
+
     return false;
 
   }finally{
 
-    moduleRuntimeState.shuttingDown = false;
+    moduleRuntimeState.shuttingDown =
+      false;
+
+    moduleRuntimeState.runtimeLocked =
+      false;
 
   }
 
@@ -285,24 +564,46 @@ function createModuleRuntimeSnapshot(){
 
   return freeze({
 
-    initialized:moduleRuntimeState.initialized,
-    booted:moduleRuntimeState.booted,
+    initialized:
+    moduleRuntimeState.initialized,
 
-    booting:moduleRuntimeState.booting,
-    shuttingDown:moduleRuntimeState.shuttingDown,
-    recovering:moduleRuntimeState.recovering,
+    booted:
+    moduleRuntimeState.booted,
 
-    monitoring:moduleRuntimeState.monitoring,
+    booting:
+    moduleRuntimeState.booting,
 
-    startedAt:moduleRuntimeState.startedAt,
-    completedAt:moduleRuntimeState.completedAt,
+    shuttingDown:
+    moduleRuntimeState.shuttingDown,
 
-    lastHealthcheckAt:moduleRuntimeState.lastHealthcheckAt,
-    lastRecoveryAt:moduleRuntimeState.lastRecoveryAt,
+    recovering:
+    moduleRuntimeState.recovering,
 
-    diagnostics:{...moduleRuntimeState.diagnostics},
+    monitoring:
+    moduleRuntimeState.monitoring,
 
-    lastError:moduleRuntimeState.lastError
+    runtimeLocked:
+    moduleRuntimeState.runtimeLocked,
+
+    startedAt:
+    moduleRuntimeState.startedAt,
+
+    completedAt:
+    moduleRuntimeState.completedAt,
+
+    lastHealthcheckAt:
+    moduleRuntimeState.lastHealthcheckAt,
+
+    lastRecoveryAt:
+    moduleRuntimeState.lastRecoveryAt,
+
+    diagnostics:{
+      ...moduleRuntimeState.diagnostics
+    },
+
+    lastError:
+
+    moduleRuntimeState.lastError
       ? String(moduleRuntimeState.lastError)
       : null
 
@@ -316,28 +617,52 @@ function createModuleRuntimeSnapshot(){
 // PUBLIC API
 // =====================================
 
-const ModuleRuntime = Object.freeze({
+const ModuleRuntime =
+Object.freeze({
 
-  initialize:initializeModuleRuntime,
-  boot:bootModuleRuntime,
-  shutdown:shutdownModuleRuntime,
-  recover:recoverModuleRuntime,
+  initialize:
+  initializeModuleRuntime,
 
-  health:executeModuleRuntimeHealthcheck,
-  snapshot:createModuleRuntimeSnapshot,
+  boot:
+  bootModuleRuntime,
 
-  state:moduleRuntimeState
+  shutdown:
+  shutdownModuleRuntime,
+
+  recover:
+  recoverModuleRuntime,
+
+  health:
+  executeModuleRuntimeHealthcheck,
+
+  snapshot:
+  createModuleRuntimeSnapshot
 
 });
 
 
 
 // =====================================
-// EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(typeof window !== "undefined"){
 
-  window.ModuleRuntime = ModuleRuntime;
+  Object.defineProperty(
+    window,
+    "ModuleRuntime",
+    {
+
+      value:
+      ModuleRuntime,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+  );
 
 }
