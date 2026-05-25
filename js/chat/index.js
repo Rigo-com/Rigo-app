@@ -156,6 +156,11 @@ function isChatReady(){
 
     &&
 
+    typeof ChatStreamManager.status ===
+    "function"
+
+    &&
+
     chatRuntimeState
     .initialized ===
     true
@@ -192,12 +197,12 @@ function getChatDiagnostics(){
 
     diagnostics =
 
-      typeof deepClone ===
+      typeof safeChatClone ===
       "function"
 
       ?
 
-      deepClone(
+      safeChatClone(
 
         chatRuntimeState
         ?.diagnostics || {}
@@ -475,3 +480,43 @@ Object.freeze({
     null
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.Chat =
+  Chat;
+
+  window.initializeChatSystem =
+  initializeChatSystem;
+
+  window.resetChatSystem =
+  resetChatSystem;
+
+  window.sendChatMessage =
+  sendChatMessage;
+
+  window.abortChatGeneration =
+  abortChatGeneration;
+
+  window.processChatQueue =
+  processChatQueue;
+
+  window.getChatSystemStatus =
+  getChatSystemStatus;
+
+  window.getChatDiagnostics =
+  getChatDiagnostics;
+
+  window.isChatReady =
+  isChatReady;
+
+}
