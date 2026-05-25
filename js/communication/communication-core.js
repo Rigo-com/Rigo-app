@@ -204,7 +204,8 @@ Object.seal({
 
   lastMessageAt:null,
 
-  diagnostics:{
+  diagnostics:
+  Object.seal({
 
     initialized:0,
 
@@ -230,7 +231,7 @@ Object.seal({
 
     recoveredQueues:0
 
-  }
+  })
 
 });
 
