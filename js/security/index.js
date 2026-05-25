@@ -2,7 +2,35 @@
 // RIGO AI
 // SECURITY INDEX
 // ENTERPRISE SECURITY ENTRYPOINT
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// SAFE MODULE ACCESS
+// =====================================
+
+function resolveSecurityModule(
+  moduleReference
+){
+
+  return (
+
+    typeof moduleReference !==
+    "undefined"
+
+    ?
+
+    moduleReference
+
+    :
+
+    null
+
+  );
+
+}
 
 
 
@@ -14,142 +42,162 @@ const SECURITY_MODULES =
 Object.freeze({
 
   Core:
-  typeof SecurityCore !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityCore !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityCore
+    SecurityCore
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Freeze:
-  typeof SecurityFreeze !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityFreeze !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityFreeze
+    SecurityFreeze
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Monitor:
-  typeof SecurityMonitor !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityMonitor !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityMonitor
+    SecurityMonitor
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Policy:
-  typeof SecurityPolicy !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityPolicy !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityPolicy
+    SecurityPolicy
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Report:
-  typeof SecurityReport !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityReport !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityReport
+    SecurityReport
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Runtime:
-  typeof SecurityRuntime !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityRuntime !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityRuntime
+    SecurityRuntime
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Sandbox:
-  typeof SecuritySandbox !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecuritySandbox !==
+    "undefined"
 
-  ?
+    ?
 
-  SecuritySandbox
+    SecuritySandbox
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Sanitize:
-  typeof SecuritySanitize !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecuritySanitize !==
+    "undefined"
 
-  ?
+    ?
 
-  SecuritySanitize
+    SecuritySanitize
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   URL:
-  typeof SecurityURL !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityURL !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityURL
+    SecurityURL
 
-  :
+    :
 
-  null,
+    undefined
+  ),
 
 
 
   Validator:
-  typeof SecurityValidator !==
-  "undefined"
+  resolveSecurityModule(
+    typeof SecurityValidator !==
+    "undefined"
 
-  ?
+    ?
 
-  SecurityValidator
+    SecurityValidator
 
-  :
+    :
 
-  null
+    undefined
+  )
 
 });
 
@@ -162,9 +210,14 @@ Object.freeze({
 const securityIndexState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  initializedAt:null,
+  initializing:
+  false,
+
+  initializedAt:
+  null,
 
   failedModules:
   new Set(),
@@ -172,9 +225,55 @@ Object.seal({
   loadedModules:
   new Set(),
 
-  lastHealthcheckAt:null
+  lastHealthcheckAt:
+  null,
+
+  startupPromise:
+  null
 
 });
+
+
+
+// =====================================
+// SAFE LOG
+// =====================================
+
+function logSecurityIndexEvent(
+  message,
+  metadata = null
+){
+
+  try{
+
+    if(
+      typeof logSecurityEvent ===
+      "function"
+    ){
+
+      logSecurityEvent(
+        message,
+        metadata
+      );
+
+      return;
+    }
+
+    console.info(
+      "[RIGO SECURITY]",
+      message,
+      metadata || ""
+    );
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
+}
 
 
 
@@ -184,7 +283,16 @@ Object.seal({
 
 function validateSecurityModules(){
 
-  let valid = true;
+  securityIndexState
+  .failedModules
+  .clear();
+
+  securityIndexState
+  .loadedModules
+  .clear();
+
+  let valid =
+  true;
 
   Object.entries(
     SECURITY_MODULES
@@ -200,6 +308,7 @@ function validateSecurityModules(){
       valid = false;
 
       return;
+
     }
 
     securityIndexState
@@ -229,87 +338,131 @@ async function initializeSecurityIndex(){
 
   }
 
-  const valid =
-  validateSecurityModules();
+  if(
+    securityIndexState
+    .startupPromise
+  ){
 
-  if(!valid){
-
-    console.error(
-      "[RIGO SECURITY] MODULE VALIDATION FAILED"
-    );
-
-    return false;
+    return securityIndexState
+    .startupPromise;
 
   }
 
-  try{
+  securityIndexState
+  .startupPromise =
+
+  (async() => {
 
     if(
-
-      SECURITY_MODULES
-      .Runtime
-
-      &&
-
-      typeof SECURITY_MODULES
-      .Runtime
-      .initialize ===
-      "function"
-
+      securityIndexState
+      .initializing
     ){
 
-      const initialized =
-      await SECURITY_MODULES
-      .Runtime
-      .initialize();
+      return false;
 
-      if(!initialized){
+    }
+
+    securityIndexState
+    .initializing =
+    true;
+
+    try{
+
+      const valid =
+      validateSecurityModules();
+
+      if(!valid){
 
         throw new Error(
-          "SECURITY_RUNTIME_INIT_FAILED"
+          "SECURITY_MODULE_VALIDATION_FAILED"
         );
 
       }
 
-    }
+      if(
 
-    securityIndexState
-    .initialized =
-    true;
+        SECURITY_MODULES
+        .Runtime
 
-    securityIndexState
-    .initializedAt =
-    Date.now();
+        &&
 
-    securityIndexState
-    .lastHealthcheckAt =
-    Date.now();
+        typeof SECURITY_MODULES
+        .Runtime
+        .initialize ===
+        "function"
 
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
+      ){
 
-      logSecurityEvent(
+        const initialized =
+        await SECURITY_MODULES
+        .Runtime
+        .initialize();
+
+        if(!initialized){
+
+          throw new Error(
+            "SECURITY_RUNTIME_INIT_FAILED"
+          );
+
+        }
+
+      }
+
+      securityIndexState
+      .initialized =
+      true;
+
+      securityIndexState
+      .initializedAt =
+      Date.now();
+
+      securityIndexState
+      .lastHealthcheckAt =
+      Date.now();
+
+      logSecurityIndexEvent(
         "SECURITY INDEX READY"
       );
 
+      return true;
+
     }
 
-    return true;
+    catch(error){
 
-  }
+      logSecurityIndexEvent(
 
-  catch(error){
+        "SECURITY INDEX FAILED",
 
-    console.error(
-      "[RIGO SECURITY]",
-      error
-    );
+        {
 
-    return false;
+          error:
+          String(error)
 
-  }
+        }
+
+      );
+
+      return false;
+
+    }
+
+    finally{
+
+      securityIndexState
+      .initializing =
+      false;
+
+      securityIndexState
+      .startupPromise =
+      null;
+
+    }
+
+  })();
+
+  return securityIndexState
+  .startupPromise;
 
 }
 
@@ -350,7 +503,9 @@ function runSecurityIndexHealthcheck(){
   return Object.freeze({
 
     healthy:
-    runtimeHealthy,
+    Boolean(
+      runtimeHealthy
+    ),
 
     initialized:
     securityIndexState
@@ -428,6 +583,10 @@ function getSecurityIndexDiagnostics(){
     securityIndexState
     .initialized,
 
+    initializing:
+    securityIndexState
+    .initializing,
+
     initializedAt:
     securityIndexState
     .initializedAt,
@@ -435,6 +594,12 @@ function getSecurityIndexDiagnostics(){
     lastHealthcheckAt:
     securityIndexState
     .lastHealthcheckAt,
+
+    startupInProgress:
+    Boolean(
+      securityIndexState
+      .startupPromise
+    ),
 
     loadedModules:[
 
@@ -551,24 +716,33 @@ Object.freeze({
 
 
 // =====================================
-// AUTO INITIALIZATION
+// GLOBAL EXPORTS
 // =====================================
 
-(async () => {
+if(
+  typeof window !==
+  "undefined"
+){
 
-  try{
+  Object.defineProperty(
 
-    await initializeSecurityIndex();
+    window,
 
-  }
+    "Security",
 
-  catch(error){
+    {
 
-    console.error(
-      "[RIGO SECURITY AUTO INIT FAILED]",
-      error
-    );
+      value:
+      Security,
 
-  }
+      writable:
+      false,
 
-})();
+      configurable:
+      false
+
+    }
+
+  );
+
+}
