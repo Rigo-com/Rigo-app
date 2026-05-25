@@ -1,6 +1,6 @@
 // =====================================
 // RIGO AI
-// SECURITY EXECUTION GUARD
+// SECURITY SANDBOX
 // ENTERPRISE GUARDED EXECUTION LAYER
 // FINAL HARDENED EDITION
 // =====================================
@@ -8,10 +8,10 @@
 
 
 // =====================================
-// EXECUTION CONFIG
+// SANDBOX CONFIG
 // =====================================
 
-const EXECUTION_GUARD_CONFIG =
+const SANDBOX_CONFIG =
 Object.freeze({
 
   DEFAULT_TIMEOUT:
@@ -49,10 +49,10 @@ Object.freeze({
 
 
 // =====================================
-// EXECUTION STATE
+// SANDBOX STATE
 // =====================================
 
-const executionGuardState =
+const sandboxState =
 Object.seal({
 
   activeExecutions:
@@ -84,7 +84,7 @@ Object.seal({
 // BLOCKED SOURCE PATTERNS
 // =====================================
 
-const BLOCKED_EXECUTION_PATTERNS =
+const BLOCKED_SANDBOX_PATTERNS =
 Object.freeze([
 
   "eval(",
@@ -127,7 +127,7 @@ Object.freeze([
 // SAFE LOG
 // =====================================
 
-function logExecutionGuard(
+function logSandboxEvent(
   message,
   metadata = null
 ){
@@ -158,7 +158,7 @@ function logExecutionGuard(
 // VALIDATE CALLBACK
 // =====================================
 
-function validateExecutionCallback(
+function validateSandboxCallback(
   callback
 ){
 
@@ -175,7 +175,7 @@ function validateExecutionCallback(
 // GET SOURCE
 // =====================================
 
-function getExecutionSource(
+function getSandboxSource(
   callback
 ){
 
@@ -201,7 +201,7 @@ function getExecutionSource(
 // VALIDATE SOURCE
 // =====================================
 
-function validateExecutionSource(
+function validateSandboxSource(
   source
 ){
 
@@ -224,7 +224,7 @@ function validateExecutionSource(
 
     source.length >
 
-    EXECUTION_GUARD_CONFIG
+    SANDBOX_CONFIG
     .MAX_SOURCE_LENGTH
 
   ){
@@ -236,7 +236,7 @@ function validateExecutionSource(
   const normalized =
   source.toLowerCase();
 
-  return !BLOCKED_EXECUTION_PATTERNS
+  return !BLOCKED_SANDBOX_PATTERNS
   .some((pattern) => {
 
     return normalized.includes(
@@ -255,12 +255,12 @@ function validateExecutionSource(
 // VALIDATE EXECUTION
 // =====================================
 
-function validateExecution(
+function validateSandboxExecution(
   callback
 ){
 
   if(
-    !validateExecutionCallback(
+    !validateSandboxCallback(
       callback
     )
   ){
@@ -271,7 +271,7 @@ function validateExecution(
 
   if(
 
-    !EXECUTION_GUARD_CONFIG
+    !SANDBOX_CONFIG
     .ENABLE_SOURCE_VALIDATION
 
   ){
@@ -281,24 +281,22 @@ function validateExecution(
   }
 
   const source =
-  getExecutionSource(
+  getSandboxSource(
     callback
   );
 
   const valid =
-  validateExecutionSource(
+  validateSandboxSource(
     source
   );
 
   if(!valid){
 
-    executionGuardState
+    sandboxState
     .blockedExecutions++;
 
-    logExecutionGuard(
-
-      "EXECUTION BLOCKED"
-
+    logSandboxEvent(
+      "SANDBOX EXECUTION BLOCKED"
     );
 
     return false;
@@ -315,7 +313,7 @@ function validateExecution(
 // CREATE TIMEOUT
 // =====================================
 
-function createExecutionTimeout(
+function createSandboxTimeout(
   timeout,
   controller
 ){
@@ -336,14 +334,14 @@ function createExecutionTimeout(
 
       timeout,
 
-      EXECUTION_GUARD_CONFIG
+      SANDBOX_CONFIG
       .MAX_TIMEOUT
 
     )
 
     :
 
-    EXECUTION_GUARD_CONFIG
+    SANDBOX_CONFIG
     .DEFAULT_TIMEOUT;
 
   let timeoutId =
@@ -366,7 +364,7 @@ function createExecutionTimeout(
       reject(
 
         new Error(
-          "EXECUTION_TIMEOUT"
+          "SANDBOX_TIMEOUT"
         )
 
       );
@@ -406,7 +404,7 @@ function createExecutionTimeout(
 // CREATE RESULT
 // =====================================
 
-function createExecutionResult(
+function createSandboxExecutionResult(
   payload = {}
 ){
 
@@ -471,7 +469,7 @@ function createExecutionResult(
 
   if(
 
-    EXECUTION_GUARD_CONFIG
+    SANDBOX_CONFIG
     .ENABLE_RESULT_FREEZE
 
     &&
@@ -496,21 +494,21 @@ function createExecutionResult(
 
 
 // =====================================
-// EXECUTE
+// EXECUTE IN SANDBOX
 // =====================================
 
-async function executeGuarded(
+async function executeInSandbox(
   callback,
   options = {}
 ){
 
   if(
-    !validateExecution(
+    !validateSandboxExecution(
       callback
     )
   ){
 
-    return createExecutionResult({
+    return createSandboxExecutionResult({
 
       success:false,
 
@@ -522,19 +520,19 @@ async function executeGuarded(
 
   if(
 
-    executionGuardState
+    sandboxState
     .activeExecutions
     .size >=
 
-    EXECUTION_GUARD_CONFIG
+    SANDBOX_CONFIG
     .MAX_CONCURRENT_EXECUTIONS
 
   ){
 
-    executionGuardState
+    sandboxState
     .blockedExecutions++;
 
-    return createExecutionResult({
+    return createSandboxExecutionResult({
 
       success:false,
 
@@ -555,17 +553,17 @@ async function executeGuarded(
     ?
 
     createUniqueId(
-      "execution"
+      "sandbox"
     )
 
     :
 
-    `execution_${Date.now()}`;
+    `sandbox_${Date.now()}`;
 
   const startedAt =
   Date.now();
 
-  executionGuardState
+  sandboxState
   .lastExecutionAt =
   startedAt;
 
@@ -573,7 +571,7 @@ async function executeGuarded(
   new AbortController();
 
   const timeoutController =
-  createExecutionTimeout(
+  createSandboxTimeout(
 
     options.timeout,
 
@@ -581,7 +579,7 @@ async function executeGuarded(
 
   );
 
-  executionGuardState
+  sandboxState
   .activeExecutions
   .set(
 
@@ -597,7 +595,7 @@ async function executeGuarded(
 
         options.timeout ||
 
-        EXECUTION_GUARD_CONFIG
+        SANDBOX_CONFIG
         .DEFAULT_TIMEOUT
 
     }
@@ -615,14 +613,14 @@ async function executeGuarded(
       ){
 
         throw new Error(
-          "EXECUTION_ABORTED"
+          "SANDBOX_ABORTED"
         );
 
       }
 
       if(
 
-        !EXECUTION_GUARD_CONFIG
+        !SANDBOX_CONFIG
         .ENABLE_ASYNC_EXECUTION
 
       ){
@@ -649,10 +647,10 @@ async function executeGuarded(
 
     ]);
 
-    executionGuardState
+    sandboxState
     .completedExecutions++;
 
-    return createExecutionResult({
+    return createSandboxExecutionResult({
 
       success:true,
 
@@ -679,18 +677,18 @@ async function executeGuarded(
     const timedOut =
 
       message ===
-      "EXECUTION_TIMEOUT";
+      "SANDBOX_TIMEOUT";
 
     const aborted =
 
       message ===
-      "EXECUTION_ABORTED";
+      "SANDBOX_ABORTED";
 
     if(
       timedOut
     ){
 
-      executionGuardState
+      sandboxState
       .timeoutExecutions++;
 
     }
@@ -699,21 +697,21 @@ async function executeGuarded(
       aborted
     ){
 
-      executionGuardState
+      sandboxState
       .abortedExecutions++;
 
     }
 
     else{
 
-      executionGuardState
+      sandboxState
       .failedExecutions++;
 
     }
 
-    logExecutionGuard(
+    logSandboxEvent(
 
-      "EXECUTION FAILED",
+      "SANDBOX EXECUTION FAILED",
 
       {
 
@@ -727,7 +725,7 @@ async function executeGuarded(
 
     );
 
-    return createExecutionResult({
+    return createSandboxExecutionResult({
 
       success:false,
 
@@ -754,7 +752,7 @@ async function executeGuarded(
     timeoutController
     .clear();
 
-    executionGuardState
+    sandboxState
     .activeExecutions
     .delete(
       executionId
@@ -770,44 +768,44 @@ async function executeGuarded(
 // DIAGNOSTICS
 // =====================================
 
-function getExecutionDiagnostics(){
+function getSandboxDiagnostics(){
 
   return Object.freeze({
 
     activeExecutions:
 
-      executionGuardState
+      sandboxState
       .activeExecutions
       .size,
 
     completedExecutions:
 
-      executionGuardState
+      sandboxState
       .completedExecutions,
 
     failedExecutions:
 
-      executionGuardState
+      sandboxState
       .failedExecutions,
 
     timeoutExecutions:
 
-      executionGuardState
+      sandboxState
       .timeoutExecutions,
 
     blockedExecutions:
 
-      executionGuardState
+      sandboxState
       .blockedExecutions,
 
     abortedExecutions:
 
-      executionGuardState
+      sandboxState
       .abortedExecutions,
 
     lastExecutionAt:
 
-      executionGuardState
+      sandboxState
       .lastExecutionAt
 
   });
@@ -820,9 +818,9 @@ function getExecutionDiagnostics(){
 // RESET
 // =====================================
 
-function resetExecutionGuard(){
+function resetSandboxState(){
 
-  executionGuardState
+  sandboxState
   .activeExecutions
   .forEach((execution) => {
 
@@ -838,31 +836,31 @@ function resetExecutionGuard(){
 
   });
 
-  executionGuardState
+  sandboxState
   .activeExecutions
   .clear();
 
-  executionGuardState
+  sandboxState
   .completedExecutions =
   0;
 
-  executionGuardState
+  sandboxState
   .failedExecutions =
   0;
 
-  executionGuardState
+  sandboxState
   .timeoutExecutions =
   0;
 
-  executionGuardState
+  sandboxState
   .blockedExecutions =
   0;
 
-  executionGuardState
+  sandboxState
   .abortedExecutions =
   0;
 
-  executionGuardState
+  sandboxState
   .lastExecutionAt =
   null;
 
@@ -876,17 +874,17 @@ function resetExecutionGuard(){
 // PUBLIC API
 // =====================================
 
-const SecurityExecutionGuard =
+const SecuritySandbox =
 Object.freeze({
 
   execute:
-  executeGuarded,
+  executeInSandbox,
 
   diagnostics:
-  getExecutionDiagnostics,
+  getSandboxDiagnostics,
 
   reset:
-  resetExecutionGuard
+  resetSandboxState
 
 });
 
@@ -905,12 +903,12 @@ if(
 
     window,
 
-    "SecurityExecutionGuard",
+    "SecuritySandbox",
 
     {
 
       value:
-      SecurityExecutionGuard,
+      SecuritySandbox,
 
       writable:
       false,
