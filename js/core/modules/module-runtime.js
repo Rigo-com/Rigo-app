@@ -1,54 +1,42 @@
 // =====================================
 // RIGO AI
 // MODULE RUNTIME
-// ENTERPRISE ORCHESTRATION ENGINE
+// PURE EXECUTION LAYER
 // =====================================
 
 
 
 // =====================================
-// STATE
+// STATE (RUNTIME ONLY)
 // =====================================
 
-const moduleRuntimeState =
-Object.seal({
+const moduleRuntimeState = Object.seal({
 
   initialized:false,
 
   booting:false,
-
   shuttingDown:false,
-
   recovering:false,
 
   monitoring:false,
-
   booted:false,
-
   runtimeLocked:false,
 
   healthTimer:null,
 
   startedAt:null,
-
   completedAt:null,
 
   lastHealthcheckAt:null,
-
   lastRecoveryAt:null,
-
   lastError:null,
 
   diagnostics:{
 
     boots:0,
-
     shutdowns:0,
-
     recoveries:0,
-
     healthchecks:0,
-
     runtimeErrors:0
 
   }
@@ -58,28 +46,28 @@ Object.seal({
 
 
 // =====================================
-// IMMUTABLE
+// IMMUTABLE UTILITY
 // =====================================
 
-function freezeModuleRuntime(value, visited = new WeakSet()){
+function freeze(obj, seen = new WeakSet()){
 
-  if(!value || typeof value !== "object") return value;
+  if(!obj || typeof obj !== "object") return obj;
 
-  if(visited.has(value)) return value;
+  if(seen.has(obj)) return obj;
 
-  visited.add(value);
+  seen.add(obj);
 
-  Object.freeze(value);
+  Object.freeze(obj);
 
-  Object.values(value).forEach(v => {
+  Object.values(obj).forEach(v => {
 
     if(v && typeof v === "object"){
-      freezeModuleRuntime(v, visited);
+      freeze(v, seen);
     }
 
   });
 
-  return value;
+  return obj;
 
 }
 
@@ -89,8 +77,7 @@ function freezeModuleRuntime(value, visited = new WeakSet()){
 // EVENTS
 // =====================================
 
-const MODULE_RUNTIME_EVENTS =
-Object.freeze({
+const MODULE_RUNTIME_EVENTS = Object.freeze({
 
   INITIALIZED:"module.runtime.initialized",
   BOOT_STARTED:"module.runtime.boot.started",
@@ -106,16 +93,16 @@ Object.freeze({
 
 
 // =====================================
-// EMIT
+// EVENT EMITTER
 // =====================================
 
-async function emitModuleRuntimeEvent(eventName, payload = {}){
+async function emit(event, payload = {}){
 
   try{
 
     if(typeof emitSystemEvent !== "function") return false;
 
-    await emitSystemEvent(eventName, {
+    await emitSystemEvent(event, {
       source:"module-runtime",
       timestamp:Date.now(),
       ...payload
@@ -132,137 +119,16 @@ async function emitModuleRuntimeEvent(eventName, payload = {}){
 
 
 // =====================================
-// BOOT MODULES (SAFE)
-// =====================================
-
-function getBootableModules(){
-
-  return [...moduleLoaderState.modules.values()]
-    .sort((a,b) => a.metadata.priority - b.metadata.priority);
-
-}
-
-
-
-async function bootModules(){
-
-  const modules = getBootableModules();
-
-  for(const mod of modules){
-
-    if(mod.metadata.lazy) continue;
-
-    try{
-
-      await loadModule(mod.metadata.name);
-
-    }catch(error){
-
-      // لا توقف النظام بالكامل
-      moduleRuntimeState.diagnostics.runtimeErrors++;
-      moduleRuntimeState.lastError = error;
-
-      if(typeof logDiagnosticError === "function"){
-        await logDiagnosticError(
-          "MODULE BOOT ERROR",
-          { module: mod.metadata.name, error: String(error) }
-        );
-      }
-
-    }
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// HEALTHCHECK
-// =====================================
-
-async function executeModuleRuntimeHealthcheck(){
-
-  moduleRuntimeState.diagnostics.healthchecks++;
-  moduleRuntimeState.lastHealthcheckAt = Date.now();
-
-  const health = await getModuleHealth();
-
-  await emitModuleRuntimeEvent(
-    MODULE_RUNTIME_EVENTS.HEALTHCHECK,
-    { health }
-  );
-
-  if(
-    MODULE_LOADER_CONFIG.ENABLE_RECOVERY &&
-    !moduleRuntimeState.recovering &&
-    moduleRuntimeState.diagnostics.runtimeErrors > 0
-  ){
-    await recoverModuleRuntime();
-  }
-
-  return health;
-
-}
-
-
-
-// =====================================
-// MONITORING
-// =====================================
-
-function startModuleRuntimeMonitoring(){
-
-  if(moduleRuntimeState.healthTimer){
-    clearInterval(moduleRuntimeState.healthTimer);
-  }
-
-  moduleRuntimeState.monitoring = true;
-
-  moduleRuntimeState.healthTimer =
-    setInterval(
-      executeModuleRuntimeHealthcheck,
-      APP_CORE_CONFIG?.HEALTHCHECK_INTERVAL || 30000
-    );
-
-  return true;
-
-}
-
-
-
-function stopModuleRuntimeMonitoring(){
-
-  if(moduleRuntimeState.healthTimer){
-    clearInterval(moduleRuntimeState.healthTimer);
-    moduleRuntimeState.healthTimer = null;
-  }
-
-  moduleRuntimeState.monitoring = false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INIT
+// INITIALIZE (RUNTIME ONLY)
 // =====================================
 
 async function initializeModuleRuntime(){
 
   if(moduleRuntimeState.initialized) return true;
 
-  const ok = await initializeModuleLoader();
-
-  if(!ok) return false;
-
   moduleRuntimeState.initialized = true;
 
-  await emitModuleRuntimeEvent(MODULE_RUNTIME_EVENTS.INITIALIZED);
+  await emit(MODULE_RUNTIME_EVENTS.INITIALIZED);
 
   return true;
 
@@ -271,40 +137,31 @@ async function initializeModuleRuntime(){
 
 
 // =====================================
-// BOOT
+// BOOT (DELEGATED FROM KERNEL)
 // =====================================
 
 async function bootModuleRuntime(){
 
-  if(moduleRuntimeState.booting || moduleRuntimeState.runtimeLocked){
-    return false;
-  }
+  if(moduleRuntimeState.booting) return false;
 
   moduleRuntimeState.booting = true;
   moduleRuntimeState.runtimeLocked = true;
+
   moduleRuntimeState.startedAt = Date.now();
   moduleRuntimeState.lastError = null;
+
   moduleRuntimeState.diagnostics.boots++;
 
   try{
 
-    await emitModuleRuntimeEvent(MODULE_RUNTIME_EVENTS.BOOT_STARTED);
-
-    const init = await initializeModuleRuntime();
-
-    if(!init) throw new Error("INIT FAILED");
-
-    await bootModules();
-
-    startModuleRuntimeMonitoring();
+    await emit(MODULE_RUNTIME_EVENTS.BOOT_STARTED);
 
     moduleRuntimeState.booted = true;
     moduleRuntimeState.completedAt = Date.now();
 
-    await emitModuleRuntimeEvent(
-      MODULE_RUNTIME_EVENTS.BOOT_COMPLETED,
-      { duration: moduleRuntimeState.completedAt - moduleRuntimeState.startedAt }
-    );
+    await emit(MODULE_RUNTIME_EVENTS.BOOT_COMPLETED, {
+      duration: moduleRuntimeState.completedAt - moduleRuntimeState.startedAt
+    });
 
     return true;
 
@@ -312,13 +169,6 @@ async function bootModuleRuntime(){
 
     moduleRuntimeState.lastError = error;
     moduleRuntimeState.diagnostics.runtimeErrors++;
-
-    if(typeof logCriticalError === "function"){
-      await logCriticalError(
-        "MODULE RUNTIME BOOT FAILED",
-        { error: String(error) }
-      );
-    }
 
     return false;
 
@@ -334,7 +184,30 @@ async function bootModuleRuntime(){
 
 
 // =====================================
-// RECOVERY (SAFE GUARD)
+// HEALTH (RUNTIME ONLY)
+// =====================================
+
+async function executeModuleRuntimeHealthcheck(){
+
+  moduleRuntimeState.diagnostics.healthchecks++;
+  moduleRuntimeState.lastHealthcheckAt = Date.now();
+
+  await emit(MODULE_RUNTIME_EVENTS.HEALTHCHECK, {
+    status: moduleRuntimeState.booted ? "healthy" : "not_ready"
+  });
+
+  return {
+    booted: moduleRuntimeState.booted,
+    diagnostics: moduleRuntimeState.diagnostics,
+    timestamp: Date.now()
+  };
+
+}
+
+
+
+// =====================================
+// RECOVERY (DELEGATED ONLY)
 // =====================================
 
 async function recoverModuleRuntime(){
@@ -347,19 +220,9 @@ async function recoverModuleRuntime(){
 
   try{
 
-    await emitModuleRuntimeEvent(MODULE_RUNTIME_EVENTS.RECOVERY_STARTED);
+    await emit(MODULE_RUNTIME_EVENTS.RECOVERY_STARTED);
 
-    const failed = [...moduleLoaderState.failedModules];
-
-    for(const m of failed){
-
-      if(!moduleLoaderState.failedModules.has(m)) continue;
-
-      await recoverModule(m);
-
-    }
-
-    await emitModuleRuntimeEvent(MODULE_RUNTIME_EVENTS.RECOVERY_COMPLETED);
+    await emit(MODULE_RUNTIME_EVENTS.RECOVERY_COMPLETED);
 
     return true;
 
@@ -379,7 +242,7 @@ async function recoverModuleRuntime(){
 
 
 // =====================================
-// SHUTDOWN
+// SHUTDOWN (RUNTIME ONLY)
 // =====================================
 
 async function shutdownModuleRuntime(){
@@ -391,15 +254,11 @@ async function shutdownModuleRuntime(){
 
   try{
 
-    await emitModuleRuntimeEvent(MODULE_RUNTIME_EVENTS.SHUTDOWN_STARTED);
-
-    stopModuleRuntimeMonitoring();
-
-    await resetModuleLoader();
+    await emit(MODULE_RUNTIME_EVENTS.SHUTDOWN_STARTED);
 
     moduleRuntimeState.booted = false;
 
-    await emitModuleRuntimeEvent(MODULE_RUNTIME_EVENTS.SHUTDOWN_COMPLETED);
+    await emit(MODULE_RUNTIME_EVENTS.SHUTDOWN_COMPLETED);
 
     return true;
 
@@ -424,20 +283,28 @@ async function shutdownModuleRuntime(){
 
 function createModuleRuntimeSnapshot(){
 
-  return freezeModuleRuntime({
+  return freeze({
 
     initialized:moduleRuntimeState.initialized,
     booted:moduleRuntimeState.booted,
+
     booting:moduleRuntimeState.booting,
     shuttingDown:moduleRuntimeState.shuttingDown,
     recovering:moduleRuntimeState.recovering,
+
     monitoring:moduleRuntimeState.monitoring,
+
     startedAt:moduleRuntimeState.startedAt,
     completedAt:moduleRuntimeState.completedAt,
+
     lastHealthcheckAt:moduleRuntimeState.lastHealthcheckAt,
     lastRecoveryAt:moduleRuntimeState.lastRecoveryAt,
+
     diagnostics:{...moduleRuntimeState.diagnostics},
-    lastError:moduleRuntimeState.lastError ? String(moduleRuntimeState.lastError) : null
+
+    lastError:moduleRuntimeState.lastError
+      ? String(moduleRuntimeState.lastError)
+      : null
 
   });
 
@@ -449,15 +316,17 @@ function createModuleRuntimeSnapshot(){
 // PUBLIC API
 // =====================================
 
-const ModuleRuntime =
-Object.freeze({
+const ModuleRuntime = Object.freeze({
 
   initialize:initializeModuleRuntime,
   boot:bootModuleRuntime,
   shutdown:shutdownModuleRuntime,
   recover:recoverModuleRuntime,
+
   health:executeModuleRuntimeHealthcheck,
-  snapshot:createModuleRuntimeSnapshot
+  snapshot:createModuleRuntimeSnapshot,
+
+  state:moduleRuntimeState
 
 });
 
@@ -470,10 +339,5 @@ Object.freeze({
 if(typeof window !== "undefined"){
 
   window.ModuleRuntime = ModuleRuntime;
-
-  window.initializeModuleRuntime = initializeModuleRuntime;
-  window.bootModuleRuntime = bootModuleRuntime;
-  window.shutdownModuleRuntime = shutdownModuleRuntime;
-  window.recoverModuleRuntime = recoverModuleRuntime;
 
 }
