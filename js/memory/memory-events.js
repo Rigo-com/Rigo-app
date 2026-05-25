@@ -1,7 +1,8 @@
 // =====================================
 // RIGO AI
 // MEMORY EVENTS
-// ENTERPRISE INFINITY GOD FINAL
+// ENTERPRISE INFINITY FINAL
+// HARDENED + STABILIZED
 // =====================================
 
 
@@ -140,7 +141,7 @@ function normalizeEventName(
 
   const normalizedEvent =
   String(
-    normalizeMemoryString(
+    normalizeMemoryString?.(
       eventName
     ) || ""
   )
@@ -194,7 +195,9 @@ function getEventDepth(
 
     memoryEventsState
     .eventDepthMap
-    .get(eventName)
+    .get(
+      eventName
+    )
 
     ||
 
@@ -695,19 +698,6 @@ function onceMemoryEvent(
       normalizedEvent
     );
 
-  if(
-
-    listeners.size >=
-
-    MEMORY_EVENTS_CONFIG
-    .MAX_LISTENERS_PER_EVENT
-
-  ){
-
-    return false;
-
-  }
-
   listeners.add(
     listener
   );
@@ -822,7 +812,7 @@ function unsubscribeMemoryEvent(
 
 
 // =====================================
-// LISTENER EXECUTION
+// EXECUTE LISTENER
 // =====================================
 
 async function executeEventListener(
@@ -960,52 +950,6 @@ async function emitMemoryEvent(
     payload
   );
 
-
-
-  // ===================================
-  // SYSTEM EVENTS BRIDGE
-  // ===================================
-
-  if(
-
-    typeof emitSystemEvent ===
-    "function"
-
-  ){
-
-    try{
-
-      await Promise.resolve(
-
-        emitSystemEvent(
-
-          normalizedEvent,
-
-          {
-
-            source:"memory",
-
-            memoryEvent:true,
-
-            payload:
-            safeCloneEventPayload(
-              payload
-            )
-
-          }
-
-        )
-
-      );
-
-    }
-
-    catch(error){
-
-    }
-
-  }
-
   memoryEventsState
   .activeEmits++;
 
@@ -1056,38 +1000,52 @@ async function emitMemoryEvent(
 
     ];
 
-    for(
-      const listener of listeners
-    ){
 
-      await executeEventListener(
-        listener,
-        event
-      );
 
-    }
+    await Promise.allSettled(
 
-    for(
-      const listener of onceListeners
-    ){
+      listeners.map((listener) => {
 
-      await executeEventListener(
-        listener,
-        event
-      );
+        return executeEventListener(
+          listener,
+          event
+        );
 
-    }
+      })
 
-    for(
-      const listener of wildcardListeners
-    ){
+    );
 
-      await executeEventListener(
-        listener,
-        event
-      );
 
-    }
+
+    await Promise.allSettled(
+
+      onceListeners.map((listener) => {
+
+        return executeEventListener(
+          listener,
+          event
+        );
+
+      })
+
+    );
+
+
+
+    await Promise.allSettled(
+
+      wildcardListeners.map((listener) => {
+
+        return executeEventListener(
+          listener,
+          event
+        );
+
+      })
+
+    );
+
+
 
     if(
       onceListeners.length > 0
@@ -1142,8 +1100,27 @@ async function emitMemoryEvent(
     );
 
     memoryEventsState
-    .activeEventStack
-    .pop();
+    .activeEventStack =
+
+      memoryEventsState
+      .activeEventStack
+      .filter((item,index,array) => {
+
+        return !(
+
+          item === normalizedEvent
+
+          &&
+
+          index ===
+
+          array.lastIndexOf(
+            normalizedEvent
+          )
+
+        );
+
+      });
 
     memoryEventsState
     .activeEmits =
@@ -1281,21 +1258,6 @@ function getMemoryEventDiagnostics(){
       memoryEventsState
       .eventHistory
       .length,
-
-    historyEnabled:
-
-      MEMORY_EVENTS_CONFIG
-      .ENABLE_EVENT_HISTORY,
-
-    maxListeners:
-
-      MEMORY_EVENTS_CONFIG
-      .MAX_LISTENERS_PER_EVENT,
-
-    maxHistory:
-
-      MEMORY_EVENTS_CONFIG
-      .MAX_EVENT_HISTORY,
 
     activeEmits:
 
