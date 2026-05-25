@@ -2,6 +2,7 @@
 // RIGO AI
 // SECURITY RUNTIME
 // ENTERPRISE SECURITY ORCHESTRATOR
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -13,21 +14,29 @@
 const securityRuntimeState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  starting:false,
+  starting:
+  false,
 
-  shuttingDown:false,
+  shuttingDown:
+  false,
 
-  crashed:false,
+  crashed:
+  false,
 
-  initializedAt:null,
+  initializedAt:
+  null,
 
-  shutdownAt:null,
+  shutdownAt:
+  null,
 
-  lastHealthcheckAt:null,
+  lastHealthcheckAt:
+  null,
 
-  lastError:null,
+  lastError:
+  null,
 
   activeModules:
   new Set(),
@@ -38,7 +47,8 @@ Object.seal({
   runtimeLocks:
   new Set(),
 
-  startupPromise:null
+  startupPromise:
+  null
 
 });
 
@@ -53,9 +63,11 @@ Object.freeze([
 
   {
 
-    name:"core",
+    name:
+    "core",
 
-    required:true,
+    required:
+    true,
 
     async initialize(){
 
@@ -85,9 +97,11 @@ Object.freeze([
 
   {
 
-    name:"policy",
+    name:
+    "policy",
 
-    required:true,
+    required:
+    true,
 
     async initialize(){
 
@@ -117,9 +131,11 @@ Object.freeze([
 
   {
 
-    name:"monitor",
+    name:
+    "monitor",
 
-    required:true,
+    required:
+    true,
 
     initialize(){
 
@@ -138,9 +154,11 @@ Object.freeze([
 
   {
 
-    name:"validator",
+    name:
+    "validator",
 
-    required:true,
+    required:
+    true,
 
     initialize(){
 
@@ -159,9 +177,11 @@ Object.freeze([
 
   {
 
-    name:"sanitize",
+    name:
+    "sanitize",
 
-    required:true,
+    required:
+    true,
 
     initialize(){
 
@@ -180,9 +200,11 @@ Object.freeze([
 
   {
 
-    name:"url",
+    name:
+    "url",
 
-    required:true,
+    required:
+    true,
 
     initialize(){
 
@@ -201,9 +223,11 @@ Object.freeze([
 
   {
 
-    name:"freeze",
+    name:
+    "freeze",
 
-    required:true,
+    required:
+    true,
 
     initialize(){
 
@@ -222,9 +246,34 @@ Object.freeze([
 
   {
 
-    name:"report",
+    name:
+    "sandbox",
 
-    required:false,
+    required:
+    true,
+
+    initialize(){
+
+      return (
+
+        typeof SecuritySandbox !==
+        "undefined"
+
+      );
+
+    }
+
+  },
+
+
+
+  {
+
+    name:
+    "report",
+
+    required:
+    false,
 
     initialize(){
 
@@ -244,6 +293,37 @@ Object.freeze([
 
 
 // =====================================
+// SAFE LOG
+// =====================================
+
+function logSecurityRuntimeEvent(
+  message,
+  metadata = null
+){
+
+  try{
+
+    if(
+      typeof logSecurityEvent ===
+      "function"
+    ){
+
+      logSecurityEvent(
+        message,
+        metadata
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+}
+
+
+
+// =====================================
 // REGISTER MODULE
 // =====================================
 
@@ -255,7 +335,8 @@ function registerSecurityRuntimeModule(
   String(
     moduleName || ""
   )
-  .trim();
+  .trim()
+  .toLowerCase();
 
   if(!normalizedName){
 
@@ -293,7 +374,8 @@ function markSecurityModuleFailed(
   String(
     moduleName || ""
   )
-  .trim();
+  .trim()
+  .toLowerCase();
 
   if(!normalizedName){
 
@@ -357,7 +439,7 @@ function validateSecurityRuntimeModules(){
 
 
 // =====================================
-// INITIALIZE SECURITY MODULES
+// INITIALIZE MODULES
 // =====================================
 
 async function initializeSecurityModules(){
@@ -372,7 +454,8 @@ async function initializeSecurityModules(){
       const initialized =
       await Promise.resolve(
 
-        module.initialize()
+        module
+        .initialize()
 
       );
 
@@ -380,6 +463,19 @@ async function initializeSecurityModules(){
 
         markSecurityModuleFailed(
           module.name
+        );
+
+        logSecurityRuntimeEvent(
+
+          "SECURITY MODULE FAILED",
+
+          {
+
+            module:
+            module.name
+
+          }
+
         );
 
         if(
@@ -398,6 +494,19 @@ async function initializeSecurityModules(){
         module.name
       );
 
+      logSecurityRuntimeEvent(
+
+        "SECURITY MODULE READY",
+
+        {
+
+          module:
+          module.name
+
+        }
+
+      );
+
     }
 
     catch(error){
@@ -410,28 +519,21 @@ async function initializeSecurityModules(){
       .lastError =
       error;
 
-      if(
-        typeof logSecurityEvent ===
-        "function"
-      ){
+      logSecurityRuntimeEvent(
 
-        logSecurityEvent(
+        "SECURITY MODULE CRASHED",
 
-          "SECURITY MODULE FAILED",
+        {
 
-          {
+          module:
+          module.name,
 
-            module:
-            module.name,
+          error:
+          String(error)
 
-            error:
-            String(error)
+        }
 
-          }
-
-        );
-
-      }
+      );
 
       if(
         module.required
@@ -452,7 +554,7 @@ async function initializeSecurityModules(){
 
 
 // =====================================
-// SECURITY HEALTHCHECK
+// HEALTHCHECK
 // =====================================
 
 function runSecurityHealthcheck(){
@@ -475,7 +577,11 @@ function runSecurityHealthcheck(){
     SECURITY_RUNTIME_MODULES
     .filter((module) => {
 
-      return module.required;
+      return (
+        module.required ===
+        true
+      );
+
     });
 
   const healthy =
@@ -492,7 +598,8 @@ function runSecurityHealthcheck(){
   if(!healthy){
 
     securityRuntimeState
-    .crashed = true;
+    .crashed =
+    true;
 
   }
 
@@ -553,7 +660,7 @@ async function initializeSecurityRuntime(){
       if(!valid){
 
         throw new Error(
-          "INVALID SECURITY MODULES"
+          "INVALID_SECURITY_MODULES"
         );
 
       }
@@ -564,7 +671,7 @@ async function initializeSecurityRuntime(){
       if(!initialized){
 
         throw new Error(
-          "SECURITY MODULE INIT FAILED"
+          "SECURITY_MODULE_INIT_FAILED"
         );
 
       }
@@ -587,21 +694,14 @@ async function initializeSecurityRuntime(){
       if(!healthy){
 
         throw new Error(
-          "SECURITY HEALTHCHECK FAILED"
+          "SECURITY_HEALTHCHECK_FAILED"
         );
 
       }
 
-      if(
-        typeof logSecurityEvent ===
-        "function"
-      ){
-
-        logSecurityEvent(
-          "SECURITY RUNTIME READY"
-        );
-
-      }
+      logSecurityRuntimeEvent(
+        "SECURITY RUNTIME READY"
+      );
 
       return true;
 
@@ -621,25 +721,18 @@ async function initializeSecurityRuntime(){
       .lastError =
       error;
 
-      if(
-        typeof logSecurityEvent ===
-        "function"
-      ){
+      logSecurityRuntimeEvent(
 
-        logSecurityEvent(
+        "SECURITY RUNTIME FAILED",
 
-          "SECURITY RUNTIME FAILED",
+        {
 
-          {
+          error:
+          String(error)
 
-            error:
-            String(error)
+        }
 
-          }
-
-        );
-
-      }
+      );
 
       return false;
 
@@ -715,16 +808,9 @@ async function shutdownSecurityRuntime(){
     .startupPromise =
     null;
 
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-        "SECURITY RUNTIME SHUTDOWN"
-      );
-
-    }
+    logSecurityRuntimeEvent(
+      "SECURITY RUNTIME SHUTDOWN"
+    );
 
     return true;
 
@@ -735,6 +821,19 @@ async function shutdownSecurityRuntime(){
     securityRuntimeState
     .lastError =
     error;
+
+    logSecurityRuntimeEvent(
+
+      "SECURITY RUNTIME SHUTDOWN FAILED",
+
+      {
+
+        error:
+        String(error)
+
+      }
+
+    );
 
     return false;
 
@@ -779,7 +878,7 @@ async function resetSecurityRuntime(){
 
 
 // =====================================
-// RUNTIME DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getSecurityRuntimeDiagnostics(){
@@ -886,3 +985,37 @@ Object.freeze({
   runSecurityHealthcheck
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SecurityRuntime",
+
+    {
+
+      value:
+      SecurityRuntime,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
