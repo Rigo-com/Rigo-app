@@ -2,6 +2,7 @@
 // RIGO AI
 // SECURITY CORE
 // ENTERPRISE SECURITY FOUNDATION
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -13,37 +14,56 @@
 const SECURITY_CONFIG =
 Object.freeze({
 
-  MAX_STRING_LENGTH:50000,
+  MAX_STRING_LENGTH:
+  25000,
 
-  MAX_JSON_DEPTH:10,
+  MAX_JSON_DEPTH:
+  10,
 
-  MAX_RATE_LIMIT:30,
+  MAX_RATE_LIMIT:
+  30,
 
-  RATE_LIMIT_WINDOW:10000,
+  RATE_LIMIT_WINDOW:
+  10000,
 
-  MAX_URL_LENGTH:2048,
+  MAX_URL_LENGTH:
+  2048,
 
-  MAX_TRACKED_KEYS:500,
+  MAX_TRACKED_KEYS:
+  500,
 
-  MAX_OBJECT_KEYS:1000,
+  MAX_OBJECT_KEYS:
+  1000,
 
-  MAX_ARRAY_LENGTH:5000,
+  MAX_ARRAY_LENGTH:
+  5000,
 
-  MAX_PROMPT_SCORE:100,
+  MAX_PROMPT_SCORE:
+  100,
 
-  ENABLE_XSS_PROTECTION:true,
+  MAX_SECURITY_PATTERNS:
+  500,
 
-  ENABLE_RATE_LIMITING:true,
+  ENABLE_XSS_PROTECTION:
+  true,
 
-  ENABLE_PROMPT_PROTECTION:true,
+  ENABLE_RATE_LIMITING:
+  true,
 
-  ENABLE_SECURITY_LOGGING:true,
+  ENABLE_PROMPT_PROTECTION:
+  true,
 
-  ENABLE_HTTP_PROTOCOL:false,
+  ENABLE_SECURITY_LOGGING:
+  true,
 
-  AUTO_TRIM_STRINGS:false,
+  ENABLE_HTTP_PROTOCOL:
+  false,
 
-  LOG_THROTTLE_MS:250
+  AUTO_TRIM_STRINGS:
+  false,
+
+  LOG_THROTTLE_MS:
+  250
 
 });
 
@@ -76,90 +96,17 @@ Object.freeze({
 
 
 // =====================================
-// INTERNAL SECURITY STATE
-// =====================================
-
-function createSecurityState(){
-
-  return {
-
-    initialized:false,
-
-    createdAt:
-    Date.now(),
-
-    blockedRequests:0,
-
-    suspiciousActivities:0,
-
-    sanitizedPayloads:0,
-
-    blockedURLs:0,
-
-    blockedPrompts:0,
-
-    rateLimitHits:0,
-
-    lastLogAt:0,
-
-    requestTracker:
-    new Map(),
-
-    blockedPatterns:
-    new Set(),
-
-    trustedOrigins:
-    new Set(
-
-      typeof window !==
-      "undefined"
-
-      &&
-
-      window.location
-
-      &&
-
-      typeof window
-      .location
-      .origin ===
-      "string"
-
-      ?
-
-      [
-        window.location.origin
-      ]
-
-      :
-
-      []
-
-    )
-
-  };
-
-}
-
-
-
-const securityState =
-Object.seal(
-  createSecurityState()
-);
-
-
-
-// =====================================
 // FREEZE STATES
 // =====================================
 
 const FREEZE_STATES =
 Object.freeze({
 
-  PENDING:"pending",
+  PENDING:
+  "pending",
 
-  FROZEN:"frozen"
+  FROZEN:
+  "frozen"
 
 });
 
@@ -208,6 +155,267 @@ Object.freeze({
 
 
 // =====================================
+// INTERNAL SECURITY STATE
+// =====================================
+
+function createSecurityState(){
+
+  return {
+
+    initialized:
+    false,
+
+    createdAt:
+    Date.now(),
+
+    initializedAt:
+    null,
+
+    failedInitializations:
+    0,
+
+    blockedRequests:
+    0,
+
+    suspiciousActivities:
+    0,
+
+    sanitizedPayloads:
+    0,
+
+    blockedURLs:
+    0,
+
+    blockedPrompts:
+    0,
+
+    rateLimitHits:
+    0,
+
+    lastLogAt:
+    0,
+
+    lastError:
+    null,
+
+    requestTracker:
+    new Map(),
+
+    blockedPatterns:
+    new Set(),
+
+    trustedOrigins:
+    new Set(
+
+      typeof window !==
+      "undefined"
+
+      &&
+
+      window.location
+
+      &&
+
+      typeof window
+      .location
+      .origin ===
+      "string"
+
+      ?
+
+      [
+
+        String(
+          window
+          .location
+          .origin
+        )
+        .trim()
+        .toLowerCase()
+
+      ]
+
+      :
+
+      []
+
+    )
+
+  };
+
+}
+
+
+
+const securityState =
+Object.seal(
+  createSecurityState()
+);
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isPlainObject(
+  value
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype
+
+    ||
+
+    prototype === null
+
+  );
+
+}
+
+
+
+function safeString(
+  value
+){
+
+  try{
+
+    if(
+      value == null
+    ){
+
+      return "";
+    }
+
+    return String(value)
+    .trim();
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
+
+function createSecuritySnapshot(){
+
+  return Object.freeze({
+
+    initialized:
+    securityState
+    .initialized,
+
+    createdAt:
+    securityState
+    .createdAt,
+
+    initializedAt:
+    securityState
+    .initializedAt,
+
+    failedInitializations:
+    securityState
+    .failedInitializations,
+
+    blockedRequests:
+    securityState
+    .blockedRequests,
+
+    suspiciousActivities:
+    securityState
+    .suspiciousActivities,
+
+    sanitizedPayloads:
+    securityState
+    .sanitizedPayloads,
+
+    blockedURLs:
+    securityState
+    .blockedURLs,
+
+    blockedPrompts:
+    securityState
+    .blockedPrompts,
+
+    rateLimitHits:
+    securityState
+    .rateLimitHits,
+
+    blockedPatternsCount:
+
+      securityState
+      .blockedPatterns
+      .size,
+
+    trustedOrigins:[
+
+      ...securityState
+      .trustedOrigins
+
+    ],
+
+    healthy:
+
+      securityState
+      .initialized
+
+      &&
+
+      !securityState
+      .lastError,
+
+    lastError:
+
+      securityState
+      .lastError
+
+      ?
+
+      String(
+        securityState
+        .lastError
+      )
+
+      :
+
+      null,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
 // SAFE SECURITY METADATA
 // =====================================
 
@@ -225,36 +433,33 @@ function sanitizeSecurityMetadata(
   try{
 
     if(
-      typeof sanitizeObject ===
-      "function"
+      isPlainObject(
+        metadata
+      )
     ){
 
-      const sanitized =
-      sanitizeObject(
-        metadata
-      );
-
-      if(
-        sanitized &&
-        typeof sanitized ===
-        "object"
-      ){
-
-        return sanitized;
-
-      }
-
+      return metadata;
     }
+
+    return {
+
+      normalized:
+      true
+
+    };
 
   }
 
-  catch(error){}
+  catch(error){
 
-  return {
+    return {
 
-    sanitized:true
+      sanitized:
+      true
 
-  };
+    };
+
+  }
 
 }
 
@@ -299,7 +504,7 @@ function shouldThrottleSecurityLog(){
 // SECURITY LOGGER
 // =====================================
 
-function logSecurityEvent(
+async function logSecurityEvent(
   message,
   metadata = null
 ){
@@ -326,35 +531,30 @@ function logSecurityEvent(
   try{
 
     const safeMessage =
-
-      typeof safeString ===
-      "function"
-
-      ?
-
-      safeString(message)
-
-      :
-
-      String(message);
+    safeString(
+      message
+    );
 
     const safeMetadata =
-
-      sanitizeSecurityMetadata(
-        metadata
-      );
+    sanitizeSecurityMetadata(
+      metadata
+    );
 
     if(
       typeof logDiagnosticWarning ===
       "function"
     ){
 
-      logDiagnosticWarning(
+      await Promise.resolve(
 
-        "[SECURITY] " +
-        safeMessage,
+        logDiagnosticWarning(
 
-        safeMetadata
+          "[SECURITY] " +
+          safeMessage,
+
+          safeMetadata
+
+        )
 
       );
 
@@ -397,6 +597,58 @@ function logSecurityEvent(
 
 
 // =====================================
+// REGEX VALIDATION
+// =====================================
+
+function validateSecurityPattern(
+  pattern
+){
+
+  try{
+
+    if(
+      !(pattern instanceof RegExp)
+    ){
+
+      return false;
+
+    }
+
+    const source =
+    safeString(
+      pattern.source
+    );
+
+    if(!source){
+
+      return false;
+
+    }
+
+    if(
+      source.length >
+      500
+    ){
+
+      return false;
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // REGISTER SECURITY PATTERNS
 // =====================================
 
@@ -430,27 +682,49 @@ function registerSecurityPatterns(){
     SECURITY_PATTERNS
   );
 
-  patternGroups.forEach((group) => {
+  for(
+    const group of
+    patternGroups
+  ){
 
     if(
       !Array.isArray(group)
     ){
 
-      return;
+      continue;
     }
 
-    group.forEach((pattern) => {
+    for(
+      const pattern of
+      group
+    ){
 
       if(
-        !(pattern instanceof RegExp)
+
+        securityState
+        .blockedPatterns
+        .size >=
+
+        SECURITY_CONFIG
+        .MAX_SECURITY_PATTERNS
+
       ){
+
+        break;
+      }
+
+      const valid =
+      validateSecurityPattern(
+        pattern
+      );
+
+      if(!valid){
 
         logSecurityEvent(
           "INVALID SECURITY PATTERN"
         );
 
-        return;
-
+        continue;
       }
 
       securityState
@@ -459,9 +733,9 @@ function registerSecurityPatterns(){
         pattern
       );
 
-    });
+    }
 
-  });
+  }
 
   return true;
 
@@ -474,51 +748,6 @@ function registerSecurityPatterns(){
 // =====================================
 
 function hardenSecurityState(){
-
-  try{
-
-    Object.seal(
-      securityState.requestTracker
-    );
-
-    Object.seal(
-      securityState.blockedPatterns
-    );
-
-    Object.seal(
-      securityState.trustedOrigins
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    logSecurityEvent(
-
-      "SECURITY HARDEN FAILED",
-
-      {
-        error:
-        String(error)
-      }
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// FREEZE CRITICAL OBJECTS
-// =====================================
-
-function freezeCriticalObjects(){
 
   try{
 
@@ -550,13 +779,12 @@ function freezeCriticalObjects(){
 
     logSecurityEvent(
 
-      "FREEZE CRITICAL OBJECTS FAILED",
+      "SECURITY HARDEN FAILED",
 
       {
 
         error:
         String(error)
-
       }
 
     );
@@ -576,7 +804,8 @@ function freezeCriticalObjects(){
 function initializeSecuritySystem(){
 
   if(
-    securityState.initialized
+    securityState
+    .initialized
   ){
 
     return true;
@@ -590,7 +819,9 @@ function initializeSecuritySystem(){
 
     if(!patternsReady){
 
-      return false;
+      throw new Error(
+        "SECURITY_PATTERNS_FAILED"
+      );
 
     }
 
@@ -599,21 +830,23 @@ function initializeSecuritySystem(){
 
     if(!hardened){
 
-      return false;
+      throw new Error(
+        "SECURITY_HARDEN_FAILED"
+      );
 
     }
 
-    const frozen =
-    freezeCriticalObjects();
-
-    if(!frozen){
-
-      return false;
-
-    }
-
-    securityState.initialized =
+    securityState
+    .initialized =
     true;
+
+    securityState
+    .initializedAt =
+    Date.now();
+
+    securityState
+    .lastError =
+    null;
 
     logSecurityEvent(
       "SECURITY SYSTEM READY"
@@ -624,6 +857,17 @@ function initializeSecuritySystem(){
   }
 
   catch(error){
+
+    securityState
+    .initialized =
+    false;
+
+    securityState
+    .failedInitializations++;
+
+    securityState
+    .lastError =
+    error;
 
     logSecurityEvent(
 
@@ -638,12 +882,37 @@ function initializeSecuritySystem(){
 
     );
 
-    securityState.initialized =
-    false;
-
     return false;
 
   }
+
+}
+
+
+
+// =====================================
+// SECURITY HEALTHCHECK
+// =====================================
+
+function validateSecurityHealth(){
+
+  return (
+
+    securityState
+    .initialized
+
+    &&
+
+    !securityState
+    .lastError
+
+    &&
+
+    securityState
+    .blockedPatterns
+    .size > 0
+
+  );
 
 }
 
@@ -655,54 +924,7 @@ function initializeSecuritySystem(){
 
 function getSecurityDiagnostics(){
 
-  return Object.freeze({
-
-    initialized:
-    securityState
-    .initialized,
-
-    createdAt:
-    securityState
-    .createdAt,
-
-    blockedRequests:
-    securityState
-    .blockedRequests,
-
-    suspiciousActivities:
-    securityState
-    .suspiciousActivities,
-
-    sanitizedPayloads:
-    securityState
-    .sanitizedPayloads,
-
-    blockedURLs:
-    securityState
-    .blockedURLs,
-
-    blockedPrompts:
-    securityState
-    .blockedPrompts,
-
-    rateLimitHits:
-    securityState
-    .rateLimitHits,
-
-    trustedOrigins:[
-
-      ...securityState
-      .trustedOrigins
-
-    ],
-
-    blockedPatternsCount:
-
-      securityState
-      .blockedPatterns
-      .size
-
-  });
+  return createSecuritySnapshot();
 
 }
 
@@ -721,10 +943,47 @@ Object.freeze({
   diagnostics:
   getSecurityDiagnostics,
 
-  log:
-  logSecurityEvent,
+  snapshot:
+  createSecuritySnapshot,
 
-  state:
-  securityState
+  validate:
+  validateSecurityHealth,
+
+  log:
+  logSecurityEvent
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SecurityCore",
+
+    {
+
+      value:
+      SecurityCore,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
