@@ -6,8 +6,12 @@ function normalizeSecurityString(
   value
 ){
 
-  return normalizeMemoryString(
-    value
+  return String(
+
+    normalizeMemoryString?.(
+      value
+    ) ?? ""
+
   )
   .replace(/\0/g,"")
   .trim();
@@ -53,41 +57,40 @@ function secureCompareStrings(
 
   try{
 
-    if(
-      typeof valueA !== "string" ||
-      typeof valueB !== "string"
-    ){
+    const safeA =
+    String(valueA ?? "");
 
-      return false;
+    const safeB =
+    String(valueB ?? "");
 
-    }
+    const maxLength =
+    Math.max(
+      safeA.length,
+      safeB.length
+    );
 
-    if(
-      valueA.length !==
-      valueB.length
-    ){
+    let result =
 
-      return false;
+      safeA.length ^
 
-    }
-
-    let result = 0;
+      safeB.length;
 
     for(
       let i = 0;
-      i < valueA.length;
+      i < maxLength;
       i++
     ){
 
-      result |= (
+      const charA =
 
-        valueA.charCodeAt(i)
+        safeA.charCodeAt(i) || 0;
 
-        ^
+      const charB =
 
-        valueB.charCodeAt(i)
+        safeB.charCodeAt(i) || 0;
 
-      );
+      result |=
+      charA ^ charB;
 
     }
 
@@ -156,6 +159,17 @@ async function createMemoryHash(
 
     }
 
+    if(
+
+      typeof getMemoryTextEncoder !==
+      "function"
+
+    ){
+
+      return null;
+
+    }
+
     const normalizedValue =
     String(value ?? "");
 
@@ -193,9 +207,16 @@ async function createMemoryHash(
 
   catch(error){
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return null;
 
@@ -215,7 +236,10 @@ async function verifyMemorySignature(
 
   try{
 
-    if(!memory){
+    if(
+      !memory ||
+      !memory.id
+    ){
 
       return false;
 
@@ -224,8 +248,8 @@ async function verifyMemorySignature(
     const trustedSignature =
 
       memorySecurityState
-      .trustedSignatures
-      .get(
+      ?.trustedSignatures
+      ?.get?.(
         memory.id
       );
 
@@ -243,7 +267,8 @@ async function verifyMemorySignature(
 
         id:memory.id,
 
-        content:memory.content,
+        content:
+        memory.content,
 
         updatedAt:
         memory.updatedAt,
@@ -254,18 +279,36 @@ async function verifyMemorySignature(
       })
     );
 
+    if(
+      !currentSignature
+    ){
+
+      return false;
+
+    }
+
     return secureCompareStrings(
+
       trustedSignature,
+
       currentSignature
+
     );
 
   }
 
   catch(error){
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return false;
 
@@ -284,6 +327,14 @@ async function detectMemoryTampering(
 ){
 
   try{
+
+    if(
+      !memory?.id
+    ){
+
+      return false;
+
+    }
 
     const trusted =
 
@@ -308,8 +359,8 @@ async function detectMemoryTampering(
     }
 
     memorySecurityState
-    .tamperedMemories
-    .add(
+    ?.tamperedMemories
+    ?.add?.(
       memory.id
     );
 
@@ -317,9 +368,16 @@ async function detectMemoryTampering(
     .lastTamperDetectedAt =
     Date.now();
 
-    markMemoryCorrupted(
-      memory.id
-    );
+    if(
+      typeof markMemoryCorrupted ===
+      "function"
+    ){
+
+      markMemoryCorrupted(
+        memory.id
+      );
+
+    }
 
     return true;
 
@@ -327,9 +385,16 @@ async function detectMemoryTampering(
 
   catch(error){
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return false;
 
@@ -360,6 +425,15 @@ async function getOrCreateMemoryEncryptionKey(){
 
     }
 
+    if(
+      typeof createEncryptionKey !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
     const generatedKey =
     await createEncryptionKey();
 
@@ -380,9 +454,16 @@ async function getOrCreateMemoryEncryptionKey(){
 
   catch(error){
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return null;
 
@@ -428,8 +509,26 @@ async function encryptMemoryContent(
   try{
 
     if(
+
       !MEMORY_SECURITY_CONFIG
-      .ENABLE_ENCRYPTION
+      ?.ENABLE_ENCRYPTION
+
+    ){
+
+      return null;
+
+    }
+
+    if(
+
+      typeof arrayBufferToBase64 !==
+      "function"
+
+      ||
+
+      typeof getMemoryTextEncoder !==
+      "function"
+
     ){
 
       return null;
@@ -455,9 +554,19 @@ async function encryptMemoryContent(
     }
 
     const normalizedContent =
-    normalizeMemoryContent(
-      content
-    );
+
+      typeof normalizeMemoryContent ===
+      "function"
+
+      ?
+
+      normalizeMemoryContent(
+        content
+      )
+
+      :
+
+      String(content ?? "");
 
     if(
 
@@ -528,9 +637,16 @@ async function encryptMemoryContent(
     memorySecurityState
     .failedEncryptions++;
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return null;
 
@@ -554,6 +670,22 @@ async function decryptMemoryContent(
 
     if(
       !encryptedPayload
+    ){
+
+      return null;
+
+    }
+
+    if(
+
+      typeof base64ToUint8Array !==
+      "function"
+
+      ||
+
+      typeof getMemoryTextDecoder !==
+      "function"
+
     ){
 
       return null;
@@ -634,9 +766,16 @@ async function decryptMemoryContent(
     memorySecurityState
     .failedDecryptions++;
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return null;
 
@@ -670,7 +809,22 @@ function sanitizeSecureMemoryContent(
   )
 
   .replace(
+    /<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi,
+    ""
+  )
+
+  .replace(
     /javascript:/gi,
+    ""
+  )
+
+  .replace(
+    /vbscript:/gi,
+    ""
+  )
+
+  .replace(
+    /data:text\/html/gi,
     ""
   )
 
@@ -685,6 +839,16 @@ function sanitizeSecureMemoryContent(
   )
 
   .replace(
+    /onclick=/gi,
+    ""
+  )
+
+  .replace(
+    /onmouseover=/gi,
+    ""
+  )
+
+  .replace(
     /eval\s*\(/gi,
     ""
   )
@@ -695,22 +859,27 @@ function sanitizeSecureMemoryContent(
   )
 
   .replace(
+    /document\.cookie/gi,
+    ""
+  )
+
+  .replace(
+    /localStorage/gi,
+    ""
+  )
+
+  .replace(
+    /sessionStorage/gi,
+    ""
+  )
+
+  .replace(
     /ignore\s+previous\s+instructions/gi,
     ""
   )
 
   .replace(
     /system\s*prompt/gi,
-    ""
-  )
-
-  .replace(
-    /data:text\/html/gi,
-    ""
-  )
-
-  .replace(
-    /vbscript:/gi,
     ""
   )
 
@@ -731,7 +900,7 @@ async function runMemoryIntegrityCheck(){
     const memories =
 
       Array.isArray(
-        memoryState.memories
+        memoryState?.memories
       )
 
       ? memoryState.memories
@@ -746,6 +915,14 @@ async function runMemoryIntegrityCheck(){
       const memory
       of memories
     ){
+
+      if(
+        !memory?.id
+      ){
+
+        continue;
+
+      }
 
       const valid =
       await verifyMemorySignature(
@@ -767,8 +944,8 @@ async function runMemoryIntegrityCheck(){
         corruptedCount++;
 
         memorySecurityState
-        .tamperedMemories
-        .add(
+        ?.tamperedMemories
+        ?.add?.(
           memory.id
         );
 
@@ -798,9 +975,16 @@ async function runMemoryIntegrityCheck(){
 
   catch(error){
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return {
 
@@ -828,9 +1012,30 @@ async function createSecureMemoryExport(){
 
   try{
 
+    if(
+
+      typeof cloneMemoryObject !==
+      "function"
+
+      ||
+
+      typeof deepFreeze !==
+      "function"
+
+      ||
+
+      typeof createMemorySignature !==
+      "function"
+
+    ){
+
+      return null;
+
+    }
+
     const memories =
     cloneMemoryObject(
-      memoryState.memories
+      memoryState?.memories || []
     );
 
     const serialized =
@@ -864,6 +1069,14 @@ async function createSecureMemoryExport(){
       const memory
       of frozenMemories
     ){
+
+      if(
+        !memory?.id
+      ){
+
+        continue;
+
+      }
 
       const signature =
       await createMemorySignature(
@@ -914,9 +1127,16 @@ async function createSecureMemoryExport(){
 
   catch(error){
 
-    storeSecurityError(
-      error
-    );
+    if(
+      typeof storeSecurityError ===
+      "function"
+    ){
+
+      storeSecurityError(
+        error
+      );
+
+    }
 
     return null;
 
@@ -945,9 +1165,16 @@ function createSecureSession(){
 
   });
 
-  memorySecurityState
-  .activeSessions
-  .add(session);
+  if(
+    memorySecurityState
+    ?.activeSessions instanceof Set
+  ){
+
+    memorySecurityState
+    .activeSessions
+    .add(session);
+
+  }
 
   return session;
 
@@ -965,78 +1192,78 @@ function getMemorySecurityDiagnostics(){
 
     initialized:
     memorySecurityState
-    .initialized,
+    ?.initialized,
 
     encryptionEnabled:
     MEMORY_SECURITY_CONFIG
-    .ENABLE_ENCRYPTION,
+    ?.ENABLE_ENCRYPTION,
 
     integrityEnabled:
     MEMORY_SECURITY_CONFIG
-    .ENABLE_INTEGRITY_CHECKS,
+    ?.ENABLE_INTEGRITY_CHECKS,
 
     tamperDetectionEnabled:
     MEMORY_SECURITY_CONFIG
-    .ENABLE_TAMPER_DETECTION,
+    ?.ENABLE_TAMPER_DETECTION,
 
     securityVersion:
     MEMORY_SECURITY_CONFIG
-    .SECURITY_VERSION,
+    ?.SECURITY_VERSION,
 
     totalEncryptions:
     memorySecurityState
-    .totalEncryptions,
+    ?.totalEncryptions,
 
     totalDecryptions:
     memorySecurityState
-    .totalDecryptions,
+    ?.totalDecryptions,
 
     failedEncryptions:
     memorySecurityState
-    .failedEncryptions,
+    ?.failedEncryptions,
 
     failedDecryptions:
     memorySecurityState
-    .failedDecryptions,
+    ?.failedDecryptions,
 
     trustedSignatures:
 
       memorySecurityState
-      .trustedSignatures
-      .size,
+      ?.trustedSignatures
+      ?.size,
 
     tamperedMemories:
 
       memorySecurityState
-      .tamperedMemories
-      .size,
+      ?.tamperedMemories
+      ?.size,
 
     activeSessions:
 
       memorySecurityState
-      .activeSessions
-      .size,
+      ?.activeSessions
+      ?.size,
 
     securityErrors:
 
       memorySecurityState
-      .securityErrors
-      .length,
+      ?.securityErrors
+      ?.length,
 
     lastIntegrityCheckAt:
 
       memorySecurityState
-      .lastIntegrityCheckAt,
+      ?.lastIntegrityCheckAt,
 
     lastTamperDetectedAt:
 
       memorySecurityState
-      .lastTamperDetectedAt,
+      ?.lastTamperDetectedAt,
 
     lastEncryptionAt:
 
       memorySecurityState
-      .lastEncryptionAt
+      ?.lastEncryptionAt
 
   });
 
