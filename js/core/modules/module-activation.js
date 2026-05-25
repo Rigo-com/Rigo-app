@@ -9,70 +9,40 @@
 // CIRCULAR CHECK
 // =====================================
 
-function detectModuleCircularDependency(
-  moduleName
-){
+function detectModuleCircularDependency(moduleName){
 
-  return (
+  const normalized = normalizeModuleName(moduleName);
 
-    moduleLoaderState
-    .loadingStack
-    .includes(
-      moduleName
-    )
-
-  );
+  return moduleLoaderState.loadingStack
+    .map(normalizeModuleName)
+    .includes(normalized);
 
 }
 
 
 
 // =====================================
-// SAFE MODULE EVENT
+// SAFE EVENT
 // =====================================
 
-async function emitModuleEvent(
-  eventName,
-  payload = {}
-){
+async function emitModuleEvent(eventName, payload = {}){
 
   try{
 
-    if(
-      typeof emitSystemEvent !==
-      "function"
-    ){
-
+    if(typeof emitSystemEvent !== "function"){
       return false;
-
     }
 
-    await emitSystemEvent(
-
-      eventName,
-
-      {
-
-        source:
-        "module-loader",
-
-        timestamp:
-        Date.now(),
-
-        ...payload
-
-      }
-
-    );
+    await emitSystemEvent(eventName, {
+      source:"module-loader",
+      timestamp:Date.now(),
+      ...payload
+    });
 
     return true;
 
-  }
-
-  catch(error){
-
+  }catch{
     return false;
-
   }
 
 }
@@ -83,28 +53,17 @@ async function emitModuleEvent(
 // TIMEOUT
 // =====================================
 
-function createModuleTimeout(
-  timeout =
+function createModuleTimeout(timeout){
 
-    MODULE_LOADER_CONFIG
-    .MODULE_TIMEOUT
-){
+  const t = timeout ?? MODULE_LOADER_CONFIG.MODULE_TIMEOUT;
 
-  return new Promise((_,reject) => {
+  return new Promise((_, reject) => {
 
     setTimeout(() => {
 
-      reject(
+      reject(new Error("MODULE TIMEOUT"));
 
-        new Error(
-          "MODULE TIMEOUT"
-        )
-
-      );
-
-    },
-
-    timeout);
+    }, t);
 
   });
 
@@ -113,38 +72,17 @@ function createModuleTimeout(
 
 
 // =====================================
-// MODULE CONTEXT
+// CONTEXT
 // =====================================
 
-function createModuleContext(
-  moduleDefinition
-){
+function createModuleContext(moduleDefinition){
 
   return freezeModuleObject({
 
-    name:
-
-      moduleDefinition
-      .metadata
-      .name,
-
-    lifecycle:
-
-      moduleDefinition
-      .metadata
-      .lifecycle,
-
-    priority:
-
-      moduleDefinition
-      .metadata
-      .priority,
-
-    dependencies:
-
-      moduleDefinition
-      .metadata
-      .dependencies
+    name: moduleDefinition.metadata.name,
+    lifecycle: moduleDefinition.metadata.lifecycle,
+    priority: moduleDefinition.metadata.priority,
+    dependencies: moduleDefinition.metadata.dependencies
 
   });
 
@@ -153,42 +91,32 @@ function createModuleContext(
 
 
 // =====================================
-// LOAD DEPENDENCIES
+// LOAD DEPENDENCIES (SAFE)
 // =====================================
 
-async function loadModuleDependencies(
-  dependencies = []
-){
+async function loadModuleDependencies(dependencies = []){
 
-  for(
-    const dependency
-    of dependencies
-  ){
+  for(const dep of dependencies){
 
-    const loaded =
-    await loadModule(
-      dependency
-    );
+    const name = normalizeModuleName(dep);
+
+    const module = moduleLoaderState.modules.get(name);
+
+    if(!module){
+      throw new Error("MISSING DEPENDENCY: " + name);
+    }
+
+    const loaded = await loadModule(name);
 
     if(!loaded){
-
       return false;
-
     }
 
   }
 
   await emitModuleEvent(
-
-    MODULE_EVENTS
-    .DEPENDENCIES_RESOLVED,
-
-    {
-
-      dependencies
-
-    }
-
+    MODULE_EVENTS.DEPENDENCIES_RESOLVED,
+    { dependencies }
   );
 
   return true;
@@ -201,199 +129,79 @@ async function loadModuleDependencies(
 // ACTIVATE MODULE
 // =====================================
 
-async function activateModule(
-  moduleDefinition
-){
+async function activateModule(moduleDefinition){
 
   try{
 
-    const startedAt =
-    Date.now();
+    const startedAt = Date.now();
 
-    const moduleContext =
-    createModuleContext(
-      moduleDefinition
-    );
+    const moduleContext = createModuleContext(moduleDefinition);
 
-    const moduleInstance =
-    await Promise.race([
+    const moduleInstance = await Promise.race([
 
-      moduleDefinition
-      .factory({
-
-        module:
-        moduleContext,
-
-        container:
-        DependencyContainer,
-
-        dependencies:
-        DependencySystem,
-
-        state:
-        StateManager,
-
-        diagnostics:
-        DiagnosticsRuntime,
-
-        events:
-        SystemEvents
-
+      moduleDefinition.factory({
+        module: moduleContext,
+        container: DependencyContainer,
+        dependencies: DependencySystem,
+        state: StateManager,
+        diagnostics: DiagnosticsRuntime,
+        events: SystemEvents
       }),
 
       createModuleTimeout(
-
-        MODULE_LOADER_CONFIG
-        .ACTIVATION_TIMEOUT
-
+        MODULE_LOADER_CONFIG.ACTIVATION_TIMEOUT
       )
 
     ]);
 
-
-
-    // ================================
-    // INSTANCE STORE
-    // ================================
-
-    if(
-      !moduleLoaderState
-      .instances
-    ){
-
-      moduleLoaderState
-      .instances =
-      new Map();
-
-    }
-
-    moduleLoaderState
-    .instances
-    .set(
-
-      moduleDefinition
-      .metadata
-      .name,
-
+    moduleLoaderState.instances.set(
+      moduleDefinition.metadata.name,
       moduleInstance
-
     );
 
-
-
-    // ================================
-    // ACTIVE
-    // ================================
-
-    moduleLoaderState
-    .activeModules
-    .add(
-
-      moduleDefinition
-      .metadata
-      .name
-
+    moduleLoaderState.activeModules.add(
+      moduleDefinition.metadata.name
     );
 
-    moduleLoaderState
-    .failedModules
-    .delete(
-
-      moduleDefinition
-      .metadata
-      .name
-
+    moduleLoaderState.failedModules.delete(
+      moduleDefinition.metadata.name
     );
 
-    moduleLoaderState
-    .diagnostics
-    .activated++;
+    moduleLoaderState.diagnostics.activated++;
 
-    if(
-      typeof trackPerformanceMetric ===
-      "function"
-    ){
+    if(typeof trackPerformanceMetric === "function"){
 
       trackPerformanceMetric(
-
         "module.activation",
-
-        Date.now() -
-        startedAt,
-
-        {
-
-          module:
-
-            moduleDefinition
-            .metadata
-            .name
-
-        }
-
+        Date.now() - startedAt,
+        { module: moduleDefinition.metadata.name }
       );
 
     }
 
     await emitModuleEvent(
-
-      MODULE_EVENTS
-      .ACTIVATED,
-
-      {
-
-        module:
-
-          moduleDefinition
-          .metadata
-          .name
-
-      }
-
+      MODULE_EVENTS.ACTIVATED,
+      { module: moduleDefinition.metadata.name }
     );
 
     return moduleInstance;
 
-  }
+  }catch(error){
 
-  catch(error){
-
-    moduleLoaderState
-    .failedModules
-    .add(
-
-      moduleDefinition
-      .metadata
-      .name
-
+    moduleLoaderState.failedModules.add(
+      moduleDefinition.metadata.name
     );
 
-    moduleLoaderState
-    .diagnostics
-    .failed++;
+    moduleLoaderState.diagnostics.failed++;
 
-    if(
-      typeof logDiagnosticError ===
-      "function"
-    ){
+    if(typeof logDiagnosticError === "function"){
 
       await logDiagnosticError(
-
         "MODULE ACTIVATION FAILED",
-
         {
-
-          module:
-
-            moduleDefinition
-            .metadata
-            .name,
-
-          error:
-          String(error)
-
+          module: moduleDefinition.metadata.name,
+          error: String(error)
         }
-
       );
 
     }
@@ -410,300 +218,94 @@ async function activateModule(
 // LOAD MODULE
 // =====================================
 
-async function loadModule(
-  moduleName
-){
+async function loadModule(moduleName){
 
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
+  const name = normalizeModuleName(moduleName);
 
-  if(!normalizedName){
+  if(!name) return false;
 
-    return false;
+  if(detectModuleCircularDependency(name)) return false;
 
-  }
+  if(moduleLoaderState.activeModules.has(name)) return true;
 
-  if(
+  const moduleDefinition = moduleLoaderState.modules.get(name);
 
-    moduleLoaderState
-    .loadingStack
-    .length >
+  if(!moduleDefinition) return false;
 
-    MODULE_LOADER_CONFIG
-    .MAX_BOOT_DEPTH
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    detectModuleCircularDependency(
-      normalizedName
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  const moduleDefinition =
-
-    moduleLoaderState
-    .modules
-    .get(
-      normalizedName
-    );
-
-  if(!moduleDefinition){
-
-    return false;
-
-  }
-
-  if(
-
-    moduleLoaderState
-    .activeModules
-    .has(
-      normalizedName
-    )
-
-  ){
-
-    return true;
-
-  }
-
-  moduleLoaderState
-  .loadingStack
-  .push(
-    normalizedName
-  );
+  moduleLoaderState.loadingStack.push(name);
 
   try{
 
-    moduleDefinition.state =
-    MODULE_STATES
-    .INITIALIZING;
+    moduleDefinition.state = MODULE_STATES.INITIALIZING;
 
-    await emitModuleEvent(
+    await emitModuleEvent(MODULE_EVENTS.INITIALIZED, { module: name });
 
-      MODULE_EVENTS
-      .INITIALIZED,
+    moduleDefinition.state = MODULE_STATES.LOADING;
 
-      {
-
-        module:
-        normalizedName
-
-      }
-
+    const deps = await loadModuleDependencies(
+      moduleDefinition.metadata.dependencies
     );
 
-    moduleDefinition.state =
-    MODULE_STATES
-    .LOADING;
-
-
-
-    // ================================
-    // DEPENDENCIES
-    // ================================
-
-    const dependenciesLoaded =
-    await loadModuleDependencies(
-
-      moduleDefinition
-      .metadata
-      .dependencies
-
-    );
-
-    if(!dependenciesLoaded){
-
-      throw new Error(
-        "DEPENDENCY LOAD FAILED"
-      );
-
+    if(!deps){
+      throw new Error("DEPENDENCY LOAD FAILED");
     }
 
-
-
-    // ================================
-    // ACTIVATE
-    // ================================
-
-    const activated =
-    await activateModule(
-      moduleDefinition
-    );
+    const activated = await activateModule(moduleDefinition);
 
     if(!activated){
-
-      throw new Error(
-        "MODULE ACTIVATION FAILED"
-      );
-
+      throw new Error("ACTIVATION FAILED");
     }
 
-    moduleDefinition.state =
-    MODULE_STATES
-    .ACTIVE;
+    moduleDefinition.state = MODULE_STATES.ACTIVE;
 
-    moduleLoaderState
-    .diagnostics
-    .loaded++;
+    moduleLoaderState.diagnostics.loaded++;
+    moduleLoaderState.lastLoadedAt = Date.now();
 
-    moduleLoaderState
-    .lastLoadedAt =
-    Date.now();
-
-    await emitModuleEvent(
-
-      MODULE_EVENTS
-      .LOADED,
-
-      {
-
-        module:
-        normalizedName
-
-      }
-
-    );
+    await emitModuleEvent(MODULE_EVENTS.LOADED, { module: name });
 
     return true;
 
-  }
+  }catch(error){
 
-  catch(error){
+    moduleDefinition.retries = (moduleDefinition.retries || 0) + 1;
+    moduleDefinition.state = MODULE_STATES.FAILED;
 
-    moduleDefinition.retries =
-    Number(
-      moduleDefinition
-      .retries || 0
-    ) + 1;
+    moduleLoaderState.failedModules.add(name);
 
-    moduleDefinition.state =
-    MODULE_STATES
-    .FAILED;
-
-    moduleLoaderState
-    .failedModules
-    .add(
-      normalizedName
-    );
-
-    if(
-      typeof logDiagnosticError ===
-      "function"
-    ){
+    if(typeof logDiagnosticError === "function"){
 
       await logDiagnosticError(
-
         "MODULE LOAD FAILED",
-
         {
-
-          module:
-          normalizedName,
-
-          retries:
-          moduleDefinition
-          .retries,
-
-          error:
-          String(error)
-
+          module: name,
+          retries: moduleDefinition.retries,
+          error: String(error)
         }
-
       );
 
     }
-
-
-
-    // ================================
-    // RETRY
-    // ================================
 
     if(
-
-      MODULE_LOADER_CONFIG
-      .ENABLE_RETRY_LOADING &&
-
-      moduleDefinition.retries <
-
-      MODULE_LOADER_CONFIG
-      .MAX_RETRIES
-
+      MODULE_LOADER_CONFIG.ENABLE_RETRY_LOADING &&
+      moduleDefinition.retries < MODULE_LOADER_CONFIG.MAX_RETRIES
     ){
 
-      moduleLoaderState
-      .diagnostics
-      .retries++;
-
-      await new Promise((resolve) => {
-
-        setTimeout(
-
-          resolve,
-
-          MODULE_LOADER_CONFIG
-          .RETRY_DELAY
-
-        );
-
-      });
-
-      return loadModule(
-        normalizedName
-      );
+      await new Promise(r => setTimeout(r, MODULE_LOADER_CONFIG.RETRY_DELAY));
+      return loadModule(name);
 
     }
 
-    await emitModuleEvent(
-
-      MODULE_EVENTS
-      .FAILED,
-
-      {
-
-        module:
-        normalizedName,
-
-        error:
-        String(error)
-
-      }
-
-    );
+    await emitModuleEvent(MODULE_EVENTS.FAILED, {
+      module: name,
+      error: String(error)
+    });
 
     return false;
 
-  }
+  }finally{
 
-  finally{
-
-    moduleLoaderState
-    .loadingStack =
-
-    moduleLoaderState
-    .loadingStack
-    .filter((item) => {
-
-      return (
-        item !==
-        normalizedName
-      );
-
-    });
+    moduleLoaderState.loadingStack =
+      moduleLoaderState.loadingStack.filter(m => m !== name);
 
   }
 
@@ -712,163 +314,38 @@ async function loadModule(
 
 
 // =====================================
-// UNLOAD MODULE
+// UNLOAD MODULE (SAFE GRAPH)
 // =====================================
 
-async function unloadModule(
-  moduleName
-){
+async function unloadModule(moduleName){
 
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
+  const name = normalizeModuleName(moduleName);
 
-  if(!normalizedName){
+  if(!name) return false;
 
-    return false;
+  if(!moduleLoaderState.modules.has(name)) return false;
 
-  }
+  const moduleDefinition = moduleLoaderState.modules.get(name);
 
-  if(
+  moduleDefinition.state = MODULE_STATES.UNLOADING;
 
-    !moduleLoaderState
-    .modules
-    .has(
-      normalizedName
-    )
+  await emitModuleEvent(MODULE_EVENTS.UNLOADING, { module: name });
 
-  ){
+  const instance = moduleLoaderState.instances.get(name);
 
-    return false;
+  if(instance?.destroy){
+
+    try{ await instance.destroy(); }catch{}
 
   }
 
-  const dependents =
+  moduleLoaderState.instances.delete(name);
+  moduleLoaderState.activeModules.delete(name);
+  moduleLoaderState.failedModules.delete(name);
 
-    moduleLoaderState
-    .reverseDependencies
-    ?.get(
-      normalizedName
-    );
+  moduleDefinition.state = MODULE_STATES.UNLOADED;
 
-  if(
-    dependents &&
-    dependents.size > 0
-  ){
-
-    for(
-      const dependent
-      of dependents
-    ){
-
-      await unloadModule(
-        dependent
-      );
-
-    }
-
-  }
-
-  const moduleDefinition =
-
-    moduleLoaderState
-    .modules
-    .get(
-      normalizedName
-    );
-
-  moduleDefinition.state =
-  MODULE_STATES
-  .UNLOADING;
-
-  await emitModuleEvent(
-
-    MODULE_EVENTS
-    .UNLOADING,
-
-    {
-
-      module:
-      normalizedName
-
-    }
-
-  );
-
-
-
-  // ================================
-  // DESTROY INSTANCE
-  // ================================
-
-  const moduleInstance =
-
-    moduleLoaderState
-    ?.instances
-    ?.get(
-      normalizedName
-    );
-
-  if(
-    moduleInstance &&
-    typeof moduleInstance
-    .destroy ===
-    "function"
-  ){
-
-    try{
-
-      await moduleInstance
-      .destroy();
-
-    }
-
-    catch(error){}
-
-  }
-
-  moduleLoaderState
-  ?.instances
-  ?.delete(
-    normalizedName
-  );
-
-
-
-  // ================================
-  // CLEANUP
-  // ================================
-
-  moduleLoaderState
-  .activeModules
-  .delete(
-    normalizedName
-  );
-
-  moduleLoaderState
-  .failedModules
-  .delete(
-    normalizedName
-  );
-
-  moduleDefinition.state =
-  MODULE_STATES
-  .UNLOADED;
-
-  await emitModuleEvent(
-
-    MODULE_EVENTS
-    .UNLOADED,
-
-    {
-
-      module:
-      normalizedName
-
-    }
-
-  );
+  await emitModuleEvent(MODULE_EVENTS.UNLOADED, { module: name });
 
   return true;
 
