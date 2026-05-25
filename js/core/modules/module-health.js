@@ -1,48 +1,131 @@
 // =====================================
 // RIGO AI
 // MODULE HEALTH
+// READONLY HEALTH + SNAPSHOT LAYER
 // =====================================
 
 
 
 // =====================================
-// HEALTH SCORE
+// INTERNAL HEALTH STATE
 // =====================================
 
-function calculateModuleHealthScore(){
+const moduleHealthState = {
 
-  const totalModules =
+  diagnostics:{
 
-    moduleLoaderState
-    .modules
-    .size;
+    registered:
+    0,
 
-  const failedModules =
+    loaded:
+    0,
 
-    moduleLoaderState
-    .failedModules
-    .size;
+    activated:
+    0,
 
-  if(totalModules <= 0){
+    failed:
+    0,
 
-    return 100;
+    retries:
+    0
 
+  },
+
+  lastLoadedAt:
+  null
+
+};
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isPlainObject(value){
+
+  if(
+    !value ||
+    typeof value !== "object"
+  ){
+    return false;
   }
 
-  const score =
+  const prototype =
+    Object.getPrototypeOf(value);
 
-    100 -
+  return (
 
-    Math.floor(
+    prototype === Object.prototype ||
+    prototype === null
 
-      (failedModules /
-      totalModules) * 100
+  );
 
+}
+
+
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !== "object"
+  ){
+    return value;
+  }
+
+  if(visited.has(value)){
+    return value;
+  }
+
+  if(
+
+    value instanceof Map ||
+    value instanceof Set ||
+    value instanceof Date ||
+    value instanceof RegExp
+
+  ){
+    return value;
+  }
+
+  if(
+    !Array.isArray(value) &&
+    !isPlainObject(value)
+  ){
+    return value;
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value).forEach((nestedValue) => {
+
+    safeFreeze(
+      nestedValue,
+      visited
     );
 
-  return Math.max(
-    0,
-    score
+  });
+
+  return value;
+
+}
+
+
+
+function emitModuleHealthWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+    `[ModuleHealth] ${message}`,
+    error || ""
   );
 
 }
@@ -55,39 +138,94 @@ function calculateModuleHealthScore(){
 
 function getModuleCounts(){
 
-  return freezeModuleObject({
+  return safeFreeze({
 
     total:
 
-      moduleLoaderState
-      .modules
-      .size,
+      moduleLoaderState.modules.size,
 
     active:
 
-      moduleLoaderState
-      .activeModules
-      .size,
+      moduleLoaderState.activeModules.size,
 
     failed:
 
-      moduleLoaderState
-      .failedModules
-      .size,
+      moduleLoaderState.failedModules.size,
 
     loading:
 
-      moduleLoaderState
-      .loadingStack
-      .length,
+      moduleLoaderState.loadingStack.length,
 
     instances:
 
-      moduleLoaderState
-      ?.instances
-      ?.size || 0
+      moduleLoaderState.instances.size
 
   });
+
+}
+
+
+
+// =====================================
+// HEALTH SCORE
+// =====================================
+
+function calculateModuleHealthScore(){
+
+  const counts =
+    getModuleCounts();
+
+  if(counts.total <= 0){
+    return 100;
+  }
+
+  const failedPenalty =
+
+    Math.floor(
+
+      (counts.failed / counts.total) * 100
+
+    );
+
+  const loadingPenalty =
+
+    Math.min(
+      counts.loading * 2,
+      15
+    );
+
+  const score =
+
+    100 -
+    failedPenalty -
+    loadingPenalty;
+
+  return Math.max(
+    0,
+    score
+  );
+
+}
+
+
+
+// =====================================
+// HEALTH STATUS
+// =====================================
+
+function getModuleHealthStatus(
+  healthScore
+){
+
+  if(healthScore >= 90){
+    return "healthy";
+  }
+
+  if(healthScore >= 70){
+    return "degraded";
+  }
+
+  return "critical";
 
 }
 
@@ -99,78 +237,55 @@ function getModuleCounts(){
 
 function createModuleLoaderSnapshot(){
 
-  return freezeModuleObject({
+  try{
 
-    timestamp:
-    Date.now(),
+    return safeFreeze({
 
-    initialized:
-    moduleLoaderState
-    .initialized,
+      timestamp:
+      Date.now(),
 
-    counts:
-    getModuleCounts(),
+      counts:
+      getModuleCounts(),
 
-    activeModules:[
+      activeModules:[
 
-      ...moduleLoaderState
-      .activeModules
+        ...moduleLoaderState.activeModules
 
-    ],
+      ],
 
-    failedModules:[
+      failedModules:[
 
-      ...moduleLoaderState
-      .failedModules
+        ...moduleLoaderState.failedModules
 
-    ],
+      ],
 
-    loadingStack:[
+      loadingStack:[
 
-      ...moduleLoaderState
-      .loadingStack
+        ...moduleLoaderState.loadingStack
 
-    ],
+      ],
 
-    diagnostics:{
+      diagnostics:{
 
-      ...moduleLoaderState
-      .diagnostics
+        ...moduleHealthState.diagnostics
 
-    },
+      },
 
-    lastLoadedAt:
+      lastLoadedAt:
+      moduleHealthState.lastLoadedAt
 
-      moduleLoaderState
-      .lastLoadedAt
+    });
 
-  });
+  }catch(error){
 
-}
+    emitModuleHealthWarning(
+      "Snapshot creation failed",
+      error
+    );
 
-
-
-// =====================================
-// MODULE HEALTH STATUS
-// =====================================
-
-function getModuleHealthStatus(
-  healthScore
-){
-
-  if(healthScore >= 90){
-
-    return "healthy";
+    return null;
 
   }
-
-  if(healthScore >= 70){
-
-    return "degraded";
-
-  }
-
-  return "critical";
 
 }
 
@@ -182,251 +297,37 @@ function getModuleHealthStatus(
 
 async function getModuleHealth(){
 
-  const healthScore =
-  calculateModuleHealthScore();
-
-  const counts =
-  getModuleCounts();
-
-  const health =
-  freezeModuleObject({
-
-    initialized:
-    moduleLoaderState
-    .initialized,
-
-    status:
-    getModuleHealthStatus(
-      healthScore
-    ),
-
-    healthScore,
-
-    counts,
-
-    diagnostics:{
-
-      ...moduleLoaderState
-      .diagnostics
-
-    },
-
-    lastLoadedAt:
-
-      moduleLoaderState
-      .lastLoadedAt,
-
-    timestamp:
-    Date.now()
-
-  });
-
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
-
-    await emitSystemEvent(
-
-      MODULE_EVENTS
-      .HEALTHCHECK,
-
-      {
-
-        health
-
-      }
-
-    );
-
-  }
-
-  return health;
-
-}
-
-
-
-// =====================================
-// RESET DIAGNOSTICS
-// =====================================
-
-function resetModuleDiagnostics(){
-
-  moduleLoaderState
-  .diagnostics = {
-
-    registered:0,
-
-    loaded:0,
-
-    activated:0,
-
-    failed:0,
-
-    retries:0
-
-  };
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-async function resetModuleLoader(){
-
   try{
 
+    const healthScore =
+      calculateModuleHealthScore();
 
+    const health =
+      safeFreeze({
 
-    // ================================
-    // UNLOAD ACTIVE MODULES
-    // ================================
+        status:
+        getModuleHealthStatus(
+          healthScore
+        ),
 
-    const activeModules = [
+        healthScore,
 
-      ...moduleLoaderState
-      .activeModules
+        counts:
+        getModuleCounts(),
 
-    ];
+        diagnostics:{
 
-    for(
-      const moduleName
-      of activeModules
-    ){
+          ...moduleHealthState.diagnostics
 
-      try{
+        },
 
-        await unloadModule(
-          moduleName
-        );
+        lastLoadedAt:
+        moduleHealthState.lastLoadedAt,
 
-      }
+        timestamp:
+        Date.now()
 
-      catch(error){}
-
-    }
-
-
-
-    // ================================
-    // RESET STATE
-    // ================================
-
-    moduleLoaderState
-    .modules
-    .clear();
-
-    moduleLoaderState
-    .activeModules
-    .clear();
-
-    moduleLoaderState
-    .failedModules
-    .clear();
-
-    moduleLoaderState
-    .dependencyGraph
-    .clear();
-
-    moduleLoaderState
-    .reverseDependencies
-    ?.clear();
-
-    moduleLoaderState
-    .loadingStack = [];
-
-    if(
-      moduleLoaderState
-      .instances
-    ){
-
-      moduleLoaderState
-      .instances
-      .clear();
-
-    }
-
-    resetModuleDiagnostics();
-
-    moduleLoaderState
-    .lastLoadedAt =
-    null;
-
-    moduleLoaderState
-    .initialized =
-    false;
-
-    return true;
-
-  }
-
-  catch(error){
-
-    if(
-      typeof logDiagnosticError ===
-      "function"
-    ){
-
-      await logDiagnosticError(
-
-        "MODULE RESET FAILED",
-
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-    }
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-async function initializeModuleLoader(){
-
-  if(
-    moduleLoaderState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  try{
-
-    if(
-      !moduleLoaderState
-      .instances
-    ){
-
-      moduleLoaderState
-      .instances =
-      new Map();
-
-    }
-
-    moduleLoaderState
-    .initialized =
-    true;
+      });
 
     if(
       typeof emitSystemEvent ===
@@ -435,12 +336,14 @@ async function initializeModuleLoader(){
 
       await emitSystemEvent(
 
-        "module.loader.initialized",
+        MODULE_EVENTS.HEALTHCHECK,
 
         {
 
-          timestamp:
-          Date.now()
+          source:
+          "module-health",
+
+          health
 
         }
 
@@ -448,34 +351,144 @@ async function initializeModuleLoader(){
 
     }
 
-    return true;
+    return health;
+
+  }catch(error){
+
+    emitModuleHealthWarning(
+      "Healthcheck failed",
+      error
+    );
+
+    return null;
 
   }
 
-  catch(error){
+}
+
+
+
+// =====================================
+// DIAGNOSTICS API
+// =====================================
+
+function updateModuleDiagnostics(
+  partialDiagnostics = {}
+){
+
+  if(
+    !isPlainObject(
+      partialDiagnostics
+    )
+  ){
+    return false;
+  }
+
+  Object.entries(
+    partialDiagnostics
+  ).forEach(([key, value]) => {
 
     if(
-      typeof logDiagnosticError ===
-      "function"
+      typeof value === "number" &&
+      key in moduleHealthState.diagnostics
     ){
 
-      await logDiagnosticError(
-
-        "MODULE LOADER INIT FAILED",
-
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
+      moduleHealthState.diagnostics[key] =
+        value;
 
     }
 
-    return false;
+  });
 
-  }
+  return true;
+
+}
+
+
+
+function markModuleLoaded(){
+
+  moduleHealthState.lastLoadedAt =
+    Date.now();
+
+  moduleHealthState.diagnostics.loaded++;
+
+  return true;
+
+}
+
+
+
+function resetModuleDiagnostics(){
+
+  Object.keys(
+    moduleHealthState.diagnostics
+  ).forEach((key) => {
+
+    moduleHealthState.diagnostics[key] =
+      0;
+
+  });
+
+  moduleHealthState.lastLoadedAt =
+    null;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ModuleHealth =
+Object.freeze({
+
+  health:
+  getModuleHealth,
+
+  snapshot:
+  createModuleLoaderSnapshot,
+
+  counts:
+  getModuleCounts,
+
+  diagnostics:
+  updateModuleDiagnostics,
+
+  markLoaded:
+  markModuleLoaded,
+
+  resetDiagnostics:
+  resetModuleDiagnostics
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(typeof window !== "undefined"){
+
+  Object.defineProperty(
+    window,
+    "ModuleHealth",
+    {
+
+      value:
+      ModuleHealth,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+  );
 
 }
