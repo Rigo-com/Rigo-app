@@ -2,6 +2,7 @@
 // RIGO AI
 // SECURITY MONITOR
 // ENTERPRISE SECURITY MONITORING LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -20,6 +21,7 @@ function normalizeSecurityKey(
       value || ""
     )
     .trim()
+    .toLowerCase()
     .slice(
       0,
       300
@@ -56,6 +58,23 @@ function normalizeSecurityMetadata(
 
   try{
 
+    if(
+      typeof sanitizeObject ===
+      "function"
+    ){
+
+      return sanitizeObject(
+        metadata
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  try{
+
     return JSON.parse(
       JSON.stringify(
         metadata
@@ -68,7 +87,8 @@ function normalizeSecurityMetadata(
 
     return {
 
-      invalidMetadata:true
+      invalidMetadata:
+      true
 
     };
 
@@ -94,9 +114,9 @@ function cleanupRateLimitTracker(){
 
 
 
-  // ============================
+  // ===================================
   // CLEAN INVALID / EXPIRED
-  // ============================
+  // ===================================
 
   securityState
   .requestTracker
@@ -133,8 +153,9 @@ function cleanupRateLimitTracker(){
 
         &&
 
-        now - timestamp <
-        expirationWindow
+        (
+          now - timestamp
+        ) < expirationWindow
 
       );
 
@@ -165,9 +186,9 @@ function cleanupRateLimitTracker(){
 
 
 
-  // ============================
+  // ===================================
   // ENFORCE MAX TRACKED KEYS
-  // ============================
+  // ===================================
 
   while(
 
@@ -189,8 +210,8 @@ function cleanupRateLimitTracker(){
       .value;
 
     if(
-      firstKey ===
-      undefined
+      typeof firstKey ===
+      "undefined"
     ){
 
       break;
@@ -251,17 +272,20 @@ function trackSecurityRequest(
 
 
 
-  // ============================
+  // ===================================
   // HARD LIMIT
-  // ============================
+  // ===================================
 
   if(
     existing.length > 1000
   ){
 
     existing.splice(
+
       0,
+
       existing.length - 1000
+
     );
 
   }
@@ -269,8 +293,11 @@ function trackSecurityRequest(
   securityState
   .requestTracker
   .set(
+
     normalizedKey,
+
     existing
+
   );
 
   return true;
@@ -369,6 +396,17 @@ function trackSuspiciousActivity(
   metadata = {}
 ){
 
+  const normalizedType =
+  normalizeSecurityKey(
+    type
+  );
+
+  if(!normalizedType){
+
+    return false;
+
+  }
+
   securityState
   .suspiciousActivities++;
 
@@ -379,9 +417,7 @@ function trackSuspiciousActivity(
     {
 
       type:
-      normalizeSecurityKey(
-        type
-      ),
+      normalizedType,
 
       ...normalizeSecurityMetadata(
         metadata
@@ -392,6 +428,74 @@ function trackSuspiciousActivity(
   );
 
   return true;
+
+}
+
+
+
+// =====================================
+// GET RATE LIMIT STATUS
+// =====================================
+
+function getRateLimitStatus(
+  key
+){
+
+  const normalizedKey =
+  normalizeSecurityKey(
+    key
+  );
+
+  if(!normalizedKey){
+
+    return null;
+
+  }
+
+  const requests =
+
+    securityState
+    .requestTracker
+    .get(
+      normalizedKey
+    )
+
+    ||
+
+    [];
+
+  const remaining =
+
+    Math.max(
+
+      0,
+
+      SECURITY_CONFIG
+      .MAX_RATE_LIMIT -
+
+      requests.length
+
+    );
+
+  return Object.freeze({
+
+    key:
+    normalizedKey,
+
+    requests:
+    requests.length,
+
+    remaining,
+
+    limit:
+
+      SECURITY_CONFIG
+      .MAX_RATE_LIMIT,
+
+    blocked:
+    remaining <= 0
+
+  });
 
 }
 
@@ -448,22 +552,28 @@ function getSecurityMetrics(){
 function resetSecurityMetrics(){
 
   securityState
-  .blockedRequests = 0;
+  .blockedRequests =
+  0;
 
   securityState
-  .blockedURLs = 0;
+  .blockedURLs =
+  0;
 
   securityState
-  .blockedPrompts = 0;
+  .blockedPrompts =
+  0;
 
   securityState
-  .suspiciousActivities = 0;
+  .suspiciousActivities =
+  0;
 
   securityState
-  .sanitizedPayloads = 0;
+  .sanitizedPayloads =
+  0;
 
   securityState
-  .rateLimitHits = 0;
+  .rateLimitHits =
+  0;
 
   securityState
   .requestTracker
@@ -490,6 +600,8 @@ Object.freeze({
 
   checkRateLimit,
 
+  getRateLimitStatus,
+
   trackSuspicious:
   trackSuspiciousActivity,
 
@@ -500,3 +612,37 @@ Object.freeze({
   resetSecurityMetrics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "SecurityMonitor",
+
+    {
+
+      value:
+      SecurityMonitor,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
