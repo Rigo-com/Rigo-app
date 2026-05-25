@@ -1,61 +1,34 @@
 // =====================================
 // RIGO AI
 // MODULE REGISTRY
+// PURE DATA LAYER
 // =====================================
 
 
 
 // =====================================
-// MODULE STATE
+// STATE (DATA ONLY)
 // =====================================
 
-const moduleLoaderState =
-Object.seal({
+const moduleLoaderState = Object.seal({
 
-  initialized:false,
+  modules: new Map(),
+  instances: new Map(),
 
-  modules:
-  new Map(),
+  activeModules: new Set(),
+  failedModules: new Set(),
 
-  instances:
-  new Map(),
+  dependencyGraph: new Map(),
+  reverseDependencies: new Map(),
 
-  activeModules:
-  new Set(),
-
-  failedModules:
-  new Set(),
-
-  dependencyGraph:
-  new Map(),
-
-  reverseDependencies:
-  new Map(),
-
-  loadingStack:[],
-
-  diagnostics:{
-
-    registered:0,
-
-    loaded:0,
-
-    activated:0,
-
-    failed:0,
-
-    retries:0
-
-  },
-
-  lastLoadedAt:null
+  loadingStack: []
 
 });
 
 
 
 // =====================================
-// HELPERS
+// HELPERS (PURE)
 // =====================================
 
 function normalizeModuleName(moduleName){
@@ -90,10 +63,10 @@ function freezeModuleObject(value, visited = new WeakSet()){
 
   Object.freeze(value);
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value).forEach((v) => {
 
-    if(nestedValue && typeof nestedValue === "object"){
-      freezeModuleObject(nestedValue, visited);
+    if(v && typeof v === "object"){
+      freezeModuleObject(v, visited);
     }
 
   });
@@ -105,65 +78,14 @@ function freezeModuleObject(value, visited = new WeakSet()){
 
 
 // =====================================
-// ERROR HANDLER
-// =====================================
-
-function createModuleError(message, metadata = {}){
-
-  if(typeof logDiagnosticError === "function"){
-
-    logDiagnosticError(message, metadata);
-
-  }
-
-  return false;
-
-}
-
-
-
-// =====================================
-// DEPENDENCY GRAPH
-// =====================================
-
-function registerReverseDependencies(moduleName, dependencies = []){
-
-  dependencies.forEach((dependency) => {
-
-    const normalizedDependency =
-      normalizeModuleName(dependency);
-
-    if(!moduleLoaderState.reverseDependencies.has(normalizedDependency)){
-
-      moduleLoaderState.reverseDependencies.set(
-        normalizedDependency,
-        new Set()
-      );
-
-    }
-
-    moduleLoaderState.reverseDependencies
-      .get(normalizedDependency)
-      .add(moduleName);
-
-  });
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CREATE MODULE DEFINITION
+// MODULE DEFINITION CREATION
 // =====================================
 
 function createModuleDefinition(moduleName, factory, options = {}){
 
   return {
 
-    metadata:
-    freezeModuleObject({
+    metadata: freezeModuleObject({
 
       name: moduleName,
 
@@ -180,17 +102,15 @@ function createModuleDefinition(moduleName, factory, options = {}){
       lazy:
         options.lazy ?? false,
 
-      createdAt:
-        Date.now()
+      createdAt: Date.now()
 
     }),
 
     factory,
 
-    retries:0,
+    retries: 0,
 
-    state:
-    MODULE_STATES.REGISTERED
+    state: MODULE_STATES.REGISTERED
 
   };
 
@@ -199,54 +119,46 @@ function createModuleDefinition(moduleName, factory, options = {}){
 
 
 // =====================================
-// REGISTER MODULE
+// REGISTER (NO SIDE EFFECTS)
 // =====================================
 
-async function registerModule(moduleName, factory, options = {}){
+function registerModuleDefinition(moduleName, factory, options = {}){
 
   const normalizedName = normalizeModuleName(moduleName);
 
   if(!normalizedName){
-    return createModuleError("INVALID MODULE NAME");
+    return false;
   }
 
   if(!isValidModuleFactory(factory)){
-    return createModuleError("INVALID MODULE FACTORY", { module: normalizedName });
-  }
-
-  if(moduleLoaderState.modules.size >= MODULE_LOADER_CONFIG.MAX_MODULES){
-    return createModuleError("MAX MODULES REACHED");
+    return false;
   }
 
   if(moduleLoaderState.modules.has(normalizedName)){
-    return createModuleError("MODULE ALREADY REGISTERED", { module: normalizedName });
+    return false;
   }
 
-  const moduleDefinition =
+  const definition =
     createModuleDefinition(normalizedName, factory, options);
 
-  moduleLoaderState.modules.set(normalizedName, moduleDefinition);
+  moduleLoaderState.modules.set(normalizedName, definition);
 
   moduleLoaderState.dependencyGraph.set(
     normalizedName,
-    moduleDefinition.metadata.dependencies
+    definition.metadata.dependencies
   );
 
-  registerReverseDependencies(
-    normalizedName,
-    moduleDefinition.metadata.dependencies
-  );
+  definition.metadata.dependencies.forEach(dep => {
 
-  moduleLoaderState.diagnostics.registered++;
+    const normalizedDep = normalizeModuleName(dep);
 
-  if(typeof emitSystemEvent === "function"){
+    if(!moduleLoaderState.reverseDependencies.has(normalizedDep)){
+      moduleLoaderState.reverseDependencies.set(normalizedDep, new Set());
+    }
 
-    await emitSystemEvent(
-      MODULE_EVENTS.REGISTERED,
-      { module: normalizedName }
-    );
+    moduleLoaderState.reverseDependencies.get(normalizedDep).add(normalizedName);
 
-  }
+  });
 
   return true;
 
@@ -255,7 +167,7 @@ async function registerModule(moduleName, factory, options = {}){
 
 
 // =====================================
-// GET MODULE
+// LOOKUP API
 // =====================================
 
 function getRegisteredModule(moduleName){
@@ -268,10 +180,6 @@ function getRegisteredModule(moduleName){
 
 
 
-// =====================================
-// HAS MODULE
-// =====================================
-
 function hasRegisteredModule(moduleName){
 
   return moduleLoaderState.modules.has(
@@ -282,13 +190,45 @@ function hasRegisteredModule(moduleName){
 
 
 
-// =====================================
-// GET ALL MODULES
-// =====================================
-
 function getRegisteredModules(){
 
   return [...moduleLoaderState.modules.keys()];
+
+}
+
+
+
+// =====================================
+// INSTANCE ACCESS (READ ONLY)
+// =====================================
+
+function getModuleInstance(moduleName){
+
+  const normalizedName = normalizeModuleName(moduleName);
+
+  return moduleLoaderState.instances.get(normalizedName) || null;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT (READ ONLY SAFE VIEW)
+// =====================================
+
+function createModuleRegistrySnapshot(){
+
+  return freezeModuleObject({
+
+    modules: [...moduleLoaderState.modules.keys()],
+    activeModules: [...moduleLoaderState.activeModules],
+    failedModules: [...moduleLoaderState.failedModules],
+    dependencyGraph: Object.fromEntries(moduleLoaderState.dependencyGraph),
+    reverseDependencies: Object.fromEntries(moduleLoaderState.reverseDependencies),
+
+    timestamp: Date.now()
+
+  });
 
 }
 
@@ -302,12 +242,16 @@ if(typeof window !== "undefined"){
 
   window.moduleLoaderState = moduleLoaderState;
 
-  window.registerModule = registerModule;
+  window.registerModuleDefinition = registerModuleDefinition;
 
   window.getRegisteredModule = getRegisteredModule;
 
   window.hasRegisteredModule = hasRegisteredModule;
 
   window.getRegisteredModules = getRegisteredModules;
+
+  window.getModuleInstance = getModuleInstance;
+
+  window.createModuleRegistrySnapshot = createModuleRegistrySnapshot;
 
 }
