@@ -241,9 +241,18 @@ async function initializeBootstrapDependencies(){
 
   registerBootstrapDependencies();
 
+
+
+  // ===================================
+  // CONTAINER HEALTH
+  // ===================================
+
+  const containerHealth =
+  getContainerHealthReport();
+
   const validDependencies =
-  await DependencySystem
-  .validate();
+  containerHealth?.healthy ===
+  true;
 
   if(!validDependencies){
 
@@ -252,7 +261,7 @@ async function initializeBootstrapDependencies(){
     );
 
     throw new Error(
-      "DEPENDENCY REGISTRY FAILED"
+      "CONTAINER HEALTH FAILED"
     );
 
   }
