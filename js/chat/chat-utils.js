@@ -9,17 +9,6 @@ function safeChatClone(
   try{
 
     if(
-      typeof deepClone ===
-      "function"
-    ){
-
-      return deepClone(
-        value
-      );
-
-    }
-
-    if(
       typeof structuredClone ===
       "function"
     ){
@@ -40,10 +29,16 @@ function safeChatClone(
 
   catch(error){
 
-    safeLogError?.(
-      "SAFE CHAT CLONE ERROR:",
-      error
-    );
+    try{
+
+      console.error(
+        "SAFE CHAT CLONE ERROR:",
+        error
+      );
+
+    }
+
+    catch(logError){}
 
     return null;
 
@@ -64,11 +59,14 @@ function wait(
   return new Promise((resolve) => {
 
     setTimeout(
+
       resolve,
+
       Math.max(
         0,
         Number(duration) || 0
       )
+
     );
 
   });
@@ -93,7 +91,7 @@ function createQueueItem(
 
   }
 
-  return {
+  return Object.freeze({
 
     id:
     String(messageId),
@@ -103,7 +101,7 @@ function createQueueItem(
 
     retries:0
 
-  };
+  });
 
 }
 
@@ -116,27 +114,30 @@ function createQueueItem(
 let queueProcessingScheduled =
 false;
 
-function continueQueueProcessing(){
+async function continueQueueProcessing(){
 
   if(
     queueProcessingScheduled
   ){
 
-    return;
+    return false;
+
   }
 
   if(
     chatRuntimeState.processing
   ){
 
-    return;
+    return false;
+
   }
 
   if(
     chatRuntimeState.generating
   ){
 
-    return;
+    return false;
+
   }
 
   if(
@@ -152,34 +153,57 @@ function continueQueueProcessing(){
 
   ){
 
-    return;
+    return false;
+
   }
 
   queueProcessingScheduled =
   true;
 
-  Promise.resolve()
-  .then(() => {
+  try{
+
+    await Promise.resolve();
+
+    if(
+      typeof processAIQueue !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
+    await processAIQueue();
+
+    return true;
+
+  }
+
+  catch(error){
+
+    try{
+
+      console.error(
+
+        "QUEUE CONTINUE ERROR:",
+
+        error
+
+      );
+
+    }
+
+    catch(logError){}
+
+    return false;
+
+  }
+
+  finally{
 
     queueProcessingScheduled =
     false;
 
-    return processAIQueue();
-
-  })
-  .catch((error) => {
-
-    queueProcessingScheduled =
-    false;
-
-    safeLogError?.(
-
-      "QUEUE CONTINUE ERROR:",
-
-      error
-
-    );
-
-  });
+  }
 
 }
