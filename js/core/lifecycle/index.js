@@ -7,6 +7,18 @@
 
 
 // =====================================
+// LIFECYCLE FILES
+// =====================================
+
+import "./app-bootstrap.js";
+import "./app-diagnostics.js";
+import "./app-environment.js";
+import "./app-lifecycle.js";
+import "./app-message-runtime.js";
+import "./app-shutdown.js";
+import "./app-startup.js";
+
+// =====================================
 // HELPERS
 // =====================================
 
