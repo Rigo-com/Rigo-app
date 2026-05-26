@@ -6,27 +6,6 @@
 
 
 // =====================================
-// SAFE INITIALIZER
-// =====================================
-
-function resolveRuntimeInitializer(
-  initializer
-){
-
-  return (
-    typeof initializer ===
-    "function"
-  )
-
-  ? initializer
-
-  : null;
-
-}
-
-
-
-// =====================================
 // CREATE STEP
 // =====================================
 
@@ -55,9 +34,17 @@ function createBootStep({
     Number(timeout),
 
     initialize:
-    resolveRuntimeInitializer(
+
+      typeof initialize ===
+      "function"
+
+      ?
+
       initialize
-    )
+
+      :
+
+      null
 
   });
 
@@ -162,7 +149,7 @@ function createRuntimeBootSequence(){
 
       initialize:
       globalThis
-      ?.initializeDependencyContainer
+      ?.initializeContainer
 
     }),
 
