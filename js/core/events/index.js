@@ -1,32 +1,164 @@
 // =====================================
 // RIGO AI
 // EVENTS INDEX
+// CLEAN EVENTS COMPOSITION LAYER
 // =====================================
 
 
 
-const Events =
+// =====================================
+// EVENT FILES
+// =====================================
+
+import "./system-events.js";
+import "./app-events.js";
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function emitEventsWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+    `[EventsIndex] ${message}`,
+    error || ""
+  );
+
+}
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function validateEventsLayer(){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return false;
+
+    }
+
+    const requiredSystems = [
+
+      "SystemEvents",
+      "AppEvents"
+
+    ];
+
+    const missingSystems =
+
+      requiredSystems.filter((systemName) => {
+
+        return (
+          typeof window[systemName] ===
+          "undefined"
+        );
+
+      });
+
+    if(missingSystems.length > 0){
+
+      emitEventsWarning(
+
+        `Missing systems: ${missingSystems.join(", ")}`
+
+      );
+
+      return false;
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    emitEventsWarning(
+      "Validation failed",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// EVENTS API
+// =====================================
+
+const EventsAPI =
 Object.freeze({
 
-  System:
-  SystemEvents,
+  system:
+  window.SystemEvents,
 
-  App:
-  AppEvents,
+  app:
+  window.AppEvents,
 
-  EVENTS:
-  APP_EVENTS
+  events:
+  typeof APP_EVENTS !==
+  "undefined"
+
+    ?
+
+    APP_EVENTS
+
+    :
+
+    null,
+
+  validate:
+  validateEventsLayer
 
 });
 
 
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
 
 if(
   typeof window !==
   "undefined"
 ){
 
-  window.Events =
-  Events;
+  Object.defineProperty(
+
+    window,
+
+    "EventsAPI",
+
+    {
+
+      value:
+      EventsAPI,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
