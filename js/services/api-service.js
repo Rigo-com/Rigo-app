@@ -94,6 +94,50 @@ Object.seal({
 
 
 // =====================================
+// SERVICE ACCESS
+// =====================================
+
+function getAPIService(
+  serviceName
+){
+
+  try{
+
+    if(
+      typeof ServiceRegistry ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof ServiceRegistry.get !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    return ServiceRegistry.get(
+      serviceName
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // API EVENTS
 // =====================================
 
@@ -184,12 +228,18 @@ function logAPIEvent(
 
   try{
 
+    const diagnostics =
+    getAPIService(
+      "diagnostics"
+    );
+
     if(
-      typeof logDiagnosticInfo ===
+      diagnostics &&
+      typeof diagnostics.info ===
       "function"
     ){
 
-      logDiagnosticInfo(
+      diagnostics.info(
 
         "[API]",
 
@@ -203,21 +253,19 @@ function logAPIEvent(
 
       );
 
-    }
-
-    else{
-
-      console.log(
-
-        "[API]",
-
-        message,
-
-        metadata || ""
-
-      );
+      return true;
 
     }
+
+    console.log(
+
+      "[API]",
+
+      message,
+
+      metadata || ""
+
+    );
 
   }
 
@@ -272,6 +320,23 @@ function validateRequestOptions(
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// NORMALIZE ENDPOINT
+// =====================================
+
+function normalizeEndpoint(
+  endpoint = ""
+){
+
+  return String(endpoint)
+  .trim()
+  .replace(/\/{2,}/g,"/")
+  .replace(/^\/?/,"/");
 
 }
 
@@ -410,16 +475,14 @@ function buildAPIUrl(
   query = {}
 ){
 
-  const normalizedEndpoint =
-  String(endpoint)
-  .trim();
-
   return (
 
     API_CONFIG
     .BASE_URL +
 
-    normalizedEndpoint +
+    normalizeEndpoint(
+      endpoint
+    ) +
 
     buildQueryString(
       query
@@ -469,6 +532,14 @@ async function parseAPIResponse(
 ){
 
   try{
+
+    if(
+      response.status === 204
+    ){
+
+      return null;
+
+    }
 
     switch(responseType){
 
@@ -838,6 +909,9 @@ async function executeFetch({
     }
 
     apiServiceState
+    .healthy = true;
+
+    apiServiceState
     .successfulRequests++;
 
     apiServiceState
@@ -906,6 +980,11 @@ async function executeFetch({
 
       apiServiceState
       .cancelledRequests++;
+
+      logAPIEvent(
+        API_EVENTS
+        .REQUEST_ABORTED
+      );
 
       throw createAPIError({
 
@@ -1283,16 +1362,55 @@ function initializeAPIService(){
 
   }
 
-  registerService(
+  if(
+    typeof ServiceRegistry ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    typeof ServiceRegistry.has ===
+    "function"
+
+    &&
+
+    ServiceRegistry.has(
+      "api"
+    )
+
+  ){
+
+    apiServiceState
+    .initialized =
+    true;
+
+    return true;
+
+  }
+
+  ServiceRegistry.register(
+
     "api",
+
     APIService,
+
     {
+
+      immutable:true,
+
       type:"network",
+
       version:"1.0.0"
+
     }
+
   );
 
-  activateService(
+  ServiceRegistry.activate(
     "api"
   );
 
@@ -1331,6 +1449,41 @@ Object.freeze({
   cancelAllAPIRequests,
 
   diagnostics:
+  getAPIDiagnostics,
+
+  snapshot:
   getAPIDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "APIService",
+
+    {
+
+      value:
+      APIService,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
