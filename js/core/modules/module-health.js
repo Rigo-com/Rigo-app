@@ -2,6 +2,7 @@
 // RIGO AI
 // MODULE HEALTH
 // READONLY HEALTH + SNAPSHOT LAYER
+// ENTERPRISE FINAL
 // =====================================
 
 
@@ -10,31 +11,31 @@
 // INTERNAL HEALTH STATE
 // =====================================
 
-const moduleHealthState = {
+const moduleHealthState =
+Object.seal({
 
-  diagnostics:{
+  diagnostics:
+  Object.seal({
 
-    registered:
-    0,
+    registered:0,
 
-    loaded:
-    0,
+    loaded:0,
 
-    activated:
-    0,
+    activated:0,
 
-    failed:
-    0,
+    failed:0,
 
-    retries:
-    0
+    retries:0,
 
-  },
+    healthchecks:0
 
-  lastLoadedAt:
-  null
+  }),
 
-};
+  lastLoadedAt:null,
+
+  lastHealthcheckAt:null
+
+});
 
 
 
@@ -42,28 +43,76 @@ const moduleHealthState = {
 // HELPERS
 // =====================================
 
-function isPlainObject(value){
+function isPlainObject(
+  value
+){
 
   if(
     !value ||
-    typeof value !== "object"
+    typeof value !==
+    "object"
   ){
+
     return false;
+
   }
 
   const prototype =
-    Object.getPrototypeOf(value);
+  Object.getPrototypeOf(
+    value
+  );
 
   return (
 
-    prototype === Object.prototype ||
-    prototype === null
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
 
   );
 
 }
 
 
+
+function isFunction(
+  value
+){
+
+  return typeof value ===
+  "function";
+
+}
+
+
+
+function normalizeHealthError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+// =====================================
+// SAFE FREEZE
+// =====================================
 
 function safeFreeze(
   value,
@@ -72,38 +121,65 @@ function safeFreeze(
 
   if(
     !value ||
-    typeof value !== "object"
+    typeof value !==
+    "object"
   ){
-    return value;
-  }
 
-  if(visited.has(value)){
     return value;
+
   }
 
   if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Promise ||
 
     value instanceof Map ||
+
     value instanceof Set ||
+
     value instanceof Date ||
-    value instanceof RegExp
+
+    value instanceof RegExp ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
 
   ){
+
     return value;
+
   }
 
   if(
+
     !Array.isArray(value) &&
+
     !isPlainObject(value)
+
   ){
+
     return value;
+
   }
 
   visited.add(value);
 
   Object.freeze(value);
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
     safeFreeze(
       nestedValue,
@@ -118,15 +194,68 @@ function safeFreeze(
 
 
 
+// =====================================
+// WARNINGS
+// =====================================
+
 function emitModuleHealthWarning(
   message,
   error = null
 ){
 
   console.warn(
+
     `[ModuleHealth] ${message}`,
+
     error || ""
+
   );
+
+}
+
+
+
+// =====================================
+// REGISTRY SNAPSHOT
+// =====================================
+
+function getRegistrySnapshot(){
+
+  try{
+
+    if(
+
+      typeof ModuleRegistry ===
+      "undefined" ||
+
+      !isFunction(
+        ModuleRegistry.snapshot
+      )
+
+    ){
+
+      return null;
+
+    }
+
+    return ModuleRegistry
+    .snapshot();
+
+  }
+
+  catch(error){
+
+    emitModuleHealthWarning(
+
+      "Registry snapshot failed",
+
+      error
+
+    );
+
+    return null;
+
+  }
 
 }
 
@@ -138,27 +267,59 @@ function emitModuleHealthWarning(
 
 function getModuleCounts(){
 
+  const snapshot =
+  getRegistrySnapshot();
+
+  if(
+    !snapshot
+  ){
+
+    return safeFreeze({
+
+      total:0,
+
+      active:0,
+
+      failed:0,
+
+      loading:0,
+
+      instances:0
+
+    });
+
+  }
+
   return safeFreeze({
 
     total:
 
-      moduleLoaderState.modules.size,
+      snapshot
+      .modules
+      ?.length || 0,
 
     active:
 
-      moduleLoaderState.activeModules.size,
+      snapshot
+      .activeModules
+      ?.length || 0,
 
     failed:
 
-      moduleLoaderState.failedModules.size,
+      snapshot
+      .failedModules
+      ?.length || 0,
 
     loading:
 
-      moduleLoaderState.loadingStack.length,
+      snapshot
+      .loadingStack
+      ?.length || 0,
 
     instances:
 
-      moduleLoaderState.instances.size
+      snapshot
+      .instances || 0
 
   });
 
@@ -173,25 +334,33 @@ function getModuleCounts(){
 function calculateModuleHealthScore(){
 
   const counts =
-    getModuleCounts();
+  getModuleCounts();
 
-  if(counts.total <= 0){
+  if(
+    counts.total <= 0
+  ){
+
     return 100;
+
   }
 
   const failedPenalty =
 
     Math.floor(
 
-      (counts.failed / counts.total) * 100
+      (counts.failed / counts.total) *
+      100
 
     );
 
   const loadingPenalty =
 
     Math.min(
+
       counts.loading * 2,
+
       15
+
     );
 
   const score =
@@ -217,15 +386,71 @@ function getModuleHealthStatus(
   healthScore
 ){
 
-  if(healthScore >= 90){
+  if(
+    healthScore >= 90
+  ){
+
     return "healthy";
+
   }
 
-  if(healthScore >= 70){
+  if(
+    healthScore >= 70
+  ){
+
     return "degraded";
+
   }
 
   return "critical";
+
+}
+
+
+
+// =====================================
+// HEALTH RECOMMENDATIONS
+// =====================================
+
+function getHealthRecommendations(
+  counts,
+  healthScore
+){
+
+  const recommendations =
+  [];
+
+  if(
+    counts.failed > 0
+  ){
+
+    recommendations.push(
+      "Recover failed modules"
+    );
+
+  }
+
+  if(
+    counts.loading > 10
+  ){
+
+    recommendations.push(
+      "Investigate loading bottlenecks"
+    );
+
+  }
+
+  if(
+    healthScore < 70
+  ){
+
+    recommendations.push(
+      "Runtime stabilization recommended"
+    );
+
+  }
+
+  return recommendations;
 
 }
 
@@ -239,48 +464,69 @@ function createModuleLoaderSnapshot(){
 
   try{
 
+    const snapshot =
+    getRegistrySnapshot();
+
+    const counts =
+    getModuleCounts();
+
     return safeFreeze({
 
       timestamp:
       Date.now(),
 
-      counts:
-      getModuleCounts(),
+      counts,
 
-      activeModules:[
+      activeModules:
 
-        ...moduleLoaderState.activeModules
+        snapshot
+        ?.activeModules ||
 
-      ],
+        [],
 
-      failedModules:[
+      failedModules:
 
-        ...moduleLoaderState.failedModules
+        snapshot
+        ?.failedModules ||
 
-      ],
+        [],
 
-      loadingStack:[
+      loadingStack:
 
-        ...moduleLoaderState.loadingStack
+        snapshot
+        ?.loadingStack ||
 
-      ],
+        [],
 
       diagnostics:{
 
-        ...moduleHealthState.diagnostics
+        ...moduleHealthState
+        .diagnostics
 
       },
 
       lastLoadedAt:
-      moduleHealthState.lastLoadedAt
+
+        moduleHealthState
+        .lastLoadedAt,
+
+      lastHealthcheckAt:
+
+        moduleHealthState
+        .lastHealthcheckAt
 
     });
 
-  }catch(error){
+  }
+
+  catch(error){
 
     emitModuleHealthWarning(
+
       "Snapshot creation failed",
+
       error
+
     );
 
     return null;
@@ -299,35 +545,82 @@ async function getModuleHealth(){
 
   try{
 
+    moduleHealthState
+    .diagnostics
+    .healthchecks++;
+
+    moduleHealthState
+    .lastHealthcheckAt =
+    Date.now();
+
+    const counts =
+    getModuleCounts();
+
     const healthScore =
-      calculateModuleHealthScore();
+    calculateModuleHealthScore();
 
     const health =
-      safeFreeze({
+    safeFreeze({
 
-        status:
-        getModuleHealthStatus(
+      status:
+      getModuleHealthStatus(
+        healthScore
+      ),
+
+      healthScore,
+
+      counts,
+
+      recommendations:
+
+        getHealthRecommendations(
+
+          counts,
           healthScore
+
         ),
 
-        healthScore,
+      diagnostics:{
 
-        counts:
-        getModuleCounts(),
+        ...moduleHealthState
+        .diagnostics
 
-        diagnostics:{
+      },
 
-          ...moduleHealthState.diagnostics
+      runtime:
 
-        },
+        typeof ModuleRuntime !==
+        "undefined"
 
-        lastLoadedAt:
-        moduleHealthState.lastLoadedAt,
+        &&
 
-        timestamp:
-        Date.now()
+        isFunction(
+          ModuleRuntime.snapshot
+        )
 
-      });
+        ?
+
+        ModuleRuntime
+        .snapshot()
+
+        :
+
+        null,
+
+      lastLoadedAt:
+
+        moduleHealthState
+        .lastLoadedAt,
+
+      lastHealthcheckAt:
+
+        moduleHealthState
+        .lastHealthcheckAt,
+
+      timestamp:
+      Date.now()
+
+    });
 
     if(
       typeof emitSystemEvent ===
@@ -336,7 +629,8 @@ async function getModuleHealth(){
 
       await emitSystemEvent(
 
-        MODULE_EVENTS.HEALTHCHECK,
+        MODULE_EVENTS
+        .HEALTHCHECK,
 
         {
 
@@ -353,11 +647,16 @@ async function getModuleHealth(){
 
     return health;
 
-  }catch(error){
+  }
+
+  catch(error){
 
     emitModuleHealthWarning(
+
       "Healthcheck failed",
+
       error
+
     );
 
     return null;
@@ -381,7 +680,9 @@ function updateModuleDiagnostics(
       partialDiagnostics
     )
   ){
+
     return false;
+
   }
 
   Object.entries(
@@ -389,12 +690,22 @@ function updateModuleDiagnostics(
   ).forEach(([key, value]) => {
 
     if(
-      typeof value === "number" &&
-      key in moduleHealthState.diagnostics
+
+      typeof value ===
+      "number"
+
+      &&
+
+      key in
+      moduleHealthState
+      .diagnostics
+
     ){
 
-      moduleHealthState.diagnostics[key] =
-        value;
+      moduleHealthState
+      .diagnostics[
+        key
+      ] = value;
 
     }
 
@@ -408,10 +719,13 @@ function updateModuleDiagnostics(
 
 function markModuleLoaded(){
 
-  moduleHealthState.lastLoadedAt =
-    Date.now();
+  moduleHealthState
+  .lastLoadedAt =
+  Date.now();
 
-  moduleHealthState.diagnostics.loaded++;
+  moduleHealthState
+  .diagnostics
+  .loaded++;
 
   return true;
 
@@ -422,16 +736,26 @@ function markModuleLoaded(){
 function resetModuleDiagnostics(){
 
   Object.keys(
-    moduleHealthState.diagnostics
+
+    moduleHealthState
+    .diagnostics
+
   ).forEach((key) => {
 
-    moduleHealthState.diagnostics[key] =
-      0;
+    moduleHealthState
+    .diagnostics[
+      key
+    ] = 0;
 
   });
 
-  moduleHealthState.lastLoadedAt =
-    null;
+  moduleHealthState
+  .lastLoadedAt =
+  null;
+
+  moduleHealthState
+  .lastHealthcheckAt =
+  null;
 
   return true;
 
@@ -472,23 +796,28 @@ Object.freeze({
 // GLOBAL EXPORT
 // =====================================
 
-if(typeof window !== "undefined"){
+if(
+  typeof window !==
+  "undefined"
+){
 
   Object.defineProperty(
+
     window,
+
     "ModuleHealth",
+
     {
 
       value:
       ModuleHealth,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
+
   );
 
 }
