@@ -5,8 +5,13 @@
 
 
 
+// =====================================
+// RUNTIME STATES
+// =====================================
+
 const RUNTIME_STATES =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
   IDLE:
   "idle",
@@ -26,7 +31,26 @@ Object.freeze({
   FAILED:
   "failed"
 
-});
+}));
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function isValidRuntimeState(
+  state
+){
+
+  return Object.values(
+    RUNTIME_STATES
+  )
+  .includes(
+    String(state)
+  );
+
+}
 
 
 
@@ -49,6 +73,25 @@ if(
 
       value:
       RUNTIME_STATES,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "isValidRuntimeState",
+
+    {
+
+      value:
+      isValidRuntimeState,
 
       writable:false,
 
