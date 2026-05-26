@@ -2,6 +2,7 @@
 // RIGO AI
 // CHAT STREAM MANAGER
 // ENTERPRISE STREAMING ENGINE
+// FINAL STABLE EDITION
 // =====================================
 
 
@@ -11,6 +12,30 @@
 // =====================================
 
 function createStreamId(){
+
+  try{
+
+    if(
+      typeof crypto !==
+      "undefined"
+
+      &&
+
+      typeof crypto
+      .randomUUID ===
+      "function"
+    ){
+
+      return (
+        "stream_" +
+        crypto.randomUUID()
+      );
+
+    }
+
+  }
+
+  catch(error){}
 
   return [
 
@@ -23,6 +48,106 @@ function createStreamId(){
     .slice(2,10)
 
   ].join("_");
+
+}
+
+
+
+// =====================================
+// CLEAR STREAM TIMERS
+// =====================================
+
+function clearChatStreamTimers(){
+
+  if(
+    chatStreamState
+    .flushTimer
+  ){
+
+    clearTimeout(
+
+      chatStreamState
+      .flushTimer
+
+    );
+
+    chatStreamState
+    .flushTimer =
+    null;
+
+  }
+
+  if(
+
+    typeof cancelAnimationFrame ===
+    "function"
+
+    &&
+
+    chatStreamState
+    .flushFrame
+  ){
+
+    cancelAnimationFrame(
+
+      chatStreamState
+      .flushFrame
+
+    );
+
+    chatStreamState
+    .flushFrame =
+    null;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// LIMIT STREAM HISTORY
+// =====================================
+
+function trimChatStreamHistory(){
+
+  if(
+
+    !Array.isArray(
+      chatStreamState
+      .streamHistory
+    )
+
+  ){
+
+    chatStreamState
+    .streamHistory =
+    [];
+
+    return false;
+
+  }
+
+  while(
+
+    chatStreamState
+    .streamHistory
+    .length >
+
+    CHAT_STREAM_CONFIG
+    .MAX_STREAM_HISTORY
+
+  ){
+
+    chatStreamState
+    .streamHistory
+    .shift();
+
+  }
+
+  return true;
 
 }
 
@@ -79,6 +204,8 @@ function startChatStream(
 
   resetStreamingMessageState?.();
 
+  clearChatStreamTimers();
+
   const streamId =
   createStreamId();
 
@@ -103,6 +230,10 @@ function startChatStream(
   false;
 
   chatStreamState
+  .locked =
+  false;
+
+  chatStreamState
   .status =
   CHAT_STREAM_STATUS
   .STARTING;
@@ -113,7 +244,7 @@ function startChatStream(
 
   chatStreamState
   .activeMessageId =
-  messageId;
+  String(messageId);
 
   chatStreamState
   .activeController =
@@ -191,6 +322,14 @@ function pushStreamChunk(
   }
 
   if(
+    chatStreamState.aborted
+  ){
+
+    return false;
+
+  }
+
+  if(
     typeof chunk !==
     "string"
   ){
@@ -226,9 +365,12 @@ function pushStreamChunk(
 
   }
 
+  const normalizedChunk =
+  String(chunk);
+
   chatStreamState
   .currentChunk =
-  chunk;
+  normalizedChunk;
 
   chatStreamState
   .lastChunkAt =
@@ -237,22 +379,47 @@ function pushStreamChunk(
   chatStreamState
   .chunkQueue
   .push(
-    chunk
+    normalizedChunk
   );
 
   chatStreamState
   .chunkBuffer
   .push(
-    chunk
+    normalizedChunk
   );
 
   chatStreamState
   .bufferedContent +=
-  chunk;
+  normalizedChunk;
 
   chatStreamState
   .partialContent +=
-  chunk;
+  normalizedChunk;
+
+  if(
+
+    chatStreamState
+    .bufferedContent
+    .length >
+
+    CHAT_STREAM_CONFIG
+    .MAX_BUFFER_SIZE
+
+  ){
+
+    chatStreamState
+    .bufferedContent =
+
+      chatStreamState
+      .bufferedContent
+      .slice(
+
+        -CHAT_STREAM_CONFIG
+        .MAX_BUFFER_SIZE
+
+      );
+
+  }
 
   chatStreamState
   .diagnostics
@@ -273,6 +440,14 @@ function pushStreamChunk(
 function scheduleStreamFlush(){
 
   if(
+    !chatStreamState.active
+  ){
+
+    return false;
+
+  }
+
+  if(
     chatStreamState
     .flushing
   ){
@@ -285,19 +460,7 @@ function scheduleStreamFlush(){
   .flushing =
   true;
 
-  if(
-    chatStreamState
-    .flushTimer
-  ){
-
-    clearTimeout(
-
-      chatStreamState
-      .flushTimer
-
-    );
-
-  }
+  clearChatStreamTimers();
 
   chatStreamState
   .flushTimer =
@@ -339,6 +502,13 @@ function flushStreamChunks(){
   }
 
   if(
+
+    !Array.isArray(
+      chatStreamState
+      .chunkQueue
+    )
+
+    ||
 
     chatStreamState
     .chunkQueue
@@ -417,6 +587,13 @@ function processRenderQueue(){
   }
 
   if(
+
+    !Array.isArray(
+      chatStreamState
+      .renderQueue
+    )
+
+    ||
 
     chatStreamState
     .renderQueue
@@ -508,6 +685,10 @@ function processRenderQueue(){
       .rendering =
       false;
 
+      chatStreamState
+      .flushFrame =
+      null;
+
     }
 
   };
@@ -569,8 +750,12 @@ function completeChatStream(){
   chatStreamState
   .partialContent =
 
-    chatStreamState
-    .partialContent
+    String(
+
+      chatStreamState
+      .partialContent || ""
+
+    )
     .trim();
 
   chatStreamState
@@ -609,22 +794,9 @@ function completeChatStream(){
 
   });
 
-  if(
+  trimChatStreamHistory();
 
-    chatStreamState
-    .streamHistory
-    .length >
-
-    CHAT_STREAM_CONFIG
-    .MAX_STREAM_HISTORY
-
-  ){
-
-    chatStreamState
-    .streamHistory
-    .shift();
-
-  }
+  clearChatStreamTimers();
 
   chatStreamState
   .active =
@@ -678,19 +850,7 @@ function abortChatStream(){
 
   }
 
-  if(
-    chatStreamState.flushTimer
-  ){
-
-    clearTimeout(
-      chatStreamState.flushTimer
-    );
-
-    chatStreamState
-    .flushTimer =
-    null;
-
-  }
+  clearChatStreamTimers();
 
   abortStreamingMessage?.();
 
@@ -720,6 +880,10 @@ function abortChatStream(){
   [];
 
   chatStreamState
+  .chunkBuffer =
+  [];
+
+  chatStreamState
   .activeController =
   null;
 
@@ -741,19 +905,7 @@ function failChatStream(
   error = null
 ){
 
-  if(
-    chatStreamState.flushTimer
-  ){
-
-    clearTimeout(
-      chatStreamState.flushTimer
-    );
-
-    chatStreamState
-    .flushTimer =
-    null;
-
-  }
+  clearChatStreamTimers();
 
   abortStreamingMessage?.();
 
@@ -776,6 +928,10 @@ function failChatStream(
 
   chatStreamState
   .renderQueue =
+  [];
+
+  chatStreamState
+  .chunkBuffer =
   [];
 
   chatStreamState
@@ -864,6 +1020,41 @@ Object.freeze({
   getChatStreamStatus,
 
   diagnostics:
-  getStreamDiagnostics
+  getStreamDiagnostics,
+
+  snapshot:
+  getChatStreamStatus
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ChatStreamManager",
+
+    {
+
+      value:
+      ChatStreamManager,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
