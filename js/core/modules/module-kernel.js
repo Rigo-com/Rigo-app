@@ -2,7 +2,43 @@
 // RIGO AI
 // MODULE KERNEL
 // THIN ORCHESTRATION LAYER
+// ENTERPRISE FINAL
 // =====================================
+
+
+
+// =====================================
+// INTERNAL STATE
+// =====================================
+
+const moduleKernelState =
+Object.seal({
+
+  initialized:false,
+
+  booted:false,
+
+  booting:false,
+
+  shuttingDown:false,
+
+  recovering:false,
+
+  resetting:false,
+
+  lastBootAt:null,
+
+  lastShutdownAt:null,
+
+  lastRecoveryAt:null,
+
+  lastResetAt:null,
+
+  lastHealthcheckAt:null,
+
+  lastError:null
+
+});
 
 
 
@@ -10,21 +46,180 @@
 // HELPERS
 // =====================================
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
-  return typeof value === "function";
+  return typeof value ===
+  "function";
 
 }
 
 
 
-function getKernelDependency(name){
+function isPlainObject(
+  value
+){
 
-  if(typeof window === "undefined"){
-    return null;
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
   }
 
-  return window[name] || null;
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
+
+}
+
+
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Promise ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof Date ||
+
+    value instanceof RegExp ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    !Array.isArray(value) &&
+
+    !isPlainObject(value)
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    safeFreeze(
+      nestedValue,
+      visited
+    );
+
+  });
+
+  return value;
+
+}
+
+
+
+function getKernelDependency(
+  name
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return (
+      window[name] ||
+      null
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+function normalizeKernelError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
 
 }
 
@@ -36,11 +231,55 @@ function emitKernelWarning(
 ){
 
   console.warn(
+
     `[ModuleKernel] ${message}`,
+
     error || ""
+
   );
 
 }
+
+
+
+// =====================================
+// EVENTS
+// =====================================
+
+const MODULE_KERNEL_EVENTS =
+Object.freeze({
+
+  INITIALIZED:
+  "module.kernel.initialized",
+
+  BOOT_STARTED:
+  "module.kernel.boot.started",
+
+  BOOT_COMPLETED:
+  "module.kernel.boot.completed",
+
+  SHUTDOWN_STARTED:
+  "module.kernel.shutdown.started",
+
+  SHUTDOWN_COMPLETED:
+  "module.kernel.shutdown.completed",
+
+  RECOVERY_STARTED:
+  "module.kernel.recovery.started",
+
+  RECOVERY_COMPLETED:
+  "module.kernel.recovery.completed",
+
+  RESET_STARTED:
+  "module.kernel.reset.started",
+
+  RESET_COMPLETED:
+  "module.kernel.reset.completed",
+
+  HEALTHCHECK:
+  "module.kernel.healthcheck"
+
+});
 
 
 
@@ -56,13 +295,19 @@ async function emitKernelEvent(
   try{
 
     if(
-      !isFunction(emitSystemEvent)
+      !isFunction(
+        emitSystemEvent
+      )
     ){
+
       return false;
+
     }
 
     await emitSystemEvent(
+
       event,
+
       {
 
         source:
@@ -74,15 +319,21 @@ async function emitKernelEvent(
         ...payload
 
       }
+
     );
 
     return true;
 
-  }catch(error){
+  }
+
+  catch(error){
 
     emitKernelWarning(
+
       `Event failed: ${event}`,
+
       error
+
     );
 
     return false;
@@ -100,29 +351,33 @@ async function emitKernelEvent(
 function validateKernelDependencies(){
 
   const runtime =
-    getKernelDependency(
-      "ModuleRuntime"
-    );
+  getKernelDependency(
+    "ModuleRuntime"
+  );
 
   const health =
-    getKernelDependency(
-      "ModuleHealth"
-    );
+  getKernelDependency(
+    "ModuleHealth"
+  );
 
-  if(!runtime){
+  if(
+    !runtime
+  ){
 
     emitKernelWarning(
-      "Missing ModuleRuntime dependency"
+      "Missing ModuleRuntime"
     );
 
     return false;
 
   }
 
-  if(!health){
+  if(
+    !health
+  ){
 
     emitKernelWarning(
-      "Missing ModuleHealth dependency"
+      "Missing ModuleHealth"
     );
 
     return false;
@@ -136,38 +391,113 @@ function validateKernelDependencies(){
 
 
 // =====================================
-// INITIALIZATION
+// STATE GUARDS
+// =====================================
+
+function isKernelBusy(){
+
+  return (
+
+    moduleKernelState
+    .booting ||
+
+    moduleKernelState
+    .shuttingDown ||
+
+    moduleKernelState
+    .recovering ||
+
+    moduleKernelState
+    .resetting
+
+  );
+
+}
+
+
+
+// =====================================
+// INITIALIZE
 // =====================================
 
 async function initializeKernel(){
 
   if(
-    !validateKernelDependencies()
+    moduleKernelState
+    .initialized
   ){
-    return false;
+
+    return true;
+
   }
 
-  const runtime =
-    getKernelDependency(
-      "ModuleRuntime"
-    );
-
   if(
-    !runtime ||
-    !isFunction(runtime.initialize)
+    !validateKernelDependencies()
   ){
+
     return false;
+
   }
 
   try{
 
-    return await runtime.initialize();
+    const runtime =
+    getKernelDependency(
+      "ModuleRuntime"
+    );
 
-  }catch(error){
+    if(
+
+      !runtime ||
+
+      !isFunction(
+        runtime.initialize
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    const initialized =
+    await runtime.initialize();
+
+    if(
+      !initialized
+    ){
+
+      return false;
+
+    }
+
+    moduleKernelState
+    .initialized =
+    true;
+
+    await emitKernelEvent(
+      MODULE_KERNEL_EVENTS
+      .INITIALIZED
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    moduleKernelState
+    .lastError =
+    normalizeKernelError(
+      error
+    );
 
     emitKernelWarning(
+
       "Kernel initialization failed",
+
       error
+
     );
 
     return false;
@@ -185,26 +515,51 @@ async function initializeKernel(){
 async function bootKernel(){
 
   if(
-    !validateKernelDependencies()
+    isKernelBusy()
   ){
+
     return false;
+
   }
 
-  const runtime =
-    getKernelDependency(
-      "ModuleRuntime"
-    );
+  if(
+    moduleKernelState
+    .booted
+  ){
+
+    return true;
+
+  }
+
+  if(
+    !validateKernelDependencies()
+  ){
+
+    return false;
+
+  }
+
+  moduleKernelState
+  .booting =
+  true;
+
+  moduleKernelState
+  .lastError =
+  null;
 
   try{
 
     await emitKernelEvent(
-      "module.kernel.boot.started"
+      MODULE_KERNEL_EVENTS
+      .BOOT_STARTED
     );
 
     const initialized =
-      await initializeKernel();
+    await initializeKernel();
 
-    if(!initialized){
+    if(
+      !initialized
+    ){
 
       throw new Error(
         "KERNEL INITIALIZATION FAILED"
@@ -212,10 +567,17 @@ async function bootKernel(){
 
     }
 
-    const booted =
-      await runtime.boot();
+    const runtime =
+    getKernelDependency(
+      "ModuleRuntime"
+    );
 
-    if(!booted){
+    const booted =
+    await runtime.boot();
+
+    if(
+      !booted
+    ){
 
       throw new Error(
         "RUNTIME BOOT FAILED"
@@ -223,14 +585,22 @@ async function bootKernel(){
 
     }
 
+    moduleKernelState
+    .booted =
+    true;
+
+    moduleKernelState
+    .lastBootAt =
+    Date.now();
+
     await emitKernelEvent(
 
-      "module.kernel.boot.completed",
+      MODULE_KERNEL_EVENTS
+      .BOOT_COMPLETED,
 
       {
 
-        timestamp:
-        Date.now()
+        booted:true
 
       }
 
@@ -238,7 +608,15 @@ async function bootKernel(){
 
     return true;
 
-  }catch(error){
+  }
+
+  catch(error){
+
+    moduleKernelState
+    .lastError =
+    normalizeKernelError(
+      error
+    );
 
     emitKernelWarning(
       "Kernel boot failed",
@@ -246,6 +624,14 @@ async function bootKernel(){
     );
 
     return false;
+
+  }
+
+  finally{
+
+    moduleKernelState
+    .booting =
+    false;
 
   }
 
@@ -260,28 +646,53 @@ async function bootKernel(){
 async function shutdownKernel(){
 
   if(
-    !validateKernelDependencies()
+    isKernelBusy()
   ){
+
     return false;
+
   }
 
-  const runtime =
-    getKernelDependency(
-      "ModuleRuntime"
-    );
+  if(
+    !moduleKernelState
+    .booted
+  ){
+
+    return true;
+
+  }
+
+  moduleKernelState
+  .shuttingDown =
+  true;
 
   try{
 
     await emitKernelEvent(
-      "module.kernel.shutdown.started"
+      MODULE_KERNEL_EVENTS
+      .SHUTDOWN_STARTED
+    );
+
+    const runtime =
+    getKernelDependency(
+      "ModuleRuntime"
     );
 
     const result =
-      await runtime.shutdown();
+    await runtime.shutdown();
+
+    moduleKernelState
+    .booted =
+    false;
+
+    moduleKernelState
+    .lastShutdownAt =
+    Date.now();
 
     await emitKernelEvent(
 
-      "module.kernel.shutdown.completed",
+      MODULE_KERNEL_EVENTS
+      .SHUTDOWN_COMPLETED,
 
       {
 
@@ -294,7 +705,15 @@ async function shutdownKernel(){
 
     return result;
 
-  }catch(error){
+  }
+
+  catch(error){
+
+    moduleKernelState
+    .lastError =
+    normalizeKernelError(
+      error
+    );
 
     emitKernelWarning(
       "Kernel shutdown failed",
@@ -302,6 +721,14 @@ async function shutdownKernel(){
     );
 
     return false;
+
+  }
+
+  finally{
+
+    moduleKernelState
+    .shuttingDown =
+    false;
 
   }
 
@@ -316,41 +743,60 @@ async function shutdownKernel(){
 async function recoverKernel(){
 
   if(
-    !validateKernelDependencies()
+    isKernelBusy()
   ){
+
     return false;
+
   }
 
-  const runtime =
-    getKernelDependency(
-      "ModuleRuntime"
-    );
+  moduleKernelState
+  .recovering =
+  true;
 
   try{
 
     await emitKernelEvent(
-      "module.kernel.recovery.started"
+      MODULE_KERNEL_EVENTS
+      .RECOVERY_STARTED
     );
 
-    const result =
-      await runtime.recover();
+    const runtime =
+    getKernelDependency(
+      "ModuleRuntime"
+    );
+
+    const recovered =
+    await runtime.recover();
+
+    moduleKernelState
+    .lastRecoveryAt =
+    Date.now();
 
     await emitKernelEvent(
 
-      "module.kernel.recovery.completed",
+      MODULE_KERNEL_EVENTS
+      .RECOVERY_COMPLETED,
 
       {
 
-        success:
-        result
+        recovered
 
       }
 
     );
 
-    return result;
+    return recovered;
 
-  }catch(error){
+  }
+
+  catch(error){
+
+    moduleKernelState
+    .lastError =
+    normalizeKernelError(
+      error
+    );
 
     emitKernelWarning(
       "Kernel recovery failed",
@@ -361,12 +807,20 @@ async function recoverKernel(){
 
   }
 
+  finally{
+
+    moduleKernelState
+    .recovering =
+    false;
+
+  }
+
 }
 
 
 
 // =====================================
-// HEALTH
+// HEALTHCHECK
 // =====================================
 
 async function getKernelHealth(){
@@ -374,65 +828,131 @@ async function getKernelHealth(){
   if(
     !validateKernelDependencies()
   ){
+
     return null;
+
   }
 
-  const runtime =
+  try{
+
+    const runtime =
     getKernelDependency(
       "ModuleRuntime"
     );
 
-  const health =
+    const health =
     getKernelDependency(
       "ModuleHealth"
     );
 
-  try{
-
     const runtimeHealth =
-      isFunction(runtime.health)
-        ? await runtime.health()
-        : null;
+
+      runtime &&
+      isFunction(
+        runtime.health
+      )
+
+      ?
+
+      await runtime.health()
+
+      :
+
+      null;
 
     const moduleHealth =
-      isFunction(health.health)
-        ? await health.health()
-        : null;
 
-    const result =
-      Object.freeze({
+      health &&
+      isFunction(
+        health.health
+      )
 
-        runtime:
-        runtimeHealth,
+      ?
 
-        modules:
-        moduleHealth,
+      await health.health()
 
-        timestamp:
-        Date.now()
+      :
 
-      });
+      null;
+
+    moduleKernelState
+    .lastHealthcheckAt =
+    Date.now();
+
+    const snapshot =
+    safeFreeze({
+
+      runtime:
+      runtimeHealth,
+
+      modules:
+      moduleHealth,
+
+      kernel:{
+
+        initialized:
+        moduleKernelState
+        .initialized,
+
+        booted:
+        moduleKernelState
+        .booted,
+
+        booting:
+        moduleKernelState
+        .booting,
+
+        shuttingDown:
+        moduleKernelState
+        .shuttingDown,
+
+        recovering:
+        moduleKernelState
+        .recovering,
+
+        resetting:
+        moduleKernelState
+        .resetting
+
+      },
+
+      timestamp:
+      Date.now()
+
+    });
 
     await emitKernelEvent(
 
-      "module.kernel.healthcheck",
+      MODULE_KERNEL_EVENTS
+      .HEALTHCHECK,
 
       {
 
         health:
-        result
+        snapshot
 
       }
 
     );
 
-    return result;
+    return snapshot;
 
-  }catch(error){
+  }
+
+  catch(error){
+
+    moduleKernelState
+    .lastError =
+    normalizeKernelError(
+      error
+    );
 
     emitKernelWarning(
+
       "Kernel healthcheck failed",
+
       error
+
     );
 
     return null;
@@ -444,31 +964,43 @@ async function getKernelHealth(){
 
 
 // =====================================
-// SYSTEM RESET
+// RESET
 // =====================================
 
 async function resetKernel(){
 
   if(
-    !validateKernelDependencies()
+    isKernelBusy()
   ){
+
     return false;
+
   }
+
+  moduleKernelState
+  .resetting =
+  true;
 
   try{
 
     await emitKernelEvent(
-      "module.kernel.reset.started"
+      MODULE_KERNEL_EVENTS
+      .RESET_STARTED
     );
 
     const runtime =
-      getKernelDependency(
-        "ModuleRuntime"
-      );
+    getKernelDependency(
+      "ModuleRuntime"
+    );
 
     if(
+
       runtime &&
-      isFunction(runtime.shutdown)
+
+      isFunction(
+        runtime.shutdown
+      )
+
     ){
 
       await runtime.shutdown();
@@ -476,15 +1008,28 @@ async function resetKernel(){
     }
 
     if(
-      typeof moduleLoaderState !==
+
+      typeof ModuleRegistry !==
       "undefined"
+
+      &&
+
+      isFunction(
+        ModuleRegistry.snapshot
+      )
+
     ){
 
-      const activeModules = [
+      const snapshot =
+      ModuleRegistry
+      .snapshot();
 
-        ...moduleLoaderState.activeModules
+      const activeModules =
 
-      ];
+        snapshot
+        ?.activeModules ||
+
+        [];
 
       for(
         const moduleName
@@ -494,7 +1039,9 @@ async function resetKernel(){
         try{
 
           if(
-            isFunction(unloadModule)
+            isFunction(
+              unloadModule
+            )
           ){
 
             await unloadModule(
@@ -503,56 +1050,68 @@ async function resetKernel(){
 
           }
 
-        }catch(error){
+        }
+
+        catch(error){
 
           emitKernelWarning(
+
             `Failed unloading module: ${moduleName}`,
+
             error
+
           );
 
         }
 
       }
 
-      moduleLoaderState.activeModules.clear();
-
-      moduleLoaderState.failedModules.clear();
-
-      moduleLoaderState.loadingStack = [];
-
-      if(
-        moduleLoaderState.instances
-      ){
-
-        moduleLoaderState.instances.clear();
-
-      }
-
     }
 
     const health =
-      getKernelDependency(
-        "ModuleHealth"
-      );
+    getKernelDependency(
+      "ModuleHealth"
+    );
 
     if(
+
       health &&
+
       isFunction(
         health.resetDiagnostics
       )
+
     ){
 
-      health.resetDiagnostics();
+      health
+      .resetDiagnostics();
 
     }
 
+    moduleKernelState
+    .booted =
+    false;
+
+    moduleKernelState
+    .lastResetAt =
+    Date.now();
+
     await emitKernelEvent(
-      "module.kernel.reset.completed"
+      MODULE_KERNEL_EVENTS
+      .RESET_COMPLETED
     );
 
     return true;
 
-  }catch(error){
+  }
+
+  catch(error){
+
+    moduleKernelState
+    .lastError =
+    normalizeKernelError(
+      error
+    );
 
     emitKernelWarning(
       "Kernel reset failed",
@@ -560,6 +1119,14 @@ async function resetKernel(){
     );
 
     return false;
+
+  }
+
+  finally{
+
+    moduleKernelState
+    .resetting =
+    false;
 
   }
 
@@ -574,30 +1141,100 @@ async function resetKernel(){
 async function createKernelSnapshot(){
 
   const runtime =
-    getKernelDependency(
-      "ModuleRuntime"
-    );
+  getKernelDependency(
+    "ModuleRuntime"
+  );
 
   const health =
-    getKernelDependency(
-      "ModuleHealth"
-    );
+  getKernelDependency(
+    "ModuleHealth"
+  );
 
-  return Object.freeze({
+  return safeFreeze({
+
+    kernel:{
+
+      initialized:
+      moduleKernelState
+      .initialized,
+
+      booted:
+      moduleKernelState
+      .booted,
+
+      booting:
+      moduleKernelState
+      .booting,
+
+      shuttingDown:
+      moduleKernelState
+      .shuttingDown,
+
+      recovering:
+      moduleKernelState
+      .recovering,
+
+      resetting:
+      moduleKernelState
+      .resetting,
+
+      lastBootAt:
+      moduleKernelState
+      .lastBootAt,
+
+      lastShutdownAt:
+      moduleKernelState
+      .lastShutdownAt,
+
+      lastRecoveryAt:
+      moduleKernelState
+      .lastRecoveryAt,
+
+      lastResetAt:
+      moduleKernelState
+      .lastResetAt,
+
+      lastHealthcheckAt:
+      moduleKernelState
+      .lastHealthcheckAt,
+
+      lastError:
+      moduleKernelState
+      .lastError
+
+    },
 
     runtime:
 
-    runtime &&
-    isFunction(runtime.snapshot)
-      ? runtime.snapshot()
-      : null,
+      runtime &&
+
+      isFunction(
+        runtime.snapshot
+      )
+
+      ?
+
+      runtime.snapshot()
+
+      :
+
+      null,
 
     modules:
 
-    health &&
-    isFunction(health.snapshot)
-      ? health.snapshot()
-      : null,
+      health &&
+
+      isFunction(
+        health.snapshot
+      )
+
+      ?
+
+      health.snapshot()
+
+      :
+
+      null,
 
     timestamp:
     Date.now()
@@ -644,23 +1281,28 @@ Object.freeze({
 // GLOBAL EXPORT
 // =====================================
 
-if(typeof window !== "undefined"){
+if(
+  typeof window !==
+  "undefined"
+){
 
   Object.defineProperty(
+
     window,
+
     "ModuleKernel",
+
     {
 
       value:
       ModuleKernel,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
+
   );
 
 }
