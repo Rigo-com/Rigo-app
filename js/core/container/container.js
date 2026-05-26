@@ -19,10 +19,10 @@ Object.freeze({
   // ===================================
 
   initialize:
-  initializeContainer,
+  initializeDependencyContainer,
 
   reset:
-  resetContainer,
+  resetDependencyContainer,
 
   diagnostics:
   getContainerDiagnostics,
