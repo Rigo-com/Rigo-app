@@ -71,16 +71,16 @@ function freezeAppDiagnostics(
 
 
 // =====================================
-// SAFE DEPENDENCY DIAGNOSTICS
+// SAFE CONTAINER DIAGNOSTICS
 // =====================================
 
-function getSafeDependencyDiagnostics(){
+function getSafeContainerDiagnostics(){
 
   try{
 
     if(
 
-      !DependencySystem
+      !Container
       ?.diagnostics
 
     ){
@@ -89,7 +89,7 @@ function getSafeDependencyDiagnostics(){
 
     }
 
-    return DependencySystem
+    return Container
     .diagnostics();
 
   }
@@ -373,8 +373,8 @@ async function getAppDiagnostics(){
     app:
     getAppRuntimeState(),
 
-    dependencies:
-    getSafeDependencyDiagnostics(),
+    container:
+    getSafeContainerDiagnostics(),
 
     health:
     await getSafeHealthDiagnostics(),
