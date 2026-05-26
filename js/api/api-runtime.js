@@ -1025,8 +1025,9 @@ async function processAPIQueue(){
 
 async function executeAPIRequest(
   options = {},
-  requestId
-){
+  requestId =
+  createAPIRequestId()
+)
 
   if(
 
@@ -2016,6 +2017,114 @@ async function initializeAPIRuntime(){
 
 
 // =====================================
+// REQUEST HELPERS
+// =====================================
+
+async function apiGet(
+  endpoint,
+  options = {}
+){
+
+  return executeAPIRequest({
+
+    ...options,
+
+    endpoint,
+
+    method:"GET"
+
+  });
+
+}
+
+
+
+async function apiPost(
+  endpoint,
+  body = {},
+  options = {}
+){
+
+  return executeAPIRequest({
+
+    ...options,
+
+    endpoint,
+
+    method:"POST",
+
+    body
+
+  });
+
+}
+
+
+
+async function apiPut(
+  endpoint,
+  body = {},
+  options = {}
+){
+
+  return executeAPIRequest({
+
+    ...options,
+
+    endpoint,
+
+    method:"PUT",
+
+    body
+
+  });
+
+}
+
+
+
+async function apiPatch(
+  endpoint,
+  body = {},
+  options = {}
+){
+
+  return executeAPIRequest({
+
+    ...options,
+
+    endpoint,
+
+    method:"PATCH",
+
+    body
+
+  });
+
+}
+
+
+
+async function apiDelete(
+  endpoint,
+  options = {}
+){
+
+  return executeAPIRequest({
+
+    ...options,
+
+    endpoint,
+
+    method:"DELETE"
+
+  });
+
+}
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
@@ -2033,6 +2142,21 @@ freezeAPIObject({
 
   request:
   executeAPIRequest,
+
+  get:
+  apiGet,
+
+  post:
+  apiPost,
+
+  put:
+  apiPut,
+
+  patch:
+  apiPatch,
+
+  delete:
+  apiDelete,
 
   upload:
   uploadFile,
@@ -2056,6 +2180,34 @@ freezeAPIObject({
   getAPIHealth
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.APIRuntime =
+  APIRuntime;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.APIRuntime =
+  APIRuntime;
+
+}
 
 
 
