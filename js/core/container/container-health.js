@@ -14,15 +14,6 @@ async function resetDependencyContainer(){
   resetContainerState();
 
   if(
-    typeof clearScopeContainers ===
-    "function"
-  ){
-
-    clearScopeContainers();
-
-  }
-
-  if(
     typeof emitSystemEvent ===
     "function"
   ){
@@ -54,7 +45,11 @@ function getContainerHealthReport(){
 
       dependencyContainerState
       .resolutionStack
-      .length === 0,
+      .length === 0 &&
+
+      dependencyContainerState
+      .diagnostics
+      .failed === 0,
 
     initialized:
 
