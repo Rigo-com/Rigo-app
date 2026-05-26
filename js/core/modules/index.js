@@ -8,6 +8,20 @@
 
 
 // =====================================
+// MODULE FILES
+// =====================================
+
+import "./module-activation.js";
+import "./module-constants.js";
+import "./module-health.js";
+import "./module-kernel.js";
+import "./module-loader.js";
+import "./module-registry.js";
+import "./module-runtime.js";
+
+
+
+// =====================================
 // INTERNAL STATE
 // =====================================
 
@@ -314,7 +328,9 @@ function validateModulesLayer(){
 
     "ModuleLoader",
 
-    "ModuleKernel"
+    "ModuleKernel",
+
+    "ModuleActivation"
 
   ];
 
@@ -818,6 +834,9 @@ Object.freeze({
 
   kernel:
   window.ModuleKernel,
+
+  activation:
+  window.ModuleActivation,
 
   initialize:
   initializeModulesLayer,
