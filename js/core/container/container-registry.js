@@ -37,25 +37,12 @@ function isValidFactory(
 
 
 function createContainerError(
-  message,
-  metadata = {}
+  message
 ){
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .failed++;
-
-  if(
-    typeof logDiagnosticError ===
-    "function"
-  ){
-
-    logDiagnosticError(
-      message,
-      metadata
-    );
-
-  }
 
   return false;
 
@@ -67,7 +54,7 @@ function createContainerError(
 // REGISTER SERVICE
 // =====================================
 
-async function registerService(
+function registerService(
   serviceName,
   factory,
   options = {}
@@ -100,11 +87,11 @@ async function registerService(
 
   if(
 
-    dependencyContainerState
+    containerState
     .services
     .size >=
 
-    DEPENDENCY_CONTAINER_CONFIG
+    CONTAINER_CONFIG
     .MAX_SERVICES
 
   ){
@@ -115,7 +102,7 @@ async function registerService(
 
   }
 
-  const normalizedDependencies =
+  const dependencies =
 
     Array.isArray(
       options.dependencies
@@ -124,13 +111,7 @@ async function registerService(
     ?
 
     options.dependencies
-    .map((dependency) => {
-
-      return normalizeServiceName(
-        dependency
-      );
-
-    })
+    .map(normalizeServiceName)
     .filter(Boolean)
 
     :
@@ -163,55 +144,28 @@ async function registerService(
 
     factory,
 
-    dependencies:
-    normalizedDependencies,
+    dependencies,
 
     lifecycle,
 
     lazy:
-
-      options.lazy !==
-      false,
+    options.lazy !== false,
 
     createdAt:
     Date.now()
 
   });
 
-  dependencyContainerState
+  containerState
   .services
   .set(
-
     normalizedName,
-
     serviceDefinition
-
   );
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .registered++;
-
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
-
-    await emitSystemEvent(
-
-      CONTAINER_EVENTS
-      .REGISTERED,
-
-      {
-
-        service:
-        normalizedName
-
-      }
-
-    );
-
-  }
 
   return true;
 
@@ -223,7 +177,7 @@ async function registerService(
 // REMOVE SERVICE
 // =====================================
 
-async function removeService(
+function removeService(
   serviceName
 ){
 
@@ -240,7 +194,7 @@ async function removeService(
 
   const exists =
 
-    dependencyContainerState
+    containerState
     .services
     .has(
       normalizedName
@@ -252,19 +206,19 @@ async function removeService(
 
   }
 
-  dependencyContainerState
+  containerState
   .services
   .delete(
     normalizedName
   );
 
-  dependencyContainerState
+  containerState
   .singletons
   .delete(
     normalizedName
   );
 
-  dependencyContainerState
+  containerState
   .scopes
   .forEach((scopeContainer) => {
 
@@ -274,30 +228,9 @@ async function removeService(
 
   });
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .removed++;
-
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
-
-    await emitSystemEvent(
-
-      CONTAINER_EVENTS
-      .REMOVED,
-
-      {
-
-        service:
-        normalizedName
-
-      }
-
-    );
-
-  }
 
   return true;
 
@@ -326,7 +259,7 @@ function getRegisteredService(
 
   return (
 
-    dependencyContainerState
+    containerState
     .services
     .get(
       normalizedName
@@ -350,7 +283,7 @@ function getRegisteredServices(){
 
   return freezeContainerObject([
 
-    ...dependencyContainerState
+    ...containerState
     .services
     .keys()
 
@@ -374,7 +307,7 @@ function hasRegisteredService(
   );
 
   return (
-    dependencyContainerState
+    containerState
     .services
     .has(
       normalizedName
