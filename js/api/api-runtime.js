@@ -116,6 +116,14 @@ Object.freeze({
 const apiRuntimeState =
 Object.seal({
 
+  initialized:false,
+
+  initializing:false,
+
+  shuttingDown:false,
+
+  startupPromise:null,
+
   status:"idle",
 
   pendingRequests:0,
@@ -263,6 +271,9 @@ async function emitAPIRuntimeEvent(
         source:
         "api-runtime",
 
+        timestamp:
+        Date.now(),
+
         ...payload
 
       }
@@ -329,6 +340,69 @@ function safeDeepClone(
 
 
 
+function freezeAPIObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet ||
+
+    value instanceof AbortController ||
+
+    value instanceof AbortSignal
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.values(value)
+  .forEach((nested) => {
+
+    freezeAPIObject(
+      nested,
+      visited
+    );
+
+  });
+
+  return Object.freeze(
+    value
+  );
+
+}
+
+
+
 function createAPIError(
   options = {}
 ){
@@ -356,6 +430,74 @@ function createAPIError(
 
 
 
+async function executeWithTimeout(
+  callback,
+  timeout,
+  controller = null
+){
+
+  let timeoutId = null;
+
+  try{
+
+    const timeoutPromise =
+    new Promise((_,reject) => {
+
+      timeoutId =
+      setTimeout(() => {
+
+        controller
+        ?.abort();
+
+        reject(
+
+          createAPIError({
+
+            message:
+            "REQUEST TIMEOUT",
+
+            code:
+            "TIMEOUT"
+
+          })
+
+        );
+
+      },
+
+      timeout);
+
+    });
+
+    return await Promise.race([
+
+      Promise.resolve()
+      .then(callback),
+
+      timeoutPromise
+
+    ]);
+
+  }
+
+  finally{
+
+    if(
+      timeoutId
+    ){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+  }
+
+}
+
+
+
 function normalizeAPIResult(
   result
 ){
@@ -365,7 +507,7 @@ function normalizeAPIResult(
     result.status
   );
 
-  return Object.freeze({
+  return freezeAPIObject({
 
     ok:Boolean(
       result.ok
@@ -676,6 +818,39 @@ function updateAPIStatus(){
 
 
 
+function cleanupAPIRequest(
+  requestId
+){
+
+  apiRuntimeState
+  .activeRequests
+  .delete(
+    requestId
+  );
+
+  apiRuntimeState
+  .abortControllers
+  .delete(
+    requestId
+  );
+
+  apiRuntimeState
+  .pendingRequests =
+  Math.max(
+
+    0,
+
+    apiRuntimeState
+    .pendingRequests - 1
+
+  );
+
+  updateAPIStatus();
+
+}
+
+
+
 // =====================================
 // PRIORITY QUEUE
 // =====================================
@@ -736,7 +911,12 @@ function enqueueAPIRequest(
 
   );
 
-  processAPIQueue();
+  Promise.resolve()
+  .then(() => {
+
+    processAPIQueue();
+
+  });
 
   return true;
 
@@ -834,17 +1014,5 @@ async function processAPIQueue(){
     false;
 
   }
-
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-async function initializeAPIRuntime(){
-
-  return true;
 
 }
