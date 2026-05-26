@@ -7,52 +7,286 @@
 
 
 // =====================================
+// IMMUTABLE
+// =====================================
+
+function freezeLifecycleObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeLifecycleObject(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
+// DEPENDENCIES
+// =====================================
+
+function getLifecycleDependency(
+  dependencyName
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return window[
+      dependencyName
+    ] || null;
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// STATUS
+// =====================================
+
+function getLifecycleStatus(){
+
+  return freezeLifecycleObject({
+
+    initialized:
+
+      Boolean(
+        appState
+        ?.initialized
+      ),
+
+    started:
+
+      Boolean(
+        appState
+        ?.started
+      ),
+
+    starting:
+
+      Boolean(
+        appState
+        ?.starting
+      ),
+
+    crashed:
+
+      Boolean(
+        appState
+        ?.crashed
+      ),
+
+    crashCount:
+
+      Number(
+        appState
+        ?.crashCount || 0
+      ),
+
+    phase:
+
+      String(
+        appState
+        ?.phase || ""
+      ),
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
 // SNAPSHOT
 // =====================================
 
 async function createLifecycleSnapshot(){
 
-  return freezeEnvironmentObject({
+  const appDiagnostics =
+  getLifecycleDependency(
+    "AppDiagnostics"
+  );
+
+  const healthDiagnostics =
+  getLifecycleDependency(
+    "HealthDiagnostics"
+  );
+
+  const appStartup =
+  getLifecycleDependency(
+    "AppStartup"
+  );
+
+  const appShutdown =
+  getLifecycleDependency(
+    "AppShutdown"
+  );
+
+  return freezeLifecycleObject({
 
     timestamp:
     Date.now(),
 
+    phase:
+
+      String(
+        appState
+        ?.phase || ""
+      ),
+
+    initialized:
+
+      Boolean(
+        appState
+        ?.initialized
+      ),
+
+    started:
+
+      Boolean(
+        appState
+        ?.started
+      ),
+
+    crashed:
+
+      Boolean(
+        appState
+        ?.crashed
+      ),
+
+    crashCount:
+
+      Number(
+        appState
+        ?.crashCount || 0
+      ),
+
     diagnostics:
 
-      AppDiagnostics
+      appDiagnostics
       ?.get
 
-      ? await AppDiagnostics
+      ? await appDiagnostics
         .get()
 
       : null,
 
     health:
 
-      HealthDiagnostics
+      healthDiagnostics
       ?.get
 
-      ? await HealthDiagnostics
+      ? await healthDiagnostics
         .get()
 
       : null,
 
     startup:
 
-      AppStartup
+      appStartup
       ?.snapshot
 
-      ? AppStartup
+      ? appStartup
         .snapshot()
 
       : null,
 
     shutdown:
 
-      AppShutdown
+      appShutdown
       ?.snapshot
 
-      ? AppShutdown
+      ? appShutdown
         .snapshot()
 
       : null
@@ -69,8 +303,13 @@ async function createLifecycleSnapshot(){
 
 async function getLifecycleHealth(){
 
+  const healthRuntime =
+  getLifecycleDependency(
+    "HealthRuntime"
+  );
+
   if(
-    !HealthRuntime
+    !healthRuntime
     ?.run
   ){
 
@@ -78,7 +317,7 @@ async function getLifecycleHealth(){
 
   }
 
-  return await HealthRuntime
+  return await healthRuntime
   .run();
 
 }
@@ -91,19 +330,171 @@ async function getLifecycleHealth(){
 
 async function recoverApplication(){
 
+  const runtimeManager =
+  getLifecycleDependency(
+    "RuntimeManager"
+  );
+
   if(
 
-    RuntimeManager
+    runtimeManager
     ?.recover
 
   ){
 
-    return RuntimeManager
+    return await runtimeManager
     .recover();
 
   }
 
   return false;
+
+}
+
+
+
+// =====================================
+// START
+// =====================================
+
+async function lifecycleStart(){
+
+  const appStartup =
+  getLifecycleDependency(
+    "AppStartup"
+  );
+
+  if(
+    !appStartup
+    ?.start
+  ){
+
+    return false;
+
+  }
+
+  return await appStartup
+  .start();
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function lifecycleShutdown(){
+
+  const appShutdown =
+  getLifecycleDependency(
+    "AppShutdown"
+  );
+
+  if(
+    !appShutdown
+    ?.shutdown
+  ){
+
+    return false;
+
+  }
+
+  return await appShutdown
+  .shutdown();
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+async function lifecycleInitialize(){
+
+  const appBootstrap =
+  getLifecycleDependency(
+    "AppBootstrap"
+  );
+
+  if(
+    !appBootstrap
+    ?.initialize
+  ){
+
+    return false;
+
+  }
+
+  return await appBootstrap
+  .initialize();
+
+}
+
+
+
+// =====================================
+// CLEANUP
+// =====================================
+
+async function lifecycleCleanup(){
+
+  const appShutdown =
+  getLifecycleDependency(
+    "AppShutdown"
+  );
+
+  if(
+    !appShutdown
+    ?.cleanup
+  ){
+
+    return false;
+
+  }
+
+  return await appShutdown
+  .cleanup();
+
+}
+
+
+
+// =====================================
+// SEND MESSAGE
+// =====================================
+
+async function lifecycleSendMessage(){
+
+  const messageRuntime =
+  getLifecycleDependency(
+    "MessageRuntime"
+  );
+
+  if(
+    !messageRuntime
+    ?.send
+  ){
+
+    return false;
+
+  }
+
+  return await messageRuntime
+  .send();
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+async function getLifecycleDiagnostics(){
+
+  return await createLifecycleSnapshot();
 
 }
 
@@ -123,20 +514,16 @@ Object.freeze({
   // ===================================
 
   start:
-  AppStartup
-  .start,
+  lifecycleStart,
 
   shutdown:
-  AppShutdown
-  .shutdown,
+  lifecycleShutdown,
 
   initialize:
-  AppBootstrap
-  .initialize,
+  lifecycleInitialize,
 
   cleanup:
-  AppShutdown
-  .cleanup,
+  lifecycleCleanup,
 
 
 
@@ -145,17 +532,16 @@ Object.freeze({
   // ===================================
 
   diagnostics:
-
-    AppDiagnostics
-    ?.get ||
-
-    null,
+  getLifecycleDiagnostics,
 
   snapshot:
   createLifecycleSnapshot,
 
   health:
   getLifecycleHealth,
+
+  status:
+  getLifecycleStatus,
 
 
 
@@ -173,7 +559,7 @@ Object.freeze({
   // ===================================
 
   sendMessage:
-  handleSendMessage
+  lifecycleSendMessage
 
 });
 
@@ -188,7 +574,25 @@ if(
   "undefined"
 ){
 
-  window.AppLifecycle =
-  AppLifecycle;
+  Object.defineProperty(
+
+    window,
+
+    "AppLifecycle",
+
+    {
+
+      value:
+      AppLifecycle,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
