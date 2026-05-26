@@ -320,6 +320,25 @@ function deepFreezeDiagnostics(
 
   }
 
+  if(
+
+    object instanceof Map ||
+    object instanceof Set ||
+    object instanceof Date ||
+    object instanceof RegExp ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+      object instanceof HTMLElement
+    )
+
+  ){
+
+    return object;
+
+  }
+
   visited.add(
     object
   );
@@ -1714,26 +1733,32 @@ function registerGlobalErrorHandlers(){
     "error",
     (event) => {
 
-      logCriticalError(
+      try{
 
-        event.message ||
+        logCriticalError(
 
-        "UNKNOWN WINDOW ERROR",
+          event.message ||
 
-        {
+          "UNKNOWN WINDOW ERROR",
 
-          filename:
-          event.filename,
+          {
 
-          line:
-          event.lineno,
+            filename:
+            event.filename,
 
-          column:
-          event.colno
+            line:
+            event.lineno,
 
-        }
+            column:
+            event.colno
 
-      );
+          }
+
+        );
+
+      }
+
+      catch(error){}
 
     }
   );
@@ -1742,20 +1767,26 @@ function registerGlobalErrorHandlers(){
     "unhandledrejection",
     (event) => {
 
-      logCriticalError(
+      try{
 
-        "UNHANDLED PROMISE REJECTION",
+        logCriticalError(
 
-        {
+          "UNHANDLED PROMISE REJECTION",
 
-          reason:
-          String(
-            event.reason
-          )
+          {
 
-        }
+            reason:
+            String(
+              event.reason
+            )
 
-      );
+          }
+
+        );
+
+      }
+
+      catch(error){}
 
     }
   );
@@ -1873,6 +1904,9 @@ function resetDiagnosticsSystem(){
 
   diagnosticsState.startedAt =
   Date.now();
+
+  diagnosticsState.initialized =
+  false;
 
   diagnosticsState.counters = {
 
@@ -2011,5 +2045,20 @@ if(
 
   window.DiagnosticsRuntime =
   DiagnosticsRuntime;
+
+  window.logDiagnosticInfo =
+  logDiagnosticInfo;
+
+  window.logDiagnosticWarning =
+  logDiagnosticWarning;
+
+  window.logDiagnosticError =
+  logDiagnosticError;
+
+  window.logCriticalError =
+  logCriticalError;
+
+  window.initializeDiagnosticsSystem =
+  initializeDiagnosticsSystem;
 
 }
