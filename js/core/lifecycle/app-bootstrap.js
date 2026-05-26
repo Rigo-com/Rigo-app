@@ -406,7 +406,7 @@ function validateBootstrapEnvironment(){
 // INITIALIZE DOM
 // =====================================
 
-function initializeBootstrapDOM(){
+async function initializeBootstrapDOM(){
 
   const initializeDOM =
   getBootstrapDependency(
@@ -430,7 +430,7 @@ function initializeBootstrapDOM(){
   }
 
   const initializedDOM =
-  initializeDOM();
+  await initializeDOM();
 
   if(!initializedDOM){
 
@@ -666,7 +666,7 @@ async function initializeApp(){
     // DOM
     // ===================================
 
-    initializeBootstrapDOM();
+    await initializeBootstrapDOM();
 
 
 
