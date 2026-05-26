@@ -10,14 +10,18 @@
 // HELPERS
 // =====================================
 
-function normalizeModuleLoaderError(error){
+function normalizeModuleLoaderError(
+  error
+){
 
   if(
     typeof getSafeErrorMessage ===
     "function"
   ){
 
-    return getSafeErrorMessage(error);
+    return getSafeErrorMessage(
+      error
+    );
 
   }
 
@@ -29,26 +33,142 @@ function normalizeModuleLoaderError(error){
 
 
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
-  return typeof value === "function";
+  return typeof value ===
+  "function";
 
 }
 
 
 
-function safeFreeze(value){
+// =====================================
+// SAFE FREEZE
+// =====================================
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
 
   if(
-    typeof freezeModuleObject ===
-    "function"
+
+    !value ||
+
+    typeof value !==
+    "object"
+
   ){
 
-    return freezeModuleObject(value);
+    return value;
 
   }
 
-  return Object.freeze(value);
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Promise ||
+
+    value instanceof Date ||
+
+    value instanceof RegExp ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(value);
+
+  Object.freeze(value);
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      safeFreeze(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
+// SAFE EXECUTOR
+// =====================================
+
+async function safelyExecuteModuleOperation(
+  label,
+  operation,
+  fallback = null
+){
+
+  try{
+
+    if(
+      !isFunction(operation)
+    ){
+
+      return fallback;
+
+    }
+
+    return await operation();
+
+  }
+
+  catch(error){
+
+    console.error(
+
+      `[ModuleLoader] ${label} failed:`,
+
+      normalizeModuleLoaderError(
+        error
+      )
+
+    );
+
+    return fallback;
+
+  }
 
 }
 
@@ -58,69 +178,90 @@ function safeFreeze(value){
 // SNAPSHOT (READ ONLY)
 // =====================================
 
-function createModuleLoaderPublicSnapshot(){
+async function createModuleLoaderPublicSnapshot(){
 
-  if(
-    !isFunction(createModuleLoaderSnapshot)
-  ){
-    return null;
-  }
+  return safelyExecuteModuleOperation(
 
-  try{
+    "Snapshot",
 
-    return createModuleLoaderSnapshot();
+    async() => {
 
-  }catch(error){
+      if(
 
-    console.error(
-      "[ModuleLoader] Snapshot failed:",
-      normalizeModuleLoaderError(error)
-    );
+        typeof ModuleRegistry ===
+        "undefined" ||
 
-    return null;
+        !isFunction(
+          ModuleRegistry.snapshot
+        )
 
-  }
+      ){
+
+        return null;
+
+      }
+
+      return safeFreeze(
+        ModuleRegistry
+        .snapshot()
+      );
+
+    },
+
+    null
+
+  );
 
 }
 
 
 
 // =====================================
-// RECOVERY (DELEGATED)
+// RECOVERY
 // =====================================
 
-async function recoverModule(moduleName){
+async function recoverModule(
+  moduleName
+){
 
-  const normalizedName =
-    normalizeModuleName(moduleName);
+  return safelyExecuteModuleOperation(
 
-  if(!normalizedName){
-    return false;
-  }
+    "Recover module",
 
-  if(
-    !isFunction(recoverModuleRuntime)
-  ){
-    return false;
-  }
+    async() => {
 
-  try{
+      const normalizedName =
+      normalizeModuleName(
+        moduleName
+      );
 
-    return await recoverModuleRuntime(
-      normalizedName
-    );
+      if(
+        !normalizedName
+      ){
 
-  }catch(error){
+        return false;
 
-    console.error(
-      "[ModuleLoader] Recovery failed:",
-      normalizedName,
-      normalizeModuleLoaderError(error)
-    );
+      }
 
-    return false;
+      if(
+        !isFunction(
+          recoverModuleRuntime
+        )
+      ){
 
-  }
+        return false;
+
+      }
+
+      return await recoverModuleRuntime(
+        normalizedName
+      );
+
+    },
+
+    false
+
+  );
 
 }
 
@@ -130,27 +271,55 @@ async function recoverModule(moduleName){
 // INSTANCE ACCESS
 // =====================================
 
-function getModuleLoaderInstance(moduleName){
+function getModuleLoaderInstance(
+  moduleName
+){
 
-  const normalizedName =
-    normalizeModuleName(moduleName);
+  return safelyExecuteModuleOperation(
 
-  if(!normalizedName){
-    return null;
-  }
+    "Get module instance",
 
-  if(
-    typeof ModuleRegistry !== "undefined" &&
-    isFunction(ModuleRegistry.getModuleInstance)
-  ){
+    () => {
 
-    return ModuleRegistry.getModuleInstance(
-      normalizedName
-    );
+      const normalizedName =
+      normalizeModuleName(
+        moduleName
+      );
 
-  }
+      if(
+        !normalizedName
+      ){
 
-  return null;
+        return null;
+
+      }
+
+      if(
+
+        typeof ModuleRegistry ===
+        "undefined" ||
+
+        !isFunction(
+          ModuleRegistry
+          .getModuleInstance
+        )
+
+      ){
+
+        return null;
+
+      }
+
+      return ModuleRegistry
+      .getModuleInstance(
+        normalizedName
+      );
+
+    },
+
+    null
+
+  );
 
 }
 
@@ -160,62 +329,223 @@ function getModuleLoaderInstance(moduleName){
 // MODULE STATUS
 // =====================================
 
-function getModuleStatus(moduleName){
+function getModuleStatus(
+  moduleName
+){
 
-  if(
-    !isFunction(getRegisteredModule)
-  ){
-    return null;
-  }
+  return safelyExecuteModuleOperation(
 
-  const moduleDefinition =
-    getRegisteredModule(moduleName);
+    "Get module status",
 
-  if(!moduleDefinition){
-    return null;
-  }
+    () => {
 
-  return safeFreeze({
+      if(
 
-    name:
-    moduleDefinition.metadata.name,
+        typeof ModuleRegistry ===
+        "undefined"
 
-    state:
-    moduleDefinition.state,
+      ){
 
-    retries:
-    moduleDefinition.retries,
+        return null;
 
-    dependencies:
-    moduleDefinition.metadata.dependencies,
+      }
 
-    lifecycle:
-    moduleDefinition.metadata.lifecycle,
+      if(
 
-    priority:
-    moduleDefinition.metadata.priority,
+        !isFunction(
+          ModuleRegistry
+          .getRegisteredModule
+        ) ||
 
-    lazy:
-    moduleDefinition.metadata.lazy,
-
-    createdAt:
-    moduleDefinition.metadata.createdAt,
-
-    active:
-    typeof moduleLoaderState !== "undefined"
-      ? moduleLoaderState.activeModules.has(
-          moduleDefinition.metadata.name
+        !isFunction(
+          ModuleRegistry
+          .getModuleRuntimeState
         )
-      : false,
 
-    failed:
-    typeof moduleLoaderState !== "undefined"
-      ? moduleLoaderState.failedModules.has(
-          moduleDefinition.metadata.name
+      ){
+
+        return null;
+
+      }
+
+      const normalizedName =
+      normalizeModuleName(
+        moduleName
+      );
+
+      const definition =
+      ModuleRegistry
+      .getRegisteredModule(
+        normalizedName
+      );
+
+      const runtime =
+      ModuleRegistry
+      .getModuleRuntimeState(
+        normalizedName
+      );
+
+      if(
+        !definition ||
+        !runtime
+      ){
+
+        return null;
+
+      }
+
+      return safeFreeze({
+
+        name:
+        definition
+        .metadata
+        .name,
+
+        state:
+        runtime
+        .state,
+
+        retries:
+        runtime
+        .retries,
+
+        dependencies:
+        definition
+        .metadata
+        .dependencies,
+
+        lifecycle:
+        definition
+        .metadata
+        .lifecycle,
+
+        priority:
+        definition
+        .metadata
+        .priority,
+
+        lazy:
+        definition
+        .metadata
+        .lazy,
+
+        createdAt:
+        definition
+        .metadata
+        .createdAt,
+
+        activatedAt:
+        runtime
+        .activatedAt,
+
+        failedAt:
+        runtime
+        .failedAt,
+
+        recoveredAt:
+        runtime
+        .recoveredAt,
+
+        active:
+
+          runtime.state ===
+          MODULE_STATES
+          .ACTIVE,
+
+        failed:
+
+          runtime.state ===
+          MODULE_STATES
+          .FAILED
+
+      });
+
+    },
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// REGISTRY ACCESS
+// =====================================
+
+function getModuleRegistrySnapshot(){
+
+  return safelyExecuteModuleOperation(
+
+    "Registry snapshot",
+
+    () => {
+
+      if(
+
+        typeof ModuleRegistry ===
+        "undefined" ||
+
+        !isFunction(
+          ModuleRegistry.snapshot
         )
-      : false
 
-  });
+      ){
+
+        return null;
+
+      }
+
+      return safeFreeze(
+        ModuleRegistry
+        .snapshot()
+      );
+
+    },
+
+    null
+
+  );
+
+}
+
+
+
+function getModuleRegistryDiagnostics(){
+
+  return safelyExecuteModuleOperation(
+
+    "Registry diagnostics",
+
+    () => {
+
+      if(
+
+        typeof ModuleRegistry ===
+        "undefined" ||
+
+        !isFunction(
+          ModuleRegistry
+          .diagnostics
+        )
+
+      ){
+
+        return null;
+
+      }
+
+      return safeFreeze(
+        ModuleRegistry
+        .diagnostics()
+      );
+
+    },
+
+    null
+
+  );
 
 }
 
@@ -227,13 +557,29 @@ function getModuleStatus(moduleName){
 
 async function safeInitializeModuleLoader(){
 
-  if(
-    !isFunction(initializeModuleLoader)
-  ){
-    return false;
-  }
+  return safelyExecuteModuleOperation(
 
-  return await initializeModuleLoader();
+    "Initialize loader",
+
+    async() => {
+
+      if(
+        !isFunction(
+          initializeModuleLoader
+        )
+      ){
+
+        return false;
+
+      }
+
+      return await initializeModuleLoader();
+
+    },
+
+    false
+
+  );
 
 }
 
@@ -243,13 +589,72 @@ async function safeRegisterModule(
   ...args
 ){
 
-  if(
-    !isFunction(registerModule)
-  ){
-    return false;
-  }
+  return safelyExecuteModuleOperation(
 
-  return await registerModule(...args);
+    "Register module",
+
+    async() => {
+
+      if(
+        !isFunction(
+          registerModule
+        )
+      ){
+
+        return false;
+
+      }
+
+      return await registerModule(
+        ...args
+      );
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+async function safeUnregisterModule(
+  moduleName
+){
+
+  return safelyExecuteModuleOperation(
+
+    "Unregister module",
+
+    async() => {
+
+      if(
+
+        typeof ModuleRegistry ===
+        "undefined" ||
+
+        !isFunction(
+          ModuleRegistry
+          .unregisterModuleDefinition
+        )
+
+      ){
+
+        return false;
+
+      }
+
+      return ModuleRegistry
+      .unregisterModuleDefinition(
+        moduleName
+      );
+
+    },
+
+    false
+
+  );
 
 }
 
@@ -259,13 +664,31 @@ async function safeLoadModule(
   ...args
 ){
 
-  if(
-    !isFunction(loadModule)
-  ){
-    return false;
-  }
+  return safelyExecuteModuleOperation(
 
-  return await loadModule(...args);
+    "Load module",
+
+    async() => {
+
+      if(
+        !isFunction(
+          loadModule
+        )
+      ){
+
+        return false;
+
+      }
+
+      return await loadModule(
+        ...args
+      );
+
+    },
+
+    false
+
+  );
 
 }
 
@@ -275,13 +698,31 @@ async function safeUnloadModule(
   ...args
 ){
 
-  if(
-    !isFunction(unloadModule)
-  ){
-    return false;
-  }
+  return safelyExecuteModuleOperation(
 
-  return await unloadModule(...args);
+    "Unload module",
+
+    async() => {
+
+      if(
+        !isFunction(
+          unloadModule
+        )
+      ){
+
+        return false;
+
+      }
+
+      return await unloadModule(
+        ...args
+      );
+
+    },
+
+    false
+
+  );
 
 }
 
@@ -289,13 +730,115 @@ async function safeUnloadModule(
 
 async function safeResetModuleLoader(){
 
-  if(
-    !isFunction(resetModuleLoader)
-  ){
-    return false;
-  }
+  return safelyExecuteModuleOperation(
 
-  return await resetModuleLoader();
+    "Reset loader",
+
+    async() => {
+
+      if(
+        !isFunction(
+          resetModuleLoader
+        )
+      ){
+
+        return false;
+
+      }
+
+      return await resetModuleLoader();
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+// =====================================
+// LOOKUP HELPERS
+// =====================================
+
+function hasModule(
+  moduleName
+){
+
+  return safelyExecuteModuleOperation(
+
+    "Has module",
+
+    () => {
+
+      if(
+
+        typeof ModuleRegistry ===
+        "undefined" ||
+
+        !isFunction(
+          ModuleRegistry
+          .hasRegisteredModule
+        )
+
+      ){
+
+        return false;
+
+      }
+
+      return ModuleRegistry
+      .hasRegisteredModule(
+        moduleName
+      );
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+function listModules(){
+
+  return safelyExecuteModuleOperation(
+
+    "List modules",
+
+    () => {
+
+      if(
+
+        typeof ModuleRegistry ===
+        "undefined" ||
+
+        !isFunction(
+          ModuleRegistry
+          .getRegisteredModules
+        )
+
+      ){
+
+        return [];
+
+      }
+
+      return safeFreeze(
+
+        ModuleRegistry
+        .getRegisteredModules()
+
+      );
+
+    },
+
+    []
+
+  );
 
 }
 
@@ -308,11 +851,20 @@ async function safeResetModuleLoader(){
 const ModuleLoader =
 Object.freeze({
 
+
+
+  // ===================================
+  // CORE
+  // ===================================
+
   initialize:
   safeInitializeModuleLoader,
 
   register:
   safeRegisterModule,
+
+  unregister:
+  safeUnregisterModule,
 
   load:
   safeLoadModule,
@@ -323,22 +875,72 @@ Object.freeze({
   reset:
   safeResetModuleLoader,
 
-  health:
-  typeof getModuleHealth === "function"
-    ? getModuleHealth
-    : () => null,
 
-  snapshot:
-  createModuleLoaderPublicSnapshot,
 
-  recover:
-  recoverModule,
+  // ===================================
+  // LOOKUP
+  // ===================================
+
+  has:
+  hasModule,
+
+  list:
+  listModules,
+
+  instance:
+  getModuleLoaderInstance,
 
   status:
   getModuleStatus,
 
-  instance:
-  getModuleLoaderInstance
+
+
+  // ===================================
+  // REGISTRY
+  // ===================================
+
+  registry:
+  getModuleRegistrySnapshot,
+
+  diagnostics:
+  getModuleRegistryDiagnostics,
+
+
+
+  // ===================================
+  // HEALTH
+  // ===================================
+
+  health:
+
+    typeof getModuleHealth ===
+    "function"
+
+    ?
+
+    getModuleHealth
+
+    :
+
+    () => null,
+
+
+
+  // ===================================
+  // RECOVERY
+  // ===================================
+
+  recover:
+  recoverModule,
+
+
+
+  // ===================================
+  // SNAPSHOT
+  // ===================================
+
+  snapshot:
+  createModuleLoaderPublicSnapshot
 
 });
 
@@ -348,23 +950,28 @@ Object.freeze({
 // GLOBAL EXPORT
 // =====================================
 
-if(typeof window !== "undefined"){
+if(
+  typeof window !==
+  "undefined"
+){
 
   Object.defineProperty(
+
     window,
+
     "ModuleLoader",
+
     {
 
       value:
       ModuleLoader,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
+
   );
 
 }
