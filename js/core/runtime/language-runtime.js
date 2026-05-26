@@ -18,10 +18,8 @@ Object.freeze({
   STORAGE_KEY:
   "rigo_language",
 
-  CACHE_ENABLED:true,
-
   MAX_CACHE_SIZE:
-  500,
+  100,
 
   SUPPORTED_LANGUAGES:[
 
@@ -68,8 +66,7 @@ Object.freeze({
 // TRANSLATIONS
 // =====================================
 
-const TRANSLATIONS =
-Object.seal({
+const TRANSLATIONS = {
 
   en:{
 
@@ -141,7 +138,7 @@ Object.seal({
 
   }
 
-});
+};
 
 
 
@@ -168,44 +165,8 @@ Object.seal({
 
 
 // =====================================
-// HELPERS
+// EVENTS
 // =====================================
-
-async function trackLanguageRuntimeError(
-  message,
-  metadata = null
-){
-
-  if(
-    typeof DiagnosticsRuntime ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    await DiagnosticsRuntime
-    .error?.(
-      message,
-      metadata
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    return false;
-
-  }
-
-}
-
-
 
 async function emitLanguageRuntimeEvent(
   eventName,
@@ -644,9 +605,6 @@ function getTranslation(
 
   if(
 
-    LANGUAGE_CONFIG
-    .CACHE_ENABLED &&
-
     languageRuntimeState
     .translationCache
     .has(cacheKey)
@@ -707,17 +665,10 @@ function getTranslation(
 
   );
 
-  if(
-    LANGUAGE_CONFIG
-    .CACHE_ENABLED
-  ){
-
-    setTranslationCache(
-      cacheKey,
-      interpolated
-    );
-
-  }
+  setTranslationCache(
+    cacheKey,
+    interpolated
+  );
 
   return interpolated;
 
@@ -880,6 +831,15 @@ function updateDOMTranslations(){
   if(
     typeof document ===
     "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof getTranslation !==
+    "function"
   ){
 
     return false;
