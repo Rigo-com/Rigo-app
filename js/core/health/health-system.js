@@ -136,6 +136,25 @@ async function initializeHealthSystem(){
 
   }
 
+  if(
+    typeof DiagnosticsRuntime ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof DiagnosticsRuntime
+    .initialize !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
   const diagnosticsReady =
   await DiagnosticsRuntime
   .initialize();
@@ -170,6 +189,25 @@ async function initializeHealthSystem(){
 // =====================================
 
 async function runHealthSystemCheck(){
+
+  if(
+    typeof HealthRuntime ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof HealthRuntime
+    .run !==
+    "function"
+  ){
+
+    return false;
+
+  }
 
   await emitHealthSystemEvent(
 
@@ -217,6 +255,25 @@ async function runHealthSystemCheck(){
 
 function startHealthSystem(){
 
+  if(
+    typeof HealthMonitor ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof HealthMonitor
+    .start !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
   const started =
   HealthMonitor
   .start();
@@ -243,6 +300,25 @@ function startHealthSystem(){
 
 function stopHealthSystem(){
 
+  if(
+    typeof HealthMonitor ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof HealthMonitor
+    .stop !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
   const stopped =
   HealthMonitor
   .stop();
@@ -267,10 +343,17 @@ function stopHealthSystem(){
 // RESET HEALTH SYSTEM
 // =====================================
 
-function resetHealthSystem(){
+async function resetHealthSystem(){
 
-  DiagnosticsRuntime
-  .reset();
+  if(
+    typeof DiagnosticsRuntime !==
+    "undefined"
+  ){
+
+    await DiagnosticsRuntime
+    ?.reset?.();
+
+  }
 
   stopHealthSystem();
 
@@ -283,7 +366,7 @@ function resetHealthSystem(){
 
   });
 
-  emitHealthSystemEvent(
+  await emitHealthSystemEvent(
 
     HEALTH_SYSTEM_EVENTS
     .RESET
