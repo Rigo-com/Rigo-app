@@ -97,6 +97,39 @@ async function resetAPI(){
 
 
 // =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownAPI(){
+
+  try{
+
+    if(
+      typeof APIRuntime
+      ?.shutdown ===
+      "function"
+    ){
+
+      await APIRuntime
+      .shutdown();
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // HEALTH
 // =====================================
 
@@ -110,13 +143,48 @@ function getAPIHealth(){
     runtime:
 
       typeof APIRuntime
-      ?.status ===
+      ?.health ===
       "function"
 
       ?
 
       APIRuntime
-      .status()
+      .health()
+
+      :
+
+      null,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createAPISnapshot(){
+
+  return Object.freeze({
+
+    valid:
+    validateAPISystems(),
+
+    snapshot:
+
+      typeof APIRuntime
+      ?.snapshot ===
+      "function"
+
+      ?
+
+      APIRuntime
+      .snapshot()
 
       :
 
@@ -147,8 +215,14 @@ Object.freeze({
   reset:
   resetAPI,
 
+  shutdown:
+  shutdownAPI,
+
   health:
-  getAPIHealth
+  getAPIHealth,
+
+  snapshot:
+  createAPISnapshot
 
 });
 
@@ -164,6 +238,18 @@ if(
 ){
 
   window.API =
+  API;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.API =
   API;
 
 }
