@@ -1334,6 +1334,54 @@ async function initializeServiceRegistry(){
   .initialized =
   true;
 
+
+
+  // ===================================
+  // DEPENDENCY REGISTRATION
+  // ===================================
+
+  try{
+
+    if(
+      typeof DependencySystem !==
+      "undefined"
+
+      &&
+
+      typeof DependencySystem
+      .register ===
+      "function"
+
+    ){
+
+      DependencySystem
+      .register(
+
+        "ServiceRegistry",
+
+        ServiceRegistry
+
+      );
+
+    }
+
+  }
+
+  catch(error){
+
+    console.warn(
+      "[ServiceRegistry] Dependency registration failed",
+      error
+    );
+
+  }
+
+
+
+  // ===================================
+  // BOOT
+  // ===================================
+
   await bootRegisteredServices();
 
   logServiceRegistryEvent(
@@ -1390,6 +1438,41 @@ Object.freeze({
   clearServiceRegistry,
 
   diagnostics:
+  getServiceRegistryDiagnostics,
+
+  snapshot:
   getServiceRegistryDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ServiceRegistry",
+
+    {
+
+      value:
+      ServiceRegistry,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
