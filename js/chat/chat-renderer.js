@@ -2,6 +2,7 @@
 // RIGO AI
 // CHAT RENDERER
 // ENTERPRISE CHAT RENDER SYSTEM
+// FINAL STABLE EDITION
 // =====================================
 
 
@@ -26,10 +27,176 @@ Object.seal({
 
 
 // =====================================
+// SERVICE ACCESS
+// =====================================
+
+function getChatRendererService(
+  serviceName
+){
+
+  try{
+
+    if(
+      typeof ServiceRegistry ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof ServiceRegistry.get !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    return ServiceRegistry.get(
+      serviceName
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE LOGGER
+// =====================================
+
+function safeRendererLogError(
+  ...args
+){
+
+  try{
+
+    const diagnostics =
+    getChatRendererService(
+      "diagnostics"
+    );
+
+    if(
+      diagnostics &&
+      typeof diagnostics.error ===
+      "function"
+    ){
+
+      diagnostics.error(
+        ...args
+      );
+
+      return;
+
+    }
+
+    console.error(...args);
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+
+// =====================================
+// MARKDOWN RENDER
+// =====================================
+
+function renderMarkdownContent(
+  element,
+  content
+){
+
+  if(
+    !element
+  ){
+
+    return false;
+
+  }
+
+  const safeContent =
+  String(content || "");
+
+  try{
+
+    const markdownRenderer =
+    getChatRendererService(
+      "markdown-renderer"
+    );
+
+    if(
+      markdownRenderer &&
+      typeof markdownRenderer
+      .render ===
+      "function"
+    ){
+
+      markdownRenderer.render(
+        element,
+        safeContent
+      );
+
+    }
+
+    else{
+
+      element.textContent =
+      safeContent;
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    safeRendererLogError(
+      "MARKDOWN RENDER ERROR:",
+      error
+    );
+
+    element.textContent =
+    safeContent;
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
 // CREATE STREAM MESSAGE
 // =====================================
 
 function createStreamingMessageElement(){
+
+  if(
+    typeof document ===
+    "undefined"
+  ){
+
+    return null;
+
+  }
 
   const wrapper =
   document.createElement(
@@ -100,8 +267,19 @@ function resetStreamingMessageState(){
 
 function showTypingIndicator(){
 
+  const chatElements =
+  window.ChatElements;
+
+  if(
+    !chatElements
+  ){
+
+    return false;
+
+  }
+
   const chatContainer =
-  ChatElements.getContainer();
+  chatElements.getContainer();
 
   if(!chatContainer){
 
@@ -111,7 +289,7 @@ function showTypingIndicator(){
 
   let typingIndicator =
 
-    ChatElements
+    chatElements
     .getTypingIndicator();
 
   if(!typingIndicator){
@@ -134,16 +312,23 @@ function showTypingIndicator(){
 
     }
 
-    ChatElements
+    chatElements
     .setTypingIndicator(
       typingIndicator
     );
 
   }
 
-  removeTypingIndicator?.(
-    false
-  );
+  if(
+    typeof removeTypingIndicator ===
+    "function"
+  ){
+
+    removeTypingIndicator(
+      false
+    );
+
+  }
 
   typingIndicator
   .textContent =
@@ -169,7 +354,7 @@ function showTypingIndicator(){
   ){
 
     const appended =
-    ChatElements.append(
+    chatElements.append(
       typingIndicator
     );
 
@@ -181,7 +366,14 @@ function showTypingIndicator(){
 
   }
 
-  scrollToBottom?.();
+  if(
+    typeof scrollToBottom ===
+    "function"
+  ){
+
+    scrollToBottom();
+
+  }
 
   return true;
 
@@ -214,8 +406,19 @@ function renderStreamingMessage(
 
   }
 
+  const chatElements =
+  window.ChatElements;
+
+  if(
+    !chatElements
+  ){
+
+    return false;
+
+  }
+
   const chatContainer =
-  ChatElements.getContainer();
+  chatElements.getContainer();
 
   if(!chatContainer){
 
@@ -223,7 +426,14 @@ function renderStreamingMessage(
 
   }
 
-  removeTypingIndicator?.();
+  if(
+    typeof removeTypingIndicator ===
+    "function"
+  ){
+
+    removeTypingIndicator();
+
+  }
 
   let messageElement =
 
@@ -283,12 +493,27 @@ function renderStreamingMessage(
     .activeContentElement =
     contentElement;
 
-    streamingMessageState
-    .activeMessageId =
-    createMessageId();
+    if(
+      typeof createMessageId ===
+      "function"
+    ){
+
+      streamingMessageState
+      .activeMessageId =
+      createMessageId();
+
+    }
+
+    else{
+
+      streamingMessageState
+      .activeMessageId =
+      String(Date.now());
+
+    }
 
     const appended =
-    ChatElements.append(
+    chatElements.append(
       messageElement
     );
 
@@ -306,54 +531,27 @@ function renderStreamingMessage(
   .accumulatedContent +=
   chunk;
 
-  const content =
+  renderMarkdownContent(
+
+    contentElement,
 
     streamingMessageState
-    .accumulatedContent;
+    .accumulatedContent
 
-  try{
-
-    if(
-      typeof ChatMarkdownRenderer !==
-      "undefined"
-    ){
-
-      ChatMarkdownRenderer
-      .render(
-        contentElement,
-        content
-      );
-
-    }
-
-    else{
-
-      contentElement
-      .textContent =
-      content;
-
-    }
-
-  }
-
-  catch(error){
-
-    console.error(
-      "STREAM RENDER ERROR:",
-      error
-    );
-
-    contentElement
-    .textContent =
-    content;
-
-  }
+  );
 
   messageElement.dataset
   .streaming =
   "true";
 
-  scrollToBottom?.();
+  if(
+    typeof scrollToBottom ===
+    "function"
+  ){
+
+    scrollToBottom();
+
+  }
 
   return true;
 
@@ -412,67 +610,70 @@ function finalizeStreamingMessage(){
   .streaming =
   "false";
 
-  try{
-
-    if(
-      typeof ChatMarkdownRenderer !==
-      "undefined"
-    ){
-
-      ChatMarkdownRenderer
-      .render(
-        contentElement,
-        finalContent
-      );
-
-    }
-
-  }
-
-  catch(error){
-
-    console.error(
-      "FINAL STREAM RENDER ERROR:",
-      error
-    );
-
-    contentElement
-    .textContent =
-    finalContent;
-
-  }
+  renderMarkdownContent(
+    contentElement,
+    finalContent
+  );
 
   const finalMessage =
-  freezeChatObject({
 
-    id:
+    typeof freezeChatObject ===
+    "function"
 
-      streamingMessageState
-      .activeMessageId
+    ?
 
-      ||
+    freezeChatObject({
 
-      createMessageId(),
+      id:
 
-    role:"assistant",
+        streamingMessageState
+        .activeMessageId
 
-    content:
-    finalContent,
+        ||
 
-    timestamp:
-    Date.now(),
+        String(Date.now()),
 
-    metadata:{
+      role:"assistant",
 
-      streaming:true,
+      content:
+      finalContent,
 
-      completed:true
+      timestamp:
+      Date.now(),
 
-    }
+      metadata:{
 
-  });
+        streaming:true,
+
+        completed:true
+
+      }
+
+    })
+
+    :
+
+    {
+
+      id:
+      String(Date.now()),
+
+      role:"assistant",
+
+      content:
+      finalContent,
+
+      timestamp:
+      Date.now()
+
+    };
 
   if(
+
+    typeof currentChat !==
+    "undefined"
+
+    &&
 
     currentChat
 
@@ -500,7 +701,14 @@ function finalizeStreamingMessage(){
 
   }
 
-  debouncedSaveCurrentChat?.();
+  if(
+    typeof debouncedSaveCurrentChat ===
+    "function"
+  ){
+
+    debouncedSaveCurrentChat();
+
+  }
 
   resetStreamingMessageState();
 
@@ -539,5 +747,99 @@ function abortStreamingMessage(){
   resetStreamingMessageState();
 
   return true;
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getChatRendererDiagnostics(){
+
+  return Object.freeze({
+
+    activeMessageId:
+
+      streamingMessageState
+      .activeMessageId,
+
+    streaming:
+
+      !!streamingMessageState
+      .activeElement,
+
+    accumulatedLength:
+
+      streamingMessageState
+      .accumulatedContent
+      .length
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatRenderer =
+Object.freeze({
+
+  showTyping:
+  showTypingIndicator,
+
+  renderStream:
+  renderStreamingMessage,
+
+  finalizeStream:
+  finalizeStreamingMessage,
+
+  abortStream:
+  abortStreamingMessage,
+
+  resetStream:
+  resetStreamingMessageState,
+
+  diagnostics:
+  getChatRendererDiagnostics,
+
+  snapshot:
+  getChatRendererDiagnostics
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ChatRenderer",
+
+    {
+
+      value:
+      ChatRenderer,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
