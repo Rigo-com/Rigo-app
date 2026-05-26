@@ -5,8 +5,13 @@
 
 
 
+// =====================================
+// APP PHASES
+// =====================================
+
 const APP_PHASES =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
   IDLE:
   "idle",
@@ -32,7 +37,26 @@ Object.freeze({
   ERROR:
   "error"
 
-});
+}));
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function isValidAppPhase(
+  phase
+){
+
+  return Object.values(
+    APP_PHASES
+  )
+  .includes(
+    String(phase)
+  );
+
+}
 
 
 
@@ -55,6 +79,25 @@ if(
 
       value:
       APP_PHASES,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "isValidAppPhase",
+
+    {
+
+      value:
+      isValidAppPhase,
 
       writable:false,
 
