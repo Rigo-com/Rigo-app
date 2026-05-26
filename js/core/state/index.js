@@ -17,39 +17,39 @@ function getStateDependency(
   try{
 
     if(
-      typeof window ===
+      typeof DependencySystem ===
       "undefined"
     ){
 
       return null;
 
     }
-
-    const dependency =
-      window[dependencyName];
 
     if(
-      typeof dependency ===
-      "undefined"
+      typeof DependencySystem
+      .resolve !==
+      "function"
     ){
-
-      console.warn(
-        `[StateAPI] Missing dependency: ${dependencyName}`
-      );
 
       return null;
 
     }
 
-    return dependency;
+    return DependencySystem
+    .resolve(
+      dependencyName
+    );
 
   }
 
   catch(error){
 
     console.warn(
+
       `[StateAPI] Failed resolving dependency: ${dependencyName}`,
+
       error
+
     );
 
     return null;
@@ -60,7 +60,9 @@ function getStateDependency(
 
 
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
   return typeof value ===
   "function";
@@ -75,9 +77,12 @@ function safeFreeze(
 ){
 
   if(
+
     !value ||
+
     typeof value !==
     "object"
+
   ){
 
     return value;
@@ -94,10 +99,22 @@ function safeFreeze(
 
   if(
 
-    value instanceof Map ||
-    value instanceof Set ||
+    value instanceof Promise ||
+
     value instanceof Date ||
-    value instanceof RegExp
+
+    value instanceof RegExp ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
 
   ){
 
@@ -105,16 +122,24 @@ function safeFreeze(
 
   }
 
-  visited.add(value);
+  visited.add(
+    value
+  );
 
-  Object.freeze(value);
+  Object.freeze(
+    value
+  );
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
     if(
+
       nestedValue &&
+
       typeof nestedValue ===
       "object"
+
     ){
 
       safeFreeze(
@@ -141,7 +166,9 @@ function safelyExecuteStateOperation(
   try{
 
     if(
-      !isFunction(operation)
+      !isFunction(
+        operation
+      )
     ){
 
       return fallback;
@@ -155,8 +182,11 @@ function safelyExecuteStateOperation(
   catch(error){
 
     console.warn(
+
       `[StateAPI] ${label} failed`,
+
       error
+
     );
 
     return fallback;
@@ -168,7 +198,7 @@ function safelyExecuteStateOperation(
 
 
 // =====================================
-// STATE SNAPSHOTS
+// READONLY APP STATE
 // =====================================
 
 function getReadonlyAppState(){
@@ -179,19 +209,31 @@ function getReadonlyAppState(){
 
     () => {
 
-      const getter =
-        getStateDependency(
-          "getAppState"
-        );
+      const appStateAPI =
+      getStateDependency(
+        "AppState"
+      );
 
       if(
-        !isFunction(getter)
+        !appStateAPI
       ){
+
         return null;
+
+      }
+
+      if(
+        !isFunction(
+          appStateAPI.get
+        )
+      ){
+
+        return null;
+
       }
 
       return safeFreeze(
-        getter()
+        appStateAPI.get()
       );
 
     },
@@ -204,6 +246,10 @@ function getReadonlyAppState(){
 
 
 
+// =====================================
+// READONLY STATE MANAGER
+// =====================================
+
 function getReadonlyStateManager(){
 
   return safelyExecuteStateOperation(
@@ -213,26 +259,83 @@ function getReadonlyStateManager(){
     () => {
 
       const manager =
-        getStateDependency(
-          "StateManager"
-        );
+      getStateDependency(
+        "StateManager"
+      );
 
-      if(!manager){
+      if(
+        !manager
+      ){
+
         return null;
+
       }
 
       if(
-        isFunction(manager.snapshot)
+        isFunction(
+          manager.diagnostics
+        )
       ){
 
         return safeFreeze(
-          manager.snapshot()
+          manager
+          .diagnostics()
         );
 
       }
 
       return safeFreeze(
         manager
+      );
+
+    },
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// STATE DIAGNOSTICS
+// =====================================
+
+function getReadonlyStateDiagnostics(){
+
+  return safelyExecuteStateOperation(
+
+    "State diagnostics",
+
+    () => {
+
+      const manager =
+      getStateDependency(
+        "StateManager"
+      );
+
+      if(
+        !manager
+      ){
+
+        return null;
+
+      }
+
+      if(
+        !isFunction(
+          manager.diagnostics
+        )
+      ){
+
+        return null;
+
+      }
+
+      return safeFreeze(
+        manager
+        .diagnostics()
       );
 
     },
@@ -255,7 +358,7 @@ safeFreeze({
 
 
   // ===================================
-  // READONLY STATE
+  // READONLY
   // ===================================
 
   app(){
@@ -274,8 +377,16 @@ safeFreeze({
 
 
 
+  diagnostics(){
+
+    return getReadonlyStateDiagnostics();
+
+  },
+
+
+
   // ===================================
-  // HELPERS
+  // APP STATE
   // ===================================
 
   get(){
@@ -286,14 +397,32 @@ safeFreeze({
 
       () => {
 
-        const getter =
-          getStateDependency(
-            "getAppState"
-          );
+        const appStateAPI =
+        getStateDependency(
+          "AppState"
+        );
 
-        return getter
-          ? getter()
-          : null;
+        if(
+          !appStateAPI
+        ){
+
+          return null;
+
+        }
+
+        if(
+          !isFunction(
+            appStateAPI.get
+          )
+        ){
+
+          return null;
+
+        }
+
+        return safeFreeze(
+          appStateAPI.get()
+        );
 
       },
 
@@ -305,7 +434,7 @@ safeFreeze({
 
 
 
-  update(
+  setPhase(
     phase
   ){
 
@@ -315,14 +444,34 @@ safeFreeze({
 
       () => {
 
-        const updater =
-          getStateDependency(
-            "updateAppPhase"
-          );
+        const appStateAPI =
+        getStateDependency(
+          "AppState"
+        );
 
-        return updater
-          ? updater(phase)
-          : false;
+        if(
+          !appStateAPI
+        ){
+
+          return false;
+
+        }
+
+        if(
+          !isFunction(
+            appStateAPI
+            .setPhase
+          )
+        ){
+
+          return false;
+
+        }
+
+        return appStateAPI
+        .setPhase(
+          phase
+        );
 
       },
 
@@ -342,14 +491,32 @@ safeFreeze({
 
       () => {
 
-        const resetter =
-          getStateDependency(
-            "resetAppState"
-          );
+        const appStateAPI =
+        getStateDependency(
+          "AppState"
+        );
 
-        return resetter
-          ? resetter()
-          : false;
+        if(
+          !appStateAPI
+        ){
+
+          return false;
+
+        }
+
+        if(
+          !isFunction(
+            appStateAPI
+            .reset
+          )
+        ){
+
+          return false;
+
+        }
+
+        return appStateAPI
+        .reset();
 
       },
 
@@ -361,28 +528,199 @@ safeFreeze({
 
 
 
-  diagnostics(){
+  // ===================================
+  // STATE MANAGER
+  // ===================================
+
+  state(){
 
     return safelyExecuteStateOperation(
 
-      "State diagnostics",
+      "Get manager state",
 
       () => {
 
-        const diagnostics =
-          getStateDependency(
-            "getStateDiagnostics"
-          );
+        const manager =
+        getStateDependency(
+          "StateManager"
+        );
 
-        return diagnostics
-          ? safeFreeze(
-              diagnostics()
-            )
-          : null;
+        if(
+          !manager
+        ){
+
+          return null;
+
+        }
+
+        if(
+          !isFunction(
+            manager.getAll
+          )
+        ){
+
+          return null;
+
+        }
+
+        return safeFreeze(
+          manager
+          .getAll()
+        );
 
       },
 
       null
+
+    );
+
+  },
+
+
+
+  update(
+    path,
+    value,
+    metadata = {}
+  ){
+
+    return safelyExecuteStateOperation(
+
+      "Update manager state",
+
+      () => {
+
+        const manager =
+        getStateDependency(
+          "StateManager"
+        );
+
+        if(
+          !manager
+        ){
+
+          return false;
+
+        }
+
+        if(
+          !isFunction(
+            manager.update
+          )
+        ){
+
+          return false;
+
+        }
+
+        return manager
+        .update(
+
+          path,
+          value,
+          metadata
+
+        );
+
+      },
+
+      false
+
+    );
+
+  },
+
+
+
+  remove(
+    path
+  ){
+
+    return safelyExecuteStateOperation(
+
+      "Remove manager state",
+
+      () => {
+
+        const manager =
+        getStateDependency(
+          "StateManager"
+        );
+
+        if(
+          !manager
+        ){
+
+          return false;
+
+        }
+
+        if(
+          !isFunction(
+            manager.remove
+          )
+        ){
+
+          return false;
+
+        }
+
+        return manager
+        .remove(
+          path
+        );
+
+      },
+
+      false
+
+    );
+
+  },
+
+
+
+  rollback(
+    version
+  ){
+
+    return safelyExecuteStateOperation(
+
+      "Rollback manager state",
+
+      () => {
+
+        const manager =
+        getStateDependency(
+          "StateManager"
+        );
+
+        if(
+          !manager
+        ){
+
+          return false;
+
+        }
+
+        if(
+          !isFunction(
+            manager.rollback
+          )
+        ){
+
+          return false;
+
+        }
+
+        return manager
+        .rollback(
+          version
+        );
+
+      },
+
+      false
 
     );
 
