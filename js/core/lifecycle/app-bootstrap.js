@@ -6,6 +6,126 @@
 
 
 // =====================================
+// IMMUTABLE
+// =====================================
+
+function freezeBootstrapObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeBootstrapObject(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
+// DEPENDENCIES
+// =====================================
+
+function getBootstrapDependency(
+  dependencyName
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return window[
+      dependencyName
+    ] || null;
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // STATE
 // =====================================
 
@@ -52,6 +172,22 @@ function normalizeBootstrapError(
   error
 ){
 
+  const formatter =
+  getBootstrapDependency(
+    "getSafeErrorMessage"
+  );
+
+  if(
+    typeof formatter ===
+    "function"
+  ){
+
+    return formatter(
+      error
+    );
+
+  }
+
   return String(
     error || "UNKNOWN ERROR"
   );
@@ -70,7 +206,21 @@ function safeRegisterModule(
 
   try{
 
-    registerAppModule(
+    const registerModule =
+    getBootstrapDependency(
+      "registerAppModule"
+    );
+
+    if(
+      typeof registerModule !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
+    registerModule(
       moduleName
     );
 
@@ -98,7 +248,21 @@ function safeFailModule(
 
   try{
 
-    markModuleFailed(
+    const failModule =
+    getBootstrapDependency(
+      "markModuleFailed"
+    );
+
+    if(
+      typeof failModule !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
+    failModule(
       moduleName
     );
 
@@ -122,12 +286,31 @@ function safeFailModule(
 
 function registerBootstrapDependencies(){
 
+  const registerDependency =
+  getBootstrapDependency(
+    "registerDependency"
+  );
+
+  if(
+    typeof registerDependency !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
   registerDependency(
     "memory",
     () => {
 
+      const initializer =
+      getBootstrapDependency(
+        "initializeMemorySystem"
+      );
+
       return typeof
-      initializeMemorySystem ===
+      initializer ===
       "function";
 
     }
@@ -137,8 +320,13 @@ function registerBootstrapDependencies(){
     "services",
     () => {
 
+      const sender =
+      getBootstrapDependency(
+        "sendMessage"
+      );
+
       return typeof
-      sendMessage ===
+      sender ===
       "function";
 
     }
@@ -148,8 +336,13 @@ function registerBootstrapDependencies(){
     "events",
     () => {
 
+      const emitter =
+      getBootstrapDependency(
+        "emitSystemEvent"
+      );
+
       return typeof
-      emitSystemEvent ===
+      emitter ===
       "function";
 
     }
@@ -167,8 +360,26 @@ function registerBootstrapDependencies(){
 
 function validateBootstrapEnvironment(){
 
+  const environmentAPI =
+  getBootstrapDependency(
+    "AppEnvironment"
+  );
+
+  if(
+    !environmentAPI ||
+    typeof environmentAPI
+    .validate !==
+    "function"
+  ){
+
+    throw new Error(
+      "ENVIRONMENT API UNAVAILABLE"
+    );
+
+  }
+
   const environment =
-  AppEnvironment
+  environmentAPI
   .validate();
 
   if(
@@ -197,8 +408,29 @@ function validateBootstrapEnvironment(){
 
 function initializeBootstrapDOM(){
 
+  const initializeDOM =
+  getBootstrapDependency(
+    "initializeDOMElements"
+  );
+
+  const validateDOM =
+  getBootstrapDependency(
+    "validateDOMElements"
+  );
+
+  if(
+    typeof initializeDOM !==
+    "function"
+  ){
+
+    throw new Error(
+      "DOM INITIALIZER UNAVAILABLE"
+    );
+
+  }
+
   const initializedDOM =
-  initializeDOMElements();
+  initializeDOM();
 
   if(!initializedDOM){
 
@@ -212,8 +444,19 @@ function initializeBootstrapDOM(){
     "dom"
   );
 
+  if(
+    typeof validateDOM !==
+    "function"
+  ){
+
+    throw new Error(
+      "DOM VALIDATOR UNAVAILABLE"
+    );
+
+  }
+
   const validDOM =
-  validateDOMElements();
+  validateDOM();
 
   if(!validDOM){
 
@@ -241,14 +484,24 @@ async function initializeBootstrapDependencies(){
 
   registerBootstrapDependencies();
 
+  const getContainerHealth =
+  getBootstrapDependency(
+    "getContainerHealthReport"
+  );
 
+  if(
+    typeof getContainerHealth !==
+    "function"
+  ){
 
-  // ===================================
-  // CONTAINER HEALTH
-  // ===================================
+    throw new Error(
+      "CONTAINER HEALTH UNAVAILABLE"
+    );
+
+  }
 
   const containerHealth =
-  getContainerHealthReport();
+  getContainerHealth();
 
   const validDependencies =
   containerHealth?.healthy ===
@@ -282,8 +535,24 @@ async function initializeBootstrapDependencies(){
 
 function initializeBootstrapEvents(){
 
+  const setupEvents =
+  getBootstrapDependency(
+    "setupAppEvents"
+  );
+
+  if(
+    typeof setupEvents !==
+    "function"
+  ){
+
+    throw new Error(
+      "EVENT SETUP UNAVAILABLE"
+    );
+
+  }
+
   const eventsReady =
-  setupAppEvents();
+  setupEvents();
 
   if(!eventsReady){
 
@@ -344,14 +613,44 @@ async function initializeApp(){
 
   try{
 
-    updateAppPhase(
-      APP_PHASES
-      .INITIALIZING
+    const updatePhase =
+    getBootstrapDependency(
+      "updateAppPhase"
     );
 
-    await emitAppEvent(
-      "app.initializing"
+    const phases =
+    getBootstrapDependency(
+      "APP_PHASES"
     );
+
+    if(
+      typeof updatePhase ===
+      "function" &&
+      phases
+    ){
+
+      updatePhase(
+        phases
+        .INITIALIZING
+      );
+
+    }
+
+    const appEmitter =
+    getBootstrapDependency(
+      "emitAppEvent"
+    );
+
+    if(
+      typeof appEmitter ===
+      "function"
+    ){
+
+      await appEmitter(
+        "app.initializing"
+      );
+
+    }
 
 
 
@@ -400,12 +699,17 @@ async function initializeApp(){
 
     });
 
+    const diagnosticsInfo =
+    getBootstrapDependency(
+      "logDiagnosticInfo"
+    );
+
     if(
-      typeof logDiagnosticInfo ===
+      typeof diagnosticsInfo ===
       "function"
     ){
 
-      await logDiagnosticInfo(
+      await diagnosticsInfo(
 
         "APP BOOTSTRAP COMPLETED",
 
@@ -437,17 +741,40 @@ async function initializeApp(){
 
     });
 
-    updateAppPhase(
-      APP_PHASES
-      .FAILED
+    const updatePhase =
+    getBootstrapDependency(
+      "updateAppPhase"
+    );
+
+    const phases =
+    getBootstrapDependency(
+      "APP_PHASES"
     );
 
     if(
-      typeof logCriticalError ===
+      typeof updatePhase ===
+      "function" &&
+      phases
+    ){
+
+      updatePhase(
+        phases
+        .FAILED
+      );
+
+    }
+
+    const criticalLogger =
+    getBootstrapDependency(
+      "logCriticalError"
+    );
+
+    if(
+      typeof criticalLogger ===
       "function"
     ){
 
-      await logCriticalError(
+      await criticalLogger(
 
         "APP BOOTSTRAP FAILED",
 
@@ -488,7 +815,7 @@ async function initializeApp(){
 
 function createBootstrapSnapshot(){
 
-  return freezeEnvironmentObject({
+  return freezeBootstrapObject({
 
     initialized:
     bootstrapState
@@ -505,6 +832,33 @@ function createBootstrapSnapshot(){
     completedAt:
     bootstrapState
     .completedAt,
+
+    duration:
+
+      bootstrapState
+      .startedAt &&
+
+      bootstrapState
+      .completedAt
+
+      ?
+
+      bootstrapState
+      .completedAt -
+
+      bootstrapState
+      .startedAt
+
+      :
+
+      null,
+
+    phase:
+
+      appState
+      ?.phase ||
+
+      null,
 
     lastError:
 
@@ -535,6 +889,9 @@ Object.freeze({
   initializeApp,
 
   snapshot:
+  createBootstrapSnapshot,
+
+  diagnostics:
   createBootstrapSnapshot
 
 });
@@ -550,7 +907,25 @@ if(
   "undefined"
 ){
 
-  window.AppBootstrap =
-  AppBootstrap;
+  Object.defineProperty(
+
+    window,
+
+    "AppBootstrap",
+
+    {
+
+      value:
+      AppBootstrap,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
