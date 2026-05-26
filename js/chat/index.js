@@ -976,6 +976,26 @@ if(
 
 
 
+  window.ChatRuntime =
+  ChatRuntime;
+
+
+
+  window.ChatStreamManager =
+  ChatStreamManager;
+
+
+
+  window.ChatElements =
+  ChatElements;
+
+
+
+  window.ChatMarkdownRenderer =
+  ChatMarkdownRenderer;
+
+
+
   window.initializeChatSystem =
   initializeChatSystem;
 
