@@ -10,19 +10,27 @@
 // INTERNAL RUNTIME METRICS
 // =====================================
 
-const moduleActivationRuntime = {
+const moduleActivationRuntime =
+Object.seal({
 
-  diagnostics: {
+  diagnostics:
+  Object.seal({
 
-    loaded:
-    0
+    loaded:0,
 
-  },
+    failed:0,
 
-  lastLoadedAt:
-  null
+    unloaded:0
 
-};
+  }),
+
+  lastLoadedAt:null,
+
+  lastFailedAt:null,
+
+  lastUnloadedAt:null
+
+});
 
 
 
@@ -30,21 +38,93 @@ const moduleActivationRuntime = {
 // HELPERS
 // =====================================
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
-  return typeof value === "function";
+  return typeof value ===
+  "function";
 
 }
 
 
 
-function getActivationDependency(name){
+function normalizeActivationError(
+  error
+){
 
-  if(typeof window === "undefined"){
-    return null;
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
   }
 
-  return window[name] || null;
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+function getModuleRuntime(
+  moduleName
+){
+
+  if(
+
+    typeof ModuleRegistry ===
+    "undefined" ||
+
+    !isFunction(
+      ModuleRegistry
+      .getModuleRuntimeState
+    )
+
+  ){
+
+    return null;
+
+  }
+
+  return ModuleRegistry
+  .getModuleRuntimeState(
+    moduleName
+  );
+
+}
+
+
+
+function updateModuleRuntime(
+  moduleName,
+  updates = {}
+){
+
+  const runtime =
+  getModuleRuntime(
+    moduleName
+  );
+
+  if(
+    !runtime
+  ){
+
+    return false;
+
+  }
+
+  Object.assign(
+    runtime,
+    updates
+  );
+
+  return true;
 
 }
 
@@ -54,13 +134,25 @@ function getActivationDependency(name){
 // CIRCUIT SAFETY
 // =====================================
 
-function detectModuleCircularDependency(moduleName){
+function detectModuleCircularDependency(
+  moduleName
+){
 
-  const name =
-    normalizeModuleName(moduleName);
+  const snapshot =
 
-  return moduleLoaderState.loadingStack
-    .includes(name);
+    ModuleRegistry
+    ?.snapshot?.();
+
+  const loadingStack =
+    snapshot
+    ?.loadingStack || [];
+
+  return loadingStack
+  .includes(
+    normalizeModuleName(
+      moduleName
+    )
+  );
 
 }
 
@@ -78,13 +170,19 @@ async function emitModuleEvent(
   try{
 
     if(
-      !isFunction(emitSystemEvent)
+      !isFunction(
+        emitSystemEvent
+      )
     ){
+
       return false;
+
     }
 
     await emitSystemEvent(
+
       eventName,
+
       {
 
         source:
@@ -96,16 +194,23 @@ async function emitModuleEvent(
         ...payload
 
       }
+
     );
 
     return true;
 
-  }catch(error){
+  }
+
+  catch(error){
 
     console.warn(
+
       "[ModuleActivation] Event emission failed:",
+
       eventName,
+
       error
+
     );
 
     return false;
@@ -120,23 +225,37 @@ async function emitModuleEvent(
 // TIMEOUT WRAPPER
 // =====================================
 
-function createModuleTimeout(timeout){
+function createModuleTimeout(
+  timeout
+){
 
   const duration =
+
     timeout ??
-    MODULE_LOADER_CONFIG.ACTIVATION_TIMEOUT;
 
-  let timeoutId = null;
+    MODULE_LOADER_CONFIG
+    .ACTIVATION_TIMEOUT;
 
-  const promise = new Promise((_, reject) => {
+  let timeoutId =
+  null;
 
-    timeoutId = setTimeout(() => {
+  const promise =
+  new Promise((_, reject) => {
+
+    timeoutId =
+    setTimeout(() => {
 
       reject(
-        new Error("MODULE ACTIVATION TIMEOUT")
+
+        new Error(
+          "MODULE ACTIVATION TIMEOUT"
+        )
+
       );
 
-    }, duration);
+    },
+
+    duration);
 
   });
 
@@ -147,7 +266,11 @@ function createModuleTimeout(timeout){
     clear(){
 
       if(timeoutId){
-        clearTimeout(timeoutId);
+
+        clearTimeout(
+          timeoutId
+        );
+
       }
 
     }
@@ -166,166 +289,330 @@ function createModuleContext(
   moduleDefinition
 ){
 
+  const context = {
+
+    name:
+    moduleDefinition
+    .metadata
+    .name,
+
+    lifecycle:
+    moduleDefinition
+    .metadata
+    .lifecycle,
+
+    priority:
+    moduleDefinition
+    .metadata
+    .priority,
+
+    dependencies:
+    moduleDefinition
+    .metadata
+    .dependencies
+
+  };
+
   if(
     typeof freezeModuleObject ===
     "function"
   ){
 
-    return freezeModuleObject({
-
-      name:
-      moduleDefinition.metadata.name,
-
-      lifecycle:
-      moduleDefinition.metadata.lifecycle,
-
-      priority:
-      moduleDefinition.metadata.priority,
-
-      dependencies:
-      moduleDefinition.metadata.dependencies
-
-    });
+    return freezeModuleObject(
+      context
+    );
 
   }
 
-  return Object.freeze({
-
-    name:
-    moduleDefinition.metadata.name,
-
-    lifecycle:
-    moduleDefinition.metadata.lifecycle,
-
-    priority:
-    moduleDefinition.metadata.priority,
-
-    dependencies:
-    moduleDefinition.metadata.dependencies
-
-  });
+  return Object.freeze(
+    context
+  );
 
 }
 
 
 
 // =====================================
-// EXECUTE MODULE
+// LOAD DEPENDENCIES
+// =====================================
+
+async function loadModuleDependencies(
+  moduleDefinition
+){
+
+  const dependencies =
+
+    moduleDefinition
+    .metadata
+    .dependencies;
+
+  for(
+    const dependency
+    of dependencies
+  ){
+
+    const loaded =
+    await loadModule(
+      dependency
+    );
+
+    if(
+      !loaded
+    ){
+
+      throw new Error(
+
+        `DEPENDENCY LOAD FAILED: ${dependency}`
+
+      );
+
+    }
+
+  }
+
+  await emitModuleEvent(
+
+    MODULE_EVENTS
+    .DEPENDENCIES_RESOLVED,
+
+    {
+
+      module:
+      moduleDefinition
+      .metadata
+      .name,
+
+      dependencies
+
+    }
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// ACTIVATE MODULE
 // =====================================
 
 async function activateModule(
   moduleDefinition
 ){
 
+  const moduleName =
+
+    moduleDefinition
+    .metadata
+    .name;
+
+  const runtime =
+  getModuleRuntime(
+    moduleName
+  );
+
+  if(
+    !runtime
+  ){
+
+    return null;
+
+  }
+
   const startedAt =
-    Date.now();
+  Date.now();
 
   const context =
-    createModuleContext(
-      moduleDefinition
-    );
+  createModuleContext(
+    moduleDefinition
+  );
 
   const timeout =
-    createModuleTimeout(
-      MODULE_LOADER_CONFIG.ACTIVATION_TIMEOUT
-    );
+  createModuleTimeout(
+
+    MODULE_LOADER_CONFIG
+    .ACTIVATION_TIMEOUT
+
+  );
 
   try{
 
+    updateModuleRuntime(
+
+      moduleName,
+
+      {
+
+        state:
+        MODULE_STATES
+        .INITIALIZING
+
+      }
+
+    );
+
     const container =
-      getActivationDependency(
-        "DependencyContainer"
-      );
+
+      typeof Container !==
+      "undefined"
+
+      ?
+
+      Container
+
+      :
+
+      null;
 
     const state =
-      getActivationDependency(
-        "StateManager"
-      );
+
+      typeof StateManager !==
+      "undefined"
+
+      ?
+
+      StateManager
+
+      :
+
+      null;
 
     const diagnostics =
-      getActivationDependency(
-        "DiagnosticsRuntime"
-      );
+
+      typeof DiagnosticsRuntime !==
+      "undefined"
+
+      ?
+
+      DiagnosticsRuntime
+
+      :
+
+      null;
 
     const events =
-      getActivationDependency(
-        "SystemEvents"
-      );
+
+      typeof SystemEvents !==
+      "undefined"
+
+      ?
+
+      SystemEvents
+
+      :
+
+      null;
 
     const instance =
-      await Promise.race([
+    await Promise.race([
 
-        moduleDefinition.factory({
+      moduleDefinition
+      .factory({
 
-          module:
-          context,
+        module:
+        context,
 
-          container,
+        container,
 
-          state,
+        state,
 
-          diagnostics,
+        diagnostics,
 
-          events
+        events
 
-        }),
+      }),
 
-        timeout.promise
+      timeout
+      .promise
 
-      ]);
+    ]);
 
     timeout.clear();
 
     if(instance){
 
-      moduleLoaderState.instances.set(
-        moduleDefinition.metadata.name,
+      ModuleRegistry
+      .setModuleInstance(
+
+        moduleName,
         instance
+
       );
 
     }
 
-    moduleLoaderState.activeModules.add(
-      moduleDefinition.metadata.name
+    ModuleRegistry
+    .markModuleActive(
+      moduleName
     );
 
-    moduleLoaderState.failedModules.delete(
-      moduleDefinition.metadata.name
+    ModuleRegistry
+    .clearFailedModule(
+      moduleName
     );
 
-    moduleDefinition.state =
-      MODULE_STATES.ACTIVE;
+    updateModuleRuntime(
 
-    moduleActivationRuntime.diagnostics.loaded++;
+      moduleName,
 
-    moduleActivationRuntime.lastLoadedAt =
-      Date.now();
+      {
+
+        state:
+        MODULE_STATES
+        .ACTIVE,
+
+        activatedAt:
+        Date.now(),
+
+        failedAt:null
+
+      }
+
+    );
+
+    moduleActivationRuntime
+    .diagnostics
+    .loaded++;
+
+    moduleActivationRuntime
+    .lastLoadedAt =
+    Date.now();
 
     if(
-      isFunction(trackPerformanceMetric)
+      isFunction(
+        trackPerformanceMetric
+      )
     ){
 
       trackPerformanceMetric(
+
         "module.activation",
-        Date.now() - startedAt,
+
+        Date.now() -
+        startedAt,
+
         {
 
           module:
-          moduleDefinition.metadata.name
+          moduleName
 
         }
+
       );
 
     }
 
     await emitModuleEvent(
 
-      MODULE_EVENTS.ACTIVATED,
+      MODULE_EVENTS
+      .ACTIVATED,
 
       {
 
         module:
-        moduleDefinition.metadata.name
+        moduleName
 
       }
 
@@ -333,19 +620,49 @@ async function activateModule(
 
     return instance;
 
-  }catch(error){
+  }
+
+  catch(error){
 
     timeout.clear();
 
-    moduleDefinition.state =
-      MODULE_STATES.FAILED;
+    updateModuleRuntime(
 
-    moduleLoaderState.failedModules.add(
-      moduleDefinition.metadata.name
+      moduleName,
+
+      {
+
+        state:
+        MODULE_STATES
+        .FAILED,
+
+        retries:
+        runtime.retries + 1,
+
+        failedAt:
+        Date.now()
+
+      }
+
     );
 
+    ModuleRegistry
+    .markModuleFailed(
+      moduleName
+    );
+
+    moduleActivationRuntime
+    .diagnostics
+    .failed++;
+
+    moduleActivationRuntime
+    .lastFailedAt =
+    Date.now();
+
     if(
-      isFunction(logDiagnosticError)
+      isFunction(
+        logDiagnosticError
+      )
     ){
 
       await logDiagnosticError(
@@ -355,16 +672,37 @@ async function activateModule(
         {
 
           module:
-          moduleDefinition.metadata.name,
+          moduleName,
 
           error:
-          String(error)
+          normalizeActivationError(
+            error
+          )
 
         }
 
       );
 
     }
+
+    await emitModuleEvent(
+
+      MODULE_EVENTS
+      .ACTIVATION_FAILED,
+
+      {
+
+        module:
+        moduleName,
+
+        error:
+        normalizeActivationError(
+          error
+        )
+
+      }
+
+    );
 
     return null;
 
@@ -378,65 +716,132 @@ async function activateModule(
 // LOAD MODULE
 // =====================================
 
-async function loadModule(moduleName){
+async function loadModule(
+  moduleName
+){
 
-  const name =
-    normalizeModuleName(moduleName);
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
 
-  if(!name){
+  if(
+    !normalizedName
+  ){
+
     return false;
+
   }
 
   if(
-    detectModuleCircularDependency(name)
+    detectModuleCircularDependency(
+      normalizedName
+    )
   ){
-    return false;
-  }
 
-  if(
-    moduleLoaderState.activeModules.has(name)
-  ){
-    return true;
+    return false;
+
   }
 
   const moduleDefinition =
-    moduleLoaderState.modules.get(name);
+  ModuleRegistry
+  .getRegisteredModule(
+    normalizedName
+  );
 
-  if(!moduleDefinition){
+  if(
+    !moduleDefinition
+  ){
+
     return false;
+
   }
 
-  moduleLoaderState.loadingStack.push(
-    name
+  const runtime =
+  getModuleRuntime(
+    normalizedName
+  );
+
+  if(
+    !runtime
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    runtime.state ===
+    MODULE_STATES.ACTIVE
+
+  ){
+
+    return true;
+
+  }
+
+  ModuleRegistry
+  .pushLoadingModule(
+    normalizedName
   );
 
   try{
 
-    moduleDefinition.state =
-      MODULE_STATES.INITIALIZING;
+    updateModuleRuntime(
 
-    await emitModuleEvent(
-
-      MODULE_EVENTS.INITIALIZED,
+      normalizedName,
 
       {
 
-        module:
-        name
+        state:
+        MODULE_STATES
+        .INITIALIZING
 
       }
 
     );
 
-    moduleDefinition.state =
-      MODULE_STATES.LOADING;
+    await emitModuleEvent(
+
+      MODULE_EVENTS
+      .INITIALIZED,
+
+      {
+
+        module:
+        normalizedName
+
+      }
+
+    );
+
+    await loadModuleDependencies(
+      moduleDefinition
+    );
+
+    updateModuleRuntime(
+
+      normalizedName,
+
+      {
+
+        state:
+        MODULE_STATES
+        .LOADING
+
+      }
+
+    );
 
     const instance =
-      await activateModule(
-        moduleDefinition
-      );
+    await activateModule(
+      moduleDefinition
+    );
 
-    if(!instance){
+    if(
+      !instance
+    ){
 
       throw new Error(
         "ACTIVATION FAILED"
@@ -446,12 +851,13 @@ async function loadModule(moduleName){
 
     await emitModuleEvent(
 
-      MODULE_EVENTS.LOADED,
+      MODULE_EVENTS
+      .LOADED,
 
       {
 
         module:
-        name
+        normalizedName
 
       }
 
@@ -459,20 +865,47 @@ async function loadModule(moduleName){
 
     return true;
 
-  }catch(error){
+  }
 
-    moduleDefinition.retries =
-      (moduleDefinition.retries || 0) + 1;
+  catch(error){
 
-    moduleDefinition.state =
-      MODULE_STATES.FAILED;
+    updateModuleRuntime(
 
-    moduleLoaderState.failedModules.add(
-      name
+      normalizedName,
+
+      {
+
+        state:
+        MODULE_STATES
+        .FAILED,
+
+        retries:
+        runtime.retries + 1,
+
+        failedAt:
+        Date.now()
+
+      }
+
     );
 
+    ModuleRegistry
+    .markModuleFailed(
+      normalizedName
+    );
+
+    moduleActivationRuntime
+    .diagnostics
+    .failed++;
+
+    moduleActivationRuntime
+    .lastFailedAt =
+    Date.now();
+
     if(
-      isFunction(logDiagnosticError)
+      isFunction(
+        logDiagnosticError
+      )
     ){
 
       await logDiagnosticError(
@@ -482,13 +915,15 @@ async function loadModule(moduleName){
         {
 
           module:
-          name,
+          normalizedName,
 
           retries:
-          moduleDefinition.retries,
+          runtime.retries + 1,
 
           error:
-          String(error)
+          normalizeActivationError(
+            error
+          )
 
         }
 
@@ -496,17 +931,66 @@ async function loadModule(moduleName){
 
     }
 
+    await emitModuleEvent(
+
+      MODULE_EVENTS
+      .LOAD_FAILED,
+
+      {
+
+        module:
+        normalizedName,
+
+        error:
+        normalizeActivationError(
+          error
+        )
+
+      }
+
+    );
+
+    if(
+
+      MODULE_LOADER_CONFIG
+      .ENABLE_RETRY_LOADING &&
+
+      runtime.retries <
+
+      MODULE_LOADER_CONFIG
+      .MAX_RETRIES
+
+    ){
+
+      await new Promise((resolve) => {
+
+        setTimeout(
+
+          resolve,
+
+          MODULE_LOADER_CONFIG
+          .RETRY_DELAY
+
+        );
+
+      });
+
+      return loadModule(
+        normalizedName
+      );
+
+    }
+
     return false;
 
-  }finally{
+  }
 
-    moduleLoaderState.loadingStack =
-      moduleLoaderState.loadingStack
-        .filter((module) => {
+  finally{
 
-          return module !== name;
-
-        });
+    ModuleRegistry
+    .removeLoadingModule(
+      normalizedName
+    );
 
   }
 
@@ -518,87 +1002,163 @@ async function loadModule(moduleName){
 // UNLOAD MODULE
 // =====================================
 
-async function unloadModule(moduleName){
+async function unloadModule(
+  moduleName
+){
 
-  const name =
-    normalizeModuleName(moduleName);
-
-  if(!name){
-    return false;
-  }
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
 
   if(
-    !moduleLoaderState.modules.has(name)
+    !normalizedName
   ){
+
     return false;
+
   }
 
   const moduleDefinition =
-    moduleLoaderState.modules.get(name);
+  ModuleRegistry
+  .getRegisteredModule(
+    normalizedName
+  );
 
-  const instance =
-    moduleLoaderState.instances.get(name);
+  if(
+    !moduleDefinition
+  ){
 
-  moduleDefinition.state =
-    MODULE_STATES.UNLOADING;
+    return false;
 
-  await emitModuleEvent(
+  }
 
-    MODULE_EVENTS.UNLOADING,
+  const runtime =
+  getModuleRuntime(
+    normalizedName
+  );
+
+  if(
+    !runtime
+  ){
+
+    return false;
+
+  }
+
+  updateModuleRuntime(
+
+    normalizedName,
 
     {
 
-      module:
-      name
+      state:
+      MODULE_STATES
+      .UNLOADING
 
     }
 
   );
 
+  await emitModuleEvent(
+
+    MODULE_EVENTS
+    .UNLOADING,
+
+    {
+
+      module:
+      normalizedName
+
+    }
+
+  );
+
+  const instance =
+  ModuleRegistry
+  .getModuleInstance(
+    normalizedName
+  );
+
   if(
+
     instance &&
-    isFunction(instance.destroy)
+
+    isFunction(
+      instance.destroy
+    )
+
   ){
 
     try{
 
-      await instance.destroy();
+      await instance
+      .destroy();
 
-    }catch(error){
+    }
+
+    catch(error){
 
       console.warn(
+
         "[ModuleActivation] Destroy failed:",
-        name,
+
+        normalizedName,
+
         error
+
       );
 
     }
 
   }
 
-  moduleLoaderState.instances.delete(
-    name
+  ModuleRegistry
+  .removeModuleInstance(
+    normalizedName
   );
 
-  moduleLoaderState.activeModules.delete(
-    name
+  ModuleRegistry
+  .clearActiveModule(
+    normalizedName
   );
 
-  moduleLoaderState.failedModules.delete(
-    name
+  ModuleRegistry
+  .clearFailedModule(
+    normalizedName
   );
 
-  moduleDefinition.state =
-    MODULE_STATES.UNLOADED;
+  updateModuleRuntime(
+
+    normalizedName,
+
+    {
+
+      state:
+      MODULE_STATES
+      .UNLOADED
+
+    }
+
+  );
+
+  moduleActivationRuntime
+  .diagnostics
+  .unloaded++;
+
+  moduleActivationRuntime
+  .lastUnloadedAt =
+  Date.now();
 
   await emitModuleEvent(
 
-    MODULE_EVENTS.UNLOADED,
+    MODULE_EVENTS
+    .UNLOADED,
 
     {
 
       module:
-      name
+      normalizedName
 
     }
 
