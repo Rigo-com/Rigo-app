@@ -17,39 +17,39 @@ function getConstant(
   try{
 
     if(
-      typeof window ===
+      typeof DependencySystem ===
       "undefined"
     ){
 
       return null;
 
     }
-
-    const constantValue =
-      window[constantName];
 
     if(
-      typeof constantValue ===
-      "undefined"
+      typeof DependencySystem
+      .resolve !==
+      "function"
     ){
-
-      console.warn(
-        `[ConstantsAPI] Missing constant: ${constantName}`
-      );
 
       return null;
 
     }
 
-    return constantValue;
+    return DependencySystem
+    .resolve(
+      constantName
+    );
 
   }
 
   catch(error){
 
     console.warn(
+
       `[ConstantsAPI] Failed resolving constant: ${constantName}`,
+
       error
+
     );
 
     return null;
@@ -60,19 +60,18 @@ function getConstant(
 
 
 
-// =====================================
-// SAFE FREEZE
-// =====================================
-
 function safeFreeze(
   value,
   visited = new WeakSet()
 ){
 
   if(
+
     !value ||
+
     typeof value !==
     "object"
+
   ){
 
     return value;
@@ -89,10 +88,22 @@ function safeFreeze(
 
   if(
 
-    value instanceof Map ||
-    value instanceof Set ||
+    value instanceof Promise ||
+
     value instanceof Date ||
-    value instanceof RegExp
+
+    value instanceof RegExp ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
 
   ){
 
@@ -100,16 +111,24 @@ function safeFreeze(
 
   }
 
-  visited.add(value);
+  visited.add(
+    value
+  );
 
-  Object.freeze(value);
+  Object.freeze(
+    value
+  );
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
     if(
+
       nestedValue &&
+
       typeof nestedValue ===
       "object"
+
     ){
 
       safeFreeze(
@@ -137,13 +156,46 @@ safeFreeze({
 
 
   // ===================================
+  // GENERIC
+  // ===================================
+
+  get(
+    constantName
+  ){
+
+    return safeFreeze(
+      getConstant(
+        constantName
+      )
+    );
+
+  },
+
+
+
+  // ===================================
   // APP
   // ===================================
 
-  phases:
-  getConstant(
-    "APP_PHASES"
-  ),
+  phases(){
+
+    return safeFreeze(
+      getConstant(
+        "APP_PHASES"
+      )
+    );
+
+  },
+
+
+
+  validatePhase(){
+
+    return getConstant(
+      "isValidAppPhase"
+    );
+
+  },
 
 
 
@@ -153,20 +205,49 @@ safeFreeze({
 
   runtime:{
 
-    events:
-    getConstant(
-      "RUNTIME_EVENTS"
-    ),
+    events(){
 
-    states:
-    getConstant(
-      "RUNTIME_STATES"
-    ),
+      return safeFreeze(
+        getConstant(
+          "RUNTIME_EVENTS"
+        )
+      );
 
-    config:
-    getConstant(
-      "RUNTIME_MANAGER_CONFIG"
-    )
+    },
+
+
+
+    states(){
+
+      return safeFreeze(
+        getConstant(
+          "RUNTIME_STATES"
+        )
+      );
+
+    },
+
+
+
+    config(){
+
+      return safeFreeze(
+        getConstant(
+          "RUNTIME_MANAGER_CONFIG"
+        )
+      );
+
+    },
+
+
+
+    validateState(){
+
+      return getConstant(
+        "isValidRuntimeState"
+      );
+
+    }
 
   },
 
@@ -178,20 +259,59 @@ safeFreeze({
 
   systemEvents:{
 
-    config:
-    getConstant(
-      "SYSTEM_EVENTS_CONFIG"
-    ),
+    config(){
 
-    priorities:
-    getConstant(
-      "SYSTEM_EVENT_PRIORITIES"
-    ),
+      return safeFreeze(
+        getConstant(
+          "SYSTEM_EVENTS_CONFIG"
+        )
+      );
 
-    types:
-    getConstant(
-      "SYSTEM_EVENT_TYPES"
-    )
+    },
+
+
+
+    priorities(){
+
+      return safeFreeze(
+        getConstant(
+          "SYSTEM_EVENT_PRIORITIES"
+        )
+      );
+
+    },
+
+
+
+    types(){
+
+      return safeFreeze(
+        getConstant(
+          "SYSTEM_EVENT_TYPES"
+        )
+      );
+
+    },
+
+
+
+    validateType(){
+
+      return getConstant(
+        "isValidSystemEventType"
+      );
+
+    },
+
+
+
+    validatePriority(){
+
+      return getConstant(
+        "isValidSystemEventPriority"
+      );
+
+    }
 
   }
 
@@ -219,11 +339,9 @@ if(
       value:
       ConstantsAPI,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
