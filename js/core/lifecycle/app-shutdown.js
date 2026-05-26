@@ -6,6 +6,126 @@
 
 
 // =====================================
+// IMMUTABLE
+// =====================================
+
+function freezeShutdownObject(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeShutdownObject(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
+// DEPENDENCIES
+// =====================================
+
+function getShutdownDependency(
+  dependencyName
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return window[
+      dependencyName
+    ] || null;
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // SHUTDOWN STATE
 // =====================================
 
@@ -48,16 +168,47 @@ function updateShutdownState(
 
 
 
+function updateShutdownAppState(
+  updates = {}
+){
+
+  if(
+    typeof appState !==
+    "object" ||
+
+    !appState
+  ){
+
+    return false;
+
+  }
+
+  Object.assign(
+    appState,
+    updates
+  );
+
+  return true;
+
+}
+
+
+
 function normalizeShutdownError(
   error
 ){
 
+  const formatter =
+  getShutdownDependency(
+    "getSafeErrorMessage"
+  );
+
   if(
-    typeof getSafeErrorMessage ===
+    typeof formatter ===
     "function"
   ){
 
-    return getSafeErrorMessage(
+    return formatter(
       error
     );
 
@@ -79,18 +230,24 @@ function cleanupApplicationUI(){
 
   try{
 
-    if(
-      sendButton
-    ){
+    const sendButton =
+    getShutdownDependency(
+      "sendButton"
+    );
+
+    const messageInput =
+    getShutdownDependency(
+      "messageInput"
+    );
+
+    if(sendButton){
 
       sendButton.disabled =
       false;
 
     }
 
-    if(
-      messageInput
-    ){
+    if(messageInput){
 
       messageInput.disabled =
       false;
@@ -119,9 +276,13 @@ function cleanupMessageRuntime(){
 
   try{
 
+    const messageRuntimeState =
+    getShutdownDependency(
+      "messageRuntimeState"
+    );
+
     if(
-      typeof messageRuntimeState !==
-      "undefined"
+      messageRuntimeState
     ){
 
       messageRuntimeState
@@ -150,15 +311,36 @@ function cleanupMessageRuntime(){
 
 async function cleanupRuntimeSystems(){
 
-  HealthMonitor
-  .stop();
+  const healthMonitor =
+  getShutdownDependency(
+    "HealthMonitor"
+  );
 
   if(
-    typeof RuntimeManager !==
-    "undefined"
+    healthMonitor &&
+    typeof healthMonitor
+    .stop ===
+    "function"
   ){
 
-    await RuntimeManager
+    await healthMonitor
+    .stop();
+
+  }
+
+  const runtimeManager =
+  getShutdownDependency(
+    "RuntimeManager"
+  );
+
+  if(
+    runtimeManager &&
+    typeof runtimeManager
+    .shutdown ===
+    "function"
+  ){
+
+    await runtimeManager
     .shutdown();
 
   }
@@ -189,10 +371,27 @@ async function cleanupApp(){
     // STATE
     // ================================
 
-    updateAppPhase(
-      APP_PHASES
-      .IDLE
+    const updatePhase =
+    getShutdownDependency(
+      "updateAppPhase"
     );
+
+    const phases =
+    getShutdownDependency(
+      "APP_PHASES"
+    );
+
+    if(
+      typeof updatePhase ===
+      "function" &&
+      phases
+    ){
+
+      updatePhase(
+        phases.IDLE
+      );
+
+    }
 
     updateShutdownState({
 
@@ -209,8 +408,11 @@ async function cleanupApp(){
 
   catch(error){
 
-    appState.lastError =
-    error;
+    updateShutdownAppState({
+
+      lastError:error
+
+    });
 
     updateShutdownState({
 
@@ -218,12 +420,17 @@ async function cleanupApp(){
 
     });
 
+    const diagnosticsError =
+    getShutdownDependency(
+      "logDiagnosticError"
+    );
+
     if(
-      typeof logDiagnosticError ===
+      typeof diagnosticsError ===
       "function"
     ){
 
-      await logDiagnosticError(
+      await diagnosticsError(
 
         "APP CLEANUP FAILED",
 
@@ -254,7 +461,7 @@ async function cleanupApp(){
 
 function createShutdownSnapshot(){
 
-  return freezeEnvironmentObject({
+  return freezeShutdownObject({
 
     shuttingDown:
 
@@ -268,6 +475,13 @@ function createShutdownSnapshot(){
       Boolean(
         shutdownRuntimeState
         .cleaned
+      ),
+
+    initialized:
+
+      Boolean(
+        appState
+        ?.initialized
       ),
 
     started:
@@ -284,6 +498,13 @@ function createShutdownSnapshot(){
         ?.phase || ""
       ),
 
+    crashCount:
+
+      Number(
+        appState
+        ?.crashCount || 0
+      ),
+
     shutdownAt:
 
       shutdownRuntimeState
@@ -295,6 +516,26 @@ function createShutdownSnapshot(){
 
       shutdownRuntimeState
       .lastCleanupAt ||
+
+      null,
+
+    cleanupDuration:
+
+      shutdownRuntimeState
+      .lastShutdownAt &&
+
+      shutdownRuntimeState
+      .lastCleanupAt
+
+      ?
+
+      shutdownRuntimeState
+      .lastShutdownAt -
+
+      shutdownRuntimeState
+      .lastCleanupAt
+
+      :
 
       null,
 
@@ -325,11 +566,14 @@ function createShutdownSnapshot(){
 
 async function completeShutdown(){
 
-  appState.started =
-  false;
+  updateShutdownAppState({
 
-  appState.shutdownAt =
-  Date.now();
+    started:false,
+
+    shutdownAt:
+    Date.now()
+
+  });
 
   updateShutdownState({
 
@@ -339,12 +583,17 @@ async function completeShutdown(){
 
   });
 
+  const diagnosticsInfo =
+  getShutdownDependency(
+    "logDiagnosticInfo"
+  );
+
   if(
-    typeof logDiagnosticInfo ===
+    typeof diagnosticsInfo ===
     "function"
   ){
 
-    await logDiagnosticInfo(
+    await diagnosticsInfo(
 
       "APPLICATION SHUTDOWN COMPLETED"
 
@@ -366,8 +615,11 @@ async function handleShutdownFailure(
   error
 ){
 
-  appState.lastError =
-  error;
+  updateShutdownAppState({
+
+    lastError:error
+
+  });
 
   updateShutdownState({
 
@@ -375,12 +627,17 @@ async function handleShutdownFailure(
 
   });
 
+  const criticalLogger =
+  getShutdownDependency(
+    "logCriticalError"
+  );
+
   if(
-    typeof logCriticalError ===
+    typeof criticalLogger ===
     "function"
   ){
 
-    await logCriticalError(
+    await criticalLogger(
 
       "APPLICATION SHUTDOWN FAILED",
 
@@ -411,16 +668,18 @@ async function shutdownApp(){
 
   if(
     appState
-    .shuttingDown
+    ?.shuttingDown
   ){
 
     return false;
 
   }
 
-  appState
-  .shuttingDown =
-  true;
+  updateShutdownAppState({
+
+    shuttingDown:true
+
+  });
 
   updateShutdownState({
 
@@ -432,14 +691,44 @@ async function shutdownApp(){
 
   });
 
-  updateAppPhase(
-    APP_PHASES
-    .SHUTTING_DOWN
+  const updatePhase =
+  getShutdownDependency(
+    "updateAppPhase"
   );
 
-  await emitAppEvent(
-    "app.shutdown"
+  const phases =
+  getShutdownDependency(
+    "APP_PHASES"
   );
+
+  if(
+    typeof updatePhase ===
+    "function" &&
+    phases
+  ){
+
+    updatePhase(
+      phases
+      .SHUTTING_DOWN
+    );
+
+  }
+
+  const appEmitter =
+  getShutdownDependency(
+    "emitAppEvent"
+  );
+
+  if(
+    typeof appEmitter ===
+    "function"
+  ){
+
+    await appEmitter(
+      "app.shutdown"
+    );
+
+  }
 
   try{
 
@@ -462,7 +751,7 @@ async function shutdownApp(){
 
   catch(error){
 
-    return handleShutdownFailure(
+    return await handleShutdownFailure(
       error
     );
 
@@ -470,9 +759,11 @@ async function shutdownApp(){
 
   finally{
 
-    appState
-    .shuttingDown =
-    false;
+    updateShutdownAppState({
+
+      shuttingDown:false
+
+    });
 
     updateShutdownState({
 
@@ -500,6 +791,9 @@ Object.freeze({
   shutdownApp,
 
   snapshot:
+  createShutdownSnapshot,
+
+  diagnostics:
   createShutdownSnapshot
 
 });
@@ -515,7 +809,25 @@ if(
   "undefined"
 ){
 
-  window.AppShutdown =
-  AppShutdown;
+  Object.defineProperty(
+
+    window,
+
+    "AppShutdown",
+
+    {
+
+      value:
+      AppShutdown,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
