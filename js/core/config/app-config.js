@@ -47,8 +47,23 @@ Object.freeze({
 
 const CURRENT_ENVIRONMENT =
 
-  APP_ENVIRONMENTS
-  .DEVELOPMENT;
+  typeof window !==
+  "undefined"
+
+  &&
+
+  window.location.hostname !==
+  "localhost"
+
+    ?
+
+    APP_ENVIRONMENTS
+    .PRODUCTION
+
+    :
+
+    APP_ENVIRONMENTS
+    .DEVELOPMENT;
 
 
 
@@ -88,17 +103,13 @@ Object.freeze({
 
   ENABLE_EVENT_SYSTEM:true,
 
-  ENABLE_EVENT_BUS:true,
-
   ENABLE_STATE_MANAGER:true,
 
-  ENABLE_DEPENDENCY_CONTAINER:true,
+  ENABLE_CONTAINER_SYSTEM:true,
 
   ENABLE_MODULE_LOADER:true,
 
   ENABLE_BOOTSTRAP_SYSTEM:true,
-
-  ENABLE_SERVICE_WORKERS:false,
 
   ENABLE_EXPERIMENTAL_FEATURES:false
 
@@ -158,9 +169,6 @@ Object.freeze({
   RUNTIME_NAME:
   "RIGO_RUNTIME",
 
-  RUNTIME_VERSION:
-  "1.0.0",
-
   ENABLE_DIAGNOSTICS:true,
 
   ENABLE_HEALTHCHECKS:true,
@@ -172,14 +180,8 @@ Object.freeze({
   HEALTHCHECK_INTERVAL:
   60000,
 
-  DEPENDENCY_TIMEOUT:
-  15000,
-
-  MAX_CONCURRENT_TASKS:
-  10,
-
-  MAX_PARALLEL_REQUESTS:
-  5
+  CONTAINER_TIMEOUT:
+  15000
 
 });
 
