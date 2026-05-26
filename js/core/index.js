@@ -1,7 +1,8 @@
 // =====================================
 // RIGO AI
-// CORE INDEX
+// ROOT CORE INDEX
 // ENTERPRISE MASTER ORCHESTRATOR
+// FINAL ARCHITECTURE
 // =====================================
 
 
@@ -13,49 +14,37 @@
 const coreRuntimeState =
 Object.seal({
 
-  initialized:
-  false,
+  initialized:false,
 
-  booting:
-  false,
+  booting:false,
 
-  booted:
-  false,
+  booted:false,
 
-  shuttingDown:
-  false,
+  shuttingDown:false,
 
-  recovering:
-  false,
+  recovering:false,
 
-  startupStartedAt:
-  null,
+  lifecycleBound:false,
 
-  startupCompletedAt:
-  null,
+  startupStartedAt:null,
 
-  lastHealthcheckAt:
-  null,
+  startupCompletedAt:null,
 
-  lastError:
-  null,
+  lastHealthcheckAt:null,
+
+  lastError:null,
 
   diagnostics:{
 
-    boots:
-    0,
+    boots:0,
 
-    shutdowns:
-    0,
+    shutdowns:0,
 
-    recoveries:
-    0,
+    recoveries:0,
 
-    healthchecks:
-    0,
+    healthchecks:0,
 
-    runtimeErrors:
-    0
+    runtimeErrors:0
 
   }
 
@@ -66,6 +55,73 @@ Object.seal({
 // =====================================
 // HELPERS
 // =====================================
+
+function isFunction(
+  value
+){
+
+  return typeof value ===
+  "function";
+
+}
+
+
+
+function isPlainObject(
+  value
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
+
+}
+
+
+
+function normalizeCoreError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
 
 function getCoreDependency(
   dependencyName
@@ -82,32 +138,14 @@ function getCoreDependency(
 
     }
 
-    const dependency =
-      window[dependencyName];
-
-    if(
-      typeof dependency ===
-      "undefined"
-    ){
-
-      console.warn(
-        `[RIGOCore] Missing dependency: ${dependencyName}`
-      );
-
-      return null;
-
-    }
-
-    return dependency;
+    return (
+      window[dependencyName] ||
+      null
+    );
 
   }
 
   catch(error){
-
-    console.warn(
-      `[RIGOCore] Failed resolving dependency: ${dependencyName}`,
-      error
-    );
 
     return null;
 
@@ -117,14 +155,26 @@ function getCoreDependency(
 
 
 
-function isFunction(value){
+function emitCoreWarning(
+  message,
+  error = null
+){
 
-  return typeof value ===
-  "function";
+  console.warn(
+
+    `[RIGOCore] ${message}`,
+
+    error || ""
+
+  );
 
 }
 
 
+
+// =====================================
+// SAFE FREEZE
+// =====================================
 
 function safeFreeze(
   value,
@@ -151,11 +201,34 @@ function safeFreeze(
 
   if(
 
+    value instanceof Promise ||
+
     value instanceof Date ||
+
     value instanceof RegExp ||
+
     value instanceof Map ||
+
     value instanceof Set ||
-    value instanceof HTMLElement
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    !Array.isArray(value) &&
+
+    !isPlainObject(value)
 
   ){
 
@@ -167,20 +240,13 @@ function safeFreeze(
 
   Object.freeze(value);
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
-    if(
-      nestedValue &&
-      typeof nestedValue ===
-      "object"
-    ){
-
-      safeFreeze(
-        nestedValue,
-        visited
-      );
-
-    }
+    safeFreeze(
+      nestedValue,
+      visited
+    );
 
   });
 
@@ -189,6 +255,10 @@ function safeFreeze(
 }
 
 
+
+// =====================================
+// SAFE EXECUTION
+// =====================================
 
 async function safelyExecuteCoreOperation(
   label,
@@ -199,7 +269,9 @@ async function safelyExecuteCoreOperation(
   try{
 
     if(
-      !isFunction(operation)
+      !isFunction(
+        operation
+      )
     ){
 
       return fallback;
@@ -214,16 +286,60 @@ async function safelyExecuteCoreOperation(
 
     coreRuntimeState
     .lastError =
-    error;
+    normalizeCoreError(
+      error
+    );
 
     coreRuntimeState
     .diagnostics
     .runtimeErrors++;
 
-    console.error(
-      `[RIGOCore] ${label} failed`,
+    emitCoreWarning(
+
+      `${label} failed`,
+
       error
+
     );
+
+    if(
+      typeof logCriticalError ===
+      "function"
+    ){
+
+      try{
+
+        await logCriticalError(
+
+          label.toUpperCase(),
+
+          {
+
+            error:
+
+            normalizeCoreError(
+              error
+            )
+
+          }
+
+        );
+
+      }
+
+      catch(loggingError){
+
+        emitCoreWarning(
+
+          "Critical logging failed",
+
+          loggingError
+
+        );
+
+      }
+
+    }
 
     return fallback;
 
@@ -234,7 +350,25 @@ async function safelyExecuteCoreOperation(
 
 
 // =====================================
-// CORE VALIDATION
+// REQUIRED SYSTEMS
+// =====================================
+
+const REQUIRED_SYSTEMS =
+Object.freeze([
+
+  "ConstantsAPI",
+  "StateAPI",
+  "RigoModules",
+  "ApplicationRuntime",
+  "AppRecovery",
+  "RIGOApplication"
+
+]);
+
+
+
+// =====================================
+// VALIDATION
 // =====================================
 
 async function validateCoreSystems(){
@@ -245,21 +379,8 @@ async function validateCoreSystems(){
 
     async() => {
 
-      const requiredSystems = [
-
-        "ConfigAPI",
-        "ConstantsAPI",
-        "StateAPI",
-        "EventsAPI",
-        "DependenciesAPI",
-        "ContainerAPI",
-        "RuntimeAPI",
-        "LifecycleIndex",
-        "HealthAPI"
-
-      ];
-
-      return requiredSystems.every((systemName) => {
+      return REQUIRED_SYSTEMS
+      .every((systemName) => {
 
         return Boolean(
           getCoreDependency(
@@ -300,36 +421,50 @@ async function initializeCoreSystems(){
 
       }
 
-      const eventsAPI =
-        getCoreDependency(
-          "EventsAPI"
-        );
+      const modules =
+      getCoreDependency(
+        "RigoModules"
+      );
+
+      const runtime =
+      getCoreDependency(
+        "ApplicationRuntime"
+      );
+
+      // =============================
+      // MODULES
+      // =============================
 
       if(
-        eventsAPI &&
+
+        modules &&
+
         isFunction(
-          eventsAPI.initialize
+          modules.initialize
         )
+
       ){
 
-        await eventsAPI
+        await modules
         .initialize();
 
       }
 
-      const healthAPI =
-        getCoreDependency(
-          "HealthAPI"
-        );
+      // =============================
+      // APPLICATION RUNTIME
+      // =============================
 
       if(
-        healthAPI &&
+
+        runtime &&
+
         isFunction(
-          healthAPI.initialize
+          runtime.initialize
         )
+
       ){
 
-        await healthAPI
+        await runtime
         .initialize();
 
       }
@@ -351,7 +486,7 @@ async function initializeCoreSystems(){
 
 
 // =====================================
-// STARTUP PIPELINE
+// BOOT
 // =====================================
 
 async function bootCore(){
@@ -388,10 +523,16 @@ async function bootCore(){
       .diagnostics
       .boots++;
 
-      const validCore =
-        await validateCoreSystems();
+      // =============================
+      // VALIDATION
+      // =============================
 
-      if(!validCore){
+      const validCore =
+      await validateCoreSystems();
+
+      if(
+        !validCore
+      ){
 
         throw new Error(
           "CORE VALIDATION FAILED"
@@ -399,10 +540,16 @@ async function bootCore(){
 
       }
 
-      const initialized =
-        await initializeCoreSystems();
+      // =============================
+      // INITIALIZATION
+      // =============================
 
-      if(!initialized){
+      const initialized =
+      await initializeCoreSystems();
+
+      if(
+        !initialized
+      ){
 
         throw new Error(
           "CORE INITIALIZATION FAILED"
@@ -410,84 +557,68 @@ async function bootCore(){
 
       }
 
+      // =============================
+      // MODULE BOOT
+      // =============================
 
-
-      // =================================
-      // LIFECYCLE
-      // =================================
-
-      const lifecycle =
-        getCoreDependency(
-          "LifecycleIndex"
-        );
+      const modules =
+      getCoreDependency(
+        "RigoModules"
+      );
 
       if(
-        lifecycle &&
+
+        modules &&
+
         isFunction(
-          lifecycle.bootstrapApplication
+          modules.boot
         )
+
       ){
 
-        await lifecycle
-        .bootstrapApplication();
-
-      }
-
-      if(
-        lifecycle &&
-        isFunction(
-          lifecycle.boot
-        )
-      ){
-
-        await lifecycle
+        await modules
         .boot();
 
       }
 
+      // =============================
+      // APPLICATION
+      // =============================
 
-
-      // =================================
-      // RUNTIME
-      // =================================
-
-      const runtime =
-        getCoreDependency(
-          "RuntimeAPI"
-        );
+      const application =
+      getCoreDependency(
+        "RIGOApplication"
+      );
 
       if(
-        runtime &&
+
+        application &&
+
         isFunction(
-          runtime.boot
+          application.bootstrap
         )
+
       ){
 
-        await runtime
-        .boot();
+        await application
+        .bootstrap();
 
       }
 
+      // =============================
+      // HEALTHCHECK
+      // =============================
 
-
-      // =================================
-      // HEALTH
-      // =================================
-
-      const health =
-        getCoreDependency(
-          "HealthAPI"
-        );
+      const healthy =
+      await isCoreReady();
 
       if(
-        health &&
-        isFunction(
-          health.run
-        )
+        !healthy
       ){
 
-        await health
-        .run();
+        throw new Error(
+          "CORE HEALTHCHECK FAILED"
+        );
 
       }
 
@@ -498,6 +629,10 @@ async function bootCore(){
       coreRuntimeState
       .startupCompletedAt =
       Date.now();
+
+      console.info(
+        "[RIGOCore] Core boot completed"
+      );
 
       return true;
 
@@ -549,36 +684,22 @@ async function shutdownCore(){
       .shutdowns++;
 
       const runtime =
-        getCoreDependency(
-          "RuntimeAPI"
-        );
+      getCoreDependency(
+        "ApplicationRuntime"
+      );
 
       if(
+
         runtime &&
+
         isFunction(
           runtime.shutdown
         )
+
       ){
 
         await runtime
         .shutdown();
-
-      }
-
-      const lifecycle =
-        getCoreDependency(
-          "LifecycleIndex"
-        );
-
-      if(
-        lifecycle &&
-        isFunction(
-          lifecycle.shutdownApplication
-        )
-      ){
-
-        await lifecycle
-        .shutdownApplication();
 
       }
 
@@ -635,24 +756,27 @@ async function recoverCore(){
       .diagnostics
       .recoveries++;
 
-      const runtime =
-        getCoreDependency(
-          "RuntimeAPI"
-        );
+      const recovery =
+      getCoreDependency(
+        "AppRecovery"
+      );
 
       if(
-        runtime &&
+
+        recovery &&
+
         isFunction(
-          runtime.recover
+          recovery.recover
         )
+
       ){
 
-        await runtime
+        return await recovery
         .recover();
 
       }
 
-      return await bootCore();
+      return false;
 
     },
 
@@ -673,7 +797,7 @@ async function recoverCore(){
 
 
 // =====================================
-// HEALTH
+// HEALTHCHECK
 // =====================================
 
 async function isCoreReady(){
@@ -686,20 +810,20 @@ async function isCoreReady(){
 
       if(
         !coreRuntimeState
-        .booted
+        .initialized
       ){
 
         return false;
 
       }
 
-      const healthAPI =
-        getCoreDependency(
-          "HealthAPI"
-        );
+      const runtime =
+      getCoreDependency(
+        "ApplicationRuntime"
+      );
 
       if(
-        !healthAPI
+        !runtime
       ){
 
         return false;
@@ -708,7 +832,7 @@ async function isCoreReady(){
 
       if(
         !isFunction(
-          healthAPI.diagnostics
+          runtime.health
         )
       ){
 
@@ -716,9 +840,9 @@ async function isCoreReady(){
 
       }
 
-      const health =
-        await healthAPI
-        .diagnostics();
+      const healthy =
+      await runtime
+      .health();
 
       coreRuntimeState
       .lastHealthcheckAt =
@@ -729,7 +853,7 @@ async function isCoreReady(){
       .healthchecks++;
 
       return Boolean(
-        health
+        healthy
       );
 
     },
@@ -757,15 +881,24 @@ function bindBrowserLifecycle(){
 
   }
 
+  if(
+    coreRuntimeState
+    .lifecycleBound
+  ){
+
+    return true;
+
+  }
+
   try{
 
     window.addEventListener(
 
       "beforeunload",
 
-      async() => {
+      () => {
 
-        await shutdownCore();
+        shutdownCore();
 
       }
 
@@ -775,11 +908,14 @@ function bindBrowserLifecycle(){
 
       "unhandledrejection",
 
-      async(event) => {
+      (event) => {
 
-        console.error(
-          "[RIGOCore] Unhandled rejection",
+        emitCoreWarning(
+
+          "Unhandled rejection",
+
           event?.reason
+
         );
 
       }
@@ -790,39 +926,34 @@ function bindBrowserLifecycle(){
 
       "error",
 
-      async(event) => {
+      (event) => {
 
-        console.error(
-          "[RIGOCore] Runtime error",
+        emitCoreWarning(
+
+          "Runtime error",
+
           event?.error
+
         );
 
       }
 
     );
 
-    document.addEventListener(
-
-      "visibilitychange",
-
-      () => {
-
-        if(
-          document.hidden
-        ){
-
-          return;
-        }
-
-      }
-
-    );
+    coreRuntimeState
+    .lifecycleBound =
+    true;
 
     return true;
 
   }
 
   catch(error){
+
+    emitCoreWarning(
+      "Lifecycle binding failed",
+      error
+    );
 
     return false;
 
@@ -845,23 +976,19 @@ async function createCoreSnapshot(){
     async() => {
 
       const runtime =
-        getCoreDependency(
-          "RuntimeAPI");
+      getCoreDependency(
+        "ApplicationRuntime"
+      );
 
-      const lifecycle =
-        getCoreDependency(
-          "LifecycleIndex"
-        );
+      const modules =
+      getCoreDependency(
+        "RigoModules"
+      );
 
-      const health =
-        getCoreDependency(
-          "HealthAPI"
-        );
-
-      const events =
-        getCoreDependency(
-          "EventsAPI"
-        );
+      const recovery =
+      getCoreDependency(
+        "AppRecovery"
+      );
 
       return safeFreeze({
 
@@ -895,62 +1022,46 @@ async function createCoreSnapshot(){
         runtime:
 
           runtime &&
+
           isFunction(
-            runtime.diagnostics
+            runtime.snapshot
           )
 
           ?
 
-          await runtime
-          .diagnostics()
+          runtime.snapshot()
 
           :
 
           null,
 
-        lifecycle:
+        modules:
 
-          lifecycle &&
+          modules &&
+
           isFunction(
-            lifecycle.diagnostics
+            modules.snapshot
           )
 
           ?
 
-          await lifecycle
-          .diagnostics()
+          modules.snapshot()
 
           :
 
           null,
 
-        health:
+        recovery:
 
-          health &&
+          recovery &&
+
           isFunction(
-            health.diagnostics
+            recovery.snapshot
           )
 
           ?
 
-          await health
-          .diagnostics()
-
-          :
-
-          null,
-
-        events:
-
-          events &&
-          isFunction(
-            events.diagnostics
-          )
-
-          ?
-
-          await events
-          .diagnostics()
+          recovery.snapshot()
 
           :
 
@@ -976,22 +1087,15 @@ async function createCoreSnapshot(){
 
 
 // =====================================
-// CORE API
+// PUBLIC API
 // =====================================
 
 const RIGOCore =
 safeFreeze({
 
-
-
-  // ===================================
-  // SYSTEMS
-  // ===================================
-
-  config:
-  () => getCoreDependency(
-    "ConfigAPI"
-  ),
+  // =============================
+  // SYSTEM ACCESS
+  // =============================
 
   constants:
   () => getCoreDependency(
@@ -1003,41 +1107,29 @@ safeFreeze({
     "StateAPI"
   ),
 
-  events:
+  modules:
   () => getCoreDependency(
-    "EventsAPI"
-  ),
-
-  dependencies:
-  () => getCoreDependency(
-    "DependenciesAPI"
-  ),
-
-  container:
-  () => getCoreDependency(
-    "ContainerAPI"
+    "RigoModules"
   ),
 
   runtime:
   () => getCoreDependency(
-    "RuntimeAPI"
+    "ApplicationRuntime"
   ),
 
-  lifecycle:
+  recovery:
   () => getCoreDependency(
-    "LifecycleIndex"
+    "AppRecovery"
   ),
 
-  health:
+  application:
   () => getCoreDependency(
-    "HealthAPI"
+    "RIGOApplication"
   ),
 
-
-
-  // ===================================
+  // =============================
   // ORCHESTRATION
-  // ===================================
+  // =============================
 
   initialize:
   initializeCoreSystems,
@@ -1054,25 +1146,12 @@ safeFreeze({
   ready:
   isCoreReady,
 
-
-
-  // ===================================
+  // =============================
   // DIAGNOSTICS
-  // ===================================
+  // =============================
 
   snapshot:
-  createCoreSnapshot,
-
-
-
-  // ===================================
-  // STATE
-  // ===================================
-
-  state:
-  safeFreeze(
-    coreRuntimeState
-  )
+  createCoreSnapshot
 
 });
 
@@ -1087,7 +1166,7 @@ bindBrowserLifecycle();
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -1106,11 +1185,9 @@ if(
       value:
       RIGOCore,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
