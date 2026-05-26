@@ -5,8 +5,13 @@
 
 
 
+// =====================================
+// CONFIG
+// =====================================
+
 const RUNTIME_MANAGER_CONFIG =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
 
 
@@ -51,9 +56,43 @@ Object.freeze({
   30000,
 
   SHUTDOWN_TIMEOUT:
-  15000
+  30000,
 
-});
+  BOOT_RETRY_DELAY:
+  2000,
+
+  RECOVERY_DELAY:
+  3000,
+
+  HEALTHCHECK_INTERVAL:
+  30000,
+
+  HEALTH_TIMEOUT:
+  10000
+
+}));
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function isValidRuntimeManagerConfigKey(
+  key
+){
+
+  return Object.prototype
+  .hasOwnProperty
+  .call(
+
+    RUNTIME_MANAGER_CONFIG,
+
+    String(key)
+
+  );
+
+}
 
 
 
@@ -76,6 +115,25 @@ if(
 
       value:
       RUNTIME_MANAGER_CONFIG,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "isValidRuntimeManagerConfigKey",
+
+    {
+
+      value:
+      isValidRuntimeManagerConfigKey,
 
       writable:false,
 
