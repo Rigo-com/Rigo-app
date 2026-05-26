@@ -6,6 +6,126 @@
 
 
 // =====================================
+// IMMUTABLE
+// =====================================
+
+function freezeMessageRuntime(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+
+      nestedValue &&
+
+      typeof nestedValue ===
+      "object"
+
+    ){
+
+      freezeMessageRuntime(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
+// DEPENDENCIES
+// =====================================
+
+function getMessageRuntimeDependency(
+  dependencyName
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return window[
+      dependencyName
+    ] || null;
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // STATE
 // =====================================
 
@@ -56,12 +176,17 @@ function normalizeMessageRuntimeError(
   error
 ){
 
+  const formatter =
+  getMessageRuntimeDependency(
+    "getSafeErrorMessage"
+  );
+
   if(
-    typeof getSafeErrorMessage ===
+    typeof formatter ===
     "function"
   ){
 
-    return getSafeErrorMessage(
+    return formatter(
       error
     );
 
@@ -81,17 +206,17 @@ function normalizeMessageRuntimeError(
 
 function createMessageTimeout(){
 
+  const configRuntime =
+  getMessageRuntimeDependency(
+    "ConfigRuntime"
+  );
+
   const timeoutDuration =
 
-    ConfigRuntime
+    configRuntime
     ?.getValue?.(
       "CHAT.MESSAGE_TIMEOUT"
     )
-
-    ??
-
-    APP_CONFIG?.CHAT
-    ?.MESSAGE_TIMEOUT
 
     ??
 
@@ -157,12 +282,17 @@ function updateSafeMessageUIState(
 
   try{
 
+    const updater =
+    getMessageRuntimeDependency(
+      "updateMessageUIState"
+    );
+
     if(
-      typeof updateMessageUIState ===
+      typeof updater ===
       "function"
     ){
 
-      updateMessageUIState(
+      updater(
         loading
       );
 
@@ -188,7 +318,7 @@ function updateSafeMessageUIState(
 
 function createMessageRuntimeSnapshot(){
 
-  return freezeEnvironmentObject({
+  return freezeMessageRuntime({
 
     sending:
     messageRuntimeState
@@ -262,12 +392,17 @@ async function handleSuccessfulMessage(){
 
   });
 
+  const performanceTracker =
+  getMessageRuntimeDependency(
+    "trackPerformanceMetric"
+  );
+
   if(
-    typeof trackPerformanceMetric ===
+    typeof performanceTracker ===
     "function"
   ){
 
-    trackPerformanceMetric(
+    await performanceTracker(
 
       "message.send",
 
@@ -278,9 +413,21 @@ async function handleSuccessfulMessage(){
 
   }
 
-  await emitAppEvent(
-    "chat.message.sent"
+  const appEventEmitter =
+  getMessageRuntimeDependency(
+    "emitAppEvent"
   );
+
+  if(
+    typeof appEventEmitter ===
+    "function"
+  ){
+
+    await appEventEmitter(
+      "chat.message.sent"
+    );
+
+  }
 
   return true;
 
@@ -307,21 +454,48 @@ async function handleFailedMessage(
 
   });
 
-  appState.lastError =
-  error;
+  if(
+    typeof appState ===
+    "object" &&
+    appState
+  ){
 
-  safeLogError(
-    normalizeMessageRuntimeError(
-      error
-    )
+    appState.lastError =
+    error;
+
+  }
+
+  const logger =
+  getMessageRuntimeDependency(
+    "safeLogError"
   );
 
   if(
-    typeof logDiagnosticError ===
+    typeof logger ===
     "function"
   ){
 
-    await logDiagnosticError(
+    logger(
+
+      normalizeMessageRuntimeError(
+        error
+      )
+
+    );
+
+  }
+
+  const diagnosticsLogger =
+  getMessageRuntimeDependency(
+    "logDiagnosticError"
+  );
+
+  if(
+    typeof diagnosticsLogger ===
+    "function"
+  ){
+
+    await diagnosticsLogger(
 
       "MESSAGE SEND FAILED",
 
@@ -338,20 +512,32 @@ async function handleFailedMessage(
 
   }
 
-  await emitAppEvent(
-
-    "chat.message.failed",
-
-    {
-
-      error:
-      normalizeMessageRuntimeError(
-        error
-      )
-
-    }
-
+  const appEventEmitter =
+  getMessageRuntimeDependency(
+    "emitAppEvent"
   );
+
+  if(
+    typeof appEventEmitter ===
+    "function"
+  ){
+
+    await appEventEmitter(
+
+      "chat.message.failed",
+
+      {
+
+        error:
+        normalizeMessageRuntimeError(
+          error
+        )
+
+      }
+
+    );
+
+  }
 
   return false;
 
@@ -374,14 +560,31 @@ async function handleSendMessage(){
 
   }
 
+  const sender =
+  getMessageRuntimeDependency(
+    "sendMessage"
+  );
+
   if(
-    typeof sendMessage !==
+    typeof sender !==
     "function"
   ){
 
-    safeLogError(
-      "sendMessage unavailable"
+    const logger =
+    getMessageRuntimeDependency(
+      "safeLogError"
     );
+
+    if(
+      typeof logger ===
+      "function"
+    ){
+
+      logger(
+        "sendMessage unavailable"
+      );
+
+    }
 
     return false;
 
@@ -409,7 +612,7 @@ async function handleSendMessage(){
 
     await Promise.race([
 
-      sendMessage(),
+      sender(),
 
       timeoutController
       .promise
@@ -424,7 +627,7 @@ async function handleSendMessage(){
 
   catch(error){
 
-    return handleFailedMessage(
+    return await handleFailedMessage(
       error
     );
 
@@ -462,6 +665,9 @@ Object.freeze({
   handleSendMessage,
 
   snapshot:
+  createMessageRuntimeSnapshot,
+
+  diagnostics:
   createMessageRuntimeSnapshot
 
 });
@@ -477,7 +683,25 @@ if(
   "undefined"
 ){
 
-  window.MessageRuntime =
-  MessageRuntime;
+  Object.defineProperty(
+
+    window,
+
+    "MessageRuntime",
+
+    {
+
+      value:
+      MessageRuntime,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
