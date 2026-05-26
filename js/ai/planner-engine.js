@@ -2,6 +2,7 @@
 // RIGO AI
 // PLANNER ENGINE
 // FULL HARDENED PRODUCTION ORCHESTRATION RUNTIME
+// FINAL ENTERPRISE EDITION
 // =====================================
 
 
@@ -29,38 +30,33 @@ Object.freeze({
 
   ENABLE_DIAGNOSTICS:true,
 
-  ENABLE_PLAN_ABORT:
-  true,
+  ENABLE_PLAN_ABORT:true,
 
-  ENABLE_PLAN_QUEUE:
-  true,
+  ENABLE_PLAN_QUEUE:true,
 
-  MAX_PLANS:
-  1000,
+  ENABLE_AUTO_QUEUE_DRAIN:true,
 
-  MAX_PLAN_STEPS:
-  200,
+  ENABLE_EXECUTION_HISTORY:true,
 
-  MAX_RETRIES:
-  3,
+  ENABLE_RUNTIME_SYNC:true,
 
-  MAX_PARALLEL_PLANS:
-  50,
+  MAX_PLANS:1000,
 
-  MAX_QUEUE_SIZE:
-  500,
+  MAX_PLAN_STEPS:200,
 
-  MAX_CONTEXT_SIZE:
-  100000,
+  MAX_RETRIES:3,
 
-  PLAN_TIMEOUT:
-  300000,
+  MAX_PARALLEL_PLANS:50,
 
-  RETRY_DELAY:
-  500,
+  MAX_QUEUE_SIZE:500,
 
-  MAX_EXECUTION_HISTORY:
-  500
+  MAX_CONTEXT_SIZE:100000,
+
+  PLAN_TIMEOUT:300000,
+
+  RETRY_DELAY:500,
+
+  MAX_EXECUTION_HISTORY:500
 
 });
 
@@ -170,6 +166,9 @@ Object.seal({
   activePlans:
   new Set(),
 
+  queuedPlans:
+  new Set(),
+
   executionLocks:
   new Set(),
 
@@ -238,12 +237,9 @@ function freezePlannerObject(
 ){
 
   if(
-
     !value ||
-
     typeof value !==
     "object"
-
   ){
 
     return value;
@@ -278,28 +274,15 @@ function freezePlannerObject(
 
   }
 
-  visited.add(
-    value
-  );
+  visited.add(value);
 
   Object.values(value)
   .forEach((nestedValue) => {
 
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezePlannerObject(
-        nestedValue,
-        visited
-      );
-
-    }
+    freezePlannerObject(
+      nestedValue,
+      visited
+    );
 
   });
 
@@ -345,12 +328,9 @@ function clonePlannerObject(
     }
 
     if(
-
       value &&
-
       typeof value ===
       "object"
-
     ){
 
       return {
@@ -510,6 +490,7 @@ function serializePlannerContext(
   catch(error){
 
     return "";
+
   }
 
 }
@@ -558,121 +539,6 @@ function trimPlannerHistory(){
   }
 
   return true;
-
-}
-
-
-
-function createPlannerSnapshot(){
-
-  return freezePlannerObject({
-
-    initialized:
-    plannerEngineState
-    .initialized,
-
-    plans:
-
-      plannerEngineState
-      .plans
-      .size,
-
-    activePlans:
-
-      plannerEngineState
-      .activePlans
-      .size,
-
-    completedPlans:
-
-      plannerEngineState
-      .completedPlans
-      .size,
-
-    failedPlans:
-
-      plannerEngineState
-      .failedPlans
-      .size,
-
-    history:
-
-      plannerEngineState
-      .executionHistory
-      .length,
-
-    queue:
-
-      plannerEngineState
-      .executionQueue
-      .length,
-
-    timestamp:
-    Date.now()
-
-  });
-
-}
-
-
-
-async function executeWithPlanTimeout(
-  callback,
-  timeout,
-  controller = null
-){
-
-  let timeoutId = null;
-
-  try{
-
-    const timeoutPromise =
-    new Promise((_,reject) => {
-
-      timeoutId =
-      setTimeout(() => {
-
-        controller
-        ?.abort();
-
-        reject(
-
-          new Error(
-            "PLAN EXECUTION TIMEOUT"
-          )
-
-        );
-
-      },
-
-      timeout);
-
-    });
-
-    return await Promise.race([
-
-      Promise.resolve()
-      .then(callback),
-
-      timeoutPromise
-
-    ]);
-
-  }
-
-  finally{
-
-    if(
-      timeoutId
-    ){
-
-      clearTimeout(
-        timeoutId
-      );
-
-    }
-
-  }
 
 }
 
@@ -748,15 +614,9 @@ function getAvailableAgents(){
 
 
 
-// =====================================
-// PLAN OBJECT
-// =====================================
+function createPlanRuntime(){
 
-function createPlanObject(
-  config = {}
-){
-
-  const runtime = {
+  return {
 
     running:false,
 
@@ -779,95 +639,95 @@ function createPlanObject(
 
   };
 
+}
+
+
+
+// =====================================
+// PLAN OBJECT
+// =====================================
+
+function createPlanObject(
+  config = {}
+){
+
   return {
 
-    ...freezePlannerObject({
+    id:
+    normalizePlanId(
 
-      id:
-      normalizePlanId(
+      config.id ||
 
-        config.id ||
+      createPlannerId()
 
-        createPlannerId()
+    ),
 
-      ),
+    goal:
+    String(
+      config.goal || ""
+    ),
 
-      goal:
+    description:
+    String(
+      config.description || ""
+    ),
 
-        String(
-          config.goal ||
-          ""
-        ),
+    priority:
+    Number(
+      config.priority
+    ) || 1,
 
-      description:
+    retries:0,
 
-        String(
-          config.description ||
-          ""
-        ),
+    state:
+    PLAN_STATES.CREATED,
 
-      priority:
+    strategy:
+    String(
+      config.strategy ||
+      "adaptive"
+    ),
 
-        Number(
-          config.priority
-        )
+    assignedAgent:
+    config.assignedAgent ||
+    null,
 
-        || 1,
+    selectedTools:
 
-      retries:0,
+      Array.isArray(
+        config.selectedTools
+      )
 
-      state:
-      PLAN_STATES
-      .CREATED,
+      ?
 
-      strategy:
-
-        String(
-          config.strategy ||
-          "adaptive"
-        ),
-
-      assignedAgent:
-
-        config.assignedAgent ||
-
-        null,
-
-      selectedTools:
-
-        Array.isArray(
-          config.selectedTools
-        )
-
-        ?
-
-        clonePlannerObject(
-          config.selectedTools
-        )
-
-        : [],
-
-      steps:[],
-
-      context:
       clonePlannerObject(
-        config.context || {}
-      ),
+        config.selectedTools
+      )
 
-      metadata:
-      clonePlannerObject(
-        config.metadata || {}
-      ),
+      :
 
-      createdAt:
-      Date.now(),
+      [],
 
-      updatedAt:
-      Date.now()
+    steps:[],
 
-    }),
+    context:
+    clonePlannerObject(
+      config.context || {}
+    ),
 
-    runtime
+    metadata:
+    clonePlannerObject(
+      config.metadata || {}
+    ),
+
+    runtime:
+    createPlanRuntime(),
+
+    createdAt:
+    Date.now(),
+
+    updatedAt:
+    Date.now()
 
   };
 
@@ -890,10 +750,13 @@ function decomposeGoal(
   if(!normalizedGoal){
 
     return [];
+
   }
 
   return normalizedGoal
+
   .split(".")
+
   .slice(
 
     0,
@@ -902,6 +765,7 @@ function decomposeGoal(
     .MAX_PLAN_STEPS
 
   )
+
   .map((segment,index) => {
 
     return {
@@ -921,14 +785,23 @@ function decomposeGoal(
 
       parallel:false,
 
-      state:
+      retries:0,
 
-        PLAN_STEP_STATES
-        .PENDING
+      result:null,
+
+      error:null,
+
+      assignedTool:null,
+
+      assignedAgent:null,
+
+      state:
+      PLAN_STEP_STATES.PENDING
 
     };
 
   })
+
   .filter((step) => {
 
     return (
@@ -1021,7 +894,7 @@ function assignAgentToPlan(){
 
       return (
         agent.state ===
-        AGENT_STATES.READY
+        "ready"
       );
 
     });
@@ -1039,6 +912,44 @@ function assignAgentToPlan(){
     return null;
 
   }
+
+}
+
+
+
+// =====================================
+// VALIDATE STEP
+// =====================================
+
+function validatePlanStep(
+  step
+){
+
+  if(
+    !step
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !step.id
+  ){
+
+    return false;
+
+  }
+
+  if(
+    !step.objective
+  ){
+
+    return false;
+
+  }
+
+  return true;
 
 }
 
@@ -1094,32 +1005,70 @@ async function generateExecutionPlan(
 
   }
 
-  const basePlan =
+  const plan =
   createPlanObject(
     config
   );
 
-  if(
+  const steps =
+  decomposeGoal(
+    plan.goal
+  );
 
-    plannerEngineState
-    .plans
-    .has(
-      basePlan.id
-    )
+  const tools =
+  selectToolsForGoal(
+    plan.goal
+  );
 
-  ){
+  const assignedAgent =
+  assignAgentToPlan();
 
-    plannerEngineState
-    .diagnostics
-    .rejected++;
+  plan.steps =
+  steps
 
-    return false;
+  .filter(validatePlanStep)
 
-  }
+  .map((step) => {
+
+    return {
+
+      ...step,
+
+      assignedTool:
+      tools[0] || null,
+
+      assignedAgent,
+
+      state:
+      PLAN_STEP_STATES.READY
+
+    };
+
+  });
+
+  plan.selectedTools =
+  tools;
+
+  plan.assignedAgent =
+  assignedAgent;
+
+  plan.state =
+  PLAN_STATES.PLANNED;
+
+  plannerEngineState
+  .plans
+  .set(
+    plan.id,
+    plan
+  );
 
   plannerEngineState
   .diagnostics
   .created++;
+
+  plannerEngineState
+  .diagnostics
+  .generated++;
 
   plannerEngineState
   .lastPlanAt =
@@ -1128,172 +1077,33 @@ async function generateExecutionPlan(
   await emitPlannerEvent(
 
     PLAN_EVENTS
-    .CREATED,
+    .GENERATED,
 
     {
 
       planId:
-      basePlan.id
+      plan.id
 
     }
 
   );
 
-  try{
-
-    const decomposedSteps =
-    decomposeGoal(
-      basePlan.goal
-    );
-
-    const selectedTools =
-    selectToolsForGoal(
-      basePlan.goal
-    );
-
-    const assignedAgent =
-    assignAgentToPlan();
-
-    const enrichedSteps =
-    decomposedSteps.map((step) => {
-
-      return {
-
-        ...step,
-
-        retries:0,
-
-        assignedTool:
-
-          selectedTools[0]
-
-          || null,
-
-        assignedAgent,
-
-        state:
-
-          PLAN_STEP_STATES
-          .READY
-
-      };
-
-    });
-
-    plannerEngineState
-    .diagnostics
-    .analyzed++;
-
-    await emitPlannerEvent(
-
-      PLAN_EVENTS
-      .ANALYZED,
-
-      {
-
-        planId:
-        basePlan.id
-
-      }
-
-    );
-
-    const finalizedPlan = {
-
-      ...basePlan,
-
-      state:
-      PLAN_STATES
-      .PLANNED,
-
-      selectedTools,
-
-      assignedAgent,
-
-      steps:
-      enrichedSteps,
-
-      updatedAt:
-      Date.now()
-
-    };
-
-    plannerEngineState
-    .plans
-    .set(
-      finalizedPlan.id,
-      finalizedPlan
-    );
-
-    plannerEngineState
-    .diagnostics
-    .generated++;
-
-    await emitPlannerEvent(
-
-      PLAN_EVENTS
-      .GENERATED,
-
-      {
-
-        planId:
-        finalizedPlan.id
-
-      }
-
-    );
-
-    return freezePlannerObject(
-      clonePlannerObject(
-        finalizedPlan
-      )
-    );
-
-  }
-
-  catch(error){
-
-    await emitPlannerEvent(
-
-      PLAN_EVENTS
-      .FAILED,
-
-      {
-
-        planId:
-        basePlan.id,
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    return false;
-
-  }
+  return freezePlannerObject(
+    clonePlannerObject(plan)
+  );
 
 }
 
 
 
 // =====================================
-// EXECUTE PLAN STEP
+// EXECUTE STEP
 // =====================================
 
 async function executePlanStep(
   plan,
-  originalStep
+  step
 ){
-
-  const step = {
-
-    ...clonePlannerObject(
-      originalStep
-    )
-
-  };
 
   let attempts = 0;
 
@@ -1311,58 +1121,46 @@ async function executePlanStep(
     try{
 
       if(
-
-        plan.runtime
-        .controller
-        ?.signal
-        ?.aborted
-
-      ){
-
-        throw new Error(
-          "PLAN ABORTED"
-        );
-
-      }
-
-      if(
-
-        step.executable ===
-        true
-
-        &&
-
-        !step.assignedTool
-
-      ){
-
-        throw new Error(
-          "NO TOOL ASSIGNED"
-        );
-
-      }
-
-      if(
         step.assignedTool
       ){
 
-        const result =
-        await ToolExecutor
-        .execute(
+        if(
+          typeof ToolExecutor ===
+          "undefined"
+        ){
 
-          step
-          .assignedTool,
+          throw new Error(
+            "TOOL EXECUTOR UNAVAILABLE"
+          );
+
+        }
+
+        if(
+          typeof ToolExecutor.execute !==
+          "function"
+        ){
+
+          throw new Error(
+            "INVALID TOOL EXECUTOR"
+          );
+
+        }
+
+        const result =
+        await ToolExecutor.execute(
+
+          step.assignedTool,
 
           {
 
             objective:
-            step
-            .objective,
+            step.objective,
 
             signal:
-            plan.runtime
-            .controller
-            ?.signal || null
+
+              plan.runtime
+              .controller
+              ?.signal || null
 
           },
 
@@ -1376,35 +1174,31 @@ async function executePlanStep(
         );
 
         if(
-          !result ||
-          result.success !==
-          true
+          !result
         ){
 
           throw new Error(
-            "PLAN TOOL EXECUTION FAILED"
+            "INVALID TOOL RESULT"
           );
 
         }
 
+        return {
+
+          ...step,
+
+          result,
+
+          retries:
+          attempts - 1,
+
+          state:
+          PLAN_STEP_STATES
+          .COMPLETED
+
+        };
+
       }
-
-      await emitPlannerEvent(
-
-        PLAN_EVENTS
-        .STEP_COMPLETED,
-
-        {
-
-          planId:
-          plan.id,
-
-          stepId:
-          step.id
-
-        }
-
-      );
 
       return {
 
@@ -1435,6 +1229,9 @@ async function executePlanStep(
         return {
 
           ...step,
+
+          error:
+          String(error),
 
           retries:
           attempts,
@@ -1467,6 +1264,70 @@ async function executePlanStep(
 
 
 // =====================================
+// DRAIN QUEUE
+// =====================================
+
+async function drainPlannerQueue(){
+
+  if(
+    !PLANNER_ENGINE_CONFIG
+    .ENABLE_AUTO_QUEUE_DRAIN
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    plannerEngineState
+    .executionQueue
+    .length <= 0
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    plannerEngineState
+    .activePlans
+    .size >=
+
+    PLANNER_ENGINE_CONFIG
+    .MAX_PARALLEL_PLANS
+
+  ){
+
+    return false;
+
+  }
+
+  const queuedPlan =
+  plannerEngineState
+  .executionQueue
+  .shift();
+
+  plannerEngineState
+  .queuedPlans
+  .delete(
+    queuedPlan
+  );
+
+  executePlan(
+    queuedPlan
+  )
+  .catch(() => {});
+
+  return true;
+
+}
+
+
+
+// =====================================
 // EXECUTE PLAN
 // =====================================
 
@@ -1493,19 +1354,14 @@ async function executePlan(
 
   }
 
-  const originalPlan =
+  const plan =
+  plannerEngineState
+  .plans
+  .get(
+    normalizedId
+  );
 
-    plannerEngineState
-    .plans
-    .get(
-      normalizedId
-    );
-
-  if(!originalPlan){
-
-    plannerEngineState
-    .diagnostics
-    .rejected++;
+  if(!plan){
 
     return false;
 
@@ -1524,28 +1380,26 @@ async function executePlan(
 
     if(
 
-      plannerEngineState
-      .executionQueue
-      .length >=
-
-      PLANNER_ENGINE_CONFIG
-      .MAX_QUEUE_SIZE
+      !plannerEngineState
+      .queuedPlans
+      .has(
+        normalizedId
+      )
 
     ){
 
       plannerEngineState
-      .diagnostics
-      .rejected++;
+      .queuedPlans
+      .add(
+        normalizedId
+      );
 
-      return false;
-
+      plannerEngineState
+      .executionQueue
+      .push(
+        normalizedId
+      );
     }
-
-    plannerEngineState
-    .executionQueue
-    .push(
-      normalizedId
-    );
 
     plannerEngineState
     .diagnostics
@@ -1569,265 +1423,178 @@ async function executePlan(
     normalizedId
   );
 
+  plan.runtime.running =
+  true;
+
+  plan.runtime.startedAt =
+  Date.now();
+
+  plan.state =
+  PLAN_STATES
+  .EXECUTING;
+
   plannerEngineState
   .diagnostics
   .executed++;
 
-  originalPlan.runtime
-  .running =
-  true;
-
-  originalPlan.runtime
-  .startedAt =
-  Date.now();
-
-  originalPlan.state =
-  PLAN_STATES
-  .EXECUTING;
-
-  await emitPlannerEvent(
-
-    PLAN_EVENTS
-    .EXECUTION_STARTED,
-
-    {
-
-      planId:
-      normalizedId
-
-    }
-
-  );
-
-  let attempts = 0;
-
   try{
 
-    while(
+    const completedSteps = [];
 
-      attempts <
-
-      PLANNER_ENGINE_CONFIG
-      .MAX_RETRIES
-
+    for(
+      const step
+      of plan.steps
     ){
 
-      attempts++;
+      const result =
+      await executePlanStep(
+        plan,
+        step
+      );
 
-      try{
+      completedSteps.push(
+        result
+      );
 
-        const completedSteps = [];
+      if(
 
-        await executeWithPlanTimeout(
+        result.state !==
+        PLAN_STEP_STATES
+        .COMPLETED
 
-          async () => {
+      ){
 
-            for(
-              const step
-              of originalPlan.steps
-            ){
-
-              if(
-
-                originalPlan
-                .runtime
-                .controller
-                ?.signal
-                ?.aborted
-
-              ){
-
-                throw new Error(
-                  "PLAN TERMINATED"
-                );
-
-              }
-
-              const result =
-              await executePlanStep(
-                originalPlan,
-                step
-              );
-
-              completedSteps.push(
-                result
-              );
-
-              if(
-
-                result.state !==
-                PLAN_STEP_STATES
-                .COMPLETED
-
-              ){
-
-                throw new Error(
-                  "PLAN STEP FAILED"
-                );
-
-              }
-
-            }
-
-          },
-
-          PLANNER_ENGINE_CONFIG
-          .PLAN_TIMEOUT,
-
-          originalPlan.runtime
-          .controller
-
-        );
-
-        originalPlan.runtime
-        .running =
-        false;
-
-        originalPlan.runtime
-        .completedAt =
-        Date.now();
-
-        originalPlan.state =
-        PLAN_STATES
-        .COMPLETED;
-
-        originalPlan.steps =
-        completedSteps;
-
-        plannerEngineState
-        .completedPlans
-        .add(
-          normalizedId
-        );
-
-        plannerEngineState
-        .executionHistory
-        .push({
-
-          planId:
-          normalizedId,
-
-          success:true,
-
-          timestamp:
-          Date.now()
-
-        });
-
-        trimPlannerHistory();
-
-        plannerEngineState
-        .diagnostics
-        .completed++;
-
-        await emitPlannerEvent(
-
-          PLAN_EVENTS
-          .COMPLETED,
-
-          {
-
-            planId:
-            normalizedId
-
-          }
-
-        );
-
-        return true;
-
-      }
-
-      catch(error){
-
-        plannerEngineState
-        .diagnostics
-        .failed++;
-
-        await emitPlannerEvent(
-
-          PLAN_EVENTS
-          .FAILED,
-
-          {
-
-            planId:
-            normalizedId,
-
-            error:
-            String(error)
-
-          }
-
-        );
-
-        if(
-
-          attempts >=
-
-          PLANNER_ENGINE_CONFIG
-          .MAX_RETRIES
-
-        ){
-
-          originalPlan.state =
-          PLAN_STATES
-          .FAILED;
-
-          originalPlan.retries =
-          attempts;
-
-          plannerEngineState
-          .failedPlans
-          .add(
-            normalizedId
-          );
-
-          plannerEngineState
-          .executionHistory
-          .push({
-
-            planId:
-            normalizedId,
-
-            success:false,
-
-            error:
-            String(error),
-
-            timestamp:
-            Date.now()
-
-          });
-
-          trimPlannerHistory();
-
-          return false;
-
-        }
-
-        plannerEngineState
-        .diagnostics
-        .replans++;
-
-        await delayPlannerExecution(
-
-          PLANNER_ENGINE_CONFIG
-          .RETRY_DELAY
-
+        throw new Error(
+          "PLAN STEP FAILED"
         );
 
       }
 
     }
+
+    plan.steps =
+    completedSteps;
+
+    plan.state =
+    PLAN_STATES
+    .COMPLETED;
+
+    plan.runtime.running =
+    false;
+
+    plan.runtime.completedAt =
+    Date.now();
+
+    plannerEngineState
+    .completedPlans
+    .add(
+      normalizedId
+    );
+
+    plannerEngineState
+    .diagnostics
+    .completed++;
+
+    plannerEngineState
+    .executionHistory
+    .push({
+
+      planId:
+      normalizedId,
+
+      success:true,
+
+      completedAt:
+      Date.now()
+
+    });
+
+    trimPlannerHistory();
+
+    await emitPlannerEvent(
+
+      PLAN_EVENTS
+      .COMPLETED,
+
+      {
+
+        planId:
+        normalizedId
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    plan.state =
+    PLAN_STATES
+    .FAILED;
+
+    plan.runtime.running =
+    false;
+
+    plannerEngineState
+    .failedPlans
+    .add(
+      normalizedId
+    );
+
+    plannerEngineState
+    .diagnostics
+    .failed++;
+
+    plannerEngineState
+    .executionHistory
+    .push({
+
+      planId:
+      normalizedId,
+
+      success:false,
+
+      error:
+      String(error),
+
+      failedAt:
+      Date.now()
+
+    });
+
+    trimPlannerHistory();
+
+    await emitPlannerEvent(
+
+      PLAN_EVENTS
+      .FAILED,
+
+      {
+
+        planId:
+        normalizedId,
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    return false;
 
   }
 
   finally{
 
-    originalPlan.runtime
-    .running =
+    plan.runtime.running =
     false;
+
+    plan.runtime.controller =
+    null;
 
     plannerEngineState
     .activePlans
@@ -1841,25 +1608,8 @@ async function executePlan(
       normalizedId
     );
 
-    if(
-
-      plannerEngineState
-      .executionQueue
-      .length > 0
-
-    ){
-
-      const queuedPlan =
-      plannerEngineState
-      .executionQueue
-      .shift();
-
-      executePlan(
-        queuedPlan
-      )
-      .catch(() => {});
-
-    }
+    drainPlannerQueue()
+    .catch(() => {});
 
   }
 
@@ -1881,12 +1631,11 @@ async function terminatePlan(
   );
 
   const plan =
-
-    plannerEngineState
-    .plans
-    .get(
-      normalizedId
-    );
+  plannerEngineState
+  .plans
+  .get(
+    normalizedId
+  );
 
   if(!plan){
 
@@ -1898,13 +1647,24 @@ async function terminatePlan(
   .controller
   ?.abort();
 
-  plan.runtime
-  .running =
-  false;
+  plannerEngineState
+  .executionQueue =
 
-  plan.state =
-  PLAN_STATES
-  .TERMINATED;
+    plannerEngineState
+    .executionQueue
+    .filter((id) => {
+
+      return (
+        id !== normalizedId
+      );
+
+    });
+
+  plannerEngineState
+  .queuedPlans
+  .delete(
+    normalizedId
+  );
 
   plannerEngineState
   .activePlans
@@ -1918,6 +1678,13 @@ async function terminatePlan(
     normalizedId
   );
 
+  plan.runtime.running =
+  false;
+
+  plan.state =
+  PLAN_STATES
+  .TERMINATED;
+
   plannerEngineState
   .diagnostics
   .terminated++;
@@ -1930,9 +1697,7 @@ async function terminatePlan(
     {
 
       planId:
-      normalizedId,
-
-      terminated:true
+      normalizedId
 
     }
 
@@ -1945,10 +1710,143 @@ async function terminatePlan(
 
 
 // =====================================
-// HEALTH REPORT
+// GET PLAN
 // =====================================
 
-function getPlannerHealthReport(){
+function getPlan(
+  planId
+){
+
+  const plan =
+  plannerEngineState
+  .plans
+  .get(
+    normalizePlanId(
+      planId
+    )
+  );
+
+  if(!plan){
+
+    return null;
+
+  }
+
+  return freezePlannerObject(
+    clonePlannerObject(plan)
+  );
+
+}
+
+
+
+// =====================================
+// LIST PLANS
+// =====================================
+
+function listPlans(){
+
+  return freezePlannerObject(
+
+    [
+
+      ...plannerEngineState
+      .plans
+      .values()
+
+    ]
+
+    .map((plan) => {
+
+      return clonePlannerObject(
+        plan
+      );
+
+    })
+
+  );
+
+}
+
+
+
+// =====================================
+// REMOVE PLAN
+// =====================================
+
+async function removePlan(
+  planId
+){
+
+  const normalizedId =
+  normalizePlanId(
+    planId
+  );
+
+  plannerEngineState
+  .queuedPlans
+  .delete(
+    normalizedId
+  );
+
+  plannerEngineState
+  .activePlans
+  .delete(
+    normalizedId
+  );
+
+  plannerEngineState
+  .executionLocks
+  .delete(
+    normalizedId
+  );
+
+  return plannerEngineState
+  .plans
+  .delete(
+    normalizedId
+  );
+
+}
+
+
+
+// =====================================
+// PROCESS REQUEST
+// =====================================
+
+async function processPlannerRequest(
+  payload = {}
+){
+
+  const plan =
+  await generateExecutionPlan(
+    payload
+  );
+
+  if(!plan){
+
+    return false;
+
+  }
+
+  await executePlan(
+    plan.id
+  );
+
+  return getPlan(
+    plan.id
+  );
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createPlannerSnapshot(){
 
   return freezePlannerObject({
 
@@ -1956,35 +1854,30 @@ function getPlannerHealthReport(){
     plannerEngineState
     .initialized,
 
-    healthy:
-
-      plannerEngineState
-      .activePlans
-      .size <=
-
-      PLANNER_ENGINE_CONFIG
-      .MAX_PARALLEL_PLANS,
-
     plans:
-
-      plannerEngineState
-      .plans
-      .size,
+    plannerEngineState
+    .plans
+    .size,
 
     activePlans:
+    plannerEngineState
+    .activePlans
+    .size,
 
-      plannerEngineState
-      .activePlans
-      .size,
+    completedPlans:
+    plannerEngineState
+    .completedPlans
+    .size,
+
+    failedPlans:
+    plannerEngineState
+    .failedPlans
+    .size,
 
     queue:
-
-      plannerEngineState
-      .executionQueue
-      .length,
-
-    diagnostics:
-    clonePlannerDiagnostics(),
+    plannerEngineState
+    .executionQueue
+    .length,
 
     timestamp:
     Date.now()
@@ -2008,48 +1901,25 @@ function getPlannerDiagnostics(){
     .initialized,
 
     plans:
-
-      plannerEngineState
-      .plans
-      .size,
+    plannerEngineState
+    .plans
+    .size,
 
     activePlans:
-
-      plannerEngineState
-      .activePlans
-      .size,
-
-    completedPlans:
-
-      plannerEngineState
-      .completedPlans
-      .size,
-
-    failedPlans:
-
-      plannerEngineState
-      .failedPlans
-      .size,
-
-    history:
-
-      plannerEngineState
-      .executionHistory
-      .length,
+    plannerEngineState
+    .activePlans
+    .size,
 
     queue:
-
-      plannerEngineState
-      .executionQueue
-      .length,
+    plannerEngineState
+    .executionQueue
+    .length,
 
     diagnostics:
     clonePlannerDiagnostics(),
 
-    lastPlanAt:
-
-      plannerEngineState
-      .lastPlanAt
+    timestamp:
+    Date.now()
 
   });
 
@@ -2063,12 +1933,29 @@ function getPlannerDiagnostics(){
 
 async function resetPlannerEngine(){
 
+  for(
+    const planId
+    of
+    plannerEngineState
+    .activePlans
+  ){
+
+    await terminatePlan(
+      planId
+    );
+
+  }
+
   plannerEngineState
   .plans
   .clear();
 
   plannerEngineState
   .activePlans
+  .clear();
+
+  plannerEngineState
+  .queuedPlans
   .clear();
 
   plannerEngineState
@@ -2091,31 +1978,6 @@ async function resetPlannerEngine(){
   .failedPlans
   .clear();
 
-  plannerEngineState
-  .diagnostics = {
-
-    created:0,
-
-    analyzed:0,
-
-    generated:0,
-
-    executed:0,
-
-    completed:0,
-
-    failed:0,
-
-    replans:0,
-
-    rejected:0,
-
-    queued:0,
-
-    terminated:0
-
-  };
-
   return true;
 
 }
@@ -2131,20 +1993,6 @@ async function shutdownPlannerEngine(){
   plannerEngineState
   .shuttingDown =
   true;
-
-  for(
-    const planId
-    of
-    plannerEngineState
-    .activePlans
-  ){
-
-    terminatePlan(
-      planId
-    )
-    .catch(() => {});
-
-  }
 
   await resetPlannerEngine();
 
@@ -2173,79 +2021,15 @@ async function initializePlannerEngine(){
 
   }
 
-  if(
-    plannerEngineState
-    .startupPromise
-  ){
-
-    return plannerEngineState
-    .startupPromise;
-
-  }
+  plannerEngineState
+  .initialized =
+  true;
 
   plannerEngineState
-  .startupPromise =
+  .shuttingDown =
+  false;
 
-  (async () => {
-
-    if(
-      plannerEngineState
-      .initializing
-    ){
-
-      return false;
-
-    }
-
-    plannerEngineState
-    .initializing =
-    true;
-
-    try{
-
-      plannerEngineState
-      .initialized =
-      true;
-
-      plannerEngineState
-      .shuttingDown =
-      false;
-
-      if(
-        typeof registerModule ===
-        "function"
-      ){
-
-        await registerModule(
-
-          "planner-engine",
-
-          async () => PlannerEngine
-
-        );
-
-      }
-
-      return true;
-
-    }
-
-    finally{
-
-      plannerEngineState
-      .initializing =
-      false;
-
-      plannerEngineState
-      .startupPromise =
-      null;
-
-    }
-
-  })();
-
-  return plannerEngineState
-  .startupPromise;
+  return true;
 
 }
 
@@ -2273,11 +2057,20 @@ Object.freeze({
   terminate:
   terminatePlan,
 
+  process:
+  processPlannerRequest,
+
+  get:
+  getPlan,
+
+  list:
+  listPlans,
+
+  remove:
+  removePlan,
+
   diagnostics:
   getPlannerDiagnostics,
-
-  health:
-  getPlannerHealthReport,
 
   snapshot:
   createPlannerSnapshot,
@@ -2288,6 +2081,10 @@ Object.freeze({
 });
 
 
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
 
 if(
   typeof window !==
