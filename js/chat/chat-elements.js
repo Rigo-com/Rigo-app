@@ -2,6 +2,7 @@
 // RIGO AI
 // CHAT ELEMENTS
 // ENTERPRISE CHAT DOM SYSTEM
+// FINAL STABLE PATCHED EDITION
 // =====================================
 
 
@@ -18,12 +19,6 @@ Object.seal({
   validated:false,
 
   cached:false,
-
-  activeInput:null,
-
-  activeContainer:null,
-
-  typingIndicator:null,
 
   elements:Object.seal({
 
@@ -84,6 +79,15 @@ function getChatElement(
 
 function cacheChatElements(){
 
+  if(
+    chatElementState
+    .cached
+  ){
+
+    return true;
+
+  }
+
   chatElementState
   .elements
   .container =
@@ -103,7 +107,7 @@ function cacheChatElements(){
 
 
   // =========================
-  // FIXED SEND BUTTON ID
+  // SEND BUTTON
   // =========================
 
   chatElementState
@@ -201,20 +205,6 @@ function initializeChatElements(){
     return false;
 
   }
-
-  chatElementState
-  .activeContainer =
-
-    chatElementState
-    .elements
-    .container;
-
-  chatElementState
-  .activeInput =
-
-    chatElementState
-    .elements
-    .input;
 
   chatElementState
   .initialized =
@@ -336,10 +326,6 @@ function setTypingIndicatorElement(
   .typingIndicator =
   element;
 
-  chatElementState
-  .typingIndicator =
-  element;
-
   return true;
 
 }
@@ -372,14 +358,17 @@ function clearChatContainer(){
 
   else{
 
-    container.innerHTML =
-    "";
+    while(
+      container.firstChild
+    ){
+
+      container.removeChild(
+        container.firstChild
+      );
+
+    }
 
   }
-
-  chatElementState
-  .typingIndicator =
-  null;
 
   chatElementState
   .elements
@@ -406,6 +395,21 @@ function appendChatElement(
   if(
     !container ||
     !element
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    typeof Element !==
+    "undefined"
+
+    &&
+
+    !(element instanceof Element)
+
   ){
 
     return false;
@@ -447,7 +451,11 @@ function focusMessageInput(){
 
   try{
 
-    input.focus();
+    input.focus({
+
+      preventScroll:true
+
+    });
 
     return true;
 
@@ -455,11 +463,23 @@ function focusMessageInput(){
 
   catch(error){
 
-    console.error(
-      error
-    );
+    try{
 
-    return false;
+      input.focus();
+
+      return true;
+
+    }
+
+    catch(fallbackError){
+
+      console.error(
+        fallbackError
+      );
+
+      return false;
+
+    }
 
   }
 
@@ -472,18 +492,6 @@ function focusMessageInput(){
 // =====================================
 
 function resetChatElements(){
-
-  chatElementState
-  .activeInput =
-  null;
-
-  chatElementState
-  .activeContainer =
-  null;
-
-  chatElementState
-  .typingIndicator =
-  null;
 
   chatElementState
   .elements
@@ -658,6 +666,41 @@ Object.freeze({
 
 
   diagnostics:
+  getChatElementDiagnostics,
+
+  snapshot:
   getChatElementDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ChatElements",
+
+    {
+
+      value:
+      ChatElements,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
