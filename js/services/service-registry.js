@@ -65,7 +65,7 @@ Object.seal({
   metadata:
   new Map(),
 
-  dependencies:
+  requirements:
   new Map(),
 
   lifecycle:
@@ -244,16 +244,16 @@ function validateRegistryLimit(){
 
 
 // =====================================
-// VALIDATE DEPENDENCIES
+// VALIDATE REQUIREMENTS
 // =====================================
 
-function validateServiceDependencies(
-  dependencies = []
+function validateServiceRequirements(
+  requirements = []
 ){
 
   if(
     !Array.isArray(
-      dependencies
+      requirements
     )
   ){
 
@@ -261,11 +261,11 @@ function validateServiceDependencies(
 
   }
 
-  return dependencies.every((dependency) => {
+  return requirements.every((requirement) => {
 
     return Boolean(
       normalizeServiceName(
-        dependency
+        requirement
       )
     );
 
@@ -276,12 +276,12 @@ function validateServiceDependencies(
 
 
 // =====================================
-// CHECK CIRCULAR DEPENDENCIES
+// CHECK CIRCULAR REQUIREMENTS
 // =====================================
 
-function hasCircularDependency(
+function hasCircularRequirement(
   serviceName,
-  dependencies = []
+  requirements = []
 ){
 
   const normalizedService =
@@ -289,12 +289,12 @@ function hasCircularDependency(
     serviceName
   );
 
-  return dependencies.some((dependency) => {
+  return requirements.some((requirement) => {
 
     return (
 
       normalizeServiceName(
-        dependency
+        requirement
       ) === normalizedService
 
     );
@@ -420,19 +420,19 @@ function registerService(
       metadata
     );
 
-    const dependencies =
+    const requirements =
     Array.isArray(
-      safeMetadata.dependencies
+      safeMetadata.requirements
     )
 
-    ? safeMetadata.dependencies
+    ? safeMetadata.requirements
 
     : [];
 
     if(
 
-      !validateServiceDependencies(
-        dependencies
+      !validateServiceRequirements(
+        requirements
       )
 
     ){
@@ -443,11 +443,11 @@ function registerService(
 
     if(
 
-      hasCircularDependency(
+      hasCircularRequirement(
 
         normalizedName,
 
-        dependencies
+        requirements
 
       )
 
@@ -509,17 +509,17 @@ function registerService(
 
 
     // ===================================
-    // DEPENDENCIES
+    // REQUIREMENTS
     // ===================================
 
     serviceRegistryState
-    .dependencies
+    .requirements
     .set(
 
       normalizedName,
 
       Object.freeze([
-        ...dependencies
+        ...requirements
       ])
 
     );
@@ -709,10 +709,10 @@ function getServiceMetadata(
 
 
 // =====================================
-// GET DEPENDENCIES
+// GET REQUIREMENTS
 // =====================================
 
-function getServiceDependencies(
+function getServiceRequirements(
   serviceName
 ){
 
@@ -724,7 +724,7 @@ function getServiceDependencies(
   return [
 
     ...(serviceRegistryState
-    .dependencies
+    .requirements
     .get(
       normalizedName
     ) || [])
@@ -773,12 +773,6 @@ function activateService(
   .delete(
     normalizedName
   );
-
-
-
-  // ===================================
-  // LIFECYCLE
-  // ===================================
 
   const lifecycle =
   serviceRegistryState
@@ -861,12 +855,6 @@ function failService(
   .add(
     normalizedName
   );
-
-
-
-  // ===================================
-  // LIFECYCLE
-  // ===================================
 
   const lifecycle =
   serviceRegistryState
@@ -979,7 +967,7 @@ function removeService(
     );
 
     serviceRegistryState
-    .dependencies
+    .requirements
     .delete(
       normalizedName
     );
@@ -1227,7 +1215,7 @@ function clearServiceRegistry(
   .clear();
 
   serviceRegistryState
-  .dependencies
+  .requirements
   .clear();
 
   serviceRegistryState
@@ -1334,54 +1322,6 @@ async function initializeServiceRegistry(){
   .initialized =
   true;
 
-
-
-  // ===================================
-  // DEPENDENCY REGISTRATION
-  // ===================================
-
-  try{
-
-    if(
-      typeof DependencySystem !==
-      "undefined"
-
-      &&
-
-      typeof DependencySystem
-      .register ===
-      "function"
-
-    ){
-
-      DependencySystem
-      .register(
-
-        "ServiceRegistry",
-
-        ServiceRegistry
-
-      );
-
-    }
-
-  }
-
-  catch(error){
-
-    console.warn(
-      "[ServiceRegistry] Dependency registration failed",
-      error
-    );
-
-  }
-
-
-
-  // ===================================
-  // BOOT
-  // ===================================
-
   await bootRegisteredServices();
 
   logServiceRegistryEvent(
@@ -1413,8 +1353,8 @@ Object.freeze({
   getMetadata:
   getServiceMetadata,
 
-  getDependencies:
-  getServiceDependencies,
+  getRequirements:
+  getServiceRequirements,
 
   activate:
   activateService,
