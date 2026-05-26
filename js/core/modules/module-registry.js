@@ -10,9 +10,13 @@
 // INTERNAL STATE (PRIVATE)
 // =====================================
 
-const moduleLoaderState = {
+const moduleLoaderState =
+Object.seal({
 
   modules:
+  new Map(),
+
+  moduleRuntime:
   new Map(),
 
   instances:
@@ -33,7 +37,7 @@ const moduleLoaderState = {
   loadingStack:
   []
 
-};
+});
 
 
 
@@ -41,56 +45,94 @@ const moduleLoaderState = {
 // HELPERS
 // =====================================
 
-function normalizeModuleName(moduleName){
+function normalizeModuleName(
+  moduleName
+){
 
-  return String(moduleName || "")
-    .trim()
-    .toLowerCase();
+  return String(
+    moduleName || ""
+  )
+  .trim()
+  .toLowerCase();
 
 }
 
 
 
-function normalizeDependencies(dependencies){
+function normalizeDependencies(
+  dependencies
+){
 
-  if(!Array.isArray(dependencies)){
+  if(
+    !Array.isArray(
+      dependencies
+    )
+  ){
+
     return [];
+
   }
 
   return [
+
     ...new Set(
 
       dependencies
-        .filter(Boolean)
-        .map(normalizeModuleName)
-        .filter(Boolean)
+      .filter(Boolean)
+      .map(
+        normalizeModuleName
+      )
+      .filter(Boolean)
 
     )
+
   ];
 
 }
 
 
 
-function isValidModuleFactory(factory){
+function isValidModuleFactory(
+  factory
+){
 
-  return typeof factory === "function";
+  return typeof factory ===
+  "function";
 
 }
 
 
 
-function isPlainObject(value){
+function isPlainObject(
+  value
+){
 
-  if(!value || typeof value !== "object"){
+  if(
+
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
     return false;
+
   }
 
-  const prototype = Object.getPrototypeOf(value);
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
 
   return (
-    prototype === Object.prototype ||
-    prototype === null
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
   );
 
 }
@@ -107,34 +149,69 @@ function freezeModuleObject(
 ){
 
   if(
-    !value ||
-    typeof value !== "object"
-  ){
-    return value;
-  }
 
-  if(visited.has(value)){
+    !value ||
+
+    typeof value !==
+    "object"
+
+  ){
+
     return value;
+
   }
 
   if(
-    value instanceof Map ||
-    value instanceof Set ||
-    value instanceof Date ||
-    value instanceof RegExp
+    visited.has(value)
   ){
+
     return value;
+
   }
 
-  if(!Array.isArray(value) && !isPlainObject(value)){
+  if(
+
+    value instanceof Promise ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof Date ||
+
+    value instanceof RegExp ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
     return value;
+
+  }
+
+  if(
+
+    !Array.isArray(value) &&
+
+    !isPlainObject(value)
+
+  ){
+
+    return value;
+
   }
 
   visited.add(value);
 
   Object.freeze(value);
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
     freezeModuleObject(
       nestedValue,
@@ -150,6 +227,36 @@ function freezeModuleObject(
 
 
 // =====================================
+// VALIDATION
+// =====================================
+
+function validateModuleLifecycle(
+  lifecycle
+){
+
+  return ModuleConstants
+  .validateLifecycle(
+    lifecycle
+  );
+
+}
+
+
+
+function validateModulePriority(
+  priority
+){
+
+  return ModuleConstants
+  .validatePriority(
+    priority
+  );
+
+}
+
+
+
+// =====================================
 // MODULE DEFINITION CREATION
 // =====================================
 
@@ -159,7 +266,37 @@ function createModuleDefinition(
   options = {}
 ){
 
-  return {
+  const lifecycle =
+
+    validateModuleLifecycle(
+      options.lifecycle
+    )
+
+    ?
+
+    options.lifecycle
+
+    :
+
+    MODULE_LIFECYCLES
+    .SINGLETON;
+
+  const priority =
+
+    validateModulePriority(
+      options.priority
+    )
+
+    ?
+
+    options.priority
+
+    :
+
+    MODULE_PRIORITIES
+    .NORMAL;
+
+  return Object.seal({
 
     metadata:
     freezeModuleObject({
@@ -172,13 +309,9 @@ function createModuleDefinition(
         options.dependencies
       ),
 
-      lifecycle:
-      options.lifecycle ??
-      MODULE_LIFECYCLES.SINGLETON,
+      lifecycle,
 
-      priority:
-      options.priority ??
-      MODULE_PRIORITIES.NORMAL,
+      priority,
 
       lazy:
       options.lazy ?? false,
@@ -194,9 +327,10 @@ function createModuleDefinition(
     0,
 
     state:
-    MODULE_STATES.REGISTERED
+    MODULE_STATES
+    .REGISTERED
 
-  };
+  });
 
 }
 
@@ -213,61 +347,245 @@ function registerModuleDefinition(
 ){
 
   const normalizedName =
-    normalizeModuleName(moduleName);
+  normalizeModuleName(
+    moduleName
+  );
 
-  if(!normalizedName){
-    return false;
-  }
+  if(
+    !normalizedName
+  ){
 
-  if(!isValidModuleFactory(factory)){
     return false;
+
   }
 
   if(
-    moduleLoaderState.modules.has(
-      normalizedName
+    !isValidModuleFactory(
+      factory
     )
   ){
+
     return false;
+
+  }
+
+  if(
+
+    moduleLoaderState
+    .modules
+    .has(
+      normalizedName
+    )
+
+  ){
+
+    return false;
+
   }
 
   const definition =
-    createModuleDefinition(
-      normalizedName,
-      factory,
-      options
-    );
+  createModuleDefinition(
 
-  moduleLoaderState.modules.set(
+    normalizedName,
+    factory,
+    options
+
+  );
+
+  moduleLoaderState
+  .modules
+  .set(
+
     normalizedName,
     definition
+
   );
 
-  moduleLoaderState.dependencyGraph.set(
+  moduleLoaderState
+  .moduleRuntime
+  .set(
+
     normalizedName,
-    definition.metadata.dependencies
+
+    Object.seal({
+
+      retries:0,
+
+      state:
+      MODULE_STATES
+      .REGISTERED,
+
+      activatedAt:null,
+
+      failedAt:null,
+
+      recoveredAt:null
+
+    })
+
   );
 
-  definition.metadata.dependencies.forEach((dependency) => {
+  moduleLoaderState
+  .dependencyGraph
+  .set(
+
+    normalizedName,
+
+    definition
+    .metadata
+    .dependencies
+
+  );
+
+  definition
+  .metadata
+  .dependencies
+  .forEach((dependency) => {
 
     if(
-      !moduleLoaderState.reverseDependencies.has(
+
+      !moduleLoaderState
+      .reverseDependencies
+      .has(
         dependency
       )
+
     ){
 
-      moduleLoaderState.reverseDependencies.set(
+      moduleLoaderState
+      .reverseDependencies
+      .set(
+
         dependency,
+
         new Set()
+
       );
 
     }
 
-    moduleLoaderState.reverseDependencies
-      .get(dependency)
-      .add(normalizedName);
+    moduleLoaderState
+    .reverseDependencies
+    .get(
+      dependency
+    )
+    .add(
+      normalizedName
+    );
 
   });
+
+  return true;
+
+}
+
+
+
+// =====================================
+// UNREGISTER MODULE
+// =====================================
+
+function unregisterModuleDefinition(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  const definition =
+  moduleLoaderState
+  .modules
+  .get(
+    normalizedName
+  );
+
+  if(
+    !definition
+  ){
+
+    return false;
+
+  }
+
+  definition
+  .metadata
+  .dependencies
+  .forEach((dependency) => {
+
+    const reverse =
+    moduleLoaderState
+    .reverseDependencies
+    .get(
+      dependency
+    );
+
+    if(reverse){
+
+      reverse.delete(
+        normalizedName
+      );
+
+      if(
+        reverse.size <= 0
+      ){
+
+        moduleLoaderState
+        .reverseDependencies
+        .delete(
+          dependency
+        );
+
+      }
+
+    }
+
+  });
+
+  moduleLoaderState
+  .modules
+  .delete(
+    normalizedName
+  );
+
+  moduleLoaderState
+  .moduleRuntime
+  .delete(
+    normalizedName
+  );
+
+  moduleLoaderState
+  .instances
+  .delete(
+    normalizedName
+  );
+
+  moduleLoaderState
+  .activeModules
+  .delete(
+    normalizedName
+  );
+
+  moduleLoaderState
+  .failedModules
+  .delete(
+    normalizedName
+  );
+
+  moduleLoaderState
+  .dependencyGraph
+  .delete(
+    normalizedName
+  );
 
   return true;
 
@@ -279,22 +597,42 @@ function registerModuleDefinition(
 // LOOKUP API
 // =====================================
 
-function getRegisteredModule(moduleName){
+function getRegisteredModule(
+  moduleName
+){
 
   return (
-    moduleLoaderState.modules.get(
-      normalizeModuleName(moduleName)
-    ) || null
+
+    moduleLoaderState
+    .modules
+    .get(
+
+      normalizeModuleName(
+        moduleName
+      )
+
+    ) ||
+
+    null
+
   );
 
 }
 
 
 
-function hasRegisteredModule(moduleName){
+function hasRegisteredModule(
+  moduleName
+){
 
-  return moduleLoaderState.modules.has(
-    normalizeModuleName(moduleName)
+  return moduleLoaderState
+  .modules
+  .has(
+
+    normalizeModuleName(
+      moduleName
+    )
+
   );
 
 }
@@ -304,7 +642,11 @@ function hasRegisteredModule(moduleName){
 function getRegisteredModules(){
 
   return [
-    ...moduleLoaderState.modules.keys()
+
+    ...moduleLoaderState
+    .modules
+    .keys()
+
   ];
 
 }
@@ -315,13 +657,108 @@ function getRegisteredModules(){
 // INSTANCE ACCESS
 // =====================================
 
-function getModuleInstance(moduleName){
+function getModuleInstance(
+  moduleName
+){
 
   return (
-    moduleLoaderState.instances.get(
-      normalizeModuleName(moduleName)
-    ) || null
+
+    moduleLoaderState
+    .instances
+    .get(
+
+      normalizeModuleName(
+        moduleName
+      )
+
+    ) ||
+
+    null
+
   );
+
+}
+
+
+
+function getModuleRuntimeState(
+  moduleName
+){
+
+  return (
+
+    moduleLoaderState
+    .moduleRuntime
+    .get(
+
+      normalizeModuleName(
+        moduleName
+      )
+
+    ) ||
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getModuleRegistryDiagnostics(){
+
+  return freezeModuleObject({
+
+    totalModules:
+
+      moduleLoaderState
+      .modules
+      .size,
+
+    activeModules:
+
+      moduleLoaderState
+      .activeModules
+      .size,
+
+    failedModules:
+
+      moduleLoaderState
+      .failedModules
+      .size,
+
+    instances:
+
+      moduleLoaderState
+      .instances
+      .size,
+
+    dependencyGraphs:
+
+      moduleLoaderState
+      .dependencyGraph
+      .size,
+
+    reverseDependencies:
+
+      moduleLoaderState
+      .reverseDependencies
+      .size,
+
+    loadingStackDepth:
+
+      moduleLoaderState
+      .loadingStack
+      .length,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -333,34 +770,74 @@ function getModuleInstance(moduleName){
 
 function createModuleRegistrySnapshot(){
 
-  const reverseDependencies = {};
+  const reverseDependencies =
+  {};
 
-  moduleLoaderState.reverseDependencies.forEach(
-    (value, key) => {
+  moduleLoaderState
+  .reverseDependencies
+  .forEach((value, key) => {
 
-      reverseDependencies[key] =
-        [...value];
+    reverseDependencies[key] =
 
-    }
-  );
+      [...value];
+
+  });
+
+  const runtimeStates =
+  {};
+
+  moduleLoaderState
+  .moduleRuntime
+  .forEach((value, key) => {
+
+    runtimeStates[key] =
+    freezeModuleObject(
+      value
+    );
+
+  });
 
   return freezeModuleObject({
 
     modules:
-    [...moduleLoaderState.modules.keys()],
+
+      [...moduleLoaderState
+      .modules
+      .keys()],
 
     activeModules:
-    [...moduleLoaderState.activeModules],
+
+      [...moduleLoaderState
+      .activeModules],
 
     failedModules:
-    [...moduleLoaderState.failedModules],
+
+      [...moduleLoaderState
+      .failedModules],
 
     dependencyGraph:
-    Object.fromEntries(
-      moduleLoaderState.dependencyGraph
-    ),
+
+      Object.fromEntries(
+        moduleLoaderState
+        .dependencyGraph
+      ),
 
     reverseDependencies,
+
+    runtimeStates,
+
+    loadingStack:[
+
+      ...moduleLoaderState
+      .loadingStack
+
+    ],
+
+    instances:
+
+      moduleLoaderState
+      .instances
+      .size,
 
     timestamp:
     Date.now()
@@ -380,6 +857,8 @@ Object.freeze({
 
   registerModuleDefinition,
 
+  unregisterModuleDefinition,
+
   getRegisteredModule,
 
   hasRegisteredModule,
@@ -388,6 +867,12 @@ Object.freeze({
 
   getModuleInstance,
 
+  getModuleRuntimeState,
+
+  diagnostics:
+  getModuleRegistryDiagnostics,
+
+  snapshot:
   createModuleRegistrySnapshot
 
 });
@@ -398,23 +883,28 @@ Object.freeze({
 // GLOBAL EXPORT
 // =====================================
 
-if(typeof window !== "undefined"){
+if(
+  typeof window !==
+  "undefined"
+){
 
   Object.defineProperty(
+
     window,
+
     "ModuleRegistry",
+
     {
 
       value:
       ModuleRegistry,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
+
   );
 
 }
