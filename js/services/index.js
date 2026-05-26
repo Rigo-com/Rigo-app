@@ -8,6 +8,49 @@
 
 
 // =====================================
+// REQUIRED SERVICES
+// =====================================
+
+const REQUIRED_SERVICES =
+Object.freeze([
+
+  "ServiceRegistry",
+  "APIService",
+  "AIService"
+
+]);
+
+
+
+// =====================================
+// VALIDATE SERVICES AVAILABILITY
+// =====================================
+
+function validateServicesAvailability(){
+
+  if(
+    typeof window ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  return REQUIRED_SERVICES
+  .every((serviceName) => {
+
+    return typeof window[
+      serviceName
+    ] !== "undefined";
+
+  });
+
+}
+
+
+
+// =====================================
 // SERVICES CONFIG
 // =====================================
 
@@ -459,6 +502,14 @@ async function executeServiceWithTimeout(
 
 function validateServicesRuntime(){
 
+  if(
+    !validateServicesAvailability()
+  ){
+
+    return false;
+
+  }
+
   return SERVICES_RUNTIME
   .every((service) => {
 
@@ -775,6 +826,9 @@ async function initializeServicesRuntime(){
       }
 
       servicesRuntimeState
+      .crashed = false;
+
+      servicesRuntimeState
       .initialized = true;
 
       servicesRuntimeState
@@ -840,17 +894,30 @@ async function initializeServicesRuntime(){
 
   })();
 
+  const currentPromise =
+  servicesRuntimeState
+  .startupPromise;
+
   try{
 
-    return await servicesRuntimeState
-    .startupPromise;
+    return await currentPromise;
 
   }
 
   finally{
 
-    servicesRuntimeState
-    .startupPromise = null;
+    if(
+
+      servicesRuntimeState
+      .startupPromise ===
+      currentPromise
+
+    ){
+
+      servicesRuntimeState
+      .startupPromise = null;
+
+    }
 
   }
 
@@ -941,6 +1008,9 @@ async function shutdownServicesRuntime(){
     .initialized = false;
 
     servicesRuntimeState
+    .lastError = null;
+
+    servicesRuntimeState
     .shutdownAt =
     Date.now();
 
@@ -1001,6 +1071,15 @@ function runServicesHealthcheck(){
   ){
 
     return true;
+
+  }
+
+  if(
+    typeof ServiceRegistry ===
+    "undefined"
+  ){
+
+    return false;
 
   }
 
@@ -1187,6 +1266,43 @@ Object.freeze({
   getRegisteredService,
 
   diagnostics:
+  getServicesDiagnostics,
+
+  snapshot:
   getServicesDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ServicesRuntime",
+
+    {
+
+      value:
+      ServicesRuntime,
+
+      writable:false,
+
+      configurable:false,
+
+      enumerable:false
+
+    }
+
+  );
+
+}
