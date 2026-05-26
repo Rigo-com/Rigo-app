@@ -2,7 +2,95 @@
 // RIGO AI
 // CHAT MESSAGE ELEMENTS
 // ENTERPRISE MESSAGE ELEMENT SYSTEM
+// FINAL STABLE EDITION
 // =====================================
+
+
+
+// =====================================
+// SERVICE ACCESS
+// =====================================
+
+function getChatMessageService(
+  serviceName
+){
+
+  try{
+
+    if(
+      typeof ServiceRegistry ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof ServiceRegistry.get !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    return ServiceRegistry.get(
+      serviceName
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE LOGGER
+// =====================================
+
+function safeMessageLogError(
+  ...args
+){
+
+  try{
+
+    const diagnostics =
+    getChatMessageService(
+      "diagnostics"
+    );
+
+    if(
+      diagnostics &&
+      typeof diagnostics.error ===
+      "function"
+    ){
+
+      diagnostics.error(
+        ...args
+      );
+
+      return;
+
+    }
+
+    console.error(...args);
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
+}
 
 
 
@@ -44,7 +132,62 @@ function getMessageRoleClass(
 
 
 // =====================================
-// MESSAGE CONTENT
+// SAFE MESSAGE CONTENT
+// =====================================
+
+function getSafeMessageContent(
+  message
+){
+
+  return String(
+    message?.content || ""
+  );
+
+}
+
+
+
+// =====================================
+// FORMAT MESSAGE TIMESTAMP
+// =====================================
+
+function formatMessageTimestamp(
+  timestamp
+){
+
+  const parsedTimestamp =
+  Number(timestamp);
+
+  if(
+    !Number.isFinite(
+      parsedTimestamp
+    )
+  ){
+
+    return "";
+  }
+
+  try{
+
+    return new Date(
+      parsedTimestamp
+    )
+    .toLocaleTimeString();
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
+
+// =====================================
+// CREATE MESSAGE CONTENT
 // =====================================
 
 function createMessageContentElement(
@@ -70,25 +213,25 @@ function createMessageContentElement(
   );
 
   const messageContent =
-  String(
-    message?.content || ""
+  getSafeMessageContent(
+    message
   );
 
   try{
 
+    const markdownRenderer =
+    getChatMessageService(
+      "markdown-renderer"
+    );
+
     if(
-      typeof ChatMarkdownRenderer !==
-      "undefined"
-
-      &&
-
-      typeof ChatMarkdownRenderer
+      markdownRenderer &&
+      typeof markdownRenderer
       .render ===
       "function"
     ){
 
-      ChatMarkdownRenderer
-      .render(
+      markdownRenderer.render(
         content,
         messageContent
       );
@@ -106,7 +249,7 @@ function createMessageContentElement(
 
   catch(error){
 
-    console.error(
+    safeMessageLogError(
       "MESSAGE CONTENT ERROR:",
       error
     );
@@ -148,34 +291,10 @@ function createMessageMetaElement(
     "message-meta"
   );
 
-  const timestamp =
-  Number(
+  meta.textContent =
+  formatMessageTimestamp(
     message?.timestamp
   );
-
-  if(
-    Number.isFinite(
-      timestamp
-    )
-  ){
-
-    try{
-
-      meta.textContent =
-
-        new Date(timestamp)
-        .toLocaleTimeString();
-
-    }
-
-    catch(error){
-
-      meta.textContent =
-      "";
-
-    }
-
-  }
 
   return meta;
 
@@ -237,9 +356,9 @@ function createMessageElement(
 
 
 
-  // =========================
+  // ===================================
   // CONTENT
-  // =========================
+  // ===================================
 
   const content =
   createMessageContentElement(
@@ -258,9 +377,9 @@ function createMessageElement(
 
 
 
-  // =========================
+  // ===================================
   // META
-  // =========================
+  // ===================================
 
   const meta =
   createMessageMetaElement(
@@ -320,25 +439,25 @@ function updateMessageElement(
   }
 
   const messageContent =
-  String(
-    message.content || ""
+  getSafeMessageContent(
+    message
   );
 
   try{
 
+    const markdownRenderer =
+    getChatMessageService(
+      "markdown-renderer"
+    );
+
     if(
-      typeof ChatMarkdownRenderer !==
-      "undefined"
-
-      &&
-
-      typeof ChatMarkdownRenderer
+      markdownRenderer &&
+      typeof markdownRenderer
       .render ===
       "function"
     ){
 
-      ChatMarkdownRenderer
-      .render(
+      markdownRenderer.render(
         content,
         messageContent
       );
@@ -356,7 +475,7 @@ function updateMessageElement(
 
   catch(error){
 
-    console.error(
+    safeMessageLogError(
       "MESSAGE UPDATE ERROR:",
       error
     );
@@ -372,38 +491,167 @@ function updateMessageElement(
       ".message-meta"
     );
 
-  const timestamp =
-  Number(
-    message?.timestamp
+  if(meta){
+
+    meta.textContent =
+    formatMessageTimestamp(
+      message?.timestamp
+    );
+
+  }
+
+  element.dataset.messageId =
+  String(
+    message.id || ""
   );
 
+  element.dataset.role =
+  String(
+    message.role || ""
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// REMOVE MESSAGE ELEMENT
+// =====================================
+
+function removeMessageElement(
+  element
+){
+
   if(
-    meta &&
-    Number.isFinite(
-      timestamp
-    )
+    !element
   ){
 
-    try{
+    return false;
 
-      meta.textContent =
+  }
 
-        new Date(
-          timestamp
-        )
-        .toLocaleTimeString();
+  try{
+
+    if(
+      typeof element.remove ===
+      "function"
+    ){
+
+      element.remove();
+
+      return true;
 
     }
 
-    catch(error){
+    if(
+      element.parentNode
+    ){
 
-      meta.textContent =
-      "";
+      element.parentNode
+      .removeChild(
+        element
+      );
+
+      return true;
 
     }
 
   }
 
-  return true;
+  catch(error){
+
+    safeMessageLogError(
+      "REMOVE MESSAGE ERROR:",
+      error
+    );
+
+  }
+
+  return false;
+
+}
+
+
+
+// =====================================
+// MESSAGE DIAGNOSTICS
+// =====================================
+
+function getChatMessageElementDiagnostics(){
+
+  return Object.freeze({
+
+    rendererAvailable:
+
+      !!getChatMessageService(
+        "markdown-renderer"
+      ),
+
+    documentAvailable:
+
+      typeof document !==
+      "undefined"
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatMessageElements =
+Object.freeze({
+
+  create:
+  createMessageElement,
+
+  update:
+  updateMessageElement,
+
+  remove:
+  removeMessageElement,
+
+  diagnostics:
+  getChatMessageElementDiagnostics,
+
+  snapshot:
+  getChatMessageElementDiagnostics
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ChatMessageElements",
+
+    {
+
+      value:
+      ChatMessageElements,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
