@@ -90,17 +90,6 @@ function safeConfigClone(
 
   try{
 
-    if(
-      typeof deepClone ===
-      "function"
-    ){
-
-      return deepClone(
-        value
-      );
-
-    }
-
     return structuredClone(
       value
     );
@@ -158,9 +147,6 @@ Object.freeze({
 
   CONFIG_UPDATED:
   "config.updated",
-
-  FEATURE_UPDATED:
-  "config.feature.updated",
 
   CONFIG_RESET:
   "config.reset",
@@ -466,7 +452,7 @@ function mergeConfigObjects(
 
 function getAppConfig(){
 
-  return safeDeepFreeze({
+  return {
 
     APP_INFO,
 
@@ -487,7 +473,7 @@ function getAppConfig(){
 
     )
 
-  });
+  };
 
 }
 
@@ -605,68 +591,6 @@ async function updateRuntimeConfig(
     return false;
 
   }
-
-}
-
-
-
-// =====================================
-// FEATURE FLAGS
-// =====================================
-
-async function updateFeatureFlag(
-  featureName,
-  enabled
-){
-
-  const normalizedFeature =
-  String(
-    featureName || ""
-  )
-  .trim();
-
-  if(!normalizedFeature){
-
-    return false;
-
-  }
-
-  const updated =
-  await updateRuntimeConfig({
-
-    FEATURE_FLAGS:{
-
-      [normalizedFeature]:
-      Boolean(enabled)
-
-    }
-
-  });
-
-  if(!updated){
-
-    return false;
-
-  }
-
-  await emitConfigRuntimeEvent(
-
-    CONFIG_RUNTIME_EVENTS
-    .FEATURE_UPDATED,
-
-    {
-
-      feature:
-      normalizedFeature,
-
-      enabled:
-      Boolean(enabled)
-
-    }
-
-  );
-
-  return true;
 
 }
 
@@ -807,7 +731,7 @@ function validateAppConfig(){
 
 function createConfigSnapshot(){
 
-  return safeDeepFreeze({
+  return Object.freeze({
 
     timestamp:
     Date.now(),
@@ -815,10 +739,12 @@ function createConfigSnapshot(){
     config:
     getAppConfig(),
 
-    diagnostics:
+    diagnostics:{
 
-      configRuntimeState
+      ...configRuntimeState
       .diagnostics
+
+    }
 
   });
 
@@ -913,10 +839,12 @@ function getConfigRuntimeDiagnostics(){
       configRuntimeState
       .lastUpdatedAt,
 
-    diagnostics:
+    diagnostics:{
 
-      configRuntimeState
+      ...configRuntimeState
       .diagnostics
+
+    }
 
   });
 
@@ -943,9 +871,6 @@ Object.freeze({
   update:
   updateRuntimeConfig,
 
-  updateFeature:
-  updateFeatureFlag,
-
   validate:
   validateAppConfig,
 
@@ -963,18 +888,6 @@ Object.freeze({
 
 
 // =====================================
-// RUNTIME ACCESS
-// =====================================
-
-function getRuntimeConfig(){
-
-  return ConfigRuntime.get();
-
-}
-
-
-
-// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -985,8 +898,5 @@ if(
 
   window.ConfigRuntime =
   ConfigRuntime;
-
-  window.getRuntimeConfig =
-  getRuntimeConfig;
 
 }
