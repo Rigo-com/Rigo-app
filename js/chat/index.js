@@ -2,7 +2,477 @@
 // RIGO AI
 // CHAT INDEX
 // ENTERPRISE CHAT PUBLIC API
+// FINAL CONNECTED EDITION
 // =====================================
+
+
+
+// =====================================
+// CHAT FILE REGISTRY
+// =====================================
+
+const CHAT_MODULES =
+Object.freeze({
+
+
+
+  // ===================================
+  // CORE STATE
+  // ===================================
+
+  state:
+
+    typeof chatRuntimeState !==
+    "undefined"
+
+    ?
+
+    chatRuntimeState
+
+    :
+
+    null,
+
+
+
+  streamState:
+
+    typeof chatStreamState !==
+    "undefined"
+
+    ?
+
+    chatStreamState
+
+    :
+
+    null,
+
+
+
+  streamingState:
+
+    typeof streamingMessageState !==
+    "undefined"
+
+    ?
+
+    streamingMessageState
+
+    :
+
+    null,
+
+
+
+  // ===================================
+  // ELEMENTS
+  // ===================================
+
+  elements:
+
+    typeof ChatElements !==
+    "undefined"
+
+    ?
+
+    ChatElements
+
+    :
+
+    null,
+
+
+
+  // ===================================
+  // MARKDOWN
+  // ===================================
+
+  markdown:
+
+    typeof ChatMarkdownRenderer !==
+    "undefined"
+
+    ?
+
+    ChatMarkdownRenderer
+
+    :
+
+    null,
+
+
+
+  // ===================================
+  // STREAM
+  // ===================================
+
+  stream:
+
+    typeof ChatStreamManager !==
+    "undefined"
+
+    ?
+
+    ChatStreamManager
+
+    :
+
+    null,
+
+
+
+  // ===================================
+  // RUNTIME
+  // ===================================
+
+  runtime:
+
+    typeof ChatRuntime !==
+    "undefined"
+
+    ?
+
+    ChatRuntime
+
+    :
+
+    null,
+
+
+
+  // ===================================
+  // ACTIONS
+  // ===================================
+
+  actions:Object.freeze({
+
+    send:
+
+      typeof sendMessage ===
+      "function"
+
+      ?
+
+      sendMessage
+
+      :
+
+      null,
+
+
+
+    add:
+
+      typeof addMessage ===
+      "function"
+
+      ?
+
+      addMessage
+
+      :
+
+      null,
+
+
+
+    reset:
+
+      typeof resetCurrentChat ===
+      "function"
+
+      ?
+
+      resetCurrentChat
+
+      :
+
+      null,
+
+
+
+    abort:
+
+      typeof abortMessageGeneration ===
+      "function"
+
+      ?
+
+      abortMessageGeneration
+
+      :
+
+      null
+
+  }),
+
+
+
+  // ===================================
+  // QUEUE
+  // ===================================
+
+  queue:Object.freeze({
+
+    process:
+
+      typeof processAIQueue ===
+      "function"
+
+      ?
+
+      processAIQueue
+
+      :
+
+      null,
+
+
+
+    continue:
+
+      typeof continueQueueProcessing ===
+      "function"
+
+      ?
+
+      continueQueueProcessing
+
+      :
+
+      null,
+
+
+
+    createItem:
+
+      typeof createQueueItem ===
+      "function"
+
+      ?
+
+      createQueueItem
+
+      :
+
+      null
+
+  }),
+
+
+
+  // ===================================
+  // EVENTS
+  // ===================================
+
+  events:Object.freeze({
+
+    emit:
+
+      typeof emitChatRuntimeEvent ===
+      "function"
+
+      ?
+
+      emitChatRuntimeEvent
+
+      :
+
+      null
+
+  }),
+
+
+
+  // ===================================
+  // RENDERER
+  // ===================================
+
+  renderer:Object.freeze({
+
+    typing:
+
+      typeof showTypingIndicator ===
+      "function"
+
+      ?
+
+      showTypingIndicator
+
+      :
+
+      null,
+
+
+
+    renderStream:
+
+      typeof renderStreamingMessage ===
+      "function"
+
+      ?
+
+      renderStreamingMessage
+
+      :
+
+      null,
+
+
+
+    finalizeStream:
+
+      typeof finalizeStreamingMessage ===
+      "function"
+
+      ?
+
+      finalizeStreamingMessage
+
+      :
+
+      null,
+
+
+
+    abortStream:
+
+      typeof abortStreamingMessage ===
+      "function"
+
+      ?
+
+      abortStreamingMessage
+
+      :
+
+      null
+
+  }),
+
+
+
+  // ===================================
+  // MESSAGE ELEMENTS
+  // ===================================
+
+  messageElements:Object.freeze({
+
+    create:
+
+      typeof createMessageElement ===
+      "function"
+
+      ?
+
+      createMessageElement
+
+      :
+
+      null,
+
+
+
+    update:
+
+      typeof updateMessageElement ===
+      "function"
+
+      ?
+
+      updateMessageElement
+
+      :
+
+      null,
+
+
+
+    createContent:
+
+      typeof createMessageContentElement ===
+      "function"
+
+      ?
+
+      createMessageContentElement
+
+      :
+
+      null,
+
+
+
+    createMeta:
+
+      typeof createMessageMetaElement ===
+      "function"
+
+      ?
+
+      createMessageMetaElement
+
+      :
+
+      null
+
+  }),
+
+
+
+  // ===================================
+  // UTILS
+  // ===================================
+
+  utils:Object.freeze({
+
+    clone:
+
+      typeof safeChatClone ===
+      "function"
+
+      ?
+
+      safeChatClone
+
+      :
+
+      null,
+
+
+
+    freeze:
+
+      typeof freezeChatObject ===
+      "function"
+
+      ?
+
+      freezeChatObject
+
+      :
+
+      null,
+
+
+
+    wait:
+
+      typeof wait ===
+      "function"
+
+      ?
+
+      wait
+
+      :
+
+      null
+
+  })
+
+});
 
 
 
@@ -257,6 +727,65 @@ function getChatDiagnostics(){
 
 
 
+    stream:
+
+      typeof getChatStreamStatus ===
+      "function"
+
+      ?
+
+      getChatStreamStatus()
+
+      :
+
+      null,
+
+
+
+    markdown:
+
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+
+      &&
+
+      typeof ChatMarkdownRenderer
+      .diagnostics ===
+      "function"
+
+      ?
+
+      ChatMarkdownRenderer
+      .diagnostics()
+
+      :
+
+      null,
+
+
+
+    elements:
+
+      typeof ChatElements !==
+      "undefined"
+
+      &&
+
+      typeof ChatElements
+      .diagnostics ===
+      "function"
+
+      ?
+
+      ChatElements
+      .diagnostics()
+
+      :
+
+      null,
+
+
+
     queue:Object.freeze({
 
       active:
@@ -264,6 +793,8 @@ function getChatDiagnostics(){
         chatRuntimeState
         ?.processing ===
         true,
+
+
 
       size:
 
@@ -281,6 +812,8 @@ function getChatDiagnostics(){
         :
 
         0,
+
+
 
       generating:
 
@@ -311,23 +844,37 @@ Object.freeze({
   initialize:
   initializeChatSystem,
 
+
+
   reset:
   resetChatSystem,
+
+
 
   send:
   sendChatMessage,
 
+
+
   abort:
   abortChatGeneration,
+
+
 
   process:
   processChatQueue,
 
+
+
   status:
   getChatSystemStatus,
 
+
+
   diagnostics:
   getChatDiagnostics,
+
+
 
   isReady:
   isChatReady,
@@ -335,149 +882,76 @@ Object.freeze({
 
 
   // ===================================
-  // MODULES
+  // CONNECTED MODULES
   // ===================================
 
+  modules:
+  CHAT_MODULES,
+
+
+
   runtime:
-
-    typeof ChatRuntime !==
-    "undefined"
-
-    ?
-
-    ChatRuntime
-
-    :
-
-    null,
+  CHAT_MODULES.runtime,
 
 
-
-  actions:Object.freeze({
-
-    send:
-
-      typeof sendMessage ===
-      "function"
-
-      ?
-
-      sendMessage
-
-      :
-
-      null,
-
-
-
-    add:
-
-      typeof addMessage ===
-      "function"
-
-      ?
-
-      addMessage
-
-      :
-
-      null,
-
-
-
-    reset:
-
-      typeof resetCurrentChat ===
-      "function"
-
-      ?
-
-      resetCurrentChat
-
-      :
-
-      null,
-
-
-
-    abort:
-
-      typeof abortMessageGeneration ===
-      "function"
-
-      ?
-
-      abortMessageGeneration
-
-      :
-
-      null
-
-  }),
-
-  queue:Object.freeze({
-
-    process:
-
-      typeof processAIQueue ===
-      "function"
-
-      ?
-
-      processAIQueue
-
-      :
-
-      null
-
-  }),
-
-  renderer:Object.freeze({
-
-    typing:
-
-      typeof showTypingIndicator ===
-      "function"
-
-      ?
-
-      showTypingIndicator
-
-      :
-
-      null
-
-  }),
-
-  events:Object.freeze({
-
-    emit:
-
-      typeof emitChatRuntimeEvent ===
-      "function"
-
-      ?
-
-      emitChatRuntimeEvent
-
-      :
-
-      null
-
-  }),
 
   state:
+  CHAT_MODULES.state,
 
-    typeof chatRuntimeState !==
-    "undefined"
 
-    ?
 
-    chatRuntimeState
+  streamState:
+  CHAT_MODULES.streamState,
 
-    :
 
-    null
+
+  streamingState:
+  CHAT_MODULES.streamingState,
+
+
+
+  elements:
+  CHAT_MODULES.elements,
+
+
+
+  markdown:
+  CHAT_MODULES.markdown,
+
+
+
+  stream:
+  CHAT_MODULES.stream,
+
+
+
+  actions:
+  CHAT_MODULES.actions,
+
+
+
+  queue:
+  CHAT_MODULES.queue,
+
+
+
+  events:
+  CHAT_MODULES.events,
+
+
+
+  renderer:
+  CHAT_MODULES.renderer,
+
+
+
+  messageElements:
+  CHAT_MODULES.messageElements,
+
+
+
+  utils:
+  CHAT_MODULES.utils
 
 });
 
@@ -495,26 +969,47 @@ if(
   window.Chat =
   Chat;
 
+
+
+  window.CHAT_MODULES =
+  CHAT_MODULES;
+
+
+
   window.initializeChatSystem =
   initializeChatSystem;
+
+
 
   window.resetChatSystem =
   resetChatSystem;
 
+
+
   window.sendChatMessage =
   sendChatMessage;
+
+
 
   window.abortChatGeneration =
   abortChatGeneration;
 
+
+
   window.processChatQueue =
   processChatQueue;
+
+
 
   window.getChatSystemStatus =
   getChatSystemStatus;
 
+
+
   window.getChatDiagnostics =
   getChatDiagnostics;
+
+
 
   window.isChatReady =
   isChatReady;
