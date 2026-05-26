@@ -6,28 +6,6 @@
 
 
 // =====================================
-// FALLBACK STATES
-// =====================================
-
-const INTERNAL_RUNTIME_STATES =
-typeof RUNTIME_STATES !==
-"undefined"
-
-  ? RUNTIME_STATES
-
-  : Object.freeze({
-
-      IDLE:"idle",
-      BOOTING:"booting",
-      RUNNING:"running",
-      RECOVERING:"recovering",
-      SHUTDOWN:"shutdown"
-
-    });
-
-
-
-// =====================================
 // DEFAULT DIAGNOSTICS
 // =====================================
 
@@ -67,10 +45,8 @@ Object.seal({
   recovering:false,
 
   runtimeState:
-  INTERNAL_RUNTIME_STATES
+  RUNTIME_STATES
   .IDLE,
-
-  startupQueue:[],
 
   runtimeErrors:[],
 
@@ -118,13 +94,6 @@ function createRuntimeStateSnapshot(){
     runtimeState:
     runtimeManagerState
     .runtimeState,
-
-    startupQueue:[
-
-      ...runtimeManagerState
-      .startupQueue
-
-    ],
 
     runtimeErrors:[
 
@@ -207,9 +176,25 @@ function pushRuntimeError(
 
   }
 
+  if(
+
+    runtimeManagerState
+    .runtimeErrors
+    .length >= 50
+
+  ){
+
+    runtimeManagerState
+    .runtimeErrors
+    .shift();
+
+  }
+
   runtimeManagerState
   .runtimeErrors
-  .push(String(error));
+  .push(
+    String(error)
+  );
 
   return true;
 
@@ -223,11 +208,9 @@ function incrementRuntimeMetric(
 
   if(
 
-    !runtimeManagerState
-    .diagnostics[metric] &&
-
-    runtimeManagerState
-    .diagnostics[metric] !== 0
+    typeof runtimeManagerState
+    .diagnostics[metric] !==
+    "number"
 
   ){
 
@@ -268,12 +251,8 @@ function resetRuntimeState(){
 
   runtimeManagerState
   .runtimeState =
-  INTERNAL_RUNTIME_STATES
+  RUNTIME_STATES
   .IDLE;
-
-  runtimeManagerState
-  .startupQueue =
-  [];
 
   runtimeManagerState
   .runtimeErrors =
