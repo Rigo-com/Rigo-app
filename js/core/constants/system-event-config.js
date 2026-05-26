@@ -5,8 +5,13 @@
 
 
 
+// =====================================
+// CONFIG
+// =====================================
+
 const SYSTEM_EVENTS_CONFIG =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
 
 
@@ -41,6 +46,9 @@ Object.freeze({
   ENABLE_RETRIES:
   true,
 
+  ENABLE_BATCHING:
+  true,
+
 
 
   // ===================================
@@ -59,6 +67,9 @@ Object.freeze({
   MAX_THROTTLED_EVENTS:
   1000,
 
+  MAX_BATCH_SIZE:
+  50,
+
 
 
   // ===================================
@@ -66,15 +77,43 @@ Object.freeze({
   // ===================================
 
   EVENT_TIMEOUT:
-  15000,
+  30000,
 
   MAX_RETRIES:
   3,
 
+  RETRY_DELAY:
+  1000,
+
+  BATCH_TIMEOUT:
+  100,
+
   THROTTLE_CLEANUP_INTERVAL:
   60000
 
-});
+}));
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function isValidSystemEventsConfigKey(
+  key
+){
+
+  return Object.prototype
+  .hasOwnProperty
+  .call(
+
+    SYSTEM_EVENTS_CONFIG,
+
+    String(key)
+
+  );
+
+}
 
 
 
@@ -97,6 +136,25 @@ if(
 
       value:
       SYSTEM_EVENTS_CONFIG,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "isValidSystemEventsConfigKey",
+
+    {
+
+      value:
+      isValidSystemEventsConfigKey,
 
       writable:false,
 
