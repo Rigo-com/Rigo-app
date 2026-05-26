@@ -5,8 +5,13 @@
 
 
 
+// =====================================
+// SYSTEM EVENT TYPES
+// =====================================
+
 const SYSTEM_EVENT_TYPES =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
 
 
@@ -59,6 +64,9 @@ Object.freeze({
   MEMORY_SYNCED:
   "memory.synced",
 
+  MEMORY_SYNC_FAILED:
+  "memory.sync.failed",
+
 
 
   // ===================================
@@ -68,8 +76,8 @@ Object.freeze({
   AI_REQUEST_STARTED:
   "ai.request.started",
 
-  AI_RESPONSE_RECEIVED:
-  "ai.response.received",
+  AI_RESPONSE_COMPLETED:
+  "ai.response.completed",
 
   AI_REQUEST_FAILED:
   "ai.request.failed",
@@ -99,9 +107,31 @@ Object.freeze({
   "network.online",
 
   NETWORK_OFFLINE:
-  "network.offline"
+  "network.offline",
 
-});
+  NETWORK_CHANGED:
+  "network.changed"
+
+}));
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function isValidSystemEventType(
+  eventType
+){
+
+  return Object.values(
+    SYSTEM_EVENT_TYPES
+  )
+  .includes(
+    String(eventType)
+  );
+
+}
 
 
 
@@ -124,6 +154,25 @@ if(
 
       value:
       SYSTEM_EVENT_TYPES,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "isValidSystemEventType",
+
+    {
+
+      value:
+      isValidSystemEventType,
 
       writable:false,
 
