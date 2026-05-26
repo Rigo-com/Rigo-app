@@ -37,9 +37,14 @@ function freezeStartupObject(
 
   if(
 
+    value instanceof Promise ||
+
     value instanceof Date ||
+
     value instanceof RegExp ||
+
     value instanceof Map ||
+
     value instanceof Set ||
 
     (
@@ -126,6 +131,28 @@ function getStartupDependency(
 
 
 // =====================================
+// APP STATE
+// =====================================
+
+function getStartupAppState(){
+
+  if(
+    typeof appState !==
+    "object" ||
+    !appState
+  ){
+
+    return null;
+
+  }
+
+  return appState;
+
+}
+
+
+
+// =====================================
 // STARTUP STATE
 // =====================================
 
@@ -172,19 +199,17 @@ function updateStartupAppState(
   updates = {}
 ){
 
-  if(
-    typeof appState !==
-    "object" ||
+  const state =
+  getStartupAppState();
 
-    !appState
-  ){
+  if(!state){
 
     return false;
 
   }
 
   Object.assign(
-    appState,
+    state,
     updates
   );
 
@@ -264,6 +289,9 @@ function hideSafeLoadingScreen(){
 
 function createStartupSnapshot(){
 
+  const state =
+  getStartupAppState();
+
   return freezeStartupObject({
 
     starting:
@@ -283,25 +311,17 @@ function createStartupSnapshot(){
     .lastDuration,
 
     initialized:
-
-      Boolean(
-        appState
-        ?.initialized
-      ),
+    Boolean(
+      state?.initialized
+    ),
 
     started:
-
-      Boolean(
-        appState
-        ?.started
-      ),
+    Boolean(
+      state?.started
+    ),
 
     phase:
-
-      appState
-      ?.phase ||
-
-      null,
+    state?.phase || null,
 
     lastError:
 
@@ -405,6 +425,16 @@ async function startRuntimeManager(){
 
   }
 
+  if(
+    typeof runtimeManager
+    .boot !==
+    "function"
+  ){
+
+    return true;
+
+  }
+
   const booted =
   await runtimeManager
   .boot();
@@ -474,6 +504,15 @@ async function validateStartupHealth(){
 
 async function completeStartupProcess(){
 
+  const state =
+  getStartupAppState();
+
+  if(!state){
+
+    return false;
+
+  }
+
   updateStartupAppState({
 
     started:true,
@@ -488,25 +527,21 @@ async function completeStartupProcess(){
 
   });
 
-  appState.startupDuration =
+  state.startupDuration =
 
-    appState
+    state
     .startupCompletedAt -
 
-    appState
+    state
     .startupStartedAt;
 
   updateStartupState({
 
     lastCompletedAt:
-
-      appState
-      .startupCompletedAt,
+    state.startupCompletedAt,
 
     lastDuration:
-
-      appState
-      .startupDuration
+    state.startupDuration
 
   });
 
@@ -544,76 +579,12 @@ async function completeStartupProcess(){
     "function"
   ){
 
-    healthMonitor
+    await healthMonitor
     .start();
 
   }
 
   hideSafeLoadingScreen();
-
-  const appEmitter =
-  getStartupDependency(
-    "emitAppEvent"
-  );
-
-  if(
-    typeof appEmitter ===
-    "function"
-  ){
-
-    await appEmitter(
-      "app.ready"
-    );
-
-  }
-
-  const diagnosticsInfo =
-  getStartupDependency(
-    "logDiagnosticInfo"
-  );
-
-  if(
-    typeof diagnosticsInfo ===
-    "function"
-  ){
-
-    await diagnosticsInfo(
-
-      "RIGO AI READY",
-
-      {
-
-        startupDuration:
-
-          appState
-          .startupDuration
-
-      }
-
-    );
-
-  }
-
-  const performanceTracker =
-  getStartupDependency(
-    "trackPerformanceMetric"
-  );
-
-  if(
-    typeof performanceTracker ===
-    "function"
-  ){
-
-    await performanceTracker(
-
-      "app.startup",
-
-      appState
-      .startupDuration
-
-    );
-
-  }
 
   return true;
 
@@ -629,10 +600,19 @@ async function handleStartupFailure(
   error
 ){
 
-  appState.failedStarts++;
+  const state =
+  getStartupAppState();
 
-  appState.lastError =
-  error;
+  if(state){
+
+    state.failedStarts =
+    Number(
+      state.failedStarts || 0
+    ) + 1;
+
+    state.lastError =
+    error;
+  }
 
   updateStartupState({
 
@@ -640,152 +620,7 @@ async function handleStartupFailure(
 
   });
 
-  const updatePhase =
-  getStartupDependency(
-    "updateAppPhase"
-  );
-
-  const phases =
-  getStartupDependency(
-    "APP_PHASES"
-  );
-
-  if(
-    typeof updatePhase ===
-    "function" &&
-    phases
-  ){
-
-    updatePhase(
-      phases.ERROR
-    );
-
-  }
-
-
-
-  // ===================================
-  // CLEANUP
-  // ===================================
-
-  const cleanup =
-  getStartupDependency(
-    "cleanupApp"
-  );
-
-  if(
-    typeof cleanup ===
-    "function"
-  ){
-
-    await cleanup();
-
-  }
-
-  if(
-    typeof document !==
-    "undefined" &&
-
-    document.body
-  ){
-
-    document.body.classList.add(
-      "app-error"
-    );
-
-  }
-
   hideSafeLoadingScreen();
-
-
-
-  // ===================================
-  // DIAGNOSTICS
-  // ===================================
-
-  const criticalLogger =
-  getStartupDependency(
-    "logCriticalError"
-  );
-
-  if(
-    typeof criticalLogger ===
-    "function"
-  ){
-
-    await criticalLogger(
-
-      "APPLICATION STARTUP FAILED",
-
-      {
-
-        error:
-        normalizeStartupError(
-          error
-        )
-
-      }
-
-    );
-
-  }
-
-  const appEmitter =
-  getStartupDependency(
-    "emitAppEvent"
-  );
-
-  if(
-    typeof appEmitter ===
-    "function"
-  ){
-
-    await appEmitter(
-
-      "app.error",
-
-      {
-
-        error:
-        normalizeStartupError(
-          error
-        )
-
-      }
-
-    );
-
-  }
-
-
-
-  // ===================================
-  // RECOVERY
-  // ===================================
-
-  const coreConfig =
-  getStartupDependency(
-    "APP_CORE_CONFIG"
-  );
-
-  const recovery =
-  getStartupDependency(
-    "recoverApplication"
-  );
-
-  if(
-
-    coreConfig
-    ?.ENABLE_RECOVERY &&
-
-    typeof recovery ===
-    "function"
-
-  ){
-
-    await recovery();
-
-  }
 
   return false;
 
@@ -799,11 +634,20 @@ async function handleStartupFailure(
 
 async function startApp(){
 
+  const state =
+  getStartupAppState();
+
+  if(!state){
+
+    return false;
+
+  }
+
   if(
 
-    appState.started ||
+    state.started ||
 
-    appState.starting ||
+    state.starting ||
 
     startupRuntimeState
     .starting
@@ -830,110 +674,18 @@ async function startApp(){
     starting:true,
 
     startupStartedAt:
-
-      startupRuntimeState
-      .lastStartedAt
+    startupRuntimeState
+    .lastStartedAt
 
   });
 
-  const updatePhase =
-  getStartupDependency(
-    "updateAppPhase"
-  );
-
-  const phases =
-  getStartupDependency(
-    "APP_PHASES"
-  );
-
-  const appEmitter =
-  getStartupDependency(
-    "emitAppEvent"
-  );
-
-  if(
-    typeof updatePhase ===
-    "function" &&
-    phases
-  ){
-
-    updatePhase(
-      phases.PREINIT
-    );
-
-  }
-
-  if(
-    typeof appEmitter ===
-    "function"
-  ){
-
-    await appEmitter(
-      "app.preinit"
-    );
-
-  }
-
   try{
-
-
-
-    // ================================
-    // BOOTING
-    // ================================
-
-    if(
-      typeof updatePhase ===
-      "function" &&
-      phases
-    ){
-
-      updatePhase(
-        phases.BOOTING
-      );
-
-    }
-
-    if(
-      typeof appEmitter ===
-      "function"
-    ){
-
-      await appEmitter(
-        "app.booting"
-      );
-
-    }
-
-
-
-    // ================================
-    // BOOTSTRAP
-    // ================================
 
     await startBootstrapProcess();
 
-
-
-    // ================================
-    // RUNTIME
-    // ================================
-
     await startRuntimeManager();
 
-
-
-    // ================================
-    // HEALTH
-    // ================================
-
     await validateStartupHealth();
-
-
-
-    // ================================
-    // COMPLETE
-    // ================================
 
     await completeStartupProcess();
 
