@@ -228,35 +228,6 @@ function logAPIEvent(
 
   try{
 
-    const diagnostics =
-    getAPIService(
-      "diagnostics"
-    );
-
-    if(
-      diagnostics &&
-      typeof diagnostics.info ===
-      "function"
-    ){
-
-      diagnostics.info(
-
-        "[API]",
-
-        {
-
-          message,
-
-          ...(metadata || {})
-
-        }
-
-      );
-
-      return true;
-
-    }
-
     console.log(
 
       "[API]",
@@ -333,10 +304,25 @@ function normalizeEndpoint(
   endpoint = ""
 ){
 
-  return String(endpoint)
+  const normalized =
+  String(endpoint)
   .trim()
-  .replace(/\/{2,}/g,"/")
-  .replace(/^\/?/,"/");
+  .replace(/\/{2,}/g,"/");
+
+  if(!normalized){
+
+    return "";
+  }
+
+  return normalized.startsWith("/")
+
+    ?
+
+    normalized
+
+    :
+
+    `/${normalized}`;
 
 }
 
@@ -347,7 +333,8 @@ function normalizeEndpoint(
 // =====================================
 
 function buildHeaders(
-  customHeaders = {}
+  customHeaders = {},
+  body = null
 ){
 
   const safeHeaders =
@@ -405,7 +392,7 @@ function buildHeaders(
 
   });
 
-  return {
+  const mergedHeaders = {
 
     ...API_CONFIG
     .DEFAULT_HEADERS,
@@ -413,6 +400,18 @@ function buildHeaders(
     ...cleanHeaders
 
   };
+
+  if(
+    body instanceof FormData
+  ){
+
+    delete mergedHeaders[
+      "Content-Type"
+    ];
+
+  }
+
+  return mergedHeaders;
 
 }
 
@@ -521,6 +520,51 @@ function safeJSONStringify(
 
 
 // =====================================
+// NORMALIZE RESPONSE
+// =====================================
+
+function normalizeAPIResponse(
+  data
+){
+
+  if(
+
+    API_CONFIG
+    .ENABLE_RESPONSE_NORMALIZATION
+    !== true
+
+  ){
+
+    return data;
+
+  }
+
+  if(
+    data == null
+  ){
+
+    return null;
+
+  }
+
+  if(
+    typeof data ===
+    "string"
+  ){
+
+    return data
+    .normalize("NFKC")
+    .trim();
+
+  }
+
+  return data;
+
+}
+
+
+
+// =====================================
 // PARSE RESPONSE
 // =====================================
 
@@ -541,27 +585,50 @@ async function parseAPIResponse(
 
     }
 
+    let parsedData =
+    null;
+
     switch(responseType){
 
       case "text":
-        return await response.text();
+
+        parsedData =
+        await response.text();
+
+        break;
 
       case "blob":
-        return await response.blob();
+
+        parsedData =
+        await response.blob();
+
+        break;
 
       case "arrayBuffer":
-        return await response.arrayBuffer();
+
+        parsedData =
+        await response.arrayBuffer();
+
+        break;
 
       case "raw":
-        return response;
+
+        parsedData =
+        response;
+
+        break;
 
       case "json":
       default:
 
-        return await response
-        .json();
+        parsedData =
+        await response.json();
 
     }
+
+    return normalizeAPIResponse(
+      parsedData
+    );
 
   }
 
@@ -802,6 +869,32 @@ async function executeFetch({
         upperMethod
       );
 
+    const normalizedBody =
+
+      body instanceof FormData
+
+      ||
+
+      body instanceof Blob
+
+      ||
+
+      body instanceof ArrayBuffer
+
+      ||
+
+      body instanceof URLSearchParams
+
+      ?
+
+      body
+
+      :
+
+      safeJSONStringify(
+        body
+      );
+
     const response =
     await fetch(
 
@@ -817,7 +910,8 @@ async function executeFetch({
 
         headers:
         buildHeaders(
-          headers
+          headers,
+          body
         ),
 
         body:
@@ -830,9 +924,7 @@ async function executeFetch({
 
           ?
 
-          safeJSONStringify(
-            body
-          )
+          normalizedBody
 
           :
 
@@ -970,9 +1062,6 @@ async function executeFetch({
     .lastError =
     error;
 
-    apiServiceState
-    .healthy = false;
-
     if(
       error?.name ===
       "AbortError"
@@ -1018,6 +1107,9 @@ async function executeFetch({
       "APIError"
 
     ){
+
+      apiServiceState
+      .healthy = false;
 
       throw createAPIError({
 
@@ -1274,6 +1366,23 @@ function cancelAllAPIRequests(){
 
 
 // =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownAPIService(){
+
+  cancelAllAPIRequests();
+
+  apiServiceState
+  .initialized = false;
+
+  return true;
+
+}
+
+
+
+// =====================================
 // DIAGNOSTICS
 // =====================================
 
@@ -1447,6 +1556,9 @@ Object.freeze({
 
   cancelAll:
   cancelAllAPIRequests,
+
+  shutdown:
+  shutdownAPIService,
 
   diagnostics:
   getAPIDiagnostics,
