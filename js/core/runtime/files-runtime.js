@@ -98,8 +98,6 @@ Object.seal({
 
   uploading:false,
 
-  processingQueue:false,
-
   files:[],
 
   uploadQueue:[],
@@ -132,42 +130,6 @@ function setFileError(
     message
     ? String(message)
     : null;
-
-}
-
-
-
-async function trackFileRuntimeError(
-  message,
-  metadata = null
-){
-
-  if(
-    typeof DiagnosticsRuntime ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    await DiagnosticsRuntime
-    .error?.(
-      message,
-      metadata
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    return false;
-
-  }
 
 }
 
@@ -587,11 +549,6 @@ async function addFile(
   if(
     !validateFile(file)
   ){
-
-    await trackFileRuntimeError(
-      fileRuntimeState
-      .lastError
-    );
 
     return false;
 
@@ -1161,10 +1118,6 @@ async function resetFileRuntime(){
   .initialized =
   false;
 
-  fileRuntimeState
-  .processingQueue =
-  false;
-
   return true;
 
 }
@@ -1252,11 +1205,6 @@ function getFileRuntimeDiagnostics(){
     uploading:
     fileRuntimeState
     .uploading,
-
-    processingQueue:
-
-      fileRuntimeState
-      .processingQueue,
 
     files:
 
