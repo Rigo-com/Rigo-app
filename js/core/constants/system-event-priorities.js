@@ -5,28 +5,49 @@
 
 
 
+// =====================================
+// PRIORITIES
+// =====================================
+
 const SYSTEM_EVENT_PRIORITIES =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
-
-
-  // ===================================
-  // PRIORITIES
-  // ===================================
+  BACKGROUND:
+  0,
 
   LOW:
-  1,
-
-  NORMAL:
-  5,
-
-  HIGH:
   10,
 
-  CRITICAL:
-  20
+  NORMAL:
+  50,
 
-});
+  HIGH:
+  100,
+
+  CRITICAL:
+  1000
+
+}));
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function isValidSystemEventPriority(
+  priority
+){
+
+  return Object.values(
+    SYSTEM_EVENT_PRIORITIES
+  )
+  .includes(
+    Number(priority)
+  );
+
+}
 
 
 
@@ -49,6 +70,25 @@ if(
 
       value:
       SYSTEM_EVENT_PRIORITIES,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+  Object.defineProperty(
+
+    window,
+
+    "isValidSystemEventPriority",
+
+    {
+
+      value:
+      isValidSystemEventPriority,
 
       writable:false,
 
