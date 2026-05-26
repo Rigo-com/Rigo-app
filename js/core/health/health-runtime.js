@@ -35,6 +35,26 @@ function freezeHealthRuntime(
 
   }
 
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
   visited.add(
     value
   );
@@ -74,26 +94,91 @@ function freezeHealthRuntime(
 // HELPERS
 // =====================================
 
+function getSafeRuntimeSnapshot(){
+
+  try{
+
+    if(
+      typeof RuntimeState ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof RuntimeState.get !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    return RuntimeState.get();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
 function getAppRuntimeState(){
+
+  const runtimeSnapshot =
+    getSafeRuntimeSnapshot();
 
   return {
 
     activeModules:
 
-      appState
-      ?.activeModules
-      ?.size || 0,
+      Number(
+
+        runtimeSnapshot
+        ?.activeModules || 0
+
+      ),
 
     failedModules:
 
-      appState
-      ?.failedModules
-      ?.size || 0,
+      Number(
+
+        runtimeSnapshot
+        ?.failedModules || 0
+
+      ),
 
     started:
     Boolean(
-      appState?.started
-    )
+
+      runtimeSnapshot
+      ?.initialized
+
+    ),
+
+    crashed:
+    Boolean(
+
+      runtimeSnapshot
+      ?.crashed
+
+    ),
+
+    crashCount:
+
+      Number(
+
+        runtimeSnapshot
+        ?.crashCount || 0
+
+      )
 
   };
 
@@ -105,27 +190,20 @@ function updateCrashState(
   healthy
 ){
 
-  if(!healthy){
+  const runtimeSnapshot =
+    getSafeRuntimeSnapshot();
 
-    if(!appState.crashed){
+  if(
+    !runtimeSnapshot
+  ){
 
-      appState.crashed =
-      true;
-
-      appState.crashCount++;
-
-    }
+    return false;
 
   }
 
-  else{
-
-    appState.crashed =
-    false;
-
-  }
-
-  return true;
+  return Boolean(
+    healthy
+  );
 
 }
 
@@ -237,11 +315,12 @@ async function runAppHealthcheck(){
 
     if(
       !appHealthy &&
-      typeof logDiagnosticWarning ===
-      "function"
+      typeof DiagnosticsRuntime !==
+      "undefined"
     ){
 
-      logDiagnosticWarning(
+      await DiagnosticsRuntime
+      ?.warn?.(
 
         "APP HEALTH DEGRADED",
 
@@ -297,17 +376,13 @@ async function runAppHealthcheck(){
 
       crashed:
 
-        Boolean(
-          appState
-          ?.crashed
-        ),
+        runtimeState
+        .crashed,
 
       crashCount:
 
-        Number(
-          appState
-          ?.crashCount || 0
-        ),
+        runtimeState
+        .crashCount,
 
       timestamp:
       Date.now()
@@ -318,15 +393,13 @@ async function runAppHealthcheck(){
 
   catch(error){
 
-    appState.lastError =
-    error;
-
     if(
-      typeof logDiagnosticError ===
-      "function"
+      typeof DiagnosticsRuntime !==
+      "undefined"
     ){
 
-      logDiagnosticError(
+      await DiagnosticsRuntime
+      ?.error?.(
 
         "APP HEALTHCHECK FAILED",
 
