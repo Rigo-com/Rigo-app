@@ -1027,7 +1027,7 @@ async function executeAPIRequest(
   options = {},
   requestId =
   createAPIRequestId()
-)
+){
 
   if(
 
@@ -2210,29 +2210,3 @@ if(
 }
 
 
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  window.APIRuntime =
-  APIRuntime;
-
-}
-
-
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  globalThis.APIRuntime =
-  APIRuntime;
-
-}
