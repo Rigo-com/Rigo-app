@@ -1,5 +1,6 @@
 // =====================================
 // EMIT CHAT EVENT
+// STABILIZED EVENT RUNTIME
 // =====================================
 
 async function emitChatRuntimeEvent(
@@ -10,8 +11,30 @@ async function emitChatRuntimeEvent(
   if(
 
     !CHAT_RUNTIME_CONFIG
-    .ENABLE_EVENTS
+    ?.ENABLE_EVENTS
 
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof eventName !==
+    "string"
+  ){
+
+    return false;
+
+  }
+
+  const normalizedEvent =
+  eventName
+  .trim();
+
+  if(
+    normalizedEvent
+    .length <= 0
   ){
 
     return false;
@@ -27,20 +50,44 @@ async function emitChatRuntimeEvent(
 
   }
 
+  const safePayload =
+
+    payload &&
+
+    typeof payload ===
+    "object"
+
+    &&
+
+    !Array.isArray(
+      payload
+    )
+
+    ?
+
+    payload
+
+    :
+
+    {};
+
   try{
 
     await emitSystemEvent(
 
-      eventName,
+      normalizedEvent,
 
-      {
+      Object.freeze({
 
         source:
         "chat-runtime",
 
-        ...payload
+        timestamp:
+        Date.now(),
 
-      }
+        ...safePayload
+
+      })
 
     );
 
@@ -51,8 +98,11 @@ async function emitChatRuntimeEvent(
   catch(error){
 
     safeLogError?.(
+
       "CHAT EVENT ERROR:",
+
       error
+
     );
 
     return false;
