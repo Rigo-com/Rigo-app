@@ -35,6 +35,26 @@ function freezeAppDiagnostics(
 
   }
 
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
   visited.add(
     value
   );
@@ -71,6 +91,69 @@ function freezeAppDiagnostics(
 
 
 // =====================================
+// HELPERS
+// =====================================
+
+function getDiagnosticsDependency(
+  dependencyName
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return window[
+      dependencyName
+    ] || null;
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+function getSafeErrorMessage(
+  error
+){
+
+  try{
+
+    if(
+      error instanceof Error
+    ){
+
+      return error.message;
+
+    }
+
+    return String(error);
+
+  }
+
+  catch(runtimeError){
+
+    return "UNKNOWN ERROR";
+
+  }
+
+}
+
+
+
+// =====================================
 // SAFE CONTAINER DIAGNOSTICS
 // =====================================
 
@@ -78,10 +161,15 @@ function getSafeContainerDiagnostics(){
 
   try{
 
+    const container =
+    getDiagnosticsDependency(
+      "Container"
+    );
+
     if(
 
-      !Container
-      ?.diagnostics
+      !container ||
+      !container.diagnostics
 
     ){
 
@@ -89,7 +177,7 @@ function getSafeContainerDiagnostics(){
 
     }
 
-    return Container
+    return container
     .diagnostics();
 
   }
@@ -112,10 +200,15 @@ async function getSafeHealthDiagnostics(){
 
   try{
 
+    const diagnostics =
+    getDiagnosticsDependency(
+      "HealthDiagnostics"
+    );
+
     if(
 
-      !HealthDiagnostics
-      ?.get
+      !diagnostics ||
+      !diagnostics.get
 
     ){
 
@@ -123,7 +216,7 @@ async function getSafeHealthDiagnostics(){
 
     }
 
-    return await HealthDiagnostics
+    return await diagnostics
     .get();
 
   }
@@ -146,10 +239,15 @@ function getSafeRuntimeDiagnostics(){
 
   try{
 
+    const runtimeManager =
+    getDiagnosticsDependency(
+      "RuntimeManager"
+    );
+
     if(
 
-      !RuntimeManager
-      ?.health
+      !runtimeManager ||
+      !runtimeManager.health
 
     ){
 
@@ -157,7 +255,7 @@ function getSafeRuntimeDiagnostics(){
 
     }
 
-    return RuntimeManager
+    return runtimeManager
     .health();
 
   }
@@ -180,10 +278,15 @@ function getSafeBootstrapSnapshot(){
 
   try{
 
+    const bootstrap =
+    getDiagnosticsDependency(
+      "AppBootstrap"
+    );
+
     if(
 
-      !AppBootstrap
-      ?.snapshot
+      !bootstrap ||
+      !bootstrap.snapshot
 
     ){
 
@@ -191,7 +294,7 @@ function getSafeBootstrapSnapshot(){
 
     }
 
-    return AppBootstrap
+    return bootstrap
     .snapshot();
 
   }
@@ -214,10 +317,15 @@ function getSafeStartupSnapshot(){
 
   try{
 
+    const startup =
+    getDiagnosticsDependency(
+      "AppStartup"
+    );
+
     if(
 
-      !AppStartup
-      ?.snapshot
+      !startup ||
+      !startup.snapshot
 
     ){
 
@@ -225,7 +333,7 @@ function getSafeStartupSnapshot(){
 
     }
 
-    return AppStartup
+    return startup
     .snapshot();
 
   }
@@ -248,10 +356,15 @@ function getSafeShutdownSnapshot(){
 
   try{
 
+    const shutdown =
+    getDiagnosticsDependency(
+      "AppShutdown"
+    );
+
     if(
 
-      !AppShutdown
-      ?.snapshot
+      !shutdown ||
+      !shutdown.snapshot
 
     ){
 
@@ -259,7 +372,7 @@ function getSafeShutdownSnapshot(){
 
     }
 
-    return AppShutdown
+    return shutdown
     .snapshot();
 
   }
@@ -334,14 +447,18 @@ function getAppRuntimeState(){
     activeModules:[
 
       ...(appState
-      ?.activeModules || [])
+      ?.activeModules ||
+
+      new Set())
 
     ],
 
     failedModules:[
 
       ...(appState
-      ?.failedModules || [])
+      ?.failedModules ||
+
+      new Set())
 
     ],
 
@@ -430,6 +547,9 @@ Object.freeze({
   get:
   getAppDiagnostics,
 
+  diagnostics:
+  getAppDiagnostics,
+
   snapshot:
   createAppDiagnosticsSnapshot
 
@@ -446,7 +566,25 @@ if(
   "undefined"
 ){
 
-  window.AppDiagnostics =
-  AppDiagnostics;
+  Object.defineProperty(
+
+    window,
+
+    "AppDiagnostics",
+
+    {
+
+      value:
+      AppDiagnostics,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
