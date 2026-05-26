@@ -8,6 +8,25 @@
 
 
 // =====================================
+// ROOT COMPOSITION IMPORTS
+// LOAD ORDER MATTERS
+// =====================================
+
+import "./constants/index.js";
+import "./state/index.js";
+import "./dependencies/index.js";
+import "./config/index.js";
+import "./container/index.js";
+import "./events/index.js";
+import "./health/index.js";
+import "./modules/index.js";
+import "./runtime/index.js";
+import "./lifecycle/index.js";
+import "./app/index.js";
+
+
+
+// =====================================
 // INTERNAL STATE
 // =====================================
 
@@ -358,7 +377,13 @@ Object.freeze([
 
   "ConstantsAPI",
   "StateAPI",
+  "DependencySystem",
+  "ConfigAPI",
+  "HealthAPI",
+  "Runtime",
+  "RuntimeManager",
   "RigoModules",
+  "LifecycleAPI",
   "ApplicationRuntime",
   "AppRecovery",
   "RIGOApplication"
@@ -431,6 +456,11 @@ async function initializeCoreSystems(){
         "ApplicationRuntime"
       );
 
+      const lifecycle =
+      getCoreDependency(
+        "LifecycleAPI"
+      );
+
       // =============================
       // MODULES
       // =============================
@@ -465,6 +495,25 @@ async function initializeCoreSystems(){
       ){
 
         await runtime
+        .initialize();
+
+      }
+
+      // =============================
+      // LIFECYCLE
+      // =============================
+
+      if(
+
+        lifecycle &&
+
+        isFunction(
+          lifecycle.initialize
+        )
+
+      ){
+
+        await lifecycle
         .initialize();
 
       }
@@ -582,6 +631,30 @@ async function bootCore(){
       }
 
       // =============================
+      // LIFECYCLE START
+      // =============================
+
+      const lifecycle =
+      getCoreDependency(
+        "LifecycleAPI"
+      );
+
+      if(
+
+        lifecycle &&
+
+        isFunction(
+          lifecycle.start
+        )
+
+      ){
+
+        await lifecycle
+        .start();
+
+      }
+
+      // =============================
       // APPLICATION
       // =============================
 
@@ -682,6 +755,26 @@ async function shutdownCore(){
       coreRuntimeState
       .diagnostics
       .shutdowns++;
+
+      const lifecycle =
+      getCoreDependency(
+        "LifecycleAPI"
+      );
+
+      if(
+
+        lifecycle &&
+
+        isFunction(
+          lifecycle.shutdown
+        )
+
+      ){
+
+        await lifecycle
+        .shutdown();
+
+      }
 
       const runtime =
       getCoreDependency(
@@ -990,6 +1083,11 @@ async function createCoreSnapshot(){
         "AppRecovery"
       );
 
+      const lifecycle =
+      getCoreDependency(
+        "LifecycleAPI"
+      );
+
       return safeFreeze({
 
         timestamp:
@@ -1067,6 +1165,22 @@ async function createCoreSnapshot(){
 
           null,
 
+        lifecycle:
+
+          lifecycle &&
+
+          isFunction(
+            lifecycle.snapshot
+          )
+
+          ?
+
+          await lifecycle.snapshot()
+
+          :
+
+          null,
+
         diagnostics:{
 
           ...coreRuntimeState
@@ -1107,6 +1221,21 @@ safeFreeze({
     "StateAPI"
   ),
 
+  dependencies:
+  () => getCoreDependency(
+    "DependencySystem"
+  ),
+
+  config:
+  () => getCoreDependency(
+    "ConfigAPI"
+  ),
+
+  health:
+  () => getCoreDependency(
+    "HealthAPI"
+  ),
+
   modules:
   () => getCoreDependency(
     "RigoModules"
@@ -1115,6 +1244,11 @@ safeFreeze({
   runtime:
   () => getCoreDependency(
     "ApplicationRuntime"
+  ),
+
+  lifecycle:
+  () => getCoreDependency(
+    "LifecycleAPI"
   ),
 
   recovery:
