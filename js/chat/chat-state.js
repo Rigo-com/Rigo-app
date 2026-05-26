@@ -2,6 +2,7 @@
 // RIGO AI
 // CHAT STATE
 // ENTERPRISE CHAT STATE SYSTEM
+// FINAL STABLE PATCHED EDITION
 // =====================================
 
 
@@ -93,8 +94,6 @@ Object.seal({
 
   rendering:false,
 
-  destroyed:false,
-
   activeMessageId:null,
 
   generationController:null,
@@ -137,104 +136,45 @@ Object.seal({
 
 
 // =====================================
-// FREEZE CHAT OBJECT
+// SAFE CLONE
 // =====================================
 
-function freezeChatObject(
-  value,
-  visited = new WeakSet()
+function safeClone(
+  value
 ){
 
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    (
-
-      typeof Element !==
-      "undefined"
-
-      &&
-
-      value instanceof Element
-
-    )
-
-    ||
-
-    value instanceof Map
-
-    ||
-
-    value instanceof WeakMap
-
-    ||
-
-    value instanceof WeakSet
-
-    ||
-
-    value instanceof Set
-
-    ||
-
-    value instanceof AbortController
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
+  try{
 
     if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
+      typeof structuredClone ===
+      "function"
     ){
 
-      freezeChatObject(
-        nestedValue,
-        visited
+      return structuredClone(
+        value
       );
 
     }
 
-  });
+  }
 
-  return value;
+  catch(error){}
+
+  try{
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
 
 }
 
@@ -311,10 +251,6 @@ function resetChatState(){
   false;
 
   chatRuntimeState
-  .destroyed =
-  false;
-
-  chatRuntimeState
   .activeMessageId =
   null;
 
@@ -323,10 +259,10 @@ function resetChatState(){
   null;
 
   chatRuntimeState
-  .queue = [];
+  .queue.length = 0;
 
   chatRuntimeState
-  .renderQueue = [];
+  .renderQueue.length = 0;
 
   chatRuntimeState
   .pendingOperations
@@ -351,12 +287,87 @@ function resetChatState(){
 
 
 // =====================================
+// QUEUE HELPERS
+// =====================================
+
+function validateQueueLimit(
+  queue = []
+){
+
+  return (
+
+    Array.isArray(queue)
+
+    &&
+
+    queue.length <
+
+    CHAT_RUNTIME_CONFIG
+    .MAX_QUEUE_SIZE
+
+  );
+
+}
+
+
+
+function pushChatQueue(
+  item
+){
+
+  if(
+
+    !validateQueueLimit(
+      chatRuntimeState
+      .queue
+    )
+
+  ){
+
+    return false;
+
+  }
+
+  chatRuntimeState
+  .queue
+  .push(item);
+
+  return true;
+
+}
+
+
+
+function shiftChatQueue(){
+
+  if(
+
+    !Array.isArray(
+      chatRuntimeState
+      .queue
+    )
+
+  ){
+
+    return null;
+
+  }
+
+  return chatRuntimeState
+  .queue
+  .shift() || null;
+
+}
+
+
+
+// =====================================
 // CHAT STATUS
 // =====================================
 
 function getChatRuntimeStatus(){
 
-  return freezeChatObject({
+  return Object.freeze({
 
     initialized:
 
@@ -392,11 +403,6 @@ function getChatRuntimeStatus(){
 
       chatRuntimeState
       .rendering,
-
-    destroyed:
-
-      chatRuntimeState
-      .destroyed,
 
     queueSize:
 
@@ -445,27 +451,74 @@ function getChatRuntimeStatus(){
 
     diagnostics:
 
-      typeof deepClone ===
-      "function"
-
-      ?
-
-      deepClone(
+      safeClone(
 
         chatRuntimeState
         .diagnostics
 
       )
 
-      :
-
-      JSON.parse(
-        JSON.stringify(
-          chatRuntimeState
-          .diagnostics
-        )
-      )
-
   });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatState =
+Object.freeze({
+
+  state:
+  chatRuntimeState,
+
+  reset:
+  resetChatState,
+
+  diagnostics:
+  getChatRuntimeStatus,
+
+  snapshot:
+  getChatRuntimeStatus,
+
+  pushQueue:
+  pushChatQueue,
+
+  shiftQueue:
+  shiftChatQueue
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ChatState",
+
+    {
+
+      value:
+      ChatState,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
