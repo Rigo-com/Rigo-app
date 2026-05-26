@@ -7,6 +7,17 @@
 
 
 // =====================================
+// HEALTH FILES
+// =====================================
+
+import "./diagnostics-runtime.js";
+import "./health-diagnostics.js";
+import "./health-monitor.js";
+import "./health-runtime.js";
+import "./health-system.js";
+
+
+// =====================================
 // HELPERS
 // =====================================
 
