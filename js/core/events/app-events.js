@@ -59,186 +59,6 @@ Object.seal({
 // HELPERS
 // =====================================
 
-function safeFreeze(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Date ||
-    value instanceof RegExp ||
-    value instanceof Map ||
-    value instanceof Set ||
-    value instanceof HTMLElement
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(value);
-
-  Object.freeze(value);
-
-  Object.values(value).forEach((nestedValue) => {
-
-    if(
-      nestedValue &&
-      typeof nestedValue ===
-      "object"
-    ){
-
-      safeFreeze(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
-
-}
-
-
-
-function sanitizeAppPayload(
-  payload,
-  visited = new WeakMap()
-){
-
-  if(
-
-    payload === null ||
-
-    typeof payload !==
-    "object"
-
-  ){
-
-    return payload;
-
-  }
-
-  if(
-    visited.has(payload)
-  ){
-
-    return visited.get(payload);
-
-  }
-
-  if(
-    payload instanceof Date
-  ){
-
-    return new Date(
-      payload.getTime()
-    );
-
-  }
-
-  if(
-    payload instanceof RegExp
-  ){
-
-    return new RegExp(
-      payload
-    );
-
-  }
-
-  if(
-    payload instanceof Map
-  ){
-
-    return new Map(
-      [...payload.entries()]
-    );
-
-  }
-
-  if(
-    payload instanceof Set
-  ){
-
-    return new Set(
-      [...payload.values()]
-    );
-
-  }
-
-  if(
-    typeof HTMLElement !==
-    "undefined" &&
-
-    payload instanceof HTMLElement
-  ){
-
-    return null;
-
-  }
-
-  const clone =
-
-    Array.isArray(payload)
-    ? []
-    : {};
-
-  visited.set(
-    payload,
-    clone
-  );
-
-  Object.keys(payload).forEach((key) => {
-
-    const value =
-      payload[key];
-
-    if(
-      typeof value ===
-      "function"
-    ){
-
-      return;
-
-    }
-
-    clone[key] =
-      sanitizeAppPayload(
-        value,
-        visited
-      );
-
-  });
-
-  return clone;
-
-}
-
-
-
 function validateAppEventName(
   eventName
 ){
@@ -277,7 +97,7 @@ function getSafeAppSnapshot(){
   try{
 
     if(
-      typeof StateAPI ===
+      typeof appState ===
       "undefined"
     ){
 
@@ -285,18 +105,14 @@ function getSafeAppSnapshot(){
 
     }
 
-    if(
-      typeof StateAPI.get !==
-      "function"
-    ){
+    return {
 
-      return null;
+      phase:
+      appState?.phase ||
 
-    }
+      null
 
-    return safeFreeze(
-      StateAPI.get()
-    );
+    };
 
   }
 
@@ -321,7 +137,7 @@ function createAppEventPayload(
   const appSnapshot =
     getSafeAppSnapshot();
 
-  return safeFreeze({
+  return {
 
     source:
     "app",
@@ -335,12 +151,9 @@ function createAppEventPayload(
     timestamp:
     Date.now(),
 
-    payload:
-    sanitizeAppPayload(
-      payload
-    )
+    payload
 
-  });
+  };
 
 }
 
@@ -413,28 +226,19 @@ async function emitAppEvent(
 
     appEventsState.failed++;
 
-    if(
-      typeof logDiagnosticError ===
-      "function"
-    ){
+    console.warn(
+      "[AppEvents] Event emit failed",
+      {
 
-      await logDiagnosticError(
+        event:
+        eventName,
 
-        "APP EVENT FAILED",
+        error:
+        String(error)
 
-        {
+      }
 
-          event:
-          eventName,
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-    }
+    );
 
     return false;
 
@@ -586,7 +390,7 @@ function offAppEvent(
 
 function getAppEventDiagnostics(){
 
-  return safeFreeze({
+  return Object.freeze({
 
     emitted:
     appEventsState
@@ -614,7 +418,7 @@ function getAppEventDiagnostics(){
 // =====================================
 
 const AppEvents =
-safeFreeze({
+Object.freeze({
 
   EVENTS:
   APP_EVENTS,
