@@ -7,6 +7,88 @@
 
 
 // =====================================
+// IMMUTABLE
+// =====================================
+
+function freezeAppStateValue(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return value;
+
+  }
+
+  if(
+    visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+
+    value instanceof RegExp ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
+
+    if(
+      nestedValue &&
+      typeof nestedValue ===
+      "object"
+    ){
+
+      freezeAppStateValue(
+        nestedValue,
+        visited
+      );
+
+    }
+
+  });
+
+  return value;
+
+}
+
+
+
+// =====================================
 // APP STATE
 // =====================================
 
@@ -82,7 +164,7 @@ Object.seal({
 
 function createAppStateSnapshot(){
 
-  return Object.freeze({
+  return freezeAppStateValue({
 
     initialized:
     appState.initialized,
@@ -204,8 +286,10 @@ function notifyAppStateObservers(){
   const snapshot =
   createAppStateSnapshot();
 
-  appState
-  .observers
+  [
+    ...appState
+    .observers
+  ]
   .forEach((listener) => {
 
     try{
@@ -343,8 +427,45 @@ function updateAppPhase(
       state.phase =
       phase;
 
-      state.ready =
-      (
+      state.starting = (
+
+        phase ===
+        APP_PHASES.PREINIT ||
+
+        phase ===
+        APP_PHASES.BOOTING ||
+
+        phase ===
+        APP_PHASES.INITIALIZING
+
+      );
+
+      state.booting = (
+
+        phase ===
+        APP_PHASES.BOOTING
+      );
+
+      state.ready = (
+
+        phase ===
+        APP_PHASES.READY
+      );
+
+      state.shuttingDown = (
+
+        phase ===
+        APP_PHASES.SHUTTING_DOWN
+      );
+
+      state.recovering = (
+
+        phase ===
+        APP_PHASES.RECOVERING
+      );
+
+      state.started = (
+
         phase ===
         APP_PHASES.READY
       );
@@ -465,102 +586,104 @@ function removeActiveModule(
 
 function resetAppState(){
 
-  appState.initialized =
-  false;
+  return updateAppState(
+    (state) => {
 
-  appState.started =
-  false;
+      state.initialized =
+      false;
 
-  appState.starting =
-  false;
+      state.started =
+      false;
 
-  appState.booting =
-  false;
+      state.starting =
+      false;
 
-  appState.ready =
-  false;
+      state.booting =
+      false;
 
-  appState.shuttingDown =
-  false;
+      state.ready =
+      false;
 
-  appState.recovering =
-  false;
+      state.shuttingDown =
+      false;
 
-  appState.crashed =
-  false;
+      state.recovering =
+      false;
 
-  appState.phase =
-  APP_PHASES.IDLE;
+      state.crashed =
+      false;
 
-  appState.initializedAt =
-  null;
+      state.phase =
+      APP_PHASES.IDLE;
 
-  appState.startupStartedAt =
-  null;
+      state.initializedAt =
+      null;
 
-  appState.startupCompletedAt =
-  null;
+      state.startupStartedAt =
+      null;
 
-  appState.shutdownAt =
-  null;
+      state.startupCompletedAt =
+      null;
 
-  appState.lastError =
-  null;
+      state.shutdownAt =
+      null;
 
-  appState.recoveryAttempts =
-  0;
+      state.lastError =
+      null;
 
-  appState.failedStarts =
-  0;
+      state.recoveryAttempts =
+      0;
 
-  appState.crashCount =
-  0;
+      state.failedStarts =
+      0;
 
-  appState.startupDuration =
-  0;
+      state.crashCount =
+      0;
 
-  appState.lastHealthcheckAt =
-  null;
+      state.startupDuration =
+      0;
 
-  appState
-  .activeModules
-  .clear();
+      state.lastHealthcheckAt =
+      null;
 
-  appState
-  .failedModules
-  .clear();
+      state
+      .activeModules
+      .clear();
 
-  appState
-  .activeServices
-  .clear();
+      state
+      .failedModules
+      .clear();
 
-  appState
-  .pendingTasks
-  .clear();
+      state
+      .activeServices
+      .clear();
 
-  appState
-  .runtimeLocks
-  .clear();
+      state
+      .pendingTasks
+      .clear();
 
-  if(
-    appState
-    .healthcheckTimer
-  ){
+      state
+      .runtimeLocks
+      .clear();
 
-    clearInterval(
-      appState
-      .healthcheckTimer
-    );
+      if(
+        state
+        .healthcheckTimer
+      ){
 
-    appState
-    .healthcheckTimer =
-    null;
+        clearInterval(
+          state
+          .healthcheckTimer
+        );
 
-  }
+        state
+        .healthcheckTimer =
+        null;
 
-  notifyAppStateObservers();
+      }
 
-  return true;
+    }
+  );
 
 }
 
@@ -615,9 +738,6 @@ if(
   typeof window !==
   "undefined"
 ){
-
-  window.appState =
-  appState;
 
   window.AppState =
   AppState;
