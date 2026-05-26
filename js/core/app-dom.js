@@ -2,32 +2,37 @@
 // RIGO AI
 // APP DOM
 // DOM BRIDGE SERVICE
+// ENTERPRISE FINAL
 // =====================================
 
 
 
 // =====================================
-// INTERNAL DOM REFERENCES
+// INTERNAL STATE
 // =====================================
 
-const DOMReferences = {
+const DOMReferences =
+Object.seal({
 
-  initialized:
-  false,
+  initialized:false,
 
-  messageInput:
-  null,
+  initializing:false,
 
-  sendButton:
-  null,
+  lastInitializedAt:null,
 
-  chatContainer:
-  null,
+  lastValidationAt:null,
 
-  loadingScreen:
-  null
+  lastError:null,
 
-};
+  messageInput:null,
+
+  sendButton:null,
+
+  chatContainer:null,
+
+  loadingScreen:null
+
+});
 
 
 
@@ -35,31 +40,65 @@ const DOMReferences = {
 // HELPERS
 // =====================================
 
-function isHTMLElement(element){
+function isFunction(
+  value
+){
+
+  return typeof value ===
+  "function";
+
+}
+
+
+
+function isPlainObject(
+  value
+){
 
   if(
-    typeof HTMLElement ===
-    "undefined"
+    !value ||
+    typeof value !==
+    "object"
   ){
+
     return false;
+
   }
 
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
   return (
-    element instanceof HTMLElement
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
   );
 
 }
 
 
 
-function emitDOMWarning(
-  message,
-  error = null
+function isHTMLElement(
+  element
 ){
 
-  console.warn(
-    `[AppDOM] ${message}`,
-    error || ""
+  if(
+    typeof HTMLElement ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  return (
+    element instanceof HTMLElement
   );
 
 }
@@ -73,44 +112,65 @@ function safeFreeze(
 
   if(
     !value ||
-    typeof value !== "object"
+    typeof value !==
+    "object"
   ){
+
     return value;
+
   }
 
-  if(visited.has(value)){
+  if(
+    visited.has(value)
+  ){
+
     return value;
+
   }
 
   if(
 
     value instanceof HTMLElement ||
+
     value instanceof Date ||
+
     value instanceof Map ||
+
     value instanceof Set ||
-    value instanceof RegExp
+
+    value instanceof RegExp ||
+
+    value instanceof Promise
 
   ){
+
     return value;
+
+  }
+
+  if(
+
+    !Array.isArray(value) &&
+
+    !isPlainObject(value)
+
+  ){
+
+    return value;
+
   }
 
   visited.add(value);
 
   Object.freeze(value);
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
-    if(
-      nestedValue &&
-      typeof nestedValue === "object"
-    ){
-
-      safeFreeze(
-        nestedValue,
-        visited
-      );
-
-    }
+    safeFreeze(
+      nestedValue,
+      visited
+    );
 
   });
 
@@ -120,11 +180,134 @@ function safeFreeze(
 
 
 
+function normalizeDOMError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+function emitDOMWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+
+    `[AppDOM] ${message}`,
+
+    error || ""
+
+  );
+
+}
+
+
+
+// =====================================
+// EVENTS
+// =====================================
+
+const APP_DOM_EVENTS =
+Object.freeze({
+
+  INITIALIZED:
+  "app.dom.initialized",
+
+  RESET:
+  "app.dom.reset",
+
+  VALIDATED:
+  "app.dom.validated"
+
+});
+
+
+
+// =====================================
+// EVENT EMITTER
+// =====================================
+
+async function emitDOMEvent(
+  event,
+  payload = {}
+){
+
+  try{
+
+    if(
+      !isFunction(
+        emitSystemEvent
+      )
+    ){
+
+      return false;
+
+    }
+
+    await emitSystemEvent(
+
+      event,
+
+      {
+
+        source:
+        "app-dom",
+
+        timestamp:
+        Date.now(),
+
+        ...payload
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    emitDOMWarning(
+
+      `Event failed: ${event}`,
+
+      error
+
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
 // =====================================
 // SAFE QUERY
 // =====================================
 
-function queryDOMElement(id){
+function queryDOMElement(
+  id
+){
 
   try{
 
@@ -138,9 +321,13 @@ function queryDOMElement(id){
     }
 
     const element =
-      document.getElementById(id);
+    document.getElementById(
+      id
+    );
 
-    if(!element){
+    if(
+      !element
+    ){
 
       emitDOMWarning(
         `Missing DOM element: ${id}`
@@ -150,11 +337,16 @@ function queryDOMElement(id){
 
     return element;
 
-  }catch(error){
+  }
+
+  catch(error){
 
     emitDOMWarning(
+
       `DOM query failed: ${id}`,
+
       error
+
     );
 
     return null;
@@ -166,23 +358,51 @@ function queryDOMElement(id){
 
 
 // =====================================
-// VALIDATE ELEMENT
+// VALIDATION
 // =====================================
 
 function validateDOMElement(
   element
 ){
 
-  return (
-    isHTMLElement(element)
+  return isHTMLElement(
+    element
   );
 
 }
 
 
 
+function validateDOMElements(){
+
+  const valid = (
+
+    validateDOMElement(
+      DOMReferences.messageInput
+    ) &&
+
+    validateDOMElement(
+      DOMReferences.sendButton
+    ) &&
+
+    validateDOMElement(
+      DOMReferences.chatContainer
+    )
+
+  );
+
+  DOMReferences
+  .lastValidationAt =
+  Date.now();
+
+  return valid;
+
+}
+
+
+
 // =====================================
-// LEGACY GLOBALS
+// LEGACY SUPPORT
 // =====================================
 
 function syncLegacyDOMGlobals(){
@@ -198,22 +418,24 @@ function syncLegacyDOMGlobals(){
 
     }
 
-    // =================================
+    // ===============================
     // TEMPORARY LEGACY SUPPORT
-    // =================================
+    // ===============================
 
     window.messageInput =
-      DOMReferences.messageInput;
+    DOMReferences.messageInput;
 
     window.sendButton =
-      DOMReferences.sendButton;
+    DOMReferences.sendButton;
 
     window.chatContainer =
-      DOMReferences.chatContainer;
+    DOMReferences.chatContainer;
 
     return true;
 
-  }catch(error){
+  }
+
+  catch(error){
 
     emitDOMWarning(
       "Legacy DOM sync failed",
@@ -229,25 +451,38 @@ function syncLegacyDOMGlobals(){
 
 
 // =====================================
-// RESET DOM REFERENCES
+// RESET
 // =====================================
 
-function resetDOMReferences(){
+async function resetDOMReferences(){
 
-  DOMReferences.initialized =
-    false;
+  DOMReferences
+  .initialized =
+  false;
 
-  DOMReferences.messageInput =
-    null;
+  DOMReferences
+  .initializing =
+  false;
 
-  DOMReferences.sendButton =
-    null;
+  DOMReferences
+  .messageInput =
+  null;
 
-  DOMReferences.chatContainer =
-    null;
+  DOMReferences
+  .sendButton =
+  null;
 
-  DOMReferences.loadingScreen =
-    null;
+  DOMReferences
+  .chatContainer =
+  null;
+
+  DOMReferences
+  .loadingScreen =
+  null;
+
+  DOMReferences
+  .lastError =
+  null;
 
   try{
 
@@ -256,41 +491,81 @@ function resetDOMReferences(){
       "undefined"
     ){
 
-      // ===============================
+      // =============================
       // TEMPORARY LEGACY SUPPORT
-      // ===============================
+      // =============================
 
       window.messageInput =
-        null;
+      null;
 
       window.sendButton =
-        null;
+      null;
 
       window.chatContainer =
-        null;
+      null;
 
     }
 
-  }catch(error){
+    await emitDOMEvent(
+      APP_DOM_EVENTS.RESET
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    DOMReferences
+    .lastError =
+    normalizeDOMError(
+      error
+    );
 
     emitDOMWarning(
       "DOM reset failed",
       error
     );
 
-  }
+    return false;
 
-  return true;
+  }
 
 }
 
 
 
 // =====================================
-// INITIALIZE DOM
+// INITIALIZE
 // =====================================
 
 async function initializeDOMElements(){
+
+  if(
+    DOMReferences
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    DOMReferences
+    .initializing
+  ){
+
+    return false;
+
+  }
+
+  DOMReferences
+  .initializing =
+  true;
+
+  DOMReferences
+  .lastError =
+  null;
 
   try{
 
@@ -299,84 +574,97 @@ async function initializeDOMElements(){
       "undefined"
     ){
 
-      return false;
+      throw new Error(
+        "DOCUMENT NOT AVAILABLE"
+      );
 
     }
 
+    await resetDOMReferences();
 
-
-    // ===============================
-    // CLEAN PREVIOUS
-    // ===============================
-
-    resetDOMReferences();
-
-
-
-    // ===============================
+    // =============================
     // REFERENCES
-    // ===============================
+    // =============================
 
     DOMReferences.messageInput =
-      queryDOMElement(
-        "messageInput"
-      );
+    queryDOMElement(
+      "messageInput"
+    );
 
     DOMReferences.sendButton =
-      queryDOMElement(
-        "sendButton"
-      );
+    queryDOMElement(
+      "sendButton"
+    );
 
     DOMReferences.chatContainer =
-      queryDOMElement(
-        "chatContainer"
-      );
+    queryDOMElement(
+      "chatContainer"
+    );
 
     DOMReferences.loadingScreen =
-      queryDOMElement(
-        "loadingScreen"
-      );
+    queryDOMElement(
+      "loadingScreen"
+    );
 
-
-
-    // ===============================
+    // =============================
     // VALIDATION
-    // ===============================
+    // =============================
 
     const valid =
+    validateDOMElements();
 
-      validateDOMElement(
-        DOMReferences.messageInput
-      ) &&
+    DOMReferences
+    .initialized =
+    valid;
 
-      validateDOMElement(
-        DOMReferences.sendButton
-      ) &&
+    DOMReferences
+    .lastInitializedAt =
+    Date.now();
 
-      validateDOMElement(
-        DOMReferences.chatContainer
-      );
-
-    DOMReferences.initialized =
-      valid;
-
-
-
-    // ===============================
+    // =============================
     // LEGACY SUPPORT
-    // ===============================
+    // =============================
 
     syncLegacyDOMGlobals();
 
+    // =============================
+    // EVENTS
+    // =============================
 
+    await emitDOMEvent(
 
-    // ===============================
+      APP_DOM_EVENTS
+      .INITIALIZED,
+
+      {
+
+        valid
+
+      }
+
+    );
+
+    await emitDOMEvent(
+
+      APP_DOM_EVENTS
+      .VALIDATED,
+
+      {
+
+        valid
+
+      }
+
+    );
+
+    // =============================
     // DIAGNOSTICS
-    // ===============================
+    // =============================
 
     if(
-      typeof logDiagnosticInfo ===
-      "function"
+      isFunction(
+        logDiagnosticInfo
+      )
     ){
 
       await logDiagnosticInfo(
@@ -395,14 +683,33 @@ async function initializeDOMElements(){
 
     return valid;
 
-  }catch(error){
+  }
 
-    emitDOMWarning(
-      "DOM initialization failed",
+  catch(error){
+
+    DOMReferences
+    .lastError =
+    normalizeDOMError(
       error
     );
 
+    emitDOMWarning(
+
+      "DOM initialization failed",
+
+      error
+
+    );
+
     return false;
+
+  }
+
+  finally{
+
+    DOMReferences
+    .initializing =
+    false;
 
   }
 
@@ -411,35 +718,7 @@ async function initializeDOMElements(){
 
 
 // =====================================
-// VALIDATE DOM
-// =====================================
-
-function validateDOMElements(){
-
-  return (
-
-    DOMReferences.initialized &&
-
-    validateDOMElement(
-      DOMReferences.messageInput
-    ) &&
-
-    validateDOMElement(
-      DOMReferences.sendButton
-    ) &&
-
-    validateDOMElement(
-      DOMReferences.chatContainer
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// DOM SNAPSHOT
+// SNAPSHOT
 // =====================================
 
 function createDOMSnapshot(){
@@ -448,6 +727,9 @@ function createDOMSnapshot(){
 
     initialized:
     DOMReferences.initialized,
+
+    initializing:
+    DOMReferences.initializing,
 
     messageInput:
 
@@ -473,6 +755,21 @@ function createDOMSnapshot(){
         DOMReferences.loadingScreen
       ),
 
+    lastInitializedAt:
+
+      DOMReferences
+      .lastInitializedAt,
+
+    lastValidationAt:
+
+      DOMReferences
+      .lastValidationAt,
+
+    lastError:
+
+      DOMReferences
+      .lastError,
+
     timestamp:
     Date.now()
 
@@ -483,7 +780,7 @@ function createDOMSnapshot(){
 
 
 // =====================================
-// DOM ACCESSORS
+// READONLY REFERENCES
 // =====================================
 
 function getDOMReferences(){
@@ -541,23 +838,28 @@ Object.freeze({
 // GLOBAL EXPORT
 // =====================================
 
-if(typeof window !== "undefined"){
+if(
+  typeof window !==
+  "undefined"
+){
 
   Object.defineProperty(
+
     window,
+
     "AppDOM",
+
     {
 
       value:
       AppDOM,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
+
   );
 
 }
