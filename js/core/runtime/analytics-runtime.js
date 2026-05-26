@@ -111,7 +111,13 @@ async function trackAnalyticsEvent(
 
 ){
 
-  if(!eventName){
+  const normalizedEvent =
+  String(
+    eventName || ""
+  )
+  .trim();
+
+  if(!normalizedEvent){
 
     analyticsRuntimeState
     .failedEvents++;
@@ -126,7 +132,7 @@ async function trackAnalyticsEvent(
     "analytics-runtime",
 
     event:
-    String(eventName),
+    normalizedEvent,
 
     metadata:
     sanitizeAnalyticsMetadata(
