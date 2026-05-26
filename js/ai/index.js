@@ -2,7 +2,21 @@
 // RIGO AI
 // AI RUNTIME ORCHESTRATOR
 // FULL PRODUCTION BOOTSTRAP INDEX
+// FINAL INTEGRATED VERSION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "../kernel/ai-kernel.js";
+import "../contexts/context-manager.js";
+import "../agents/agent-manager.js";
+import "../tools/tool-executor.js";
+import "../workflows/workflow-engine.js";
+import "../planner/planner-engine.js";
 
 
 
@@ -122,7 +136,11 @@ function freezeAIObject(
 
     value instanceof WeakMap ||
 
-    value instanceof WeakSet
+    value instanceof WeakSet ||
+
+    value instanceof AbortController ||
+
+    value instanceof AbortSignal
 
   ){
 
@@ -135,10 +153,21 @@ function freezeAIObject(
   Object.values(value)
   .forEach((nested) => {
 
-    freezeAIObject(
-      nested,
-      visited
-    );
+    if(
+
+      nested &&
+
+      typeof nested ===
+      "object"
+
+    ){
+
+      freezeAIObject(
+        nested,
+        visited
+      );
+
+    }
 
   });
 
@@ -242,6 +271,52 @@ Object.freeze({
   PlannerEngine
 
 });
+
+
+
+// =====================================
+// KERNEL SYSTEM REGISTRATION
+// =====================================
+
+function registerKernelSystems(){
+
+  if(
+    typeof AIKernel?.registerSystem !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  AIKernel.registerSystem(
+    "contexts",
+    ContextManager
+  );
+
+  AIKernel.registerSystem(
+    "agents",
+    AgentManager
+  );
+
+  AIKernel.registerSystem(
+    "tools",
+    ToolExecutor
+  );
+
+  AIKernel.registerSystem(
+    "workflows",
+    WorkflowEngine
+  );
+
+  AIKernel.registerSystem(
+    "planner",
+    PlannerEngine
+  );
+
+  return true;
+
+}
 
 
 
@@ -498,6 +573,8 @@ async function initializeAIStack(){
 
       }
 
+      registerKernelSystems();
+
       const initializationPipeline = [
 
         [
@@ -603,6 +680,11 @@ async function initializeAIStack(){
       .diagnostics
       .failedBoots++;
 
+      console.error(
+        "AI STACK INITIALIZATION FAILED",
+        error
+      );
+
       return false;
 
     }
@@ -688,7 +770,14 @@ async function shutdownAIStack(){
 
       }
 
-      catch(error){}
+      catch(error){
+
+        console.error(
+          "SYSTEM SHUTDOWN FAILED",
+          error
+        );
+
+      }
 
     }
 
@@ -778,7 +867,14 @@ async function resetAIStack(){
 
       }
 
-      catch(error){}
+      catch(error){
+
+        console.error(
+          "SYSTEM RESET FAILED",
+          error
+        );
+
+      }
 
     }
 
@@ -990,6 +1086,22 @@ freezeAIObject({
 
 
 // =====================================
+// AUTO INITIALIZATION
+// =====================================
+
+initializeAIStack()
+.catch((error) => {
+
+  console.error(
+    "AI STACK AUTO INIT FAILED",
+    error
+  );
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -1050,3 +1162,29 @@ if(
   PlannerEngine;
 
 }
+
+
+
+// =====================================
+// MODULE EXPORTS
+// =====================================
+
+export {
+
+  AI,
+
+  AIKernel,
+
+  ContextManager,
+
+  AgentManager,
+
+  ToolExecutor,
+
+  WorkflowEngine,
+
+  PlannerEngine
+
+};
+
+export default AI;
