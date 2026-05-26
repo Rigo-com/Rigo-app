@@ -2,6 +2,7 @@
 // RIGO AI
 // CHAT MARKDOWN RENDERER
 // ENTERPRISE MARKDOWN PIPELINE
+// FINAL STABLE EDITION
 // =====================================
 
 
@@ -42,6 +43,132 @@ Object.seal({
   })
 
 });
+
+
+
+// =====================================
+// SERVICE ACCESS
+// =====================================
+
+function getMarkdownService(
+  serviceName
+){
+
+  try{
+
+    if(
+      typeof ServiceRegistry ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof ServiceRegistry.get !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    return ServiceRegistry.get(
+      serviceName
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE LOGGER
+// =====================================
+
+function safeMarkdownLogError(
+  ...args
+){
+
+  try{
+
+    const diagnostics =
+    getMarkdownService(
+      "diagnostics"
+    );
+
+    if(
+      diagnostics &&
+      typeof diagnostics.error ===
+      "function"
+    ){
+
+      diagnostics.error(
+        ...args
+      );
+
+      return;
+
+    }
+
+    console.error(...args);
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+
+// =====================================
+// SAFE CLONE
+// =====================================
+
+function safeMarkdownClone(
+  value
+){
+
+  try{
+
+    if(
+      typeof structuredClone ===
+      "function"
+    ){
+
+      return structuredClone(
+        value
+      );
+
+    }
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
 
 
 
@@ -106,6 +233,11 @@ function sanitizeMarkdownHTML(
 
     .replace(
       /javascript:/gi,
+      ""
+    )
+
+    .replace(
+      /data:text\/html/gi,
       ""
     );
 
@@ -308,7 +440,7 @@ function renderMarkdownLinks(
 
   return content.replace(
 
-    /$begin:math:display$\(\[\^$end:math:display$]+)\]$begin:math:text$\(\[\^\)\]\+\)$end:math:text$/g,
+    /$begin:math:display$\(\[\^$end:math:display$]+)\]$begin:math:text$\(https\?\:\\\/\\\/\[\^\\s\)\]\+\)$end:math:text$/g,
 
     (_,label,url) => {
 
@@ -438,7 +570,11 @@ function renderMarkdownParagraphs(
 
       ||
 
-      trimmed.startsWith("<li");
+      trimmed.startsWith("<li")
+
+      ||
+
+      trimmed.startsWith("<p");
 
     if(isHTML){
 
@@ -548,7 +684,7 @@ function parseMarkdown(
     .diagnostics
     .failed++;
 
-    safeLogError?.(
+    safeMarkdownLogError(
       "MARKDOWN PARSE ERROR",
       error
     );
@@ -623,7 +759,7 @@ function renderMarkdownContent(
     .diagnostics
     .failed++;
 
-    safeLogError?.(
+    safeMarkdownLogError(
       "MARKDOWN RENDER ERROR",
       error
     );
@@ -715,6 +851,45 @@ function initializeMarkdownRenderer(){
 
   }
 
+  if(
+    typeof ServiceRegistry !==
+    "undefined"
+
+    &&
+
+    typeof ServiceRegistry.register ===
+    "function"
+
+    &&
+
+    !ServiceRegistry.has(
+      "markdown-renderer"
+    )
+
+  ){
+
+    ServiceRegistry.register(
+
+      "markdown-renderer",
+
+      ChatMarkdownRenderer,
+
+      {
+
+        immutable:true,
+
+        version:"1.0.0"
+
+      }
+
+    );
+
+    ServiceRegistry.activate(
+      "markdown-renderer"
+    );
+
+  }
+
   markdownRendererState
   .initialized =
   true;
@@ -731,7 +906,7 @@ function initializeMarkdownRenderer(){
 
 function getMarkdownDiagnostics(){
 
-  return freezeChatObject({
+  return Object.freeze({
 
     initialized:
 
@@ -755,7 +930,7 @@ function getMarkdownDiagnostics(){
 
     diagnostics:
 
-      deepClone(
+      safeMarkdownClone(
 
         markdownRendererState
         .diagnostics
@@ -791,6 +966,41 @@ Object.freeze({
   resetMarkdownRenderer,
 
   diagnostics:
+  getMarkdownDiagnostics,
+
+  snapshot:
   getMarkdownDiagnostics
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "ChatMarkdownRenderer",
+
+    {
+
+      value:
+      ChatMarkdownRenderer,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
