@@ -5,8 +5,13 @@
 
 
 
+// =====================================
+// RUNTIME EVENTS
+// =====================================
+
 const RUNTIME_EVENTS =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
 
 
@@ -44,6 +49,9 @@ Object.freeze({
   RECOVERY_COMPLETED:
   "runtime.recovery.completed",
 
+  RECOVERY_FAILED:
+  "runtime.recovery.failed",
+
 
 
   // ===================================
@@ -54,9 +62,12 @@ Object.freeze({
   "runtime.shutdown.started",
 
   SHUTDOWN_COMPLETED:
-  "runtime.shutdown.completed"
+  "runtime.shutdown.completed",
 
-});
+  SHUTDOWN_FAILED:
+  "runtime.shutdown.failed"
+
+}));
 
 
 
