@@ -2,19 +2,26 @@
 // RIGO AI
 // APP RECOVERY
 // ISOLATED RECOVERY SERVICE
+// ENTERPRISE FINAL
 // =====================================
 
 
 
 // =====================================
-// RECOVERY CONFIG
+// CONFIG
 // =====================================
 
 const APP_RECOVERY_CONFIG =
 Object.freeze({
 
   RECOVERY_TIMEOUT:
-  30000
+  30000,
+
+  ENABLE_DIAGNOSTICS:
+  true,
+
+  ENABLE_HEALTH_VALIDATION:
+  true
 
 });
 
@@ -24,21 +31,26 @@ Object.freeze({
 // INTERNAL STATE
 // =====================================
 
-const recoveryRuntimeState = {
+const recoveryRuntimeState =
+Object.seal({
 
-  recovering:
-  false,
+  recovering:false,
 
-  lastRecoveryAt:
-  null,
+  initialized:false,
 
-  lastRecoveryDuration:
-  null,
+  totalRecoveries:0,
 
-  lastRecoveryError:
-  null
+  successfulRecoveries:0,
 
-};
+  failedRecoveries:0,
+
+  lastRecoveryAt:null,
+
+  lastRecoveryDuration:null,
+
+  lastRecoveryError:null
+
+});
 
 
 
@@ -46,21 +58,100 @@ const recoveryRuntimeState = {
 // HELPERS
 // =====================================
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
-  return typeof value === "function";
+  return typeof value ===
+  "function";
 
 }
 
 
 
-function getRecoveryDependency(name){
+function isPlainObject(
+  value
+){
 
-  if(typeof window === "undefined"){
-    return null;
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
   }
 
-  return window[name] || null;
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
+
+}
+
+
+
+function getRecoveryDependency(
+  name
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return (
+      window[name] ||
+      null
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+function normalizeRecoveryError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
 
 }
 
@@ -72,8 +163,11 @@ function emitRecoveryWarning(
 ){
 
   console.warn(
+
     `[AppRecovery] ${message}`,
+
     error || ""
+
   );
 
 }
@@ -91,43 +185,70 @@ function safeFreeze(
 
   if(
     !value ||
-    typeof value !== "object"
+    typeof value !==
+    "object"
   ){
+
     return value;
+
   }
 
-  if(visited.has(value)){
+  if(
+    visited.has(value)
+  ){
+
     return value;
+
   }
 
   if(
 
+    value instanceof Promise ||
+
     value instanceof Map ||
+
     value instanceof Set ||
+
     value instanceof Date ||
-    value instanceof RegExp
+
+    value instanceof RegExp ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
 
   ){
+
     return value;
+
+  }
+
+  if(
+
+    !Array.isArray(value) &&
+
+    !isPlainObject(value)
+
+  ){
+
+    return value;
+
   }
 
   visited.add(value);
 
   Object.freeze(value);
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
-    if(
-      nestedValue &&
-      typeof nestedValue === "object"
-    ){
-
-      safeFreeze(
-        nestedValue,
-        visited
-      );
-
-    }
+    safeFreeze(
+      nestedValue,
+      visited
+    );
 
   });
 
@@ -138,24 +259,119 @@ function safeFreeze(
 
 
 // =====================================
-// TIMEOUT WRAPPER
+// EVENTS
+// =====================================
+
+const APP_RECOVERY_EVENTS =
+Object.freeze({
+
+  RECOVERY_STARTED:
+  "app.recovery.started",
+
+  RECOVERY_COMPLETED:
+  "app.recovery.completed",
+
+  RECOVERY_FAILED:
+  "app.recovery.failed",
+
+  RESET_STARTED:
+  "app.recovery.reset.started",
+
+  RESET_COMPLETED:
+  "app.recovery.reset.completed"
+
+});
+
+
+
+// =====================================
+// EVENT EMITTER
+// =====================================
+
+async function emitRecoveryEvent(
+  event,
+  payload = {}
+){
+
+  try{
+
+    if(
+      !isFunction(
+        emitSystemEvent
+      )
+    ){
+
+      return false;
+
+    }
+
+    await emitSystemEvent(
+
+      event,
+
+      {
+
+        source:
+        "app-recovery",
+
+        timestamp:
+        Date.now(),
+
+        ...payload
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    emitRecoveryWarning(
+
+      `Event failed: ${event}`,
+
+      error
+
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// TIMEOUT
 // =====================================
 
 function createRecoveryTimeout(){
 
-  let timeoutId = null;
+  let timeoutId =
+  null;
 
-  const promise = new Promise((_, reject) => {
+  const promise =
+  new Promise((_, reject) => {
 
-    timeoutId = setTimeout(() => {
+    timeoutId =
+    setTimeout(() => {
 
       reject(
+
         new Error(
           "APPLICATION RECOVERY TIMEOUT"
         )
+
       );
 
-    }, APP_RECOVERY_CONFIG.RECOVERY_TIMEOUT);
+    },
+
+    APP_RECOVERY_CONFIG
+    .RECOVERY_TIMEOUT);
 
   });
 
@@ -165,50 +381,19 @@ function createRecoveryTimeout(){
 
     clear(){
 
-      if(timeoutId){
-        clearTimeout(timeoutId);
+      if(
+        timeoutId
+      ){
+
+        clearTimeout(
+          timeoutId
+        );
+
       }
 
     }
 
   };
-
-}
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
-
-function createRecoverySnapshot(){
-
-  return safeFreeze({
-
-    recovering:
-    recoveryRuntimeState.recovering,
-
-    lastRecoveryAt:
-    recoveryRuntimeState.lastRecoveryAt,
-
-    lastRecoveryDuration:
-    recoveryRuntimeState.lastRecoveryDuration,
-
-    lastRecoveryError:
-
-    recoveryRuntimeState.lastRecoveryError
-      ? String(
-          recoveryRuntimeState.lastRecoveryError
-        )
-      : null,
-
-    attempts:
-    appState?.recoveryAttempts || 0,
-
-    timestamp:
-    Date.now()
-
-  });
 
 }
 
@@ -222,69 +407,93 @@ async function resetRecoverySystems(){
 
   try{
 
+    await emitRecoveryEvent(
+      APP_RECOVERY_EVENTS
+      .RESET_STARTED
+    );
+
     const runtimeManager =
-      getRecoveryDependency(
-        "RuntimeManager"
-      );
+    getRecoveryDependency(
+      "RuntimeManager"
+    );
 
     const healthSystem =
-      getRecoveryDependency(
-        "HealthSystem"
-      );
+    getRecoveryDependency(
+      "HealthSystem"
+    );
 
     const moduleKernel =
-      getRecoveryDependency(
-        "ModuleKernel"
-      );
+    getRecoveryDependency(
+      "ModuleKernel"
+    );
 
-
-
-    // ================================
+    // =============================
     // HEALTH
-    // ================================
+    // =============================
 
     if(
+
       healthSystem &&
-      isFunction(healthSystem.reset)
+
+      isFunction(
+        healthSystem.reset
+      )
+
     ){
 
-      await healthSystem.reset();
+      await healthSystem
+      .reset();
 
     }
 
-
-
-    // ================================
+    // =============================
     // RUNTIME
-    // ================================
+    // =============================
 
     if(
+
       runtimeManager &&
-      isFunction(runtimeManager.shutdown)
+
+      isFunction(
+        runtimeManager.shutdown
+      )
+
     ){
 
-      await runtimeManager.shutdown();
+      await runtimeManager
+      .shutdown();
 
     }
 
-
-
-    // ================================
+    // =============================
     // MODULES
-    // ================================
+    // =============================
 
     if(
+
       moduleKernel &&
-      isFunction(moduleKernel.reset)
+
+      isFunction(
+        moduleKernel.reset
+      )
+
     ){
 
-      await moduleKernel.reset();
+      await moduleKernel
+      .reset();
 
     }
+
+    await emitRecoveryEvent(
+      APP_RECOVERY_EVENTS
+      .RESET_COMPLETED
+    );
 
     return true;
 
-  }catch(error){
+  }
+
+  catch(error){
 
     emitRecoveryWarning(
       "Recovery reset failed",
@@ -300,28 +509,85 @@ async function resetRecoverySystems(){
 
 
 // =====================================
-// RECOVER APPLICATION
+// HEALTH VALIDATION
+// =====================================
+
+async function validateRecoveryHealth(){
+
+  if(
+
+    !APP_RECOVERY_CONFIG
+    .ENABLE_HEALTH_VALIDATION
+
+  ){
+
+    return true;
+
+  }
+
+  const healthcheck =
+  getRecoveryDependency(
+    "runAppHealthcheck"
+  );
+
+  if(
+    !isFunction(
+      healthcheck
+    )
+  ){
+
+    return false;
+
+  }
+
+  const report =
+  await healthcheck();
+
+  return Boolean(
+    report?.healthy
+  );
+
+}
+
+
+
+// =====================================
+// RECOVERY
 // =====================================
 
 async function recoverApplication(){
 
   if(
-    !APP_CORE_CONFIG?.ENABLE_RECOVERY
+    recoveryRuntimeState
+    .recovering
   ){
+
     return false;
+
   }
 
   if(
 
-    recoveryRuntimeState.recovering ||
+    typeof APP_CORE_CONFIG !==
+    "undefined"
 
-    appState?.recovering
+    &&
+
+    !APP_CORE_CONFIG
+    ?.ENABLE_RECOVERY
 
   ){
+
     return false;
+
   }
 
   if(
+
+    typeof appState !==
+    "undefined"
+
+    &&
 
     appState?.recoveryAttempts >=
 
@@ -329,304 +595,317 @@ async function recoverApplication(){
     ?.MAX_RECOVERY_ATTEMPTS
 
   ){
+
     return false;
+
   }
 
+  recoveryRuntimeState
+  .recovering =
+  true;
+
+  recoveryRuntimeState
+  .totalRecoveries++;
+
+  recoveryRuntimeState
+  .lastRecoveryAt =
+  Date.now();
+
+  recoveryRuntimeState
+  .lastRecoveryError =
+  null;
+
+  const startedAt =
+  Date.now();
+
   const timeout =
-    createRecoveryTimeout();
+  createRecoveryTimeout();
 
-  recoveryRuntimeState.recovering =
-    true;
+  try{
 
-  appState.recovering =
-    true;
+    if(
+      typeof appState !==
+      "undefined"
+    ){
 
-  appState.recoveryAttempts++;
+      appState.recovering =
+      true;
 
-  recoveryRuntimeState.lastRecoveryAt =
-    Date.now();
+      appState
+      .recoveryAttempts++;
+    }
 
-  recoveryRuntimeState.lastRecoveryError =
-    null;
-
-  const updatePhase =
+    const updatePhase =
     getRecoveryDependency(
       "updateAppPhase"
     );
 
-  const emitEvent =
-    getRecoveryDependency(
-      "emitAppEvent"
-    );
-
-  const cleanup =
+    const cleanup =
     getRecoveryDependency(
       "cleanupApp"
     );
 
-  const start =
+    const start =
     getRecoveryDependency(
       "startApp"
     );
 
-  const healthcheck =
-    getRecoveryDependency(
-      "runAppHealthcheck"
-    );
-
-  const diagnosticsRuntime =
-    getRecoveryDependency(
-      "DiagnosticsRuntime"
-    );
-
-  if(
-    isFunction(updatePhase)
-  ){
-
-    updatePhase(
-      APP_PHASES.RECOVERING
-    );
-
-  }
-
-  if(
-    isFunction(emitEvent)
-  ){
-
-    await emitEvent(
-      "app.recovering"
-    );
-
-  }
-
-  const startedAt =
-    Date.now();
-
-  try{
-
-    const recoveryProcess =
-      (async() => {
-
-
-
-        // ============================
-        // RESET SYSTEMS
-        // ============================
-
-        const resetSuccessful =
-          await resetRecoverySystems();
-
-        if(!resetSuccessful){
-
-          throw new Error(
-            "RECOVERY RESET FAILED"
-          );
-
-        }
-
-
-
-        // ============================
-        // CLEANUP
-        // ============================
-
-        if(
-          !isFunction(cleanup)
-        ){
-
-          throw new Error(
-            "cleanupApp unavailable"
-          );
-
-        }
-
-        await cleanup();
-
-
-
-        // ============================
-        // RESTART
-        // ============================
-
-        if(
-          !isFunction(start)
-        ){
-
-          throw new Error(
-            "startApp unavailable"
-          );
-
-        }
-
-        const restarted =
-          await start();
-
-        if(!restarted){
-
-          throw new Error(
-            "APPLICATION RESTART FAILED"
-          );
-
-        }
-
-
-
-        // ============================
-        // VALIDATE HEALTH
-        // ============================
-
-        if(
-          !isFunction(healthcheck)
-        ){
-
-          throw new Error(
-            "runAppHealthcheck unavailable"
-          );
-
-        }
-
-        const healthReport =
-          await healthcheck();
-
-        if(
-          !healthReport?.healthy
-        ){
-
-          throw new Error(
-            "RECOVERY HEALTHCHECK FAILED"
-          );
-
-        }
-
-
-
-        // ============================
-        // SUCCESS
-        // ============================
-
-        appState.crashed =
-          false;
-
-        appState.lastError =
-          null;
-
-        appState.recoveryAttempts =
-          0;
-
-        recoveryRuntimeState.lastRecoveryDuration =
-
-          Date.now() -
-          startedAt;
-
-        if(
-          isFunction(updatePhase)
-        ){
-
-          updatePhase(
-            APP_PHASES.READY
-          );
-
-        }
-
-        if(
-          isFunction(logDiagnosticInfo)
-        ){
-
-          await logDiagnosticInfo(
-
-            "APPLICATION RECOVERED",
-
-            {
-
-              duration:
-
-              recoveryRuntimeState
-              .lastRecoveryDuration
-
-            }
-
-          );
-
-        }
-
-        if(
-          isFunction(emitEvent)
-        ){
-
-          await emitEvent(
-            "app.recovered"
-          );
-
-        }
-
-        return true;
-
-      })();
-
-    const result =
-      await Promise.race([
-
-        recoveryProcess,
-        timeout.promise
-
-      ]);
-
-    timeout.clear();
-
-    return result;
-
-  }catch(error){
-
-    timeout.clear();
-
-    recoveryRuntimeState.lastRecoveryError =
-      error;
-
     if(
-      isFunction(setAppError)
+      isFunction(
+        updatePhase
+      )
     ){
 
-      setAppError(error);
+      updatePhase(
+        APP_PHASES
+        .RECOVERING
+      );
 
     }
 
-    if(
+    await emitRecoveryEvent(
+      APP_RECOVERY_EVENTS
+      .RECOVERY_STARTED
+    );
 
-      diagnosticsRuntime &&
-      isFunction(
-        diagnosticsRuntime.error
-      )
+    const recoveryProcess =
+    (async() => {
 
-    ){
+      // ===========================
+      // RESET
+      // ===========================
 
-      try{
+      const resetSuccessful =
+      await resetRecoverySystems();
 
-        await diagnosticsRuntime.error(
+      if(
+        !resetSuccessful
+      ){
 
-          "APPLICATION RECOVERY FAILED",
-
-          {
-
-            error:
-            String(error)
-
-          }
-
-        );
-
-      }catch(loggingError){
-
-        emitRecoveryWarning(
-          "Recovery diagnostics failed",
-          loggingError
+        throw new Error(
+          "RECOVERY RESET FAILED"
         );
 
       }
 
+      // ===========================
+      // CLEANUP
+      // ===========================
+
+      if(
+        !isFunction(
+          cleanup
+        )
+      ){
+
+        throw new Error(
+          "cleanupApp unavailable"
+        );
+
+      }
+
+      await cleanup();
+
+      // ===========================
+      // RESTART
+      // ===========================
+
+      if(
+        !isFunction(
+          start
+        )
+      ){
+
+        throw new Error(
+          "startApp unavailable"
+        );
+
+      }
+
+      const restarted =
+      await start();
+
+      if(
+        !restarted
+      ){
+
+        throw new Error(
+          "APPLICATION RESTART FAILED"
+        );
+
+      }
+
+      // ===========================
+      // HEALTH VALIDATION
+      // ===========================
+
+      const healthy =
+      await validateRecoveryHealth();
+
+      if(
+        !healthy
+      ){
+
+        throw new Error(
+          "RECOVERY HEALTHCHECK FAILED"
+        );
+
+      }
+
+      return true;
+
+    })();
+
+    const recovered =
+    await Promise.race([
+
+      recoveryProcess,
+
+      timeout.promise
+
+    ]);
+
+    timeout.clear();
+
+    recoveryRuntimeState
+    .successfulRecoveries++;
+
+    recoveryRuntimeState
+    .lastRecoveryDuration =
+
+      Date.now() -
+      startedAt;
+
+    if(
+      typeof appState !==
+      "undefined"
+    ){
+
+      appState.crashed =
+      false;
+
+      appState.lastError =
+      null;
+
+      appState.recovering =
+      false;
+
+      appState
+      .recoveryAttempts =
+      0;
+
+    }
+
+    const updatePhase =
+    getRecoveryDependency(
+      "updateAppPhase"
+    );
+
+    if(
+      isFunction(
+        updatePhase
+      )
+    ){
+
+      updatePhase(
+        APP_PHASES.READY
+      );
+
     }
 
     if(
-      isFunction(updatePhase)
+
+      APP_RECOVERY_CONFIG
+      .ENABLE_DIAGNOSTICS
+
+      &&
+
+      isFunction(
+        logDiagnosticInfo
+      )
+
+    ){
+
+      await logDiagnosticInfo(
+
+        "APPLICATION RECOVERED",
+
+        {
+
+          duration:
+
+          recoveryRuntimeState
+          .lastRecoveryDuration
+
+        }
+
+      );
+
+    }
+
+    await emitRecoveryEvent(
+
+      APP_RECOVERY_EVENTS
+      .RECOVERY_COMPLETED,
+
+      {
+
+        duration:
+
+        recoveryRuntimeState
+        .lastRecoveryDuration
+
+      }
+
+    );
+
+    return recovered;
+
+  }
+
+  catch(error){
+
+    timeout.clear();
+
+    recoveryRuntimeState
+    .failedRecoveries++;
+
+    recoveryRuntimeState
+    .lastRecoveryError =
+    normalizeRecoveryError(
+      error
+    );
+
+    if(
+      typeof appState !==
+      "undefined"
+    ){
+
+      appState.recovering =
+      false;
+    }
+
+    if(
+      isFunction(
+        setAppError
+      )
+    ){
+
+      setAppError(
+        error
+      );
+
+    }
+
+    const updatePhase =
+    getRecoveryDependency(
+      "updateAppPhase"
+    );
+
+    if(
+      isFunction(
+        updatePhase
+      )
     ){
 
       updatePhase(
@@ -635,6 +914,52 @@ async function recoverApplication(){
 
     }
 
+    if(
+
+      APP_RECOVERY_CONFIG
+      .ENABLE_DIAGNOSTICS
+
+      &&
+
+      isFunction(
+        logDiagnosticError
+      )
+
+    ){
+
+      await logDiagnosticError(
+
+        "APPLICATION RECOVERY FAILED",
+
+        {
+
+          error:
+          normalizeRecoveryError(
+            error
+          )
+
+        }
+
+      );
+
+    }
+
+    await emitRecoveryEvent(
+
+      APP_RECOVERY_EVENTS
+      .RECOVERY_FAILED,
+
+      {
+
+        error:
+        normalizeRecoveryError(
+          error
+        )
+
+      }
+
+    );
+
     emitRecoveryWarning(
       "Application recovery failed",
       error
@@ -642,15 +967,83 @@ async function recoverApplication(){
 
     return false;
 
-  }finally{
+  }
 
-    recoveryRuntimeState.recovering =
-      false;
+  finally{
 
-    appState.recovering =
-      false;
+    recoveryRuntimeState
+    .recovering =
+    false;
 
   }
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createRecoverySnapshot(){
+
+  return safeFreeze({
+
+    initialized:
+    recoveryRuntimeState
+    .initialized,
+
+    recovering:
+    recoveryRuntimeState
+    .recovering,
+
+    totalRecoveries:
+    recoveryRuntimeState
+    .totalRecoveries,
+
+    successfulRecoveries:
+
+      recoveryRuntimeState
+      .successfulRecoveries,
+
+    failedRecoveries:
+
+      recoveryRuntimeState
+      .failedRecoveries,
+
+    lastRecoveryAt:
+
+      recoveryRuntimeState
+      .lastRecoveryAt,
+
+    lastRecoveryDuration:
+
+      recoveryRuntimeState
+      .lastRecoveryDuration,
+
+    lastRecoveryError:
+
+      recoveryRuntimeState
+      .lastRecoveryError,
+
+    attempts:
+
+      typeof appState !==
+      "undefined"
+
+      ?
+
+      appState
+      ?.recoveryAttempts || 0
+
+      :
+
+      0,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -677,23 +1070,28 @@ Object.freeze({
 // GLOBAL EXPORT
 // =====================================
 
-if(typeof window !== "undefined"){
+if(
+  typeof window !==
+  "undefined"
+){
 
   Object.defineProperty(
+
     window,
+
     "AppRecovery",
+
     {
 
       value:
       AppRecovery,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
+
   );
 
 }
