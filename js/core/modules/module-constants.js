@@ -19,7 +19,8 @@ const MODULE_SYSTEM_VERSION =
 // =====================================
 
 const MODULE_LOADER_CONFIG =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
   ENABLE_LAZY_LOADING:
   true,
@@ -82,9 +83,18 @@ Object.freeze({
   10000,
 
   RETRY_DELAY:
-  1000
+  1000,
 
-});
+  RECOVERY_DELAY:
+  3000,
+
+  HEALTHCHECK_INTERVAL:
+  30000,
+
+  BOOTSTRAP_TIMEOUT:
+  30000
+
+}));
 
 
 
@@ -93,7 +103,8 @@ Object.freeze({
 // =====================================
 
 const MODULE_STATES =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
   REGISTERED:
   "registered",
@@ -128,7 +139,7 @@ Object.freeze({
   DESTROYED:
   "destroyed"
 
-});
+}));
 
 
 
@@ -137,7 +148,8 @@ Object.freeze({
 // =====================================
 
 const MODULE_EVENTS =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
   REGISTERED:
   "module.registered",
@@ -148,14 +160,29 @@ Object.freeze({
   LOADED:
   "module.loaded",
 
+  LOAD_FAILED:
+  "module.load.failed",
+
   ACTIVATED:
   "module.activated",
+
+  ACTIVATION_FAILED:
+  "module.activation.failed",
 
   FAILED:
   "module.failed",
 
   RECOVERED:
   "module.recovered",
+
+  SUSPENDED:
+  "module.suspended",
+
+  DISABLED:
+  "module.disabled",
+
+  DESTROYED:
+  "module.destroyed",
 
   UNLOADING:
   "module.unloading",
@@ -169,7 +196,7 @@ Object.freeze({
   DEPENDENCIES_RESOLVED:
   "module.dependencies.resolved"
 
-});
+}));
 
 
 
@@ -178,7 +205,8 @@ Object.freeze({
 // =====================================
 
 const MODULE_LIFECYCLES =
-Object.freeze({
+Object.freeze(
+Object.seal({
 
   SINGLETON:
   "singleton",
@@ -189,7 +217,7 @@ Object.freeze({
   RUNTIME:
   "runtime"
 
-});
+}));
 
 
 
@@ -198,23 +226,86 @@ Object.freeze({
 // =====================================
 
 const MODULE_PRIORITIES =
-Object.freeze({
-
-  // Lower number = higher priority
-
-  CRITICAL:
-  1,
-
-  HIGH:
-  2,
-
-  NORMAL:
-  3,
+Object.freeze(
+Object.seal({
 
   LOW:
-  4
+  10,
 
-});
+  NORMAL:
+  50,
+
+  HIGH:
+  100,
+
+  CRITICAL:
+  1000
+
+}));
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function isValidModuleState(
+  state
+){
+
+  return Object.values(
+    MODULE_STATES
+  )
+  .includes(
+    String(state)
+  );
+
+}
+
+
+
+function isValidModuleEvent(
+  event
+){
+
+  return Object.values(
+    MODULE_EVENTS
+  )
+  .includes(
+    String(event)
+  );
+
+}
+
+
+
+function isValidModuleLifecycle(
+  lifecycle
+){
+
+  return Object.values(
+    MODULE_LIFECYCLES
+  )
+  .includes(
+    String(lifecycle)
+  );
+
+}
+
+
+
+function isValidModulePriority(
+  priority
+){
+
+  return Object.values(
+    MODULE_PRIORITIES
+  )
+  .includes(
+    Number(priority)
+  );
+
+}
 
 
 
@@ -241,7 +332,19 @@ Object.freeze({
   MODULE_LIFECYCLES,
 
   priorities:
-  MODULE_PRIORITIES
+  MODULE_PRIORITIES,
+
+  validateState:
+  isValidModuleState,
+
+  validateEvent:
+  isValidModuleEvent,
+
+  validateLifecycle:
+  isValidModuleLifecycle,
+
+  validatePriority:
+  isValidModulePriority
 
 });
 
@@ -257,8 +360,11 @@ if(
 ){
 
   Object.defineProperty(
+
     window,
+
     "ModuleConstants",
+
     {
 
       value:
@@ -271,6 +377,7 @@ if(
       false
 
     }
+
   );
 
 }
