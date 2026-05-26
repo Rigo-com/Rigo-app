@@ -98,7 +98,13 @@ function safeFreeze(
     value instanceof RegExp ||
     value instanceof Map ||
     value instanceof Set ||
-    value instanceof HTMLElement
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
 
   ){
 
@@ -233,9 +239,11 @@ function createReadonlyHealthAccessor(
 
         }
 
-        return safeFreeze(
-          dependency
-        );
+        return safeFreeze({
+
+          ...dependency
+
+        });
 
       },
 
@@ -494,7 +502,7 @@ async function getUnifiedHealthReport(){
 
       const diagnostics =
         await HealthAPI
-        .diagnosticsRuntime();
+        .healthDiagnostics();
 
       let runtimeHealth =
         null;
@@ -577,7 +585,7 @@ safeFreeze({
 
 
 
-  diagnosticsRuntime:
+  healthDiagnostics:
   createReadonlyHealthAccessor(
     "HealthDiagnostics"
   ),
