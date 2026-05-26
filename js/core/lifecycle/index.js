@@ -94,11 +94,22 @@ function safeFreeze(
 
   if(
 
+    value instanceof Promise ||
+
     value instanceof Date ||
+
     value instanceof RegExp ||
+
     value instanceof Map ||
+
     value instanceof Set ||
-    value instanceof HTMLElement
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
 
   ){
 
@@ -250,51 +261,35 @@ function createReadonlyAccessor(
 
 
 // =====================================
-// LIFECYCLE OPERATIONS
+// ORCHESTRATION
 // =====================================
 
-async function bootLifecycle(){
+async function lifecycleStart(){
 
   return safelyExecuteLifecycleOperation(
 
-    "Lifecycle boot",
+    "Lifecycle start",
 
     async() => {
 
-      const startup =
+      const lifecycle =
         getLifecycleDependency(
-          "AppStartup"
+          "AppLifecycle"
         );
 
       if(
-        !startup
+        !lifecycle ||
+        !isFunction(
+          lifecycle.start
+        )
       ){
 
         return false;
 
       }
 
-      if(
-        isFunction(
-          startup.start
-        )
-      ){
-
-        return await startup.start();
-
-      }
-
-      if(
-        isFunction(
-          startup.boot
-        )
-      ){
-
-        return await startup.boot();
-
-      }
-
-      return false;
+      return await lifecycle
+      .start();
 
     },
 
@@ -306,7 +301,7 @@ async function bootLifecycle(){
 
 
 
-async function shutdownLifecycle(){
+async function lifecycleShutdown(){
 
   return safelyExecuteLifecycleOperation(
 
@@ -314,40 +309,24 @@ async function shutdownLifecycle(){
 
     async() => {
 
-      const shutdown =
+      const lifecycle =
         getLifecycleDependency(
-          "AppShutdown"
+          "AppLifecycle"
         );
 
       if(
-        !shutdown
+        !lifecycle ||
+        !isFunction(
+          lifecycle.shutdown
+        )
       ){
 
         return false;
 
       }
 
-      if(
-        isFunction(
-          shutdown.execute
-        )
-      ){
-
-        return await shutdown.execute();
-
-      }
-
-      if(
-        isFunction(
-          shutdown.shutdown
-        )
-      ){
-
-        return await shutdown.shutdown();
-
-      }
-
-      return false;
+      return await lifecycle
+      .shutdown();
 
     },
 
@@ -359,7 +338,7 @@ async function shutdownLifecycle(){
 
 
 
-async function bootstrapLifecycle(){
+async function lifecycleBootstrap(){
 
   return safelyExecuteLifecycleOperation(
 
@@ -367,44 +346,139 @@ async function bootstrapLifecycle(){
 
     async() => {
 
-      const bootstrap =
+      const lifecycle =
         getLifecycleDependency(
-          "AppBootstrap"
+          "AppLifecycle"
         );
 
       if(
-        !bootstrap
+        !lifecycle ||
+        !isFunction(
+          lifecycle.initialize
+        )
       ){
 
         return false;
 
       }
 
-      if(
-        isFunction(
-          bootstrap.initialize
-        )
-      ){
-
-        return await bootstrap.initialize();
-
-      }
-
-      if(
-        isFunction(
-          bootstrap.bootstrap
-        )
-      ){
-
-        return await bootstrap.bootstrap();
-
-      }
-
-      return false;
+      return await lifecycle
+      .initialize();
 
     },
 
     false
+
+  );
+
+}
+
+
+
+async function lifecycleCleanup(){
+
+  return safelyExecuteLifecycleOperation(
+
+    "Lifecycle cleanup",
+
+    async() => {
+
+      const lifecycle =
+        getLifecycleDependency(
+          "AppLifecycle"
+        );
+
+      if(
+        !lifecycle ||
+        !isFunction(
+          lifecycle.cleanup
+        )
+      ){
+
+        return false;
+
+      }
+
+      return await lifecycle
+      .cleanup();
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+async function lifecycleRecover(){
+
+  return safelyExecuteLifecycleOperation(
+
+    "Lifecycle recover",
+
+    async() => {
+
+      const lifecycle =
+        getLifecycleDependency(
+          "AppLifecycle"
+        );
+
+      if(
+        !lifecycle ||
+        !isFunction(
+          lifecycle.recover
+        )
+      ){
+
+        return false;
+
+      }
+
+      return await lifecycle
+      .recover();
+
+    },
+
+    false
+
+  );
+
+}
+
+
+
+async function lifecycleStatus(){
+
+  return safelyExecuteLifecycleOperation(
+
+    "Lifecycle status",
+
+    async() => {
+
+      const lifecycle =
+        getLifecycleDependency(
+          "AppLifecycle"
+        );
+
+      if(
+        !lifecycle ||
+        !isFunction(
+          lifecycle.status
+        )
+      ){
+
+        return null;
+
+      }
+
+      return await lifecycle
+      .status();
+
+    },
+
+    null
 
   );
 
@@ -425,36 +499,48 @@ async function getLifecycleDiagnostics(){
     async() => {
 
       const lifecycle =
-        await LifecycleIndex
+        await LifecycleAPI
         .lifecycle();
 
       const startup =
-        await LifecycleIndex
+        await LifecycleAPI
         .startup();
 
       const bootstrap =
-        await LifecycleIndex
+        await LifecycleAPI
         .bootstrap();
 
       const shutdown =
-        await LifecycleIndex
+        await LifecycleAPI
         .shutdown();
 
       const environment =
-        await LifecycleIndex
+        await LifecycleAPI
         .environment();
 
       const messages =
-        await LifecycleIndex
+        await LifecycleAPI
         .messages();
 
       const diagnostics =
-        await LifecycleIndex
-        .diagnosticsRuntime();
+        await LifecycleAPI
+        .diagnostics();
 
       const health =
-        await LifecycleIndex
+        await LifecycleAPI
         .health();
+
+      const runtime =
+        await LifecycleAPI
+        .runtime();
+
+      const config =
+        await LifecycleAPI
+        .config();
+
+      const dependencies =
+        await LifecycleAPI
+        .dependencies();
 
       return safeFreeze({
 
@@ -466,6 +552,9 @@ async function getLifecycleDiagnostics(){
         messages,
         diagnostics,
         health,
+        runtime,
+        config,
+        dependencies,
 
         timestamp:
         Date.now()
@@ -486,7 +575,7 @@ async function getLifecycleDiagnostics(){
 // LIFECYCLE API
 // =====================================
 
-const LifecycleIndex =
+const LifecycleAPI =
 safeFreeze({
 
 
@@ -537,7 +626,7 @@ safeFreeze({
 
 
 
-  diagnosticsRuntime:
+  diagnostics:
   createReadonlyAccessor(
     "AppDiagnostics"
   ),
@@ -546,7 +635,28 @@ safeFreeze({
 
   health:
   createReadonlyAccessor(
-    "HealthSystem"
+    "HealthAPI"
+  ),
+
+
+
+  runtime:
+  createReadonlyAccessor(
+    "RuntimeManager"
+  ),
+
+
+
+  config:
+  createReadonlyAccessor(
+    "ConfigAPI"
+  ),
+
+
+
+  dependencies:
+  createReadonlyAccessor(
+    "DependencySystem"
   ),
 
 
@@ -555,26 +665,56 @@ safeFreeze({
   // ORCHESTRATION
   // ===================================
 
+  start:
+  lifecycleStart,
+
+
+
   boot:
-  bootLifecycle,
+  lifecycleStart,
+
+
+
+  initialize:
+  lifecycleBootstrap,
 
 
 
   bootstrapApplication:
-  bootstrapLifecycle,
+  lifecycleBootstrap,
+
+
+
+  shutdown:
+  lifecycleShutdown,
 
 
 
   shutdownApplication:
-  shutdownLifecycle,
+  lifecycleShutdown,
+
+
+
+  cleanup:
+  lifecycleCleanup,
+
+
+
+  recover:
+  lifecycleRecover,
+
+
+
+  status:
+  lifecycleStatus,
 
 
 
   // ===================================
-  // DIAGNOSTICS
+  // SNAPSHOT
   // ===================================
 
-  diagnostics:
+  snapshot:
   getLifecycleDiagnostics
 
 });
@@ -594,12 +734,12 @@ if(
 
     window,
 
-    "LifecycleIndex",
+    "LifecycleAPI",
 
     {
 
       value:
-      LifecycleIndex,
+      LifecycleAPI,
 
       writable:
       false,
