@@ -1016,3 +1016,498 @@ async function processAPIQueue(){
   }
 
 }
+
+
+
+// =====================================
+// EXECUTE REQUEST
+// =====================================
+
+async function executeAPIRequest(
+  options = {},
+  requestId
+){
+
+  if(
+
+    !validateEndpoint(
+      options.endpoint
+    )
+
+  ){
+
+    throw createAPIError({
+
+      message:
+      "Invalid endpoint",
+
+      code:
+      "INVALID_ENDPOINT"
+
+    });
+
+  }
+
+  const startedAt =
+  Date.now();
+
+  const retries =
+
+    Number.isFinite(
+      options.retries
+    )
+
+    ?
+
+    options.retries
+
+    :
+
+    API_RUNTIME_CONFIG
+    .MAX_RETRIES;
+
+  const timeout =
+
+    Number.isFinite(
+      options.timeout
+    )
+
+    ?
+
+    options.timeout
+
+    :
+
+    API_RUNTIME_CONFIG
+    .DEFAULT_TIMEOUT;
+
+  const controller =
+
+    API_RUNTIME_CONFIG
+    .ENABLE_ABORT_CONTROLLERS
+
+    ?
+
+    new AbortController()
+
+    :
+
+    null;
+
+  apiRuntimeState
+  .pendingRequests++;
+
+  apiRuntimeState
+  .lastRequestAt =
+  Date.now();
+
+  updateAPIStatus();
+
+  apiRuntimeState
+  .activeRequests
+  .set(
+
+    requestId,
+
+    Object.freeze(
+      safeDeepClone(
+        options
+      ) || {}
+    )
+
+  );
+
+  if(controller){
+
+    apiRuntimeState
+    .abortControllers
+    .set(
+      requestId,
+      controller
+    );
+
+  }
+
+  await emitAPIRuntimeEvent(
+
+    API_RUNTIME_EVENTS
+    .REQUEST_STARTED,
+
+    {
+
+      requestId,
+
+      endpoint:
+      options.endpoint
+
+    }
+
+  );
+
+  try{
+
+    for(
+
+      let attempt = 1;
+
+      attempt <= retries;
+
+      attempt++
+
+    ){
+
+      try{
+
+        let body =
+        options.body ?? null;
+
+        const payload =
+        createAPIPayload(
+          body
+        );
+
+        const headers = {
+
+          ...(options.headers || {})
+
+        };
+
+        const isFormData =
+
+          typeof FormData !==
+          "undefined"
+
+          &&
+
+          payload instanceof
+          FormData;
+
+        if(
+
+          payload &&
+
+          !isFormData
+
+        ){
+
+          body =
+          JSON.stringify(
+            payload
+          );
+
+          if(
+
+            !headers[
+              "Content-Type"
+            ]
+
+          ){
+
+            headers[
+              "Content-Type"
+            ] =
+            "application/json";
+
+          }
+
+        }
+
+        const response =
+        await executeWithTimeout(
+
+          () => {
+
+            return fetch(
+
+              options.endpoint,
+
+              {
+
+                method:
+
+                  options.method ||
+                  "GET",
+
+                headers,
+
+                body,
+
+                signal:
+
+                  controller
+                  ?.signal || null
+
+              }
+
+            );
+
+          },
+
+          timeout,
+
+          controller
+
+        );
+
+        const data =
+        await parseAPIResponse(
+          response
+        );
+
+        const result =
+        normalizeAPIResult({
+
+          ok:
+          response.ok,
+
+          status:
+          response.status,
+
+          data,
+
+          headers:
+          response.headers,
+
+          requestId,
+
+          duration:
+
+            Date.now() -
+            startedAt,
+
+          attempt
+
+        });
+
+        apiRuntimeState
+        .diagnostics
+        .requests++;
+
+        if(response.ok){
+
+          apiRuntimeState
+          .diagnostics
+          .successful++;
+
+          apiRuntimeState
+          .lastError =
+          null;
+
+          setAPIStatus(
+            "success"
+          );
+
+          await emitAPIRuntimeEvent(
+
+            API_RUNTIME_EVENTS
+            .REQUEST_SUCCESS,
+
+            {
+
+              requestId,
+
+              endpoint:
+              options.endpoint
+
+            }
+
+          );
+
+          return result;
+
+        }
+
+        throw createAPIError({
+
+          message:
+          "HTTP ERROR",
+
+          code:
+          String(
+            response.status
+          )
+
+        });
+
+      }
+
+      catch(error){
+
+        const aborted =
+        isAbortError(
+          error
+        );
+
+        if(aborted){
+
+          apiRuntimeState
+          .diagnostics
+          .aborted++;
+
+          await emitAPIRuntimeEvent(
+
+            API_RUNTIME_EVENTS
+            .REQUEST_ABORTED,
+
+            {
+
+              requestId,
+
+              endpoint:
+              options.endpoint
+
+            }
+
+          );
+
+          throw createAPIError({
+
+            message:
+            "Request aborted",
+
+            code:
+            "REQUEST_ABORTED"
+
+          });
+
+        }
+
+        if(
+          attempt < retries
+        ){
+
+          apiRuntimeState
+          .diagnostics
+          .retries++;
+
+          await wait(
+
+            calculateRetryDelay(
+              attempt
+            )
+
+          );
+
+          continue;
+
+        }
+
+        apiRuntimeState
+        .diagnostics
+        .failed++;
+
+        apiRuntimeState
+        .lastError =
+        String(error);
+
+        setAPIStatus(
+          "error"
+        );
+
+        await emitAPIRuntimeEvent(
+
+          API_RUNTIME_EVENTS
+          .REQUEST_FAILED,
+
+          {
+
+            requestId,
+
+            endpoint:
+            options.endpoint,
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+        throw createAPIError({
+
+          message:
+          String(error),
+
+          code:
+          "REQUEST_FAILED"
+
+        });
+
+      }
+
+    }
+
+  }
+
+  finally{
+
+    cleanupAPIRequest(
+      requestId
+    );
+
+    Promise.resolve()
+    .then(() => {
+
+      processAPIQueue();
+
+    });
+
+  }
+
+}
+
+
+
+// =====================================
+// ABORT REQUEST
+// =====================================
+
+function abortAPIRequest(
+  requestId
+){
+
+  const controller =
+
+    apiRuntimeState
+    .abortControllers
+    .get(
+      requestId
+    );
+
+  if(!controller){
+
+    return false;
+
+  }
+
+  controller.abort();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// ABORT ALL REQUESTS
+// =====================================
+
+function abortAllAPIRequests(){
+
+  apiRuntimeState
+  .abortControllers
+  .forEach((controller) => {
+
+    try{
+
+      controller.abort();
+
+    }
+
+    catch(error){}
+
+  });
+
+  return true;
+
+}
