@@ -230,15 +230,19 @@ function cleanupApplicationUI(){
 
   try{
 
-    const sendButton =
+    const appDOM =
     getShutdownDependency(
-      "sendButton"
+      "AppDOM"
     );
 
+    const refs =
+    appDOM?.refs?.();
+
+    const sendButton =
+    refs?.sendButton;
+
     const messageInput =
-    getShutdownDependency(
-      "messageInput"
-    );
+    refs?.messageInput;
 
     if(sendButton){
 
@@ -276,18 +280,26 @@ function cleanupMessageRuntime(){
 
   try{
 
-    const messageRuntimeState =
+    const messageRuntime =
     getShutdownDependency(
-      "messageRuntimeState"
+      "MessageRuntime"
     );
 
     if(
-      messageRuntimeState
+      messageRuntime &&
+      typeof messageRuntime.snapshot ===
+      "function"
     ){
 
-      messageRuntimeState
-      .sending =
-      false;
+      const snapshot =
+      messageRuntime.snapshot();
+
+      if(snapshot){
+
+        snapshot.sending =
+        false;
+
+      }
 
     }
 
@@ -530,10 +542,10 @@ function createShutdownSnapshot(){
       ?
 
       shutdownRuntimeState
-      .lastShutdownAt -
+      .lastCleanupAt -
 
       shutdownRuntimeState
-      .lastCleanupAt
+      .lastShutdownAt
 
       :
 
