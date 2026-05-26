@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
-// DEPENDENCY CONTAINER
-// ENTERPRISE KERNEL FINAL
+// CORE CONTAINER
 // =====================================
 
 
@@ -10,7 +9,7 @@
 // PUBLIC API
 // =====================================
 
-const DependencyContainer =
+const Container =
 Object.freeze({
 
 
@@ -20,10 +19,10 @@ Object.freeze({
   // ===================================
 
   initialize:
-  initializeDependencyContainer,
+  initializeContainer,
 
   reset:
-  resetDependencyContainer,
+  resetContainer,
 
   diagnostics:
   getContainerDiagnostics,
@@ -101,7 +100,7 @@ if(
   "undefined"
 ){
 
-  window.DependencyContainer =
-  DependencyContainer;
+  window.Container =
+  Container;
 
 }
