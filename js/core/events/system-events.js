@@ -357,7 +357,9 @@ function createSystemEvent(
     Date.now(),
 
     retries:
-    0,
+    Number(
+      options.retries
+    ) || 0,
 
     replay:
     Boolean(
@@ -482,12 +484,6 @@ function onSystemEvent(
     listener
   );
 
-
-
-  // ===================================
-  // UNSUBSCRIBE HANDLE
-  // ===================================
-
   return () => {
 
     offSystemEvent(
@@ -548,12 +544,28 @@ function onceSystemEvent(
 
   }
 
-  systemEventsState
-  .onceListeners
-  .get(
-    normalizedEvent
-  )
-  .add(
+  const listeners =
+
+    systemEventsState
+    .onceListeners
+    .get(
+      normalizedEvent
+    );
+
+  if(
+
+    listeners.size >=
+
+    SYSTEM_EVENTS_CONFIG
+    .MAX_LISTENERS
+
+  ){
+
+    return null;
+
+  }
+
+  listeners.add(
     listener
   );
 
@@ -1112,7 +1124,7 @@ async function processSystemEventQueue(){
       }
 
       await executeSystemEvent(
-        queueItem.event
+        queueItem
       );
 
       systemEventsState
@@ -1464,11 +1476,9 @@ async function emitSystemEvent(
 
   systemEventsState
   .eventQueue
-  .push({
-
+  .push(
     event
-
-  });
+  );
 
   systemEventsState
   .queuedEvents++;
@@ -1608,6 +1618,10 @@ function resetSystemEvents(){
 
   systemEventsState
   .scheduledQueue =
+  false;
+
+  systemEventsState
+  .initialized =
   false;
 
   systemEventsState
