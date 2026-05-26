@@ -2,6 +2,7 @@
 // RIGO AI
 // WORKFLOW ENGINE
 // FULL HARDENED PRODUCTION WORKFLOW RUNTIME
+// FINAL HARDENED ENTERPRISE EDITION
 // =====================================
 
 
@@ -173,6 +174,9 @@ Object.seal({
   executionQueue:
   [],
 
+  queuedWorkflowIds:
+  new Set(),
+
   executionHistory:[],
 
   completedWorkflows:
@@ -233,12 +237,9 @@ function freezeWorkflowObject(
 ){
 
   if(
-
     !value ||
-
     typeof value !==
     "object"
-
   ){
 
     return value;
@@ -273,20 +274,15 @@ function freezeWorkflowObject(
 
   }
 
-  visited.add(
-    value
-  );
+  visited.add(value);
 
   Object.values(value)
   .forEach((nestedValue) => {
 
     if(
-
       nestedValue &&
-
       typeof nestedValue ===
       "object"
-
     ){
 
       freezeWorkflowObject(
@@ -340,12 +336,9 @@ function cloneWorkflowObject(
     }
 
     if(
-
       value &&
-
       typeof value ===
       "object"
-
     ){
 
       return {
@@ -386,16 +379,12 @@ function createWorkflowId(){
   try{
 
     if(
-
       typeof crypto !==
       "undefined"
 
       &&
-
-      typeof crypto
-      .randomUUID ===
+      typeof crypto.randomUUID ===
       "function"
-
     ){
 
       return crypto
@@ -457,6 +446,7 @@ function serializeWorkflowContext(
   catch(error){
 
     return "";
+
   }
 
 }
@@ -510,6 +500,141 @@ function trimWorkflowHistory(){
 
 
 
+function updateWorkflowTimestamp(
+  workflow
+){
+
+  workflow.updatedAt =
+  Date.now();
+
+  return true;
+
+}
+
+
+
+function isWorkflowExecutable(
+  workflow
+){
+
+  return (
+
+    workflow.state !==
+    WORKFLOW_STATES
+    .TERMINATED
+
+    &&
+
+    workflow.state !==
+    WORKFLOW_STATES
+    .COMPLETED
+
+    &&
+
+    workflow.runtime
+    ?.running !==
+    true
+
+  );
+
+}
+
+
+
+function cleanupWorkflowRuntime(
+  workflow
+){
+
+  if(!workflow){
+
+    return false;
+
+  }
+
+  workflow.runtime.running =
+  false;
+
+  workflow.runtime.completedAt =
+  Date.now();
+
+  workflow.runtime.controller =
+  null;
+
+  updateWorkflowTimestamp(
+    workflow
+  );
+
+  return true;
+
+}
+
+
+
+function drainWorkflowQueue(){
+
+  if(
+
+    workflowEngineState
+    .executionQueue
+    .length <= 0
+
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    workflowEngineState
+    .activeWorkflows
+    .size >=
+
+    WORKFLOW_ENGINE_CONFIG
+    .MAX_CONCURRENT_WORKFLOWS
+
+  ){
+
+    return false;
+
+  }
+
+  const queuedWorkflow =
+  workflowEngineState
+  .executionQueue
+  .shift();
+
+  if(!queuedWorkflow){
+
+    return false;
+
+  }
+
+  workflowEngineState
+  .queuedWorkflowIds
+  .delete(
+    queuedWorkflow.workflowId
+  );
+
+  executeWorkflow(
+
+    queuedWorkflow.workflowId,
+
+    queuedWorkflow.context
+
+  )
+  .catch(() => {});
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
 function createWorkflowSnapshot(){
 
   return freezeWorkflowObject({
@@ -519,40 +644,34 @@ function createWorkflowSnapshot(){
     .initialized,
 
     workflows:
-
-      workflowEngineState
-      .workflows
-      .size,
+    workflowEngineState
+    .workflows
+    .size,
 
     activeWorkflows:
-
-      workflowEngineState
-      .activeWorkflows
-      .size,
+    workflowEngineState
+    .activeWorkflows
+    .size,
 
     completedWorkflows:
-
-      workflowEngineState
-      .completedWorkflows
-      .size,
+    workflowEngineState
+    .completedWorkflows
+    .size,
 
     failedWorkflows:
-
-      workflowEngineState
-      .failedWorkflows
-      .size,
+    workflowEngineState
+    .failedWorkflows
+    .size,
 
     queue:
-
-      workflowEngineState
-      .executionQueue
-      .length,
+    workflowEngineState
+    .executionQueue
+    .length,
 
     history:
-
-      workflowEngineState
-      .executionHistory
-      .length,
+    workflowEngineState
+    .executionHistory
+    .length,
 
     timestamp:
     Date.now()
@@ -563,16 +682,18 @@ function createWorkflowSnapshot(){
 
 
 
+// =====================================
+// EVENTS
+// =====================================
+
 async function emitWorkflowEvent(
   eventName,
   payload = {}
 ){
 
   if(
-
     !WORKFLOW_ENGINE_CONFIG
     .ENABLE_WORKFLOW_EVENTS
-
   ){
 
     return false;
@@ -622,13 +743,18 @@ async function emitWorkflowEvent(
 
 
 
+// =====================================
+// TIMEOUT EXECUTION
+// =====================================
+
 async function executeWithWorkflowTimeout(
   callback,
   timeout,
   controller = null
 ){
 
-  let timeoutId = null;
+  let timeoutId =
+  null;
 
   try{
 
@@ -668,9 +794,7 @@ async function executeWithWorkflowTimeout(
 
   finally{
 
-    if(
-      timeoutId
-    ){
+    if(timeoutId){
 
       clearTimeout(
         timeoutId
@@ -748,24 +872,6 @@ function createWorkflowObject(
   config = {}
 ){
 
-  const steps =
-
-    Array.isArray(
-      config.steps
-    )
-
-    ? config.steps
-    .slice(
-
-      0,
-
-      WORKFLOW_ENGINE_CONFIG
-      .MAX_STEPS
-
-    )
-
-    : [];
-
   const runtime = {
 
     running:false,
@@ -789,118 +895,140 @@ function createWorkflowObject(
 
   };
 
-  return {
+  const workflow = {
 
-    ...freezeWorkflowObject({
+    id:
+    normalizeWorkflowId(
+
+      config.id ||
+
+      createWorkflowId()
+
+    ),
+
+    name:
+    String(
+      config.name ||
+      "workflow"
+    ),
+
+    description:
+    String(
+      config.description ||
+      ""
+    ),
+
+    state:
+    WORKFLOW_STATES
+    .CREATED,
+
+    retries:0,
+
+    metadata:
+    cloneWorkflowObject(
+      config.metadata || {}
+    ),
+
+    createdAt:
+    Date.now(),
+
+    updatedAt:
+    Date.now(),
+
+    runtime,
+
+    steps:[]
+  };
+
+  const steps =
+
+    Array.isArray(
+      config.steps
+    )
+
+    ?
+
+    config.steps
+    .slice(
+
+      0,
+
+      WORKFLOW_ENGINE_CONFIG
+      .MAX_STEPS
+
+    )
+
+    :
+
+    [];
+
+  workflow.steps =
+  steps.map((step) => {
+
+    return {
 
       id:
       normalizeWorkflowId(
 
-        config.id ||
+        step.id ||
 
         createWorkflowId()
 
       ),
 
       name:
+      String(
+        step.name ||
+        "step"
+      ),
 
-        String(
-          config.name ||
-          "workflow"
-        ),
+      type:
+      String(
+        step.type ||
+        "generic"
+      ),
 
-      description:
+      condition:
+      step.condition,
 
-        String(
-          config.description ||
-          ""
-        ),
+      execute:
+
+        typeof step.execute ===
+        "function"
+
+        ?
+
+        step.execute
+
+        :
+
+        null,
+
+      parallel:
+      step.parallel ===
+      true,
 
       state:
-      WORKFLOW_STATES
-      .CREATED,
+      WORKFLOW_STEP_STATES
+      .PENDING,
 
       retries:0,
 
-      steps:
-      steps.map((step) => {
-
-        return freezeWorkflowObject({
-
-          id:
-
-            normalizeWorkflowId(
-
-              step.id ||
-
-              createWorkflowId()
-
-            ),
-
-          name:
-
-            String(
-              step.name ||
-              "step"
-            ),
-
-          type:
-
-            String(
-              step.type ||
-              "generic"
-            ),
-
-          condition:
-          step.condition,
-
-          execute:
-          step.execute,
-
-          parallel:
-          step.parallel ===
-          true,
-
-          state:
-
-            WORKFLOW_STEP_STATES
-            .PENDING,
-
-          retries:0,
-
-          createdAt:
-          Date.now()
-
-        });
-
-      }),
-
-      metadata:
-      cloneWorkflowObject(
-
-        config.metadata ||
-        {}
-
-      ),
-
       createdAt:
-      Date.now(),
-
-      updatedAt:
       Date.now()
 
-    }),
+    };
 
-    runtime
+  });
 
-  };
+  return workflow;
 
 }
 
 
 
 // =====================================
-// REGISTER WORKFLOW
+// REGISTER
 // =====================================
 
 async function registerWorkflow(
@@ -977,14 +1105,11 @@ async function registerWorkflow(
 
   await emitWorkflowEvent(
 
-    WORKFLOW_EVENTS
-    .CREATED,
+    WORKFLOW_EVENTS.CREATED,
 
     {
-
       workflowId:
       workflow.id
-
     }
 
   );
@@ -1000,7 +1125,157 @@ async function registerWorkflow(
 
 
 // =====================================
-// CONDITIONAL EXECUTION
+// GET
+// =====================================
+
+function getWorkflow(
+  workflowId
+){
+
+  const workflow =
+  workflowEngineState
+  .workflows
+  .get(
+    normalizeWorkflowId(
+      workflowId
+    )
+  );
+
+  if(!workflow){
+
+    return null;
+
+  }
+
+  return freezeWorkflowObject(
+    cloneWorkflowObject(
+      workflow
+    )
+  );
+
+}
+
+
+
+// =====================================
+// LIST
+// =====================================
+
+function listWorkflows(){
+
+  return freezeWorkflowObject(
+
+    [
+
+      ...workflowEngineState
+      .workflows
+      .values()
+
+    ]
+    .map((workflow) => {
+
+      return cloneWorkflowObject(
+        workflow
+      );
+
+    })
+
+  );
+
+}
+
+
+
+// =====================================
+// REMOVE
+// =====================================
+
+async function removeWorkflow(
+  workflowId
+){
+
+  const normalizedId =
+  normalizeWorkflowId(
+    workflowId
+  );
+
+  const workflow =
+  workflowEngineState
+  .workflows
+  .get(
+    normalizedId
+  );
+
+  if(!workflow){
+
+    return false;
+
+  }
+
+  await terminateWorkflow(
+    normalizedId
+  );
+
+  workflowEngineState
+  .workflows
+  .delete(
+    normalizedId
+  );
+
+  workflowEngineState
+  .completedWorkflows
+  .delete(
+    normalizedId
+  );
+
+  workflowEngineState
+  .failedWorkflows
+  .delete(
+    normalizedId
+  );
+
+  workflowEngineState
+  .queuedWorkflowIds
+  .delete(
+    normalizedId
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PROCESS
+// =====================================
+
+async function processWorkflowRequest(
+  payload = {}
+){
+
+  const workflow =
+  await registerWorkflow(
+    payload
+  );
+
+  if(!workflow){
+
+    return false;
+
+  }
+
+  return executeWorkflow(
+    workflow.id,
+    payload.context || {}
+  );
+
+}
+
+
+
+// =====================================
+// CONDITIONALS
 // =====================================
 
 async function validateStepCondition(
@@ -1009,10 +1284,8 @@ async function validateStepCondition(
 ){
 
   if(
-
     !WORKFLOW_ENGINE_CONFIG
     .ENABLE_CONDITIONALS
-
   ){
 
     return true;
@@ -1071,11 +1344,8 @@ async function executeWorkflowStep(
 
   const validCondition =
   await validateStepCondition(
-
     step,
-
     context
-
   );
 
   if(!validCondition){
@@ -1105,24 +1375,28 @@ async function executeWorkflowStep(
 
     attempts++;
 
-    await emitWorkflowEvent(
-
-      WORKFLOW_EVENTS
-      .STEP_STARTED,
-
-      {
-
-        workflowId:
-        workflow.id,
-
-        stepId:
-        step.id
-
-      }
-
-    );
-
     try{
+
+      step.state =
+      WORKFLOW_STEP_STATES
+      .RUNNING;
+
+      await emitWorkflowEvent(
+
+        WORKFLOW_EVENTS
+        .STEP_STARTED,
+
+        {
+
+          workflowId:
+          workflow.id,
+
+          stepId:
+          step.id
+
+        }
+
+      );
 
       await safelyExecuteStep(
 
@@ -1139,47 +1413,18 @@ async function executeWorkflowStep(
           context:
           cloneWorkflowObject(
             context
-          ),
-
-          tools:
-
-            typeof ToolExecutor !==
-            "undefined"
-
-            ? ToolExecutor
-
-            : null,
-
-          agents:
-
-            typeof AgentManager !==
-            "undefined"
-
-            ? AgentManager
-
-            : null,
-
-          planner:
-
-            typeof PlannerEngine !==
-            "undefined"
-
-            ? PlannerEngine
-
-            : null,
-
-          contexts:
-
-            typeof ContextManager !==
-            "undefined"
-
-            ? ContextManager
-
-            : null
+          )
 
         }
 
       );
+
+      step.state =
+      WORKFLOW_STEP_STATES
+      .COMPLETED;
+
+      step.retries =
+      attempts - 1;
 
       workflowEngineState
       .diagnostics
@@ -1202,42 +1447,15 @@ async function executeWorkflowStep(
 
       );
 
-      return {
-
-        ...step,
-
-        retries:
-        attempts - 1,
-
-        state:
-        WORKFLOW_STEP_STATES
-        .COMPLETED
-
-      };
+      return step;
 
     }
 
     catch(error){
 
-      await emitWorkflowEvent(
-
-        WORKFLOW_EVENTS
-        .STEP_FAILED,
-
-        {
-
-          workflowId:
-          workflow.id,
-
-          stepId:
-          step.id,
-
-          error:
-          String(error)
-
-        }
-
-      );
+      workflowEngineState
+      .diagnostics
+      .retries++;
 
       if(
 
@@ -1248,24 +1466,36 @@ async function executeWorkflowStep(
 
       ){
 
-        return {
+        step.state =
+        WORKFLOW_STEP_STATES
+        .FAILED;
 
-          ...step,
+        step.retries =
+        attempts;
 
-          retries:
-          attempts,
+        await emitWorkflowEvent(
 
-          state:
-          WORKFLOW_STEP_STATES
-          .FAILED
+          WORKFLOW_EVENTS
+          .STEP_FAILED,
 
-        };
+          {
+
+            workflowId:
+            workflow.id,
+
+            stepId:
+            step.id,
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+        return step;
 
       }
-
-      workflowEngineState
-      .diagnostics
-      .retries++;
 
       await delayWorkflowExecution(
 
@@ -1302,51 +1532,33 @@ async function executeParallelSteps(
 
   );
 
-  const executions =
-  limitedSteps.map((step) => {
-
-    return executeWorkflowStep(
-
-      workflow,
-
-      step,
-
-      context
-
-    );
-
-  });
-
   const results =
-  await Promise.allSettled(
-    executions
+  await Promise.all(
+
+    limitedSteps.map((step) => {
+
+      return executeWorkflowStep(
+
+        workflow,
+
+        step,
+
+        context
+
+      );
+
+    })
+
   );
 
-  return results.every((result) => {
-
-    return (
-
-      result.status ===
-      "fulfilled"
-
-      &&
-
-      result.value
-      ?.state ===
-
-      WORKFLOW_STEP_STATES
-      .COMPLETED
-
-    );
-
-  });
+  return results;
 
 }
 
 
 
 // =====================================
-// EXECUTE WORKFLOW
+// EXECUTE
 // =====================================
 
 async function executeWorkflow(
@@ -1359,23 +1571,7 @@ async function executeWorkflow(
     workflowId
   );
 
-  if(
-    !normalizedId
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    workflowEngineState
-    .executionLocks
-    .has(
-      normalizedId
-    )
-
-  ){
+  if(!normalizedId){
 
     return false;
 
@@ -1396,14 +1592,37 @@ async function executeWorkflow(
   }
 
   const workflow =
-
-    workflowEngineState
-    .workflows
-    .get(
-      normalizedId
-    );
+  workflowEngineState
+  .workflows
+  .get(
+    normalizedId
+  );
 
   if(!workflow){
+
+    return false;
+
+  }
+
+  if(
+    !isWorkflowExecutable(
+      workflow
+    )
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    workflowEngineState
+    .executionLocks
+    .has(
+      normalizedId
+    )
+
+  ){
 
     return false;
 
@@ -1439,6 +1658,24 @@ async function executeWorkflow(
 
     }
 
+    if(
+
+      workflowEngineState
+      .queuedWorkflowIds
+      .has(normalizedId)
+
+    ){
+
+      return {
+        queued:true
+      };
+
+    }
+
+    workflowEngineState
+    .queuedWorkflowIds
+    .add(normalizedId);
+
     workflowEngineState
     .executionQueue
     .push({
@@ -1447,6 +1684,7 @@ async function executeWorkflow(
       normalizedId,
 
       context
+
     });
 
     workflowEngineState
@@ -1471,17 +1709,19 @@ async function executeWorkflow(
     normalizedId
   );
 
-  workflow.runtime
-  .running =
+  workflow.runtime.running =
   true;
 
-  workflow.runtime
-  .startedAt =
+  workflow.runtime.startedAt =
   Date.now();
 
   workflow.state =
   WORKFLOW_STATES
   .RUNNING;
+
+  updateWorkflowTimestamp(
+    workflow
+  );
 
   workflowEngineState
   .diagnostics
@@ -1501,267 +1741,236 @@ async function executeWorkflow(
 
   );
 
-  let attempts = 0;
-
   try{
 
-    while(
+    const completedSteps = [];
 
-      attempts <
+    const parallelSteps =
+    workflow.steps.filter((step) => {
 
-      WORKFLOW_ENGINE_CONFIG
-      .MAX_RETRIES
+      return (
+        step.parallel ===
+        true
+      );
 
+    });
+
+    const sequentialSteps =
+    workflow.steps.filter((step) => {
+
+      return (
+        step.parallel !==
+        true
+      );
+
+    });
+
+    if(
+      parallelSteps.length > 0
     ){
 
-      attempts++;
+      const results =
+      await executeParallelSteps(
 
-      try{
+        workflow,
 
-        const parallelSteps =
-        workflow.steps.filter((step) => {
+        parallelSteps,
 
-          return (
-            step.parallel ===
-            true
-          );
+        context
 
-        });
+      );
 
-        const sequentialSteps =
-        workflow.steps.filter((step) => {
+      completedSteps.push(
+        ...results
+      );
 
-          return (
-            step.parallel !==
-            true
-          );
+    }
 
-        });
+    for(
+      const step
+      of sequentialSteps
+    ){
 
-        if(
-          parallelSteps.length > 0
-        ){
-
-          const parallelSuccess =
-          await executeParallelSteps(
-
-            workflow,
-
-            parallelSteps,
-
-            context
-
-          );
-
-          if(!parallelSuccess){
-
-            throw new Error(
-              "PARALLEL EXECUTION FAILED"
-            );
-
-          }
-
-        }
-
-        for(
-          const step
-          of sequentialSteps
-        ){
-
-          if(
-
-            workflow.runtime
-            .controller
-            ?.signal
-            ?.aborted
-
-          ){
-
-            throw new Error(
-              "WORKFLOW TERMINATED"
-            );
-
-          }
-
-          const result =
-          await executeWorkflowStep(
-
-            workflow,
-
-            step,
-
-            context
-
-          );
-
-          if(
-
-            result.state !==
-            WORKFLOW_STEP_STATES
-            .COMPLETED
-
-          ){
-
-            throw new Error(
-              "WORKFLOW STEP FAILED"
-            );
-
-          }
-
-        }
+      if(
 
         workflow.runtime
-        .running =
-        false;
+        .controller
+        ?.signal
+        ?.aborted
 
-        workflow.runtime
-        .completedAt =
-        Date.now();
+      ){
 
-        workflow.state =
-        WORKFLOW_STATES
-        .COMPLETED;
-
-        workflowEngineState
-        .completedWorkflows
-        .add(
-          normalizedId
+        throw new Error(
+          "WORKFLOW TERMINATED"
         );
-
-        workflowEngineState
-        .failedWorkflows
-        .delete(
-          normalizedId
-        );
-
-        workflowEngineState
-        .executionHistory
-        .push({
-
-          workflowId:
-          normalizedId,
-
-          success:true,
-
-          timestamp:
-          Date.now()
-
-        });
-
-        trimWorkflowHistory();
-
-        workflowEngineState
-        .diagnostics
-        .completed++;
-
-        await emitWorkflowEvent(
-
-          WORKFLOW_EVENTS
-          .COMPLETED,
-
-          {
-
-            workflowId:
-            normalizedId
-
-          }
-
-        );
-
-        return true;
 
       }
 
-      catch(error){
+      const result =
+      await executeWorkflowStep(
 
-        workflowEngineState
-        .diagnostics
-        .failed++;
+        workflow,
 
-        await emitWorkflowEvent(
+        step,
 
-          WORKFLOW_EVENTS
-          .FAILED,
+        context
 
-          {
+      );
 
-            workflowId:
-            normalizedId,
+      completedSteps.push(
+        result
+      );
 
-            error:
-            String(error)
+      if(
 
-          }
+        result.state !==
+        WORKFLOW_STEP_STATES
+        .COMPLETED
 
-        );
+        &&
 
-        if(
+        result.state !==
+        WORKFLOW_STEP_STATES
+        .SKIPPED
 
-          attempts >=
+      ){
 
-          WORKFLOW_ENGINE_CONFIG
-          .MAX_RETRIES
-
-        ){
-
-          workflow.state =
-          WORKFLOW_STATES
-          .FAILED;
-
-          workflow.retries =
-          attempts;
-
-          workflowEngineState
-          .failedWorkflows
-          .add(
-            normalizedId
-          );
-
-          workflowEngineState
-          .executionHistory
-          .push({
-
-            workflowId:
-            normalizedId,
-
-            success:false,
-
-            error:
-            String(error),
-
-            timestamp:
-            Date.now()
-
-          });
-
-          trimWorkflowHistory();
-
-          return false;
-
-        }
-
-        workflowEngineState
-        .diagnostics
-        .retries++;
-
-        await delayWorkflowExecution(
-
-          WORKFLOW_ENGINE_CONFIG
-          .RETRY_DELAY
-
+        throw new Error(
+          "WORKFLOW STEP FAILED"
         );
 
       }
 
     }
 
+    workflow.steps =
+    completedSteps;
+
+    workflow.state =
+    WORKFLOW_STATES
+    .COMPLETED;
+
+    cleanupWorkflowRuntime(
+      workflow
+    );
+
+    workflowEngineState
+    .completedWorkflows
+    .add(
+      normalizedId
+    );
+
+    workflowEngineState
+    .failedWorkflows
+    .delete(
+      normalizedId
+    );
+
+    workflowEngineState
+    .executionHistory
+    .push({
+
+      workflowId:
+      normalizedId,
+
+      success:true,
+
+      timestamp:
+      Date.now()
+
+    });
+
+    trimWorkflowHistory();
+
+    workflowEngineState
+    .diagnostics
+    .completed++;
+
+    await emitWorkflowEvent(
+
+      WORKFLOW_EVENTS
+      .COMPLETED,
+
+      {
+
+        workflowId:
+        normalizedId
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    workflow.state =
+    WORKFLOW_STATES
+    .FAILED;
+
+    workflow.retries++;
+
+    cleanupWorkflowRuntime(
+      workflow
+    );
+
+    workflowEngineState
+    .failedWorkflows
+    .add(
+      normalizedId
+    );
+
+    workflowEngineState
+    .diagnostics
+    .failed++;
+
+    workflowEngineState
+    .executionHistory
+    .push({
+
+      workflowId:
+      normalizedId,
+
+      success:false,
+
+      error:
+      String(error),
+
+      timestamp:
+      Date.now()
+
+    });
+
+    trimWorkflowHistory();
+
+    await emitWorkflowEvent(
+
+      WORKFLOW_EVENTS
+      .FAILED,
+
+      {
+
+        workflowId:
+        normalizedId,
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    return false;
+
   }
 
   finally{
 
-    workflow.runtime
-    .running =
-    false;
+    cleanupWorkflowRuntime(
+      workflow
+    );
 
     workflowEngineState
     .activeWorkflows
@@ -1775,31 +1984,7 @@ async function executeWorkflow(
       normalizedId
     );
 
-    if(
-
-      workflowEngineState
-      .executionQueue
-      .length > 0
-
-    ){
-
-      const queuedWorkflow =
-      workflowEngineState
-      .executionQueue
-      .shift();
-
-      executeWorkflow(
-
-        queuedWorkflow
-        .workflowId,
-
-        queuedWorkflow
-        .context
-
-      )
-      .catch(() => {});
-
-    }
+    drainWorkflowQueue();
 
   }
 
@@ -1808,7 +1993,7 @@ async function executeWorkflow(
 
 
 // =====================================
-// TERMINATE WORKFLOW
+// TERMINATE
 // =====================================
 
 async function terminateWorkflow(
@@ -1820,21 +2005,12 @@ async function terminateWorkflow(
     workflowId
   );
 
-  if(
-    !normalizedId
-  ){
-
-    return false;
-
-  }
-
   const workflow =
-
-    workflowEngineState
-    .workflows
-    .get(
-      normalizedId
-    );
+  workflowEngineState
+  .workflows
+  .get(
+    normalizedId
+  );
 
   if(!workflow){
 
@@ -1846,13 +2022,13 @@ async function terminateWorkflow(
   .controller
   ?.abort();
 
-  workflow.runtime
-  .running =
-  false;
-
   workflow.state =
   WORKFLOW_STATES
   .TERMINATED;
+
+  cleanupWorkflowRuntime(
+    workflow
+  );
 
   workflowEngineState
   .activeWorkflows
@@ -1862,6 +2038,12 @@ async function terminateWorkflow(
 
   workflowEngineState
   .executionLocks
+  .delete(
+    normalizedId
+  );
+
+  workflowEngineState
+  .queuedWorkflowIds
   .delete(
     normalizedId
   );
@@ -1891,7 +2073,7 @@ async function terminateWorkflow(
 
 
 // =====================================
-// HEALTH REPORT
+// HEALTH
 // =====================================
 
 function getWorkflowHealthReport(){
@@ -1912,22 +2094,19 @@ function getWorkflowHealthReport(){
       .MAX_CONCURRENT_WORKFLOWS,
 
     workflows:
-
-      workflowEngineState
-      .workflows
-      .size,
+    workflowEngineState
+    .workflows
+    .size,
 
     activeWorkflows:
-
-      workflowEngineState
-      .activeWorkflows
-      .size,
+    workflowEngineState
+    .activeWorkflows
+    .size,
 
     queue:
-
-      workflowEngineState
-      .executionQueue
-      .length,
+    workflowEngineState
+    .executionQueue
+    .length,
 
     diagnostics:
     cloneWorkflowDiagnostics(),
@@ -1954,48 +2133,41 @@ function getWorkflowDiagnostics(){
     .initialized,
 
     workflows:
-
-      workflowEngineState
-      .workflows
-      .size,
+    workflowEngineState
+    .workflows
+    .size,
 
     activeWorkflows:
-
-      workflowEngineState
-      .activeWorkflows
-      .size,
+    workflowEngineState
+    .activeWorkflows
+    .size,
 
     completedWorkflows:
-
-      workflowEngineState
-      .completedWorkflows
-      .size,
+    workflowEngineState
+    .completedWorkflows
+    .size,
 
     failedWorkflows:
-
-      workflowEngineState
-      .failedWorkflows
-      .size,
+    workflowEngineState
+    .failedWorkflows
+    .size,
 
     queue:
-
-      workflowEngineState
-      .executionQueue
-      .length,
+    workflowEngineState
+    .executionQueue
+    .length,
 
     history:
-
-      workflowEngineState
-      .executionHistory
-      .length,
+    workflowEngineState
+    .executionHistory
+    .length,
 
     diagnostics:
     cloneWorkflowDiagnostics(),
 
     lastWorkflowAt:
-
-      workflowEngineState
-      .lastWorkflowAt
+    workflowEngineState
+    .lastWorkflowAt
 
   });
 
@@ -2008,6 +2180,19 @@ function getWorkflowDiagnostics(){
 // =====================================
 
 async function resetWorkflowEngine(){
+
+  for(
+    const workflowId
+    of
+    workflowEngineState
+    .activeWorkflows
+  ){
+
+    await terminateWorkflow(
+      workflowId
+    );
+
+  }
 
   workflowEngineState
   .workflows
@@ -2024,6 +2209,10 @@ async function resetWorkflowEngine(){
   workflowEngineState
   .executionQueue =
   [];
+
+  workflowEngineState
+  .queuedWorkflowIds
+  .clear();
 
   workflowEngineState
   .executionHistory =
@@ -2079,20 +2268,6 @@ async function shutdownWorkflowEngine(){
   workflowEngineState
   .shuttingDown =
   true;
-
-  for(
-    const workflowId
-    of
-    workflowEngineState
-    .activeWorkflows
-  ){
-
-    terminateWorkflow(
-      workflowId
-    )
-    .catch(() => {});
-
-  }
 
   await resetWorkflowEngine();
 
@@ -2231,6 +2406,18 @@ Object.freeze({
   terminate:
   terminateWorkflow,
 
+  process:
+  processWorkflowRequest,
+
+  get:
+  getWorkflow,
+
+  list:
+  listWorkflows,
+
+  remove:
+  removeWorkflow,
+
   diagnostics:
   getWorkflowDiagnostics,
 
@@ -2246,6 +2433,10 @@ Object.freeze({
 });
 
 
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
 
 if(
   typeof window !==
