@@ -2,7 +2,36 @@
 // RIGO AI
 // STATE INDEX
 // SAFE STATE COMPOSITION LAYER
+// ENTERPRISE FINAL
 // =====================================
+
+
+
+// =====================================
+// STATE FILES
+// =====================================
+
+import "./app-state.js";
+import "./state-manager.js";
+
+
+
+// =====================================
+// INTERNAL STATE
+// =====================================
+
+const stateIndexRuntime =
+Object.seal({
+
+  initialized:false,
+
+  initializing:false,
+
+  lastInitializedAt:null,
+
+  lastError:null
+
+});
 
 
 
@@ -71,6 +100,39 @@ function isFunction(
 
 
 
+function isPlainObject(
+  value
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
+
+}
+
+
+
 function safeFreeze(
   value,
   visited = new WeakSet()
@@ -115,6 +177,18 @@ function safeFreeze(
 
       value instanceof HTMLElement
     )
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    !Array.isArray(value) &&
+
+    !isPlainObject(value)
 
   ){
 
@@ -190,6 +264,200 @@ function safelyExecuteStateOperation(
     );
 
     return fallback;
+
+  }
+
+}
+
+
+
+function normalizeStateError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+function emitStateWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+
+    `[StateIndex] ${message}`,
+
+    error || ""
+
+  );
+
+}
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function validateStateLayer(){
+
+  if(
+    typeof window ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  const requiredSystems = [
+
+    "AppState",
+
+    "StateManager"
+
+  ];
+
+  const missingSystems =
+
+    requiredSystems.filter((systemName) => {
+
+      return (
+
+        typeof window[
+          systemName
+        ] ===
+
+        "undefined"
+
+      );
+
+    });
+
+  if(
+    missingSystems.length > 0
+  ){
+
+    emitStateWarning(
+
+      `Missing systems: ${missingSystems.join(", ")}`
+
+    );
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+async function initializeStateLayer(){
+
+  if(
+    stateIndexRuntime
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    stateIndexRuntime
+    .initializing
+  ){
+
+    return false;
+
+  }
+
+  stateIndexRuntime
+  .initializing =
+  true;
+
+  stateIndexRuntime
+  .lastError =
+  null;
+
+  try{
+
+    if(
+      !validateStateLayer()
+    ){
+
+      throw new Error(
+        "STATE LAYER VALIDATION FAILED"
+      );
+
+    }
+
+    stateIndexRuntime
+    .initialized =
+    true;
+
+    stateIndexRuntime
+    .lastInitializedAt =
+    Date.now();
+
+    window.__RIGO_STATE_READY__ =
+    true;
+
+    console.info(
+      "[StateIndex] State layer initialized"
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    stateIndexRuntime
+    .lastError =
+    normalizeStateError(
+      error
+    );
+
+    emitStateWarning(
+
+      "State initialization failed",
+
+      error
+
+    );
+
+    return false;
+
+  }
+
+  finally{
+
+    stateIndexRuntime
+    .initializing =
+    false;
 
   }
 
@@ -349,11 +617,58 @@ function getReadonlyStateDiagnostics(){
 
 
 // =====================================
+// STATE SNAPSHOT
+// =====================================
+
+function createStateSnapshot(){
+
+  return safeFreeze({
+
+    initialized:
+    stateIndexRuntime
+    .initialized,
+
+    initializing:
+    stateIndexRuntime
+    .initializing,
+
+    lastInitializedAt:
+    stateIndexRuntime
+    .lastInitializedAt,
+
+    lastError:
+    stateIndexRuntime
+    .lastError,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
 // STATE API
 // =====================================
 
 const StateAPI =
 safeFreeze({
+
+
+
+  // ===================================
+  // LAYER
+  // ===================================
+
+  initialize:
+  initializeStateLayer,
+
+
+
+  snapshot:
+  createStateSnapshot,
 
 
 
@@ -759,5 +1074,40 @@ if(
     }
 
   );
+
+}
+
+
+
+// =====================================
+// SAFE AUTO INITIALIZATION
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  queueMicrotask(async() => {
+
+    try{
+
+      await initializeStateLayer();
+
+    }
+
+    catch(error){
+
+      emitStateWarning(
+
+        "Queued state initialization failed",
+
+        error
+
+      );
+
+    }
+
+  });
 
 }
