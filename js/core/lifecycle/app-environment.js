@@ -35,6 +35,26 @@ function freezeEnvironmentObject(
 
   }
 
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
   visited.add(
     value
   );
@@ -194,6 +214,10 @@ function getBrowserEnvironmentInfo(){
     platform:
 
       navigator
+      ?.userAgentData
+      ?.platform ||
+
+      navigator
       ?.platform ||
 
       null
@@ -279,7 +303,11 @@ function validateAppEnvironment(){
 
     const secureContext =
 
-      hasWindow
+      hasWindow &&
+
+      typeof window
+      .isSecureContext ===
+      "boolean"
 
       ? Boolean(
           window
@@ -413,7 +441,10 @@ Object.freeze({
   validateWorkerSupport,
 
   browser:
-  getBrowserEnvironmentInfo
+  getBrowserEnvironmentInfo,
+
+  environment:
+  createEnvironmentReport
 
 });
 
@@ -428,7 +459,25 @@ if(
   "undefined"
 ){
 
-  window.AppEnvironment =
-  AppEnvironment;
+  Object.defineProperty(
+
+    window,
+
+    "AppEnvironment",
+
+    {
+
+      value:
+      AppEnvironment,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
