@@ -1,9 +1,23 @@
 // =====================================
 // RIGO AI
 // CONFIG INDEX
+// CLEAN CONFIG COMPOSITION LAYER
 // =====================================
 
 
+
+// =====================================
+// CONFIG FILES
+// =====================================
+
+import "./app-config.js";
+import "./config-runtime.js";
+
+
+
+// =====================================
+// CONFIG API
+// =====================================
 
 const Config =
 Object.freeze({
@@ -33,12 +47,34 @@ Object.freeze({
 
 
 
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
 if(
   typeof window !==
   "undefined"
 ){
 
-  window.Config =
-  Config;
+  Object.defineProperty(
+
+    window,
+
+    "Config",
+
+    {
+
+      value:
+      Config,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
