@@ -321,14 +321,7 @@ function createModuleDefinition(
 
     }),
 
-    factory,
-
-    retries:
-    0,
-
-    state:
-    MODULE_STATES
-    .REGISTERED
+    factory
 
   });
 
@@ -586,6 +579,251 @@ function unregisterModuleDefinition(
   .delete(
     normalizedName
   );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INTERNAL RUNTIME MUTATIONS
+// =====================================
+
+function setModuleInstance(
+  moduleName,
+  instance
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState
+  .instances
+  .set(
+
+    normalizedName,
+    instance
+
+  );
+
+  return true;
+
+}
+
+
+
+function removeModuleInstance(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState
+  .instances
+  .delete(
+    normalizedName
+  );
+
+  return true;
+
+}
+
+
+
+function markModuleActive(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState
+  .activeModules
+  .add(
+    normalizedName
+  );
+
+  return true;
+
+}
+
+
+
+function clearActiveModule(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState
+  .activeModules
+  .delete(
+    normalizedName
+  );
+
+  return true;
+
+}
+
+
+
+function markModuleFailed(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState
+  .failedModules
+  .add(
+    normalizedName
+  );
+
+  return true;
+
+}
+
+
+
+function clearFailedModule(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState
+  .failedModules
+  .delete(
+    normalizedName
+  );
+
+  return true;
+
+}
+
+
+
+function pushLoadingModule(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState
+  .loadingStack
+  .push(
+    normalizedName
+  );
+
+  return true;
+
+}
+
+
+
+function removeLoadingModule(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  moduleLoaderState.loadingStack =
+
+    moduleLoaderState
+    .loadingStack
+    .filter((module) => {
+
+      return module !==
+      normalizedName;
+
+    });
 
   return true;
 
@@ -858,6 +1096,22 @@ Object.freeze({
   registerModuleDefinition,
 
   unregisterModuleDefinition,
+
+  setModuleInstance,
+
+  removeModuleInstance,
+
+  markModuleActive,
+
+  clearActiveModule,
+
+  markModuleFailed,
+
+  clearFailedModule,
+
+  pushLoadingModule,
+
+  removeLoadingModule,
 
   getRegisteredModule,
 
