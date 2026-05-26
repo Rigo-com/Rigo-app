@@ -149,6 +149,46 @@ function cloneStateValue(
 
   }
 
+  if(
+    value instanceof Date
+  ){
+
+    return new Date(
+      value.getTime()
+    );
+
+  }
+
+  if(
+    value instanceof RegExp
+  ){
+
+    return new RegExp(
+      value
+    );
+
+  }
+
+  if(
+    value instanceof Set
+  ){
+
+    return new Set(
+      [...value]
+    );
+
+  }
+
+  if(
+    value instanceof Map
+  ){
+
+    return new Map(
+      [...value]
+    );
+
+  }
+
   const clone =
 
     Array.isArray(value)
@@ -209,9 +249,38 @@ function freezeStateObject(
 
   }
 
-  visited.add(value);
+  if(
 
-  Object.freeze(value);
+    value instanceof Promise ||
+
+    value instanceof Date ||
+
+    value instanceof RegExp ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
 
   Object.values(value)
   .forEach((nestedValue) => {
@@ -558,6 +627,11 @@ async function executeStateMiddleware(
 
   }
 
+  const immutableContext =
+  createImmutableState(
+    context
+  );
+
   for(
 
     const middleware
@@ -572,7 +646,9 @@ async function executeStateMiddleware(
     try{
 
       const result =
-      await middleware(context);
+      await middleware(
+        immutableContext
+      );
 
       if(
         result === false
@@ -672,25 +748,28 @@ async function notifyStateSubscribers(
   context
 ){
 
+  const immutableContext =
+  createImmutableState(
+    context
+  );
+
   for(
 
     const subscriber
 
     of
 
-    stateManagerState
-    .subscribers
+    [
+      ...stateManagerState
+      .subscribers
+    ]
 
   ){
 
     try{
 
       await subscriber(
-
-        createImmutableState(
-          context
-        )
-
+        immutableContext
       );
 
     }
@@ -764,7 +843,9 @@ async function applyStateUpdate(
 
     await emitSystemEvent(
       eventName,
-      context
+      createImmutableState(
+        context
+      )
     );
 
   }
@@ -817,7 +898,7 @@ async function updateState(
     ),
 
     metadata:
-    cloneStateValue(
+    createImmutableState(
       metadata
     ),
 
@@ -963,7 +1044,50 @@ async function resetStateManager(){
 
   );
 
-  return reset;
+  if(!reset){
+
+    return false;
+
+  }
+
+  stateManagerState
+  .history =
+  [];
+
+  stateManagerState
+  .snapshots =
+  [];
+
+  stateManagerState
+  .version =
+  1;
+
+  stateManagerState
+  .lastUpdatedAt =
+  null;
+
+  stateManagerState
+  .diagnostics = {
+
+    updates:0,
+
+    removals:0,
+
+    rollbacks:0,
+
+    snapshots:0,
+
+    transactions:0,
+
+    subscribers:
+
+      stateManagerState
+      .subscribers
+      .size
+
+  };
+
+  return true;
 
 }
 
@@ -1209,10 +1333,11 @@ function getStateDiagnostics(){
       stateManagerState
       .activeTransaction,
 
-    diagnostics:
+    diagnostics:{
 
-      stateManagerState
-      .diagnostics,
+      ...stateManagerState
+      .diagnostics
+    },
 
     lastUpdatedAt:
 
