@@ -1511,3 +1511,576 @@ function abortAllAPIRequests(){
   return true;
 
 }
+
+
+
+// =====================================
+// UPLOAD FILE
+// =====================================
+
+async function uploadFile(
+  file,
+  options = {}
+){
+
+  const uploadId =
+  createAPIRequestId();
+
+  try{
+
+    const hasFile =
+
+      typeof File !==
+      "undefined";
+
+    if(
+
+      !hasFile ||
+
+      !(file instanceof File)
+
+    ){
+
+      throw createAPIError({
+
+        message:
+        "Invalid file",
+
+        code:
+        "INVALID_FILE"
+
+      });
+
+    }
+
+    apiRuntimeState
+    .uploads
+    .set(
+
+      uploadId,
+
+      freezeAPIObject({
+
+        startedAt:
+        Date.now(),
+
+        fileName:
+        file.name,
+
+        size:
+        file.size
+
+      })
+
+    );
+
+    await emitAPIRuntimeEvent(
+
+      API_RUNTIME_EVENTS
+      .UPLOAD_STARTED,
+
+      {
+
+        uploadId,
+
+        fileName:
+        file.name
+
+      }
+
+    );
+
+    const formData =
+    new FormData();
+
+    formData.append(
+      "file",
+      file
+    );
+
+    const result =
+    await executeAPIRequest({
+
+      endpoint:
+
+      options.endpoint ||
+
+      API_RUNTIME_CONFIG
+      .UPLOAD_ENDPOINT,
+
+      method:"POST",
+
+      body:formData,
+
+      headers:{
+
+        Accept:
+        "application/json"
+
+      }
+
+    },
+
+    uploadId);
+
+    apiRuntimeState
+    .diagnostics
+    .uploads++;
+
+    await emitAPIRuntimeEvent(
+
+      API_RUNTIME_EVENTS
+      .UPLOAD_COMPLETED,
+
+      {
+
+        uploadId,
+
+        fileName:
+        file.name
+
+      }
+
+    );
+
+    return result;
+
+  }
+
+  catch(error){
+
+    await emitAPIRuntimeEvent(
+
+      API_RUNTIME_EVENTS
+      .UPLOAD_FAILED,
+
+      {
+
+        uploadId,
+
+        fileName:
+        file?.name ||
+
+        "unknown",
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    throw error;
+
+  }
+
+  finally{
+
+    apiRuntimeState
+    .uploads
+    .delete(
+      uploadId
+    );
+
+  }
+
+}
+
+
+
+// =====================================
+// STATUS
+// =====================================
+
+function getAPIStatus(){
+
+  return freezeAPIObject({
+
+    initialized:
+    apiRuntimeState
+    .initialized,
+
+    status:
+    apiRuntimeState
+    .status,
+
+    pendingRequests:
+
+      apiRuntimeState
+      .pendingRequests,
+
+    queuedRequests:
+
+      apiRuntimeState
+      .requestQueue
+      .length,
+
+    activeRequests:
+
+      apiRuntimeState
+      .activeRequests
+      .size,
+
+    uploads:
+
+      apiRuntimeState
+      .uploads
+      .size,
+
+    lastError:
+    apiRuntimeState
+    .lastError,
+
+    lastRequestAt:
+    apiRuntimeState
+    .lastRequestAt
+
+  });
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getAPIDiagnostics(){
+
+  return freezeAPIObject({
+
+    ...getAPIStatus(),
+
+    diagnostics:
+    safeDeepClone(
+
+      apiRuntimeState
+      .diagnostics
+
+    )
+
+  });
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createAPISnapshot(){
+
+  return freezeAPIObject({
+
+    initialized:
+    apiRuntimeState
+    .initialized,
+
+    status:
+    apiRuntimeState
+    .status,
+
+    activeRequests:
+
+      apiRuntimeState
+      .activeRequests
+      .size,
+
+    uploads:
+
+      apiRuntimeState
+      .uploads
+      .size,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
+// HEALTH
+// =====================================
+
+function getAPIHealth(){
+
+  return freezeAPIObject({
+
+    initialized:
+    apiRuntimeState
+    .initialized,
+
+    healthy:
+
+      apiRuntimeState
+      .pendingRequests <=
+
+      API_RUNTIME_CONFIG
+      .MAX_CONCURRENT_REQUESTS,
+
+    diagnostics:
+    getAPIDiagnostics(),
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetAPIRuntime(){
+
+  abortAllAPIRequests();
+
+  apiRuntimeState
+  .activeRequests
+  .clear();
+
+  apiRuntimeState
+  .abortControllers
+  .clear();
+
+  apiRuntimeState
+  .uploads
+  .clear();
+
+  apiRuntimeState
+  .requestQueue = [];
+
+  apiRuntimeState
+  .pendingRequests = 0;
+
+  apiRuntimeState
+  .processingQueue =
+  false;
+
+  apiRuntimeState
+  .lastError = null;
+
+  apiRuntimeState
+  .lastRequestAt = null;
+
+  apiRuntimeState
+  .diagnostics = {
+
+    requests:0,
+
+    successful:0,
+
+    failed:0,
+
+    aborted:0,
+
+    uploads:0,
+
+    retries:0,
+
+    queued:0
+
+  };
+
+  setAPIStatus(
+    "idle"
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownAPIRuntime(){
+
+  apiRuntimeState
+  .shuttingDown =
+  true;
+
+  await resetAPIRuntime();
+
+  apiRuntimeState
+  .initialized =
+  false;
+
+  apiRuntimeState
+  .shuttingDown =
+  false;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+async function initializeAPIRuntime(){
+
+  if(
+    apiRuntimeState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    apiRuntimeState
+    .startupPromise
+  ){
+
+    return apiRuntimeState
+    .startupPromise;
+
+  }
+
+  apiRuntimeState
+  .startupPromise =
+
+  (async() => {
+
+    if(
+      apiRuntimeState
+      .initializing
+    ){
+
+      return false;
+
+    }
+
+    apiRuntimeState
+    .initializing =
+    true;
+
+    try{
+
+      if(
+        !validateAPIEnvironment()
+      ){
+
+        return false;
+
+      }
+
+      apiRuntimeState
+      .initialized =
+      true;
+
+      apiRuntimeState
+      .shuttingDown =
+      false;
+
+      setAPIStatus(
+        "idle"
+      );
+
+      return true;
+
+    }
+
+    finally{
+
+      apiRuntimeState
+      .initializing =
+      false;
+
+      apiRuntimeState
+      .startupPromise =
+      null;
+
+    }
+
+  })();
+
+  return apiRuntimeState
+  .startupPromise;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const APIRuntime =
+freezeAPIObject({
+
+  initialize:
+  initializeAPIRuntime,
+
+  shutdown:
+  shutdownAPIRuntime,
+
+  reset:
+  resetAPIRuntime,
+
+  request:
+  executeAPIRequest,
+
+  upload:
+  uploadFile,
+
+  abort:
+  abortAPIRequest,
+
+  abortAll:
+  abortAllAPIRequests,
+
+  status:
+  getAPIStatus,
+
+  diagnostics:
+  getAPIDiagnostics,
+
+  snapshot:
+  createAPISnapshot,
+
+  health:
+  getAPIHealth
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.APIRuntime =
+  APIRuntime;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.APIRuntime =
+  APIRuntime;
+
+}
