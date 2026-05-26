@@ -16,6 +16,8 @@ Object.seal({
 
   checking:false,
 
+  timer:null,
+
   lastCheckAt:null,
 
   lastResult:null
@@ -49,19 +51,19 @@ function updateHealthMonitorResult(
 function clearHealthcheckTimer(){
 
   if(
-    appState
-    ?.healthcheckTimer
+    healthMonitorState
+    ?.timer
   ){
 
     clearInterval(
 
-      appState
-      .healthcheckTimer
+      healthMonitorState
+      .timer
 
     );
 
-    appState
-    .healthcheckTimer =
+    healthMonitorState
+    .timer =
     null;
 
   }
@@ -93,6 +95,24 @@ async function executeHealthcheck(){
 
   try{
 
+    if(
+      typeof HealthRuntime ===
+      "undefined"
+    ){
+
+      return false;
+
+    }
+
+    if(
+      typeof HealthRuntime.run !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
     const result =
     await HealthRuntime
     .run();
@@ -108,11 +128,12 @@ async function executeHealthcheck(){
   catch(error){
 
     if(
-      typeof logDiagnosticError ===
-      "function"
+      typeof DiagnosticsRuntime !==
+      "undefined"
     ){
 
-      logDiagnosticError(
+      await DiagnosticsRuntime
+      ?.error?.(
 
         "HEALTHCHECK EXECUTION FAILED",
 
@@ -150,6 +171,15 @@ async function executeHealthcheck(){
 function startHealthchecks(){
 
   if(
+    typeof APP_CORE_CONFIG ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
 
     !APP_CORE_CONFIG
     .ENABLE_HEALTHCHECKS
@@ -162,15 +192,21 @@ function startHealthchecks(){
 
   clearHealthcheckTimer();
 
-  appState.healthcheckTimer =
-  setInterval(() => {
+  healthMonitorState
+  .timer =
 
-    executeHealthcheck();
+  setInterval(
 
-  },
+    async() => {
 
-  APP_CORE_CONFIG
-  .HEALTHCHECK_INTERVAL);
+      await executeHealthcheck();
+
+    },
+
+    APP_CORE_CONFIG
+    .HEALTHCHECK_INTERVAL
+
+  );
 
   healthMonitorState
   .running =
@@ -206,7 +242,7 @@ function stopHealthchecks(){
 
 function createHealthMonitorSnapshot(){
 
-  return freezeHealthDiagnostics({
+  return freezeHealthRuntime({
 
     timestamp:
     Date.now(),
