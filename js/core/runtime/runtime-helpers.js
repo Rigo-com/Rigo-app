@@ -6,49 +6,6 @@
 
 
 // =====================================
-// FALLBACKS
-// =====================================
-
-const INTERNAL_RUNTIME_STATES =
-typeof RUNTIME_STATES !==
-"undefined"
-
-  ? RUNTIME_STATES
-
-  : Object.freeze({
-
-      IDLE:"idle",
-      BOOTING:"booting",
-      RUNNING:"running",
-      RECOVERING:"recovering",
-      SHUTDOWN:"shutdown"
-
-    });
-
-
-
-const MAX_RUNTIME_ERRORS =
-
-typeof RUNTIME_MANAGER_CONFIG !==
-"undefined"
-
-&&
-
-RUNTIME_MANAGER_CONFIG
-?.MAX_RUNTIME_ERRORS
-
-  ?
-
-  RUNTIME_MANAGER_CONFIG
-  .MAX_RUNTIME_ERRORS
-
-  :
-
-  20;
-
-
-
-// =====================================
 // DEEP FREEZE
 // =====================================
 
@@ -124,7 +81,7 @@ function isValidRuntimeState(
 ){
 
   return Object.values(
-    INTERNAL_RUNTIME_STATES
+    RUNTIME_STATES
   )
   .includes(
     runtimeState
@@ -180,57 +137,9 @@ function addRuntimeError(
 
   }
 
-  const snapshot =
   RuntimeState
-  ?.get?.();
-
-  const currentErrors =
-
-    Array.isArray(
-      snapshot?.runtimeErrors
-    )
-
-    ?
-
-    snapshot.runtimeErrors
-
-    :
-
-    [];
-
-  const nextErrors = [
-
-    ...currentErrors,
-
-    {
-
-      error:
-      String(error),
-
-      timestamp:
-      Date.now()
-
-    }
-
-  ];
-
-  while(
-
-    nextErrors.length >
-    MAX_RUNTIME_ERRORS
-
-  ){
-
-    nextErrors.shift();
-
-  }
-
-  RuntimeState
-  ?.update?.(
-
-    "runtimeErrors",
-    nextErrors
-
+  ?.pushError?.(
+    error
   );
 
   RuntimeState
