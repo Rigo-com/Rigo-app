@@ -276,7 +276,7 @@ async function createLifecycleSnapshot(){
       appStartup
       ?.snapshot
 
-      ? appStartup
+      ? await appStartup
         .snapshot()
 
       : null,
@@ -286,7 +286,7 @@ async function createLifecycleSnapshot(){
       appShutdown
       ?.snapshot
 
-      ? appShutdown
+      ? await appShutdown
         .snapshot()
 
       : null
@@ -465,7 +465,9 @@ async function lifecycleCleanup(){
 // SEND MESSAGE
 // =====================================
 
-async function lifecycleSendMessage(){
+async function lifecycleSendMessage(
+  ...args
+){
 
   const messageRuntime =
   getLifecycleDependency(
@@ -482,7 +484,9 @@ async function lifecycleSendMessage(){
   }
 
   return await messageRuntime
-  .send();
+  .send(
+    ...args
+  );
 
 }
 
