@@ -39,6 +39,50 @@ Object.seal({
 
 
 // =====================================
+// SERVICE ACCESS
+// =====================================
+
+function getAIService(
+  serviceName
+){
+
+  try{
+
+    if(
+      typeof ServiceRegistry ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof ServiceRegistry.get !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    return ServiceRegistry.get(
+      serviceName
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // SAFE LOGGER
 // =====================================
 
@@ -48,12 +92,20 @@ function safeLogError(
 
   try{
 
+    const diagnostics =
+    getAIService(
+      "diagnostics"
+    );
+
     if(
-      typeof logError ===
+      diagnostics &&
+      typeof diagnostics.error ===
       "function"
     ){
 
-      logError(...args);
+      diagnostics.error(
+        ...args
+      );
 
       return;
 
@@ -79,12 +131,20 @@ function safeLogInfo(
 
   try{
 
+    const diagnostics =
+    getAIService(
+      "diagnostics"
+    );
+
     if(
-      typeof logInfo ===
+      diagnostics &&
+      typeof diagnostics.info ===
       "function"
     ){
 
-      logInfo(...args);
+      diagnostics.info(
+        ...args
+      );
 
       return;
 
@@ -155,6 +215,10 @@ function abortActiveAIRequest(){
     .activeController =
     null;
 
+    aiServiceState
+    .generating =
+    false;
+
   }
 
   return true;
@@ -167,16 +231,22 @@ function abortActiveAIRequest(){
 // SAFE QUEUE
 // =====================================
 
-function safelyProcessAIQueue(){
+async function safelyProcessAIQueue(){
 
   try{
 
+    const queue =
+    getAIService(
+      "queue"
+    );
+
     if(
-      typeof processAIQueue ===
+      queue &&
+      typeof queue.process ===
       "function"
     ){
 
-      processAIQueue();
+      await queue.process();
 
     }
 
@@ -200,9 +270,29 @@ function createAIMessage(
   content
 ){
 
+  const messageUtils =
+  getAIService(
+    "message-utils"
+  );
+
+  const createMessageId =
+  messageUtils
+  ?.createMessageId;
+
   return {
 
-    id:createMessageId(),
+    id:
+
+      typeof createMessageId ===
+      "function"
+
+      ?
+
+      createMessageId()
+
+      :
+
+      Date.now(),
 
     role:"assistant",
 
@@ -225,7 +315,24 @@ function insertAIMessage(
   content
 ){
 
-  return addMessage(
+  const chatService =
+  getAIService(
+    "chat"
+  );
+
+  if(
+    !chatService ||
+    typeof chatService
+    .addMessage !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  return chatService
+  .addMessage(
 
     createAIMessage(
       content
@@ -258,10 +365,19 @@ async function generateAIResponse(){
   aiServiceState
   .totalRequests++;
 
-  clearTypingIndicator();
+  const ui =
+  getAIService(
+    "ui"
+  );
+
+  ui
+  ?.clearTypingIndicator
+  ?.();
 
   const typingShown =
-  showTypingIndicator();
+  ui
+  ?.showTypingIndicator
+  ?.();
 
   if(!typingShown){
 
@@ -353,7 +469,12 @@ async function generateAIResponse(){
     .lastError =
     error;
 
-    await DiagnosticsRuntime
+    const diagnostics =
+    getAIService(
+      "diagnostics"
+    );
+
+    await diagnostics
     ?.error?.(
 
       "AI RESPONSE FAILED",
@@ -407,13 +528,15 @@ async function generateAIResponse(){
 
   finally{
 
-    removeTypingIndicator();
+    ui
+    ?.removeTypingIndicator
+    ?.();
 
     aiServiceState
     .generating =
     false;
 
-    safelyProcessAIQueue();
+    await safelyProcessAIQueue();
 
   }
 
@@ -426,6 +549,24 @@ async function generateAIResponse(){
 // =====================================
 
 async function generateAIText(){
+
+  const config =
+  getAIService(
+    "config"
+  );
+
+  const aiConfig =
+  config
+  ?.AI_CONFIG;
+
+  const chatService =
+  getAIService(
+    "chat"
+  );
+
+  const currentChat =
+  chatService
+  ?.currentChat;
 
   const messages =
 
@@ -445,8 +586,10 @@ async function generateAIText(){
   const limitedMessages =
   messages.slice(
 
-    -AI_CONFIG
-    .MAX_CONTEXT_MESSAGES
+    -(aiConfig
+    ?.MAX_CONTEXT_MESSAGES
+
+    ?? 20)
 
   );
 
@@ -460,25 +603,54 @@ async function generateAIText(){
 
     null;
 
+  const contextBuilder =
+  getAIService(
+    "context-builder"
+  );
+
   const context =
-  buildFullAIContext(
+
+    contextBuilder
+    ?.buildFullAIContext?.(
+
+      latestMessage
+      ?.content || "",
+
+      limitedMessages
+
+    )
+
+    ||
 
     latestMessage
-    ?.content || "",
+    ?.content
 
-    limitedMessages
+    ||
 
+    "";
+
+  const safeContext =
+  getAIService(
+    "safe-context"
   );
 
   const truncatedContext =
-  safeContextTruncate(
 
-    context,
+    safeContext
+    ?.truncate?.(
 
-    AI_CONFIG
-    .MAX_CONTEXT_LENGTH
+      context,
 
-  );
+      aiConfig
+      ?.MAX_CONTEXT_LENGTH
+
+      ?? 12000
+
+    )
+
+    ||
+
+    context;
 
   const response =
   await executeAIRequestWithRetry(
@@ -501,6 +673,15 @@ async function executeAIRequestWithRetry(
   context
 ){
 
+  const config =
+  getAIService(
+    "config"
+  );
+
+  const aiConfig =
+  config
+  ?.AI_CONFIG;
+
   let lastError =
   null;
 
@@ -509,8 +690,10 @@ async function executeAIRequestWithRetry(
     let attempt = 0;
 
     attempt <=
-    AI_CONFIG
-    .MAX_RETRIES;
+    (aiConfig
+    ?.MAX_RETRIES
+
+    ?? 3);
 
     attempt++
 
@@ -532,8 +715,10 @@ async function executeAIRequestWithRetry(
       const isLastAttempt =
 
         attempt ===
-        AI_CONFIG
-        .MAX_RETRIES;
+        (aiConfig
+        ?.MAX_RETRIES
+
+        ?? 3);
 
       if(
         isLastAttempt
@@ -550,8 +735,10 @@ async function executeAIRequestWithRetry(
 
             resolve,
 
-            AI_CONFIG
-            .RETRY_DELAY
+            aiConfig
+            ?.RETRY_DELAY
+
+            ?? 1000
 
           );
 
@@ -575,6 +762,20 @@ async function executeAIRequestWithRetry(
 async function executeAIRequest(
   context
 ){
+
+  const config =
+  getAIService(
+    "config"
+  );
+
+  const aiConfig =
+  config
+  ?.AI_CONFIG;
+
+  const providers =
+  getAIService(
+    "ai-providers"
+  );
 
   abortActiveAIRequest();
 
@@ -611,39 +812,52 @@ async function executeAIRequest(
 
     },
 
-    AI_CONFIG
-    .REQUEST_TIMEOUT);
+    aiConfig
+    ?.REQUEST_TIMEOUT
+
+    ?? 30000);
 
     const provider =
-    AI_CONFIG
-    .DEFAULT_PROVIDER;
+
+      aiConfig
+      ?.DEFAULT_PROVIDER
+
+      ?? "simulated";
 
     switch(provider){
 
       case "openai":
 
-        return executeOpenAIRequest(
+        return await providers
+        ?.openai
+        ?.execute?.(
           context,
           signal
         );
 
       case "gemini":
 
-        return executeGeminiRequest(
+        return await providers
+        ?.gemini
+        ?.execute?.(
           context,
           signal
         );
 
       case "claude":
 
-        return executeClaudeRequest(
+        return await providers
+        ?.claude
+        ?.execute?.(
           context,
           signal
         );
 
       case "simulated":
 
-        return simulateAIRequest(
+        return await providers
+        ?.simulated
+        ?.execute?.(
           context,
           signal
         );
@@ -719,6 +933,15 @@ function sanitizeAIResponse(
   response
 ){
 
+  const config =
+  getAIService(
+    "config"
+  );
+
+  const aiConfig =
+  config
+  ?.AI_CONFIG;
+
   if(
     typeof response !==
     "string"
@@ -728,15 +951,28 @@ function sanitizeAIResponse(
 
   }
 
-  const truncatedResponse =
-  safeContextTruncate(
-
-    response,
-
-    AI_CONFIG
-    .MAX_RESPONSE_LENGTH
-
+  const safeContext =
+  getAIService(
+    "safe-context"
   );
+
+  const truncatedResponse =
+
+    safeContext
+    ?.truncate?.(
+
+      response,
+
+      aiConfig
+      ?.MAX_RESPONSE_LENGTH
+
+      ?? 4000
+
+    )
+
+    ||
+
+    response;
 
   let normalized =
   truncatedResponse;
@@ -895,12 +1131,53 @@ function initializeAIService(){
 
   }
 
-  registerService(
+  if(
+    typeof ServiceRegistry ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    typeof ServiceRegistry.has ===
+    "function"
+
+    &&
+
+    ServiceRegistry.has(
+      "ai"
+    )
+
+  ){
+
+    aiServiceState
+    .initialized =
+    true;
+
+    return true;
+
+  }
+
+  ServiceRegistry.register(
+
     "ai",
-    AIService
+
+    AIService,
+
+    {
+
+      immutable:true,
+
+      version:"1.0.0"
+
+    }
+
   );
 
-  activateService(
+  ServiceRegistry.activate(
     "ai"
   );
 
@@ -943,7 +1220,42 @@ Object.freeze({
   diagnostics:
   getAIDiagnostics,
 
+  snapshot:
+  getAIDiagnostics,
+
   isGenerating:
   isAIGenerating
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "AIService",
+
+    {
+
+      value:
+      AIService,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
