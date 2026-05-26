@@ -10,14 +10,14 @@
 // HELPERS
 // =====================================
 
-function getLifecycleDependency(
+function resolveLifecycleDependency(
   dependencyName
 ){
 
   try{
 
     if(
-      typeof window ===
+      typeof DependencySystem ===
       "undefined"
     ){
 
@@ -25,8 +25,21 @@ function getLifecycleDependency(
 
     }
 
+    if(
+      typeof DependencySystem
+      .resolve !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
     const dependency =
-      window[dependencyName];
+    DependencySystem
+    .resolve(
+      dependencyName
+    );
 
     if(
       typeof dependency ===
@@ -34,7 +47,7 @@ function getLifecycleDependency(
     ){
 
       console.warn(
-        `[LifecycleIndex] Missing dependency: ${dependencyName}`
+        `[LifecycleAPI] Missing dependency: ${dependencyName}`
       );
 
       return null;
@@ -48,7 +61,7 @@ function getLifecycleDependency(
   catch(error){
 
     console.warn(
-      `[LifecycleIndex] Failed resolving dependency: ${dependencyName}`,
+      `[LifecycleAPI] Failed resolving dependency: ${dependencyName}`,
       error
     );
 
@@ -167,7 +180,7 @@ async function safelyExecuteLifecycleOperation(
   catch(error){
 
     console.warn(
-      `[LifecycleIndex] ${label} failed`,
+      `[LifecycleAPI] ${label} failed`,
       error
     );
 
@@ -196,7 +209,7 @@ function createReadonlyAccessor(
       async() => {
 
         const dependency =
-          getLifecycleDependency(
+          resolveLifecycleDependency(
             dependencyName
           );
 
@@ -273,7 +286,7 @@ async function lifecycleStart(){
     async() => {
 
       const lifecycle =
-        getLifecycleDependency(
+        resolveLifecycleDependency(
           "AppLifecycle"
         );
 
@@ -310,7 +323,7 @@ async function lifecycleShutdown(){
     async() => {
 
       const lifecycle =
-        getLifecycleDependency(
+        resolveLifecycleDependency(
           "AppLifecycle"
         );
 
@@ -347,7 +360,7 @@ async function lifecycleBootstrap(){
     async() => {
 
       const lifecycle =
-        getLifecycleDependency(
+        resolveLifecycleDependency(
           "AppLifecycle"
         );
 
@@ -384,7 +397,7 @@ async function lifecycleCleanup(){
     async() => {
 
       const lifecycle =
-        getLifecycleDependency(
+        resolveLifecycleDependency(
           "AppLifecycle"
         );
 
@@ -421,7 +434,7 @@ async function lifecycleRecover(){
     async() => {
 
       const lifecycle =
-        getLifecycleDependency(
+        resolveLifecycleDependency(
           "AppLifecycle"
         );
 
@@ -458,7 +471,7 @@ async function lifecycleStatus(){
     async() => {
 
       const lifecycle =
-        getLifecycleDependency(
+        resolveLifecycleDependency(
           "AppLifecycle"
         );
 
@@ -524,7 +537,7 @@ async function getLifecycleDiagnostics(){
 
       const diagnostics =
         await LifecycleAPI
-        .diagnostics();
+        .appDiagnostics();
 
       const health =
         await LifecycleAPI
@@ -626,7 +639,7 @@ safeFreeze({
 
 
 
-  diagnostics:
+  appDiagnostics:
   createReadonlyAccessor(
     "AppDiagnostics"
   ),
@@ -713,6 +726,11 @@ safeFreeze({
   // ===================================
   // SNAPSHOT
   // ===================================
+
+  diagnostics:
+  getLifecycleDiagnostics,
+
+
 
   snapshot:
   getLifecycleDiagnostics
