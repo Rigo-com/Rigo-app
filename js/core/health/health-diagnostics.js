@@ -35,6 +35,26 @@ function freezeHealthDiagnostics(
 
   }
 
+  if(
+
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Map ||
+    value instanceof Set ||
+
+    (
+      typeof HTMLElement !==
+      "undefined" &&
+
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
   visited.add(
     value
   );
@@ -71,19 +91,61 @@ function freezeHealthDiagnostics(
 
 
 // =====================================
-// SAFE HEALTHCHECK
+// HELPERS
 // =====================================
+
+function getSafeRuntimeSnapshot(){
+
+  try{
+
+    if(
+      typeof RuntimeState ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof RuntimeState.get !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    return RuntimeState.get();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
 
 async function getSafeRuntimeHealth(){
 
   try{
 
     if(
+      typeof HealthRuntime ===
+      "undefined"
+    ){
 
-      !window
-      ?.HealthRuntime
-      ?.run
+      return null;
 
+    }
+
+    if(
+      typeof HealthRuntime.run !==
+      "function"
     ){
 
       return null;
@@ -98,11 +160,12 @@ async function getSafeRuntimeHealth(){
   catch(error){
 
     if(
-      typeof logDiagnosticError ===
-      "function"
+      typeof DiagnosticsRuntime !==
+      "undefined"
     ){
 
-      logDiagnosticError(
+      await DiagnosticsRuntime
+      ?.error?.(
 
         "HEALTHCHECK FAILED",
 
@@ -131,52 +194,92 @@ async function getSafeRuntimeHealth(){
 
 function getAppHealthState(){
 
+  const runtimeSnapshot =
+    getSafeRuntimeSnapshot();
+
+  const healthMonitorSnapshot =
+
+    typeof HealthMonitor !==
+    "undefined"
+
+    &&
+
+    typeof HealthMonitor
+    .snapshot ===
+    "function"
+
+      ?
+
+      HealthMonitor
+      .snapshot()
+
+      :
+
+      null;
+
   return freezeHealthDiagnostics({
 
     crashes:
 
       Number(
-        appState
+
+        runtimeSnapshot
         ?.crashCount || 0
+
       ),
 
     lastError:
 
-      appState?.lastError
+      runtimeSnapshot
+      ?.lastError
 
-      ? String(
-          appState
-          .lastError
-        )
+      ?
 
-      : null,
+      String(
+
+        runtimeSnapshot
+        .lastError
+
+      )
+
+      :
+
+      null,
 
     started:
 
       Boolean(
-        appState
-        ?.started
+
+        runtimeSnapshot
+        ?.initialized
+
       ),
 
     initialized:
 
       Boolean(
-        appState
+
+        runtimeSnapshot
         ?.initialized
+
       ),
 
     phase:
 
       String(
-        appState
-        ?.phase || ""
+
+        runtimeSnapshot
+        ?.runtimeState || ""
+
       ),
 
     healthcheckRunning:
 
       Boolean(
-        appState
-        ?.healthcheckTimer
+
+        healthMonitorSnapshot
+        ?.running
+
       )
 
   });
@@ -192,7 +295,7 @@ function getAppHealthState(){
 async function getHealthDiagnostics(){
 
   const runtimeHealth =
-  await getSafeRuntimeHealth();
+    await getSafeRuntimeHealth();
 
   return freezeHealthDiagnostics({
 
