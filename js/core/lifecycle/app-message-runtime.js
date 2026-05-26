@@ -549,7 +549,9 @@ async function handleFailedMessage(
 // HANDLE SEND MESSAGE
 // =====================================
 
-async function handleSendMessage(){
+async function handleSendMessage(
+  ...args
+){
 
   if(
     messageRuntimeState
@@ -612,7 +614,9 @@ async function handleSendMessage(){
 
     await Promise.race([
 
-      sender(),
+      sender(
+        ...args
+      ),
 
       timeoutController
       .promise
