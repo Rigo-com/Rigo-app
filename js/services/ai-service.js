@@ -165,6 +165,33 @@ function safeLogInfo(
 
 
 // =====================================
+// ERROR MESSAGE
+// =====================================
+
+function getSafeAIErrorMessage(){
+
+  try{
+
+    if(
+      typeof getAIErrorMessage ===
+      "function"
+    ){
+
+      return getAIErrorMessage();
+
+    }
+
+  }
+
+  catch(error){}
+
+  return "AI RESPONSE FAILED";
+
+}
+
+
+
+// =====================================
 // IS GENERATING
 // =====================================
 
@@ -214,10 +241,6 @@ function abortActiveAIRequest(){
     aiServiceState
     .activeController =
     null;
-
-    aiServiceState
-    .generating =
-    false;
 
   }
 
@@ -292,7 +315,18 @@ function createAIMessage(
 
       :
 
-      Date.now(),
+      (
+
+        crypto
+        ?.randomUUID?.()
+
+        ??
+
+        `ai_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2,10)}`
+
+      ),
 
     role:"assistant",
 
@@ -439,6 +473,10 @@ async function generateAIResponse(){
     .lastGeneratedAt =
     Date.now();
 
+    aiServiceState
+    .lastError =
+    null;
+
     safeLogInfo(
 
       "AI RESPONSE GENERATED",
@@ -508,7 +546,7 @@ async function generateAIResponse(){
     const inserted =
     insertAIMessage(
 
-      getAIErrorMessage()
+      getSafeAIErrorMessage()
 
     );
 
@@ -652,6 +690,17 @@ async function generateAIText(){
 
     context;
 
+  if(
+    typeof truncatedContext !==
+    "string"
+  ){
+
+    throw new Error(
+      "INVALID_AI_CONTEXT"
+    );
+
+  }
+
   const response =
   await executeAIRequestWithRetry(
     truncatedContext
@@ -756,6 +805,53 @@ async function executeAIRequestWithRetry(
 
 
 // =====================================
+// EXECUTE PROVIDER
+// =====================================
+
+async function executeProviderRequest(
+  providerInstance,
+  context,
+  signal
+){
+
+  if(
+    !providerInstance ||
+    typeof providerInstance
+    .execute !==
+    "function"
+  ){
+
+    throw new Error(
+      "INVALID_AI_PROVIDER"
+    );
+
+  }
+
+  const result =
+  await providerInstance
+  .execute(
+    context,
+    signal
+  );
+
+  if(
+    typeof result !==
+    "string"
+  ){
+
+    throw new Error(
+      "INVALID_PROVIDER_RESPONSE"
+    );
+
+  }
+
+  return result;
+
+}
+
+
+
+// =====================================
 // EXECUTE AI REQUEST
 // =====================================
 
@@ -828,38 +924,42 @@ async function executeAIRequest(
 
       case "openai":
 
-        return await providers
-        ?.openai
-        ?.execute?.(
+        return await executeProviderRequest(
+
+          providers?.openai,
           context,
           signal
+
         );
 
       case "gemini":
 
-        return await providers
-        ?.gemini
-        ?.execute?.(
+        return await executeProviderRequest(
+
+          providers?.gemini,
           context,
           signal
+
         );
 
       case "claude":
 
-        return await providers
-        ?.claude
-        ?.execute?.(
+        return await executeProviderRequest(
+
+          providers?.claude,
           context,
           signal
+
         );
 
       case "simulated":
 
-        return await providers
-        ?.simulated
-        ?.execute?.(
+        return await executeProviderRequest(
+
+          providers?.simulated,
           context,
           signal
+
         );
 
       default:
@@ -869,7 +969,7 @@ async function executeAIRequest(
           provider
         );
 
-        return getAIErrorMessage();
+        return getSafeAIErrorMessage();
 
     }
 
@@ -947,7 +1047,7 @@ function sanitizeAIResponse(
     "string"
   ){
 
-    return getAIErrorMessage();
+    return getSafeAIErrorMessage();
 
   }
 
@@ -1008,7 +1108,7 @@ function sanitizeAIResponse(
 
   if(!cleaned){
 
-    return getAIErrorMessage();
+    return getSafeAIErrorMessage();
 
   }
 
@@ -1042,6 +1142,34 @@ function resetAIService(){
   );
 
   return true;
+
+}
+
+
+
+// =====================================
+// AI HEALTHCHECK
+// =====================================
+
+function getAIHealthcheck(){
+
+  return Object.freeze({
+
+    initialized:
+    aiServiceState
+    .initialized,
+
+    generating:
+    aiServiceState
+    .generating,
+
+    healthy:
+
+      aiServiceState
+      .lastError ===
+      null
+
+  });
 
 }
 
@@ -1161,6 +1289,7 @@ function initializeAIService(){
 
   }
 
+  const registered =
   ServiceRegistry.register(
 
     "ai",
@@ -1177,6 +1306,12 @@ function initializeAIService(){
 
   );
 
+  if(!registered){
+
+    return false;
+
+  }
+
   ServiceRegistry.activate(
     "ai"
   );
@@ -1184,6 +1319,10 @@ function initializeAIService(){
   aiServiceState
   .initialized =
   true;
+
+  aiServiceState
+  .lastError =
+  null;
 
   safeLogInfo(
     "AI SERVICE READY"
@@ -1223,6 +1362,9 @@ Object.freeze({
   snapshot:
   getAIDiagnostics,
 
+  health:
+  getAIHealthcheck,
+
   isGenerating:
   isAIGenerating
 
@@ -1252,7 +1394,9 @@ if(
 
       writable:false,
 
-      configurable:false
+      configurable:false,
+
+      enumerable:false
 
     }
 
