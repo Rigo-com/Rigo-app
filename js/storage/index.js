@@ -880,7 +880,7 @@ function getFullStorageDiagnostics(){
 // STORAGE PUBLIC API
 // =====================================
 
-const StorageRuntime =
+const RIGOStorageRuntime =
 Object.freeze({
 
   initialize:
@@ -983,11 +983,11 @@ export {
 
   getFullStorageDiagnostics,
 
-  StorageRuntime
+  RIGOStorageRuntime
 
 };
 
-export default StorageRuntime;
+export default RIGOStorageRuntime;
 
 
 
@@ -1004,12 +1004,12 @@ if(
 
     window,
 
-    "StorageRuntime",
+    "RIGOStorageRuntime",
 
     {
 
       value:
-      StorageRuntime,
+      RIGOStorageRuntime,
 
       writable:false,
 
@@ -1032,12 +1032,12 @@ if(
 
     globalThis,
 
-    "StorageRuntime",
+    "RIGOStorageRuntime",
 
     {
 
       value:
-      StorageRuntime,
+      RIGOStorageRuntime,
 
       writable:false,
 
