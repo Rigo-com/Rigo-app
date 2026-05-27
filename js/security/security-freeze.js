@@ -18,7 +18,35 @@ Object.freeze({
   15,
 
   MAX_NODES:
-  10000
+  10000,
+
+  ENABLE_LOGS:
+  true
+
+});
+
+
+
+// =====================================
+// FREEZE STATE
+// =====================================
+
+const securityFreezeState =
+Object.seal({
+
+  frozenObjects:0,
+
+  frozenArrays:0,
+
+  frozenMaps:0,
+
+  frozenSets:0,
+
+  skippedObjects:0,
+
+  failedFreezes:0,
+
+  lastFrozenAt:null
 
 });
 
@@ -32,6 +60,14 @@ function freezeSecurityLog(
   message,
   metadata = null
 ){
+
+  if(
+    !SECURITY_FREEZE_CONFIG
+    .ENABLE_LOGS
+  ){
+
+    return;
+  }
 
   try{
 
@@ -50,46 +86,6 @@ function freezeSecurityLog(
   }
 
   catch(error){}
-
-}
-
-
-
-// =====================================
-// SPECIAL OBJECT CHECK
-// =====================================
-
-function isSpecialObject(
-  value
-){
-
-  return (
-
-    value instanceof Date
-
-    ||
-
-    value instanceof RegExp
-
-    ||
-
-    value instanceof Map
-
-    ||
-
-    value instanceof Set
-
-    ||
-
-    value instanceof URL
-
-    ||
-
-    ArrayBuffer.isView(
-      value
-    )
-
-  );
 
 }
 
@@ -248,7 +244,47 @@ function isHostObject(
 
 
 // =====================================
-// CREATE SAFE CLONE
+// SPECIAL OBJECT CHECK
+// =====================================
+
+function isSpecialObject(
+  value
+){
+
+  return (
+
+    value instanceof Date
+
+    ||
+
+    value instanceof RegExp
+
+    ||
+
+    value instanceof URL
+
+    ||
+
+    value instanceof Map
+
+    ||
+
+    value instanceof Set
+
+    ||
+
+    ArrayBuffer.isView(
+      value
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// SAFE CLONE
 // =====================================
 
 function createSafeClone(
@@ -258,6 +294,9 @@ function createSafeClone(
   if(
     Array.isArray(value)
   ){
+
+    securityFreezeState
+    .frozenArrays++;
 
     return [];
   }
@@ -297,6 +336,9 @@ function createSafeClone(
     value instanceof Map
   ){
 
+    securityFreezeState
+    .frozenMaps++;
+
     return new Map();
 
   }
@@ -304,6 +346,9 @@ function createSafeClone(
   if(
     value instanceof Set
   ){
+
+    securityFreezeState
+    .frozenSets++;
 
     return new Set();
 
@@ -321,17 +366,26 @@ function createSafeClone(
 
   }
 
-  return Object.create(null);
+  securityFreezeState
+  .frozenObjects++;
+
+  return Object.create(
+
+    Object.getPrototypeOf(
+      value
+    )
+
+  );
 
 }
 
 
 
 // =====================================
-// SAFE FREEZE VALUE
+// SAFE FREEZE CHILD
 // =====================================
 
-function safeFreezeValue(
+function safeFreezeChild(
   value,
   visited,
   state
@@ -353,9 +407,12 @@ function safeFreezeValue(
 
   catch(error){
 
+    securityFreezeState
+    .failedFreezes++;
+
     freezeSecurityLog(
 
-      "FREEZE_VALUE_FAILED",
+      "FREEZE_CHILD_FAILED",
 
       {
 
@@ -379,46 +436,23 @@ function safeFreezeValue(
 // =====================================
 
 function createSafeDescriptor(
-  descriptor
+  descriptor,
+  value
 ){
 
-  const safeDescriptor = {
+  return {
 
     enumerable:
     descriptor.enumerable ===
     true,
 
     configurable:
-    false
-
-  };
-
-  if(
-    "value" in descriptor
-  ){
-
-    safeDescriptor.value =
-    descriptor.value;
-
-    safeDescriptor.writable =
-    false;
-
-    return safeDescriptor;
-
-  }
-
-  return {
-
-    ...safeDescriptor,
-
-    enumerable:
     false,
 
-    value:
-    null,
-
     writable:
-    false
+    false,
+
+    value
 
   };
 
@@ -457,13 +491,49 @@ function deepFreezeSecurity(
   }
 
   if(
+    Object.isFrozen(
+      object
+    )
+  ){
+
+    return object;
+
+  }
+
+  if(
+    isHostObject(object)
+  ){
+
+    securityFreezeState
+    .skippedObjects++;
+
+    return object;
+
+  }
+
+  if(
+    visited.has(object)
+  ){
+
+    return visited.get(
+      object
+    );
+
+  }
+
+  if(
+
     state.depth >
 
     SECURITY_FREEZE_CONFIG
     .MAX_DEPTH
+
   ){
 
-    return null;
+    securityFreezeState
+    .skippedObjects++;
+
+    return object;
 
   }
 
@@ -478,35 +548,16 @@ function deepFreezeSecurity(
 
   ){
 
-    return null;
-
-  }
-
-  if(
-    isHostObject(object)
-  ){
+    securityFreezeState
+    .skippedObjects++;
 
     return object;
 
   }
 
-  if(
-    Object.isFrozen(
-      object
-    )
-  ){
-
-    return object;
-
-  }
-
-  const cached =
-  visited.get(object);
-
-  if(cached){
-
-    return cached;
-  }
+  securityFreezeState
+  .lastFrozenAt =
+  Date.now();
 
   const clone =
   createSafeClone(
@@ -532,7 +583,7 @@ function deepFreezeSecurity(
 
       clone.set(
 
-        safeFreezeValue(
+        safeFreezeChild(
 
           key,
 
@@ -550,7 +601,7 @@ function deepFreezeSecurity(
 
         ),
 
-        safeFreezeValue(
+        safeFreezeChild(
 
           value,
 
@@ -592,7 +643,7 @@ function deepFreezeSecurity(
 
       clone.add(
 
-        safeFreezeValue(
+        safeFreezeChild(
 
           value,
 
@@ -641,7 +692,7 @@ function deepFreezeSecurity(
 
 
   // ===================================
-  // DESCRIPTORS
+  // OBJECT PROPERTIES
   // ===================================
 
   Reflect
@@ -658,62 +709,37 @@ function deepFreezeSecurity(
           key
         );
 
-      if(
-        !descriptor
-      ){
+      if(!descriptor){
 
         return;
       }
-
-      const safeDescriptor =
-      createSafeDescriptor(
-        descriptor
-      );
-
-
-
-      // ===============================
-      // ACCESSORS
-      // ===============================
 
       if(
         descriptor.get ||
         descriptor.set
       ){
 
-        safeDescriptor.value =
-        null;
-
+        return;
       }
 
+      const frozenValue =
+      safeFreezeChild(
 
+        descriptor.value,
 
-      // ===============================
-      // VALUES
-      // ===============================
+        visited,
 
-      else{
+        {
 
-        safeDescriptor.value =
-        safeFreezeValue(
+          depth:
+          state.depth + 1,
 
-          descriptor.value,
+          nodes:
+          state.nodes
 
-          visited,
+        }
 
-          {
-
-            depth:
-            state.depth + 1,
-
-            nodes:
-            state.nodes
-
-          }
-
-        );
-
-      }
+      );
 
       Object.defineProperty(
 
@@ -721,13 +747,22 @@ function deepFreezeSecurity(
 
         key,
 
-        safeDescriptor
+        createSafeDescriptor(
+
+          descriptor,
+
+          frozenValue
+
+        )
 
       );
 
     }
 
     catch(error){
+
+      securityFreezeState
+      .failedFreezes++;
 
       freezeSecurityLog(
 
@@ -822,7 +857,9 @@ function isDeepFrozen(
           key
         );
 
-      if(!descriptor){
+      if(
+        !descriptor
+      ){
 
         return false;
 
@@ -860,6 +897,48 @@ function isDeepFrozen(
 
 
 // =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getSecurityFreezeDiagnostics(){
+
+  return Object.freeze({
+
+    frozenObjects:
+    securityFreezeState
+    .frozenObjects,
+
+    frozenArrays:
+    securityFreezeState
+    .frozenArrays,
+
+    frozenMaps:
+    securityFreezeState
+    .frozenMaps,
+
+    frozenSets:
+    securityFreezeState
+    .frozenSets,
+
+    skippedObjects:
+    securityFreezeState
+    .skippedObjects,
+
+    failedFreezes:
+    securityFreezeState
+    .failedFreezes,
+
+    lastFrozenAt:
+    securityFreezeState
+    .lastFrozenAt
+
+  });
+
+}
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
@@ -870,9 +949,46 @@ Object.freeze({
   deepFreezeSecurity,
 
   isFrozen:
-  isDeepFrozen
+  isDeepFrozen,
+
+  diagnostics:
+  getSecurityFreezeDiagnostics
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SECURITY_FREEZE_CONFIG,
+
+  securityFreezeState,
+
+  freezeSecurityLog,
+
+  isHostObject,
+
+  isSpecialObject,
+
+  createSafeClone,
+
+  safeFreezeChild,
+
+  createSafeDescriptor,
+
+  deepFreezeSecurity,
+
+  isDeepFrozen,
+
+  getSecurityFreezeDiagnostics,
+
+  SecurityFreeze
+
+};
 
 
 
@@ -881,13 +997,13 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityFreeze",
 
