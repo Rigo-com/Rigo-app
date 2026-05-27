@@ -66,12 +66,23 @@ function createMessageHash(
 
       });
 
-    return btoa(
+    if(
+      typeof btoa ===
+      "function"
+    ){
 
-      encodeURIComponent(
-        normalized
-      )
+      return btoa(
 
+        encodeURIComponent(
+          normalized
+        )
+
+      );
+
+    }
+
+    return createCommunicationId(
+      "hash"
     );
 
   }
@@ -349,6 +360,8 @@ function freezeCommunicationObject(
 
       value instanceof AbortController ||
 
+      value instanceof AbortSignal ||
+
       value instanceof Map ||
 
       value instanceof Set ||
@@ -460,9 +473,21 @@ function validateCommunicationMessage(
 
   const maxLength =
 
+    Number.isFinite(
+
+      APP_CONFIG
+      ?.CHAT
+      ?.MAX_MESSAGE_LENGTH
+
+    )
+
+    ?
+
     APP_CONFIG
-    ?.CHAT
-    ?.MAX_MESSAGE_LENGTH ||
+    .CHAT
+    .MAX_MESSAGE_LENGTH
+
+    :
 
     10000;
 
