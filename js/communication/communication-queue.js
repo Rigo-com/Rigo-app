@@ -64,13 +64,26 @@ async function enqueueCommunicationMessage(
 
   communicationRuntimeState
   .messageQueue
-  .push(payload);
+  .push(
+
+    safeCommunicationClone(
+      payload
+    )
+
+  );
 
   communicationRuntimeState
   .diagnostics
   .queued++;
 
-  persistCommunicationState();
+  if(
+    typeof persistCommunicationState ===
+    "function"
+  ){
+
+    persistCommunicationState();
+
+  }
 
   await emitCommunicationEvent(
 
@@ -80,7 +93,8 @@ async function enqueueCommunicationMessage(
     {
 
       messageId:
-      payload.id
+      payload?.id ||
+      null
 
     }
 
@@ -161,6 +175,24 @@ async function processCommunicationQueue(){
         .diagnostics
         .failed++;
 
+        await emitCommunicationEvent(
+
+          COMMUNICATION_RUNTIME_EVENTS
+          .MESSAGE_FAILED,
+
+          {
+
+            error:
+            String(error),
+
+            messageId:
+            payload?.id ||
+            null
+
+          }
+
+        );
+
         if(
           COMMUNICATION_RUNTIME_CONFIG
           .DEBUG
@@ -181,7 +213,14 @@ async function processCommunicationQueue(){
 
     }
 
-    persistCommunicationState();
+    if(
+      typeof persistCommunicationState ===
+      "function"
+    ){
+
+      persistCommunicationState();
+
+    }
 
     setCommunicationState(
 
