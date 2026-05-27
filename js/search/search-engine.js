@@ -1,135 +1,196 @@
 // =====================================
 // RIGO AI
 // SEARCH ENGINE
-// ENTERPRISE ULTRA FINAL
+// OPTIMIZED FINAL
 // =====================================
 
 
 
-async function executeMemorySearch(
+// =====================================
+// SEARCH SOURCES
+// =====================================
+
+function executeIndexedSearch(
+  query
+){
+
+  return searchIndexedMemories(
+    query
+  )
+  .map((memory) => {
+
+    const score =
+    calculateSearchRanking(
+      memory,
+      query
+    );
+
+    if(score <= 0){
+
+      return null;
+
+    }
+
+    return createSearchResult(
+
+      memory,
+
+      score,
+
+      {
+        source:"indexed",
+
+        snippet:
+        createSearchSnippet(
+
+          memory.content,
+
+          query
+
+        )
+
+      }
+
+    );
+
+  })
+  .filter(Boolean);
+
+}
+
+
+
+async function executeSemanticSearch(
   query,
   options = {}
 ){
 
   if(
 
-    !isValidSearchQuery(
-      query
-    )
+    !SEARCH_CONFIG
+    .ENABLE_SEMANTIC_SEARCH
+
+    ||
+
+    typeof semanticMemorySearch !==
+    "function"
 
   ){
 
     return [];
+
   }
-
-  const startedAt =
-  performance.now();
-
-  const searchToken =
-  createMemoryId();
-
-  searchState
-  .activeSearchToken =
-  searchToken;
-
-  searchState.searching =
-  true;
-
-  searchState.currentState =
-  SEARCH_STATES.SEARCHING;
-
-  searchState.activeSearches++;
-
-  searchState.pendingSearches++;
 
   try{
 
-    const searchQuery =
-    createSearchQuery(
+    const results =
+    await semanticMemorySearch(
       query,
       options
     );
 
-    const cacheKey =
-    createSearchCacheKey(
-      query,
-      options
-    );
+    return results.map((item) => {
 
+      return createSearchResult(
 
+        item.memory,
 
-    // ================================
-    // CACHE
-    // ================================
+        item.similarity,
 
-    if(
+        {
+          source:"semantic",
 
-      SEARCH_CONFIG
-      .ENABLE_CACHE
+          snippet:
+          createSearchSnippet(
 
-    ){
+            item.memory?.content,
 
-      const cached =
-      getCachedSearch(
-        cacheKey
+            query
+
+          )
+
+        }
+
       );
 
-      if(cached){
+    });
 
-        return cached;
-      }
+  }
 
-    }
+  catch(error){
 
-    if(
+    return [];
 
-      searchState
-      .activeSearchToken !==
-      searchToken
+  }
 
-    ){
-
-      searchState
-      .abortedSearches++;
-
-      return [];
-
-    }
-
-    let results = [];
+}
 
 
 
-    // ================================
-    // INDEXED SEARCH
-    // ================================
+function executeFuzzySearch(
+  query
+){
 
-    const indexedMemories =
-    searchIndexedMemories(
+  if(
+
+    !SEARCH_CONFIG
+    .ENABLE_FUZZY_SEARCH
+
+  ){
+
+    return [];
+
+  }
+
+  const results = [];
+
+  const fuzzyTokens =
+  findFuzzyTokens(
+    normalizeSearchQuery(
       query
-    );
+    )
+  );
 
-    indexedMemories
-    .forEach((memory) => {
+  fuzzyTokens.forEach((item) => {
 
-      const score =
-      calculateSearchRanking(
-        memory,
-        query
+    const indexed =
+
+      searchIndexState
+      .tokenIndex
+      .get(
+        item.token
       );
 
-      if(score <= 0){
+    if(!indexed){
+
+      return;
+
+    }
+
+    indexed.forEach((id) => {
+
+      const memory =
+      getMemoryById(id);
+
+      if(!memory){
 
         return;
+
       }
 
       results.push(
 
         createSearchResult(
+
           memory,
-          score,
+
+          item.score * 0.5,
+
           {
-            source:"indexed",
+            source:"fuzzy",
+
+            fuzzyToken:
+            item.token,
 
             snippet:
             createSearchSnippet(
@@ -141,166 +202,111 @@ async function executeMemorySearch(
             )
 
           }
+
         )
 
       );
 
     });
 
+  });
+
+  return results;
+
+}
+
+
+
+// =====================================
+// SEARCH ENGINE
+// =====================================
+
+async function executeMemorySearch(
+  query,
+  options = {}
+){
+
+  if(
+    !isValidSearchQuery(
+      query
+    )
+  ){
+
+    return [];
+
+  }
+
+  const startedAt =
+  performance.now();
+
+  searchState.searching =
+  true;
+
+  searchState.currentState =
+  SEARCH_STATES.SEARCHING;
+
+  searchState.activeSearches++;
+
+  try{
+
+    const searchQuery =
+    createSearchQuery(
+      query,
+      options
+    );
+
+    const cacheKey =
+    await createSearchCacheKey(
+      query,
+      options
+    );
+
 
 
     // ================================
-    // SEMANTIC SEARCH
+    // CACHE
     // ================================
 
     if(
-
       SEARCH_CONFIG
-      .ENABLE_SEMANTIC_SEARCH
-
-      &&
-
-      typeof semanticMemorySearch ===
-      "function"
-
+      .ENABLE_CACHE
     ){
 
-      const semanticResults =
-      semanticMemorySearch(
-        query,
-        options
+      const cached =
+      getCachedSearch(
+        cacheKey
       );
 
-      if(
+      if(cached){
 
-        searchState
-        .activeSearchToken !==
-        searchToken
-
-      ){
-
-        searchState
-        .abortedSearches++;
-
-        return [];
+        return cached;
 
       }
 
-      semanticResults
-      .forEach((item) => {
-
-        results.push(
-
-          createSearchResult(
-
-            item.memory,
-
-            item.similarity,
-
-            {
-              source:"semantic",
-
-              snippet:
-              createSearchSnippet(
-
-                item.memory
-                ?.content,
-
-                query
-
-              )
-
-            }
-
-          )
-
-        );
-
-      });
-
     }
 
 
 
     // ================================
-    // FUZZY SEARCH
+    // SEARCH SOURCES
     // ================================
 
-    if(
+    let results = [
 
-      SEARCH_CONFIG
-      .ENABLE_FUZZY_SEARCH
+      ...executeIndexedSearch(
+        query
+      ),
 
-    ){
+      ...await executeSemanticSearch(
+        query,
+        options
+      ),
 
-      const fuzzyTokens =
-      findFuzzyTokens(
-        normalizeSearchQuery(
-          query
-        )
-      );
+      ...executeFuzzySearch(
+        query
+      )
 
-      fuzzyTokens
-      .forEach((item) => {
-
-        const indexed =
-
-          searchIndexState
-          .tokenIndex
-          .get(
-            item.token
-          );
-
-        if(!indexed){
-
-          return;
-        }
-
-        indexed.forEach((id) => {
-
-          const memory =
-          getMemoryById(id);
-
-          if(!memory){
-
-            return;
-          }
-
-          results.push(
-
-            createSearchResult(
-
-              memory,
-
-              item.score *
-              0.5,
-
-              {
-                source:"fuzzy",
-
-                fuzzyToken:
-                item.token,
-
-                snippet:
-                createSearchSnippet(
-
-                  memory.content,
-
-                  query
-
-                )
-
-              }
-
-            )
-
-          );
-
-        });
-
-      });
-
-    }
+    ];
 
 
 
@@ -351,7 +357,6 @@ async function executeMemorySearch(
       searchQuery.offset,
 
       searchQuery.offset +
-
       searchQuery.limit
 
     );
@@ -363,10 +368,8 @@ async function executeMemorySearch(
     // ================================
 
     if(
-
       SEARCH_CONFIG
       .ENABLE_CACHE
-
     ){
 
       setCachedSearch(
@@ -404,12 +407,21 @@ async function executeMemorySearch(
     searchState
     .averageSearchLatency =
 
-    (
       searchState
-      .averageSearchLatency +
+      .totalSearches <= 0
+
+      ?
 
       latency
-    ) / 2;
+
+      :
+
+      (
+        searchState
+        .averageSearchLatency +
+
+        latency
+      ) / 2;
 
 
 
@@ -470,18 +482,24 @@ async function executeMemorySearch(
 
     );
 
-    searchState
-    .pendingSearches =
-
-    Math.max(
-
-      0,
-
-      searchState
-      .pendingSearches - 1
-
-    );
-
   }
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  executeIndexedSearch,
+
+  executeSemanticSearch,
+
+  executeFuzzySearch,
+
+  executeMemorySearch
+
+};
