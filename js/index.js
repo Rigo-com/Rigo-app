@@ -362,13 +362,21 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof Bootstrap !==
-        "undefined"
-      ){
+  typeof AIRuntimeBridge !==
+  "undefined"
 
-        validateBootstrapLayer?.();
+  &&
 
-      }
+  typeof AIRuntimeBridge
+  .initialize ===
+  "function"
+
+){
+
+  await AIRuntimeBridge
+  .initialize();
+
+}
 
 
 
