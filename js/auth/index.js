@@ -417,10 +417,37 @@ function createAuthSnapshot(){
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  authIndexState,
+
+  initializeAuth,
+
+  resetAuth,
+
+  shutdownAuth,
+
+  getAuthHealth,
+
+  createAuthSnapshot,
+
+  RIGOAuthRuntime
+
+};
+
+export default
+RIGOAuthRuntime;
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
-const RIGOAuth =
+const RIGOAuthRuntime =
 Object.freeze({
 
   runtime:
@@ -450,20 +477,20 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGOAuth",
+    "RIGOAuthRuntime",
 
     {
 
       value:
-      RIGOAuth,
+      RIGOAuthRuntime,
 
       writable:false,
 
