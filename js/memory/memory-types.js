@@ -2,7 +2,22 @@
 // RIGO AI
 // MEMORY TYPES
 // ENTERPRISE INFINITY ULTRA FINAL
+// PATCHED + STABILIZED
 // =====================================
+
+
+
+// =====================================
+// SAFE FREEZE
+// =====================================
+
+const freezeMemory =
+typeof deepFreeze ===
+"function"
+
+? deepFreeze
+
+: Object.freeze;
 
 
 
@@ -42,7 +57,9 @@ function createMemoryId(){
   if(
 
     typeof crypto !==
-    "undefined" &&
+    "undefined"
+
+    &&
 
     typeof crypto.randomUUID ===
     "function"
@@ -230,6 +247,47 @@ function deepFreezeMemoryObject(
 
 
 // =====================================
+// MEMORY HASH
+// =====================================
+
+async function createSafeMemoryHash(
+  payload
+){
+
+  try{
+
+    if(
+      typeof createMemoryHash ===
+      "function"
+    ){
+
+      return await createMemoryHash(
+        payload
+      );
+
+    }
+
+    return btoa(
+      unescape(
+        encodeURIComponent(
+          payload
+        )
+      )
+    );
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // MEMORY FINGERPRINT
 // =====================================
 
@@ -250,7 +308,8 @@ async function createMemoryFingerprint(
 
     }
 
-    return await createMemoryHash(
+    return await createSafeMemoryHash(
+
       JSON.stringify({
 
         id:memory.id,
@@ -266,6 +325,7 @@ async function createMemoryFingerprint(
         memory.version
 
       })
+
     );
 
   }
@@ -295,6 +355,17 @@ function normalizeMemoryPriority(
     );
 
   if(
+
+    typeof MEMORY_PRIORITIES ===
+    "undefined"
+
+  ){
+
+    return "normal";
+
+  }
+
+  if(
     !Object.values(
       MEMORY_PRIORITIES
     )
@@ -304,7 +375,9 @@ function normalizeMemoryPriority(
   ){
 
     return MEMORY_DEFAULTS
-    .PRIORITY;
+    ?.PRIORITY ||
+
+    "normal";
 
   }
 
@@ -329,13 +402,27 @@ function normalizeMemoryCategory(
     );
 
   if(
+
+    typeof isValidMemoryCategory !==
+    "function"
+
+  ){
+
+    return normalizedCategory ||
+    "chat";
+
+  }
+
+  if(
     !isValidMemoryCategory(
       normalizedCategory
     )
   ){
 
     return MEMORY_DEFAULTS
-    .CATEGORY;
+    ?.CATEGORY ||
+
+    "chat";
 
   }
 
@@ -360,13 +447,27 @@ function normalizeMemoryType(
     );
 
   if(
+
+    typeof isValidMemoryType !==
+    "function"
+
+  ){
+
+    return normalizedType ||
+    "conversation";
+
+  }
+
+  if(
     !isValidMemoryType(
       normalizedType
     )
   ){
 
     return MEMORY_DEFAULTS
-    .TYPE;
+    ?.TYPE ||
+
+    "conversation";
 
   }
 
@@ -391,13 +492,27 @@ function normalizeMemoryState(
     );
 
   if(
+
+    typeof isValidMemoryState !==
+    "function"
+
+  ){
+
+    return normalizedState ||
+    "active";
+
+  }
+
+  if(
     !isValidMemoryState(
       normalizedState
     )
   ){
 
     return MEMORY_DEFAULTS
-    .STATE;
+    ?.STATE ||
+
+    "active";
 
   }
 
@@ -423,6 +538,17 @@ function normalizeMemoryExpiration(
 
   if(
 
+    typeof MEMORY_EXPIRATION ===
+    "undefined"
+
+  ){
+
+    return "permanent";
+
+  }
+
+  if(
+
     !Object.values(
       MEMORY_EXPIRATION
     )
@@ -433,7 +559,9 @@ function normalizeMemoryExpiration(
   ){
 
     return MEMORY_DEFAULTS
-    .EXPIRATION;
+    ?.EXPIRATION ||
+
+    "permanent";
 
   }
 
@@ -463,11 +591,15 @@ function normalizeMemoryExpiresAt(
   Number(expiresAt);
 
   if(
+
     !Number.isFinite(
       timestamp
-    ) ||
+    )
+
+    ||
 
     timestamp <= 0
+
   ){
 
     return null;
@@ -495,6 +627,20 @@ function normalizeMemoryTags(
     return [];
   }
 
+  const maxTagLength =
+
+    MEMORY_LIMITS
+    ?.MAX_TAG_LENGTH ||
+
+    40;
+
+  const maxTags =
+
+    MEMORY_LIMITS
+    ?.MAX_TAGS ||
+
+    20;
+
   const normalizedTags =
 
     tags
@@ -510,8 +656,7 @@ function normalizeMemoryTags(
       return (
         tag &&
         tag.length <=
-        MEMORY_LIMITS
-        .MAX_TAG_LENGTH
+        maxTagLength
       );
 
     });
@@ -525,8 +670,7 @@ function normalizeMemoryTags(
   ]
   .slice(
     0,
-    MEMORY_LIMITS
-    .MAX_TAGS
+    maxTags
   );
 
 }
@@ -563,9 +707,16 @@ function normalizeMemoryMetadata(
     );
 
     if(
+
       serialized.length >
-      MEMORY_LIMITS
-      .MAX_METADATA_SIZE
+
+      (
+        MEMORY_LIMITS
+        ?.MAX_METADATA_SIZE ||
+
+        5000
+      )
+
     ){
 
       return {};
@@ -657,7 +808,7 @@ function createMemoryStats(){
 
 
 // =====================================
-// RELATION CYCLE DETECTION
+// VALIDATE RELATIONS
 // =====================================
 
 function validateMemoryRelations(
@@ -668,27 +819,21 @@ function validateMemoryRelations(
   const visited =
   new Set();
 
-  function walk(
-    ids = [],
-    depth = 0
+  function validateIds(
+    ids = []
   ){
-
-    if(
-
-      depth >
-
-      MEMORY_TYPES_CONFIG
-      .MAX_RELATION_DEPTH
-
-    ){
-
-      return false;
-
-    }
 
     for(
       const id of ids
     ){
+
+      if(
+        !id
+      ){
+
+        return false;
+
+      }
 
       if(
         visited.has(id)
@@ -717,13 +862,13 @@ function validateMemoryRelations(
 
   return (
 
-    walk(
+    validateIds(
       relations.childMemoryIds
     )
 
     &&
 
-    walk(
+    validateIds(
       relations.relatedMemoryIds
     )
 
@@ -734,7 +879,7 @@ function validateMemoryRelations(
 
 
 // =====================================
-// CREATE MEMORY RELATIONS
+// CREATE RELATIONS
 // =====================================
 
 function createMemoryRelations(
@@ -827,7 +972,7 @@ function createMemoryRelations(
 
 
 // =====================================
-// CREATE MEMORY EMBEDDING
+// EMBEDDING
 // =====================================
 
 function createMemoryEmbedding(){
@@ -849,7 +994,7 @@ function createMemoryEmbedding(){
 
 
 // =====================================
-// CREATE MEMORY METADATA
+// METADATA
 // =====================================
 
 function createMemoryMetadata(
@@ -869,7 +1014,7 @@ function createMemoryMetadata(
 
 
 // =====================================
-// CREATE MEMORY AUDIT
+// AUDIT
 // =====================================
 
 function createMemoryAudit(
@@ -914,64 +1059,52 @@ function createMemoryAudit(
 
 
 // =====================================
-// LIGHTWEIGHT MEMORY
+// FREEZE MEMORY OBJECT
 // =====================================
 
-function createLightweightMemoryObject(
-  options = {}
+function freezeMemoryObject(
+  memory
 ){
 
-  return freezeMemoryObject({
+  if(
 
-    id:createMemoryId(),
+    !memory ||
 
-    title:
-    normalizeMemoryString(
-      options.title
-    ),
+    typeof memory !==
+    "object"
 
-    content:
-    normalizeMemoryContent(
-      options.content
-    ),
+  ){
 
-    type:
-    normalizeMemoryType(
-      options.type
-    ),
+    return memory;
 
-    createdAt:
-    Date.now(),
+  }
 
-    updatedAt:
-    Date.now()
+  if(
 
-  });
+    !MEMORY_TYPES_CONFIG
+    .ENABLE_IMMUTABLE_FREEZE
+
+  ){
+
+    return memory;
+
+  }
+
+  return deepFreezeMemoryObject(
+    memory
+  );
 
 }
 
 
 
 // =====================================
-// CREATE BASE MEMORY OBJECT
+// CREATE MEMORY OBJECT
 // =====================================
 
 async function createMemoryObject(
   options = {}
 ){
-
-  if(
-
-    MEMORY_TYPES_CONFIG
-    .LIGHTWEIGHT_MODE
-
-  ){
-
-    return createLightweightMemoryObject(
-      options
-    );
-
-  }
 
   const timestamps =
   createMemoryTimestamps();
@@ -985,7 +1118,8 @@ async function createMemoryObject(
     memoryId,
 
     version:
-    MEMORY_VERSION,
+    MEMORY_VERSION ||
+    "1.0.0",
 
     schemaVersion:
 
@@ -1010,7 +1144,9 @@ async function createMemoryObject(
       .slice(
         0,
         MEMORY_LIMITS
-        .MAX_TITLE_LENGTH
+        ?.MAX_TITLE_LENGTH ||
+
+        120
       ),
 
     content:
@@ -1021,7 +1157,9 @@ async function createMemoryObject(
       .slice(
         0,
         MEMORY_LIMITS
-        .MAX_CONTENT_LENGTH
+        ?.MAX_CONTENT_LENGTH ||
+
+        10000
       ),
 
     summary:
@@ -1032,7 +1170,9 @@ async function createMemoryObject(
       .slice(
         0,
         MEMORY_LIMITS
-        .MAX_SUMMARY_LENGTH
+        ?.MAX_SUMMARY_LENGTH ||
+
+        2000
       ),
 
     tags:
@@ -1056,14 +1196,9 @@ async function createMemoryObject(
     ),
 
     flags:
-    createMemoryFlags({
-
-      ...MEMORY_DEFAULTS
-      .FLAGS,
-
-      ...(options.flags || {})
-
-    }),
+    createMemoryFlags(
+      options.flags || {}
+    ),
 
     stats:
     createMemoryStats(),
@@ -1116,188 +1251,6 @@ async function createMemoryObject(
 
 
 // =====================================
-// SPECIALIZED MEMORY TYPES
-// =====================================
-
-async function createConversationMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"conversation",
-
-    category:"chat"
-
-  });
-
-}
-
-
-
-async function createSummaryMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"summary",
-
-    category:"context"
-
-  });
-
-}
-
-
-
-async function createPreferenceMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"preference",
-
-    category:"settings"
-
-  });
-
-}
-
-
-
-async function createProjectMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"project",
-
-    category:"project"
-
-  });
-
-}
-
-
-
-async function createKnowledgeMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"knowledge",
-
-    category:"memory"
-
-  });
-
-}
-
-
-
-async function createFactMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"fact",
-
-    category:"memory"
-
-  });
-
-}
-
-
-
-async function createProfileMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"profile",
-
-    category:"user"
-
-  });
-
-}
-
-
-
-async function createTemporaryMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"temporary",
-
-    expiration:"session",
-
-    flags:{
-
-      ...(options.flags || {}),
-
-      temporary:true
-
-    }
-
-  });
-
-}
-
-
-
-async function createSystemMemory(
-  options = {}
-){
-
-  return createMemoryObject({
-
-    ...options,
-
-    type:"system",
-
-    category:"system",
-
-    flags:{
-
-      ...(options.flags || {}),
-
-      system:true
-
-    }
-
-  });
-
-}
-
-
-
-// =====================================
 // SAFE CLONE
 // =====================================
 
@@ -1339,47 +1292,7 @@ function cloneMemoryObject(
 
 
 // =====================================
-// FREEZE MEMORY OBJECT
-// =====================================
-
-function freezeMemoryObject(
-  memory
-){
-
-  if(
-
-    !memory ||
-
-    typeof memory !==
-    "object"
-
-  ){
-
-    return memory;
-
-  }
-
-  if(
-
-    !MEMORY_TYPES_CONFIG
-    .ENABLE_IMMUTABLE_FREEZE
-
-  ){
-
-    return memory;
-
-  }
-
-  return deepFreezeMemoryObject(
-    memory
-  );
-
-}
-
-
-
-// =====================================
-// IMMUTABLE PATCH
+// PATCH MEMORY
 // =====================================
 
 async function patchMemoryObject(
@@ -1387,13 +1300,28 @@ async function patchMemoryObject(
   patch = {}
 ){
 
+  const clonedMemory =
+  cloneMemoryObject(
+    memory
+  );
+
+  if(!clonedMemory){
+
+    return null;
+
+  }
+
   return createMemoryObject({
 
-    ...cloneMemoryObject(
-      memory
-    ),
+    ...clonedMemory,
 
     ...patch,
+
+    id:
+    clonedMemory.id,
+
+    createdAt:
+    clonedMemory.createdAt,
 
     updatedAt:
     Date.now()
@@ -1405,7 +1333,7 @@ async function patchMemoryObject(
 
 
 // =====================================
-// UPDATE MEMORY FIELD
+// UPDATE FIELD
 // =====================================
 
 async function updateMemoryField(
@@ -1426,7 +1354,7 @@ async function updateMemoryField(
 
 
 // =====================================
-// MERGE MEMORY METADATA
+// MERGE METADATA
 // =====================================
 
 async function mergeMemoryMetadata(
@@ -1450,7 +1378,7 @@ async function mergeMemoryMetadata(
 
 
 // =====================================
-// SANITIZE MEMORY OBJECT
+// SANITIZE
 // =====================================
 
 async function sanitizeMemoryObject(
@@ -1480,7 +1408,7 @@ async function sanitizeMemoryObject(
 
 
 // =====================================
-// ENSURE MEMORY DEFAULTS
+// ENSURE DEFAULTS
 // =====================================
 
 function ensureMemoryDefaults(
@@ -1491,9 +1419,9 @@ function ensureMemoryDefaults(
 
     ...MEMORY_DEFAULTS,
 
-    flags:{
+    ...memory,
 
-      ...(MEMORY_DEFAULTS.FLAGS || {}),
+    flags:{
 
       ...(memory.flags || {})
 
@@ -1501,15 +1429,11 @@ function ensureMemoryDefaults(
 
     stats:{
 
-      ...(MEMORY_DEFAULTS.STATS || {}),
-
       ...(memory.stats || {})
 
     },
 
     relations:{
-
-      ...(MEMORY_DEFAULTS.RELATIONS || {}),
 
       ...(memory.relations || {})
 
@@ -1517,22 +1441,133 @@ function ensureMemoryDefaults(
 
     metadata:{
 
-      ...(MEMORY_DEFAULTS.METADATA || {}),
-
       ...(memory.metadata || {})
 
     },
 
     audit:{
 
-      ...(MEMORY_DEFAULTS.AUDIT || {}),
-
       ...(memory.audit || {})
 
-    },
-
-    ...memory
+    }
 
   };
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryTypes =
+Object.freeze({
+
+  config:
+  MEMORY_TYPES_CONFIG,
+
+  createId:
+  createMemoryId,
+
+  create:
+  createMemoryObject,
+
+  clone:
+  cloneMemoryObject,
+
+  freeze:
+  freezeMemoryObject,
+
+  sanitize:
+  sanitizeMemoryObject,
+
+  patch:
+  patchMemoryObject,
+
+  updateField:
+  updateMemoryField,
+
+  mergeMetadata:
+  mergeMemoryMetadata,
+
+  ensureDefaults:
+  ensureMemoryDefaults,
+
+  normalizeString:
+  normalizeMemoryString,
+
+  normalizeValue:
+  normalizeMemoryValue,
+
+  normalizeContent:
+  normalizeMemoryContent,
+
+  normalizeTags:
+  normalizeMemoryTags,
+
+  normalizeMetadata:
+  normalizeMemoryMetadata,
+
+  createRelations:
+  createMemoryRelations,
+
+  validateRelations:
+  validateMemoryRelations,
+
+  createConversation:
+  createConversationMemory,
+
+  createSummary:
+  createSummaryMemory,
+
+  createPreference:
+  createPreferenceMemory,
+
+  createProject:
+  createProjectMemory,
+
+  createKnowledge:
+  createKnowledgeMemory,
+
+  createFact:
+  createFactMemory,
+
+  createProfile:
+  createProfileMemory,
+
+  createTemporary:
+  createTemporaryMemory,
+
+  createSystem:
+  createSystemMemory
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryTypes =
+  MemoryTypes;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.MemoryTypes =
+  MemoryTypes;
 
 }
