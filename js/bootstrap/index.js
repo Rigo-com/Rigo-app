@@ -280,80 +280,9 @@ if(
       value:
       RIGOBootstrapRuntime,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
-
-    }
-
-  );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "BootstrapManager",
-
-    {
-
-      value:
-      BootstrapManager,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "getBootstrapManager",
-
-    {
-
-      value:
-      getBootstrapManager,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "validateBootstrapLayer",
-
-    {
-
-      value:
-      validateBootstrapLayer,
-
-      writable:
-      false,
-
-      configurable:
-      false
+      configurable:false
 
     }
 
