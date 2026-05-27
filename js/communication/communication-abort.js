@@ -9,7 +9,7 @@
 // ABORT MESSAGE
 // =====================================
 
-function abortCommunicationMessage(
+async function abortCommunicationMessage(
   requestId
 ){
 
@@ -55,7 +55,7 @@ function abortCommunicationMessage(
   .diagnostics
   .aborted++;
 
-  emitCommunicationEvent(
+  await emitCommunicationEvent(
 
     COMMUNICATION_RUNTIME_EVENTS
     .MESSAGE_ABORTED,
@@ -79,6 +79,14 @@ function abortCommunicationMessage(
 // =====================================
 
 function abortAllCommunicationMessages(){
+
+  communicationRuntimeState
+  .diagnostics
+  .aborted +=
+
+  communicationRuntimeState
+  .abortControllers
+  .size;
 
   communicationRuntimeState
   .abortControllers
