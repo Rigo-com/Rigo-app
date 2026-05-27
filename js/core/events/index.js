@@ -186,6 +186,26 @@ Object.freeze({
       "APP_EVENTS"
     );
 
+  },
+
+
+
+  get bus(){
+
+    return {
+
+      system:
+      getGlobalEvent(
+        "RIGOSystemEvents"
+      ),
+
+      app:
+      getGlobalEvent(
+        "RIGOAppEvents"
+      )
+
+    };
+
   }
 
 });
@@ -206,6 +226,29 @@ if(
     window,
 
     "EventsAPI",
+
+    {
+
+      value:
+      EventsAPI,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+
+
+  Object.defineProperty(
+
+    window,
+
+    "RIGOEvents",
 
     {
 
