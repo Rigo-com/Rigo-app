@@ -2,7 +2,7 @@
 // RIGO AI
 // RUNTIME INDEX
 // SAFE RUNTIME COMPOSITION LAYER
-// ENTERPRISE FINAL
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -47,15 +47,17 @@ Object.seal({
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
 function isFunction(
   value
 ){
 
-  return typeof value ===
-  "function";
+  return (
+    typeof value ===
+    "function"
+  );
 
 }
 
@@ -76,9 +78,9 @@ function isPlainObject(
   }
 
   const prototype =
-  Object.getPrototypeOf(
-    value
-  );
+    Object.getPrototypeOf(
+      value
+    );
 
   return (
 
@@ -154,9 +156,13 @@ function safeFreeze(
 
   }
 
-  visited.add(value);
+  visited.add(
+    value
+  );
 
-  Object.freeze(value);
+  Object.freeze(
+    value
+  );
 
   Object.values(value)
   .forEach((nestedValue) => {
@@ -318,19 +324,13 @@ function validateRuntimeLayer(){
 
   const requiredSystems = [
 
-    "RuntimeManager",
-
-    "RuntimeState",
-
-    "RuntimeHelpers",
-
-    "RuntimeBootSequence",
-
-    "LanguageRuntime",
-
-    "FileRuntime",
-
-    "AnalyticsRuntime"
+    "RIGORuntimeManager",
+    "RIGORuntimeState",
+    "RIGORuntimeHelpers",
+    "RIGORuntimeBootSequence",
+    "RIGOLanguageRuntime",
+    "RIGOFilesRuntime",
+    "RIGOAnalyticsRuntime"
 
   ];
 
@@ -371,7 +371,7 @@ function validateRuntimeLayer(){
 
 
 // =====================================
-// INITIALIZE
+// INITIALIZATION
 // =====================================
 
 async function initializeRuntimeLayer(){
@@ -536,7 +536,7 @@ async function bootRuntimeLayer(){
     }
 
     const runtimeManager =
-    window.RuntimeManager;
+      window.RIGORuntimeManager;
 
     if(
 
@@ -555,7 +555,7 @@ async function bootRuntimeLayer(){
     }
 
     const booted =
-    await runtimeManager.boot();
+      await runtimeManager.boot();
 
     if(
       !booted
@@ -630,7 +630,7 @@ async function getRuntimeLayerHealth(){
   try{
 
     const runtimeManager =
-    window.RuntimeManager;
+      window.RIGORuntimeManager;
 
     const health =
 
@@ -781,41 +781,84 @@ function createRuntimeLayerSnapshot(){
 
 
 // =====================================
-// PUBLIC SURFACE
+// PUBLIC API
 // =====================================
 
-const Runtime =
+const RIGORuntime =
 Object.freeze({
 
-  Manager:
-  window.RuntimeManager,
 
-  State:
-  window.RuntimeState,
 
-  Helpers:
-  window.RuntimeHelpers,
+  get Manager(){
 
-  BootSequence:
-  window.RuntimeBootSequence,
+    return window.RIGORuntimeManager;
 
-  Language:
-  window.LanguageRuntime,
+  },
 
-  Files:
-  window.FileRuntime,
 
-  Analytics:
-  window.AnalyticsRuntime,
+
+  get State(){
+
+    return window.RIGORuntimeState;
+
+  },
+
+
+
+  get Helpers(){
+
+    return window.RIGORuntimeHelpers;
+
+  },
+
+
+
+  get BootSequence(){
+
+    return window.RIGORuntimeBootSequence;
+
+  },
+
+
+
+  get Language(){
+
+    return window.RIGOLanguageRuntime;
+
+  },
+
+
+
+  get Files(){
+
+    return window.RIGOFilesRuntime;
+
+  },
+
+
+
+  get Analytics(){
+
+    return window.RIGOAnalyticsRuntime;
+
+  },
+
+
 
   initialize:
   initializeRuntimeLayer,
 
+
+
   boot:
   bootRuntimeLayer,
 
+
+
   healthcheck:
   getRuntimeLayerHealth,
+
+
 
   snapshot:
   createRuntimeLayerSnapshot
@@ -837,16 +880,18 @@ if(
 
     window,
 
-    "Runtime",
+    "RIGORuntime",
 
     {
 
       value:
-      Runtime,
+      RIGORuntime,
 
-      writable:false,
+      writable:
+      false,
 
-      configurable:false
+      configurable:
+      false
 
     }
 
