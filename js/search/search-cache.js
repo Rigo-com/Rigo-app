@@ -1,31 +1,63 @@
 // =====================================
 // RIGO AI
 // SEARCH CACHE
-// ENTERPRISE ULTRA FINAL
+// OPTIMIZED FINAL
 // =====================================
 
 
+
+// =====================================
+// CACHE STATE
+// =====================================
 
 const searchCache =
 Object.seal({
 
   results:new Map(),
 
+  cacheHits:0,
+
   cacheMisses:0,
 
-  cacheEvictions:0
+  cacheEvictions:0,
+
+  lastClearedAt:null
 
 });
 
 
 
+// =====================================
+// GET CACHED SEARCH
+// =====================================
+
 function getCachedSearch(
   cacheKey
 ){
 
+  if(
+    !SEARCH_CONFIG
+    .ENABLE_CACHE
+  ){
+
+    return null;
+
+  }
+
+  const normalizedKey =
+  String(cacheKey || "");
+
+  if(!normalizedKey){
+
+    return null;
+
+  }
+
   const cached =
   searchCache.results
-  .get(cacheKey);
+  .get(
+    normalizedKey
+  );
 
   if(!cached){
 
@@ -33,7 +65,14 @@ function getCachedSearch(
     .cacheMisses++;
 
     return null;
+
   }
+
+
+
+  // ================================
+  // EXPIRED
+  // ================================
 
   if(
 
@@ -45,16 +84,21 @@ function getCachedSearch(
 
     searchCache.results
     .delete(
-      cacheKey
+      normalizedKey
     );
 
     searchCache
     .cacheMisses++;
 
     return null;
+
   }
 
-  searchState.cachedHits++;
+  searchCache
+  .cacheHits++;
+
+  searchState
+  .cachedHits++;
 
   return cached.results;
 
@@ -62,12 +106,48 @@ function getCachedSearch(
 
 
 
+// =====================================
+// SET CACHED SEARCH
+// =====================================
+
 function setCachedSearch(
   cacheKey,
   results
 ){
 
   if(
+    !SEARCH_CONFIG
+    .ENABLE_CACHE
+  ){
+
+    return false;
+
+  }
+
+  const normalizedKey =
+  String(cacheKey || "");
+
+  if(!normalizedKey){
+
+    return false;
+
+  }
+
+  if(
+    !Array.isArray(results)
+  ){
+
+    return false;
+
+  }
+
+
+
+  // ================================
+  // CACHE LIMIT
+  // ================================
+
+  while(
 
     searchCache.results
     .size >=
@@ -79,44 +159,172 @@ function setCachedSearch(
 
     const firstKey =
 
-      searchCache.results
+      searchCache
+      .results
       .keys()
       .next()
       .value;
 
-    searchCache.results
-    .delete(firstKey);
+    if(!firstKey){
+
+      break;
+
+    }
+
+    searchCache
+    .results
+    .delete(
+      firstKey
+    );
 
     searchCache
     .cacheEvictions++;
 
   }
 
-  searchCache.results
-  .set(cacheKey,{
 
-    results,
 
-    expiresAt:
+  // ================================
+  // STORE
+  // ================================
 
-      Date.now() +
+  searchCache
+  .results
+  .set(
 
-      SEARCH_CONFIG
-      .CACHE_TTL
+    normalizedKey,
+
+    {
+
+      results:[...results],
+
+      createdAt:
+      Date.now(),
+
+      expiresAt:
+
+        Date.now() +
+
+        SEARCH_CONFIG
+        .CACHE_TTL
+
+    }
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CLEANUP EXPIRED CACHE
+// =====================================
+
+function cleanupExpiredSearchCache(){
+
+  let cleaned = 0;
+
+  const now =
+  Date.now();
+
+  searchCache
+  .results
+  .forEach((value,key) => {
+
+    if(
+      now >
+      value.expiresAt
+    ){
+
+      searchCache
+      .results
+      .delete(key);
+
+      cleaned++;
+
+    }
 
   });
 
-  return true;
+  return cleaned;
 
 }
 
 
+
+// =====================================
+// CLEAR CACHE
+// =====================================
 
 function clearSearchCache(){
 
-  searchCache.results
+  searchCache
+  .results
   .clear();
+
+  searchCache
+  .lastClearedAt =
+  Date.now();
 
   return true;
 
 }
+
+
+
+// =====================================
+// CACHE DIAGNOSTICS
+// =====================================
+
+function getSearchCacheDiagnostics(){
+
+  return {
+
+    size:
+    searchCache
+    .results
+    .size,
+
+    cacheHits:
+    searchCache
+    .cacheHits,
+
+    cacheMisses:
+    searchCache
+    .cacheMisses,
+
+    cacheEvictions:
+    searchCache
+    .cacheEvictions,
+
+    lastClearedAt:
+    searchCache
+    .lastClearedAt
+
+  };
+
+}
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  searchCache,
+
+  getCachedSearch,
+
+  setCachedSearch,
+
+  cleanupExpiredSearchCache,
+
+  clearSearchCache,
+
+  getSearchCacheDiagnostics
+
+};
