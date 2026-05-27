@@ -23,8 +23,10 @@ async function startTypingIndicator(){
   }
 
   if(
+
     communicationRuntimeState
-    .typing
+    .typing === true
+
   ){
 
     return true;
@@ -40,7 +42,14 @@ async function startTypingIndicator(){
     await emitCommunicationEvent(
 
       COMMUNICATION_RUNTIME_EVENTS
-      .TYPING_STARTED
+      .TYPING_STARTED,
+
+      {
+
+        timestamp:
+        Date.now()
+
+      }
 
     );
 
@@ -75,8 +84,10 @@ async function startTypingIndicator(){
 async function stopTypingIndicator(){
 
   if(
-    !communicationRuntimeState
-    .typing
+
+    communicationRuntimeState
+    .typing !== true
+
   ){
 
     return true;
@@ -92,7 +103,14 @@ async function stopTypingIndicator(){
     await emitCommunicationEvent(
 
       COMMUNICATION_RUNTIME_EVENTS
-      .TYPING_STOPPED
+      .TYPING_STOPPED,
+
+      {
+
+        timestamp:
+        Date.now()
+
+      }
 
     );
 
