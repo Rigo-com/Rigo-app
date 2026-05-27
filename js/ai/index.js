@@ -956,6 +956,31 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  aiIndexState,
+
+  initializeAILayer,
+
+  bootAILayer,
+
+  getAILayerHealth,
+
+  createAILayerSnapshot,
+
+  RIGOAIRuntime
+
+};
+
+export default
+RIGOAIRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
