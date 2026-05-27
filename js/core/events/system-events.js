@@ -1829,24 +1829,47 @@ if(
 
   Object.defineProperty(
 
-    window,
+  window,
 
-    "SystemEvents",
+  "SystemEvents",
 
-    {
+  {
 
-      value:
-      SystemEvents,
+    value:
+    SystemEvents,
 
-      writable:
-      false,
+    writable:
+    false,
 
-      configurable:
-      false
+    configurable:
+    false
 
-    }
+  }
 
-  );
+);
+
+
+
+Object.defineProperty(
+
+  window,
+
+  "RIGOSystemEvents",
+
+  {
+
+    value:
+    SystemEvents,
+
+    writable:
+    false,
+
+    configurable:
+    false
+
+  }
+
+);
 
   Object.defineProperty(
 
