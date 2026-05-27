@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY SUMMARY
-// ENTERPRISE INFINITY ULTRA FINAL
+// OPTIMIZED FINAL
 // =====================================
 
 
@@ -16,11 +16,11 @@ Object.freeze({
   MAX_SUMMARY_LENGTH:
   2000,
 
-  MIN_CONTENT_LENGTH:
-  20,
-
   MAX_INPUT_LENGTH:
   50000,
+
+  MIN_CONTENT_LENGTH:
+  20,
 
   MAX_MESSAGES:
   200,
@@ -31,30 +31,20 @@ Object.freeze({
   MAX_SENTENCES:
   30,
 
-  MIN_SENTENCE_LENGTH:
-  3,
-
-  RECENT_MESSAGE_COUNT:
-  20,
-
-  KEYWORD_LIMIT:
+  MAX_KEYWORDS:
   25,
+
+  MAX_CACHE_SIZE:
+  500,
 
   REDUNDANCY_THRESHOLD:
   0.85,
 
-  CACHE_LIMIT:
-  500,
+  ENABLE_CACHE:true,
 
   ENABLE_SEMANTIC_SCORING:true,
 
-  ENABLE_REDUNDANCY_FILTER:true,
-
-  ENABLE_PRIORITY_SCORING:true,
-
-  ENABLE_INCREMENTAL_SUMMARY:true,
-
-  ENABLE_SUMMARY_CACHE:true
+  ENABLE_REDUNDANCY_FILTER:true
 
 });
 
@@ -75,17 +65,12 @@ Object.seal({
 
   failedSummaries:0,
 
-  semanticScores:0,
-
   redundancyRemovals:0,
 
   cache:new Map(),
 
   dirtySummaryIds:
   new Set(),
-
-  summaryMetadata:
-  new Map(),
 
   lastSummaryAt:null
 
@@ -100,32 +85,11 @@ Object.seal({
 const MEMORY_SUMMARY_STOP_WORDS =
 new Set([
 
-  "the",
-  "a",
-  "an",
-  "and",
-  "or",
-  "but",
-  "if",
-  "then",
-  "is",
-  "are",
-  "was",
-  "were",
-  "be",
-  "to",
-  "of",
-  "in",
-  "on",
-  "at",
-  "for",
-  "with",
-  "this",
-  "that",
-  "it",
-  "as",
-  "by",
-  "from",
+  "the","a","an","and","or","but",
+  "if","then","is","are","was",
+  "were","be","to","of","in",
+  "on","at","for","with","this",
+  "that","it","as","by","from",
   "about"
 
 ]);
@@ -133,16 +97,14 @@ new Set([
 
 
 // =====================================
-// NORMALIZE TEXT
+// TEXT HELPERS
 // =====================================
 
-function normalizeSummaryText(
+function sanitizeSummaryText(
   text
 ){
 
-  return String(
-    text || ""
-  )
+  return String(text || "")
 
   .replace(
     /[\u0000-\u001F\u007F]/g,
@@ -154,26 +116,8 @@ function normalizeSummaryText(
     " "
   )
 
-  .trim();
+  .trim()
 
-}
-
-
-
-// =====================================
-// SAFE TEXT
-// =====================================
-
-function sanitizeSummaryText(
-  text
-){
-
-  const normalizedText =
-  normalizeSummaryText(
-    text
-  );
-
-  return normalizedText
   .slice(
     0,
     MEMORY_SUMMARY_CONFIG
@@ -183,58 +127,6 @@ function sanitizeSummaryText(
 }
 
 
-
-// =====================================
-// CACHE KEY
-// =====================================
-
-async function createSummaryCacheKey(
-  text,
-  options = {}
-){
-
-  try{
-
-    const hash =
-    await createMemoryHash(
-      JSON.stringify({
-
-        text:
-        sanitizeSummaryText(
-          text
-        ),
-
-        options
-
-      })
-    );
-
-    return (
-
-      hash ||
-
-      createMemoryId()
-
-    );
-
-  }
-
-  catch(error){
-
-    memorySummaryState
-    .failedSummaries++;
-
-    return createMemoryId();
-
-  }
-
-}
-
-
-
-// =====================================
-// TRUNCATE
-// =====================================
 
 function truncateSummaryText(
   text,
@@ -275,8 +167,37 @@ function truncateSummaryText(
 
 
 // =====================================
-// SPLIT SENTENCES
+// TOKENIZATION
 // =====================================
+
+function tokenizeSummaryText(
+  text
+){
+
+  return sanitizeSummaryText(
+    text
+  )
+
+  .toLowerCase()
+
+  .split(
+    /[^a-zA-Z0-9\u0600-\u06FF]+/
+  )
+
+  .filter((token) => {
+
+    return (
+      token &&
+      token.length > 2 &&
+      !MEMORY_SUMMARY_STOP_WORDS
+      .has(token)
+    );
+
+  });
+
+}
+
+
 
 function splitSummarySentences(
   text
@@ -286,9 +207,7 @@ function splitSummarySentences(
     text
   )
 
-  .split(
-    /[.!?\n]+/
-  )
+  .split(/[.!?\n]+/)
 
   .map((sentence,index) => {
 
@@ -306,9 +225,7 @@ function splitSummarySentences(
   .filter((item) => {
 
     return (
-      item.sentence.length >=
-      MEMORY_SUMMARY_CONFIG
-      .MIN_SENTENCE_LENGTH
+      item.sentence.length >= 3
     );
 
   });
@@ -318,75 +235,25 @@ function splitSummarySentences(
 
 
 // =====================================
-// TOKENIZE
-// =====================================
-
-function tokenizeSummaryText(
-  text
-){
-
-  return sanitizeSummaryText(
-    text
-  )
-
-  .toLowerCase()
-
-  .split(
-    /[^a-zA-Z0-9\u0600-\u06FF]+/
-  )
-
-  .map((token) => {
-
-    return token.trim();
-
-  })
-
-  .filter((token) => {
-
-    return (
-      token.length > 2
-    );
-
-  });
-
-}
-
-
-
-// =====================================
-// KEYWORD EXTRACTION
+// KEYWORDS
 // =====================================
 
 function extractSummaryKeywords(
   text
 ){
 
-  const tokens =
-  tokenizeSummaryText(
-    text
-  );
-
   const scores =
   new Map();
 
-  tokens.forEach((token) => {
-
-    if(
-
-      MEMORY_SUMMARY_STOP_WORDS
-      .has(token)
-
-    ){
-
-      return;
-    }
-
-    const current =
-    scores.get(token) || 0;
+  tokenizeSummaryText(text)
+  .forEach((token) => {
 
     scores.set(
+
       token,
-      current + 1
+
+      (scores.get(token) || 0) + 1
+
     );
 
   });
@@ -406,7 +273,7 @@ function extractSummaryKeywords(
   .slice(
     0,
     MEMORY_SUMMARY_CONFIG
-    .KEYWORD_LIMIT
+    .MAX_KEYWORDS
   )
 
   .map((entry) => {
@@ -420,7 +287,7 @@ function extractSummaryKeywords(
 
 
 // =====================================
-// SEMANTIC SCORING
+// SEMANTIC SCORE
 // =====================================
 
 function calculateSemanticSentenceScore(
@@ -467,18 +334,6 @@ function calculateSemanticSentenceScore(
       fullText
     );
 
-    if(
-      !sentenceVector ||
-      !fullVector
-    ){
-
-      return 0;
-
-    }
-
-    memorySummaryState
-    .semanticScores++;
-
     return safeMemoryNumber(
 
       calculateCosineSimilarity(
@@ -503,11 +358,13 @@ function calculateSemanticSentenceScore(
 
 
 // =====================================
-// PRIORITY SCORE
+// SENTENCE SCORE
 // =====================================
 
-function calculatePrioritySummaryScore(
-  sentence
+function scoreSummarySentence(
+  sentence,
+  keywords,
+  fullText
 ){
 
   let score = 0;
@@ -515,106 +372,35 @@ function calculatePrioritySummaryScore(
   const normalized =
   sentence.toLowerCase();
 
-  if(
-    normalized.includes("important")
-  ){
-
-    score += 2;
-
-  }
-
-  if(
-    normalized.includes("critical")
-  ){
-
-    score += 3;
-
-  }
-
-  if(
-    normalized.includes("urgent")
-  ){
-
-    score += 3;
-
-  }
-
-  return score;
-
-}
-
-
-
-// =====================================
-// SENTENCE SCORING
-// =====================================
-
-function scoreSummarySentence(
-  sentence,
-  keywords = [],
-  fullText = ""
-){
-
-  try{
-
-    if(!sentence){
-
-      return 0;
-
-    }
-
-    const normalizedSentence =
-    sentence.toLowerCase();
-
-    let score = 0;
-
-    keywords.forEach((keyword) => {
-
-      if(
-
-        normalizedSentence.includes(
-          keyword
-        )
-
-      ){
-
-        score += 1;
-
-      }
-
-    });
+  keywords.forEach((keyword) => {
 
     if(
-      sentence.length > 40
+      normalized.includes(
+        keyword
+      )
     ){
 
-      score += 1;
+      score++;
 
     }
 
-    score +=
-    calculateSemanticSentenceScore(
-      sentence,
-      fullText
-    ) * 5;
+  });
 
-    score +=
-    calculatePrioritySummaryScore(
-      sentence
-    );
+  if(
+    sentence.length > 40
+  ){
 
-    return safeMemoryNumber(
-      score,
-      0
-    );
+    score++;
 
   }
 
-  catch(error){
+  score +=
+  calculateSemanticSentenceScore(
+    sentence,
+    fullText
+  ) * 5;
 
-    return 0;
-
-  }
+  return score;
 
 }
 
@@ -628,101 +414,98 @@ function removeRedundantSentences(
   sentences = []
 ){
 
-  try{
+  if(
 
-    if(
+    !MEMORY_SUMMARY_CONFIG
+    .ENABLE_REDUNDANCY_FILTER
 
-      !MEMORY_SUMMARY_CONFIG
-      .ENABLE_REDUNDANCY_FILTER
-
-    ){
-
-      return sentences;
-
-    }
-
-    if(
-
-      typeof createTextEmbedding !==
-      "function"
-
-      ||
-
-      typeof calculateCosineSimilarity !==
-      "function"
-
-    ){
-
-      return sentences;
-
-    }
-
-    const filtered = [];
-
-    sentences.forEach((current) => {
-
-      const duplicate =
-      filtered.some((existing) => {
-
-        try{
-
-          const similarity =
-          calculateCosineSimilarity(
-
-            createTextEmbedding(
-              existing.sentence
-            ),
-
-            createTextEmbedding(
-              current.sentence
-            )
-
-          );
-
-          return (
-
-            similarity >=
-
-            MEMORY_SUMMARY_CONFIG
-            .REDUNDANCY_THRESHOLD
-
-          );
-
-        }
-
-        catch(error){
-
-          return false;
-
-        }
-
-      });
-
-      if(
-        duplicate
-      ){
-
-        memorySummaryState
-        .redundancyRemovals++;
-
-        return;
-      }
-
-      filtered.push(
-        current
-      );
-
-    });
-
-    return filtered;
-
-  }
-
-  catch(error){
+  ){
 
     return sentences;
 
   }
+
+  const filtered = [];
+
+  const vectorCache =
+  new Map();
+
+  sentences.forEach((current) => {
+
+    const currentVector =
+
+      vectorCache.get(
+        current.sentence
+      )
+
+      ||
+
+      createTextEmbedding?.(
+        current.sentence
+      );
+
+    vectorCache.set(
+      current.sentence,
+      currentVector
+    );
+
+    const duplicate =
+    filtered.some((existing) => {
+
+      const existingVector =
+
+        vectorCache.get(
+          existing.sentence
+        )
+
+        ||
+
+        createTextEmbedding?.(
+          existing.sentence
+        );
+
+      vectorCache.set(
+        existing.sentence,
+        existingVector
+      );
+
+      const similarity =
+      calculateCosineSimilarity?.(
+
+        existingVector,
+
+        currentVector
+
+      );
+
+      return (
+
+        similarity >=
+
+        MEMORY_SUMMARY_CONFIG
+        .REDUNDANCY_THRESHOLD
+
+      );
+
+    });
+
+    if(
+      duplicate
+    ){
+
+      memorySummaryState
+      .redundancyRemovals++;
+
+      return;
+    }
+
+    filtered.push(
+      current
+    );
+
+  });
+
+  return filtered;
 
 }
 
@@ -737,19 +520,16 @@ function getBestSummarySentences(
   limit = 5
 ){
 
-  try{
+  const keywords =
+  extractSummaryKeywords(
+    text
+  );
 
-    const sentences =
+  const scored =
+
     splitSummarySentences(
       text
-    );
-
-    const keywords =
-    extractSummaryKeywords(
-      text
-    );
-
-    const scored = sentences
+    )
 
     .map((item) => {
 
@@ -780,36 +560,86 @@ function getBestSummarySentences(
 
     .slice(0,limit);
 
-    const filtered =
-    removeRedundantSentences(
-      scored
+  return removeRedundantSentences(
+    scored
+  )
+
+  .sort((a,b) => {
+
+    return a.index - b.index;
+
+  })
+
+  .map((item) => {
+
+    return item.sentence;
+
+  });
+
+}
+
+
+
+// =====================================
+// CACHE
+// =====================================
+
+async function createSummaryCacheKey(
+  text,
+  options = {}
+){
+
+  try{
+
+    return await createMemoryHash(
+      JSON.stringify({
+
+        text:
+        sanitizeSummaryText(
+          text
+        ),
+
+        options
+
+      })
     );
-
-
-
-    // ===================================
-    // PRESERVE ORIGINAL ORDER
-    // ===================================
-
-    return filtered
-
-    .sort((a,b) => {
-
-      return a.index - b.index;
-
-    })
-
-    .map((item) => {
-
-      return item.sentence;
-
-    });
 
   }
 
   catch(error){
 
-    return [];
+    return createMemoryId();
+
+  }
+
+}
+
+
+
+function pruneSummaryCache(){
+
+  while(
+
+    memorySummaryState
+    .cache
+    .size >
+
+    MEMORY_SUMMARY_CONFIG
+    .MAX_CACHE_SIZE
+
+  ){
+
+    const firstKey =
+
+      memorySummaryState
+      .cache
+      .keys()
+      .next()
+      .value;
+
+    memorySummaryState
+    .cache
+    .delete(firstKey);
 
   }
 
@@ -852,16 +682,10 @@ async function buildTextSummary(
       options
     );
 
-
-
-    // ===================================
-    // CACHE
-    // ===================================
-
     if(
 
       MEMORY_SUMMARY_CONFIG
-      .ENABLE_SUMMARY_CACHE
+      .ENABLE_CACHE
 
       &&
 
@@ -874,9 +698,7 @@ async function buildTextSummary(
       .cache
       .get(cacheKey);
 
-      if(
-        cached
-      ){
+      if(cached){
 
         memorySummaryState
         .cachedSummaries++;
@@ -887,7 +709,7 @@ async function buildTextSummary(
 
     }
 
-    const sentenceLimit =
+    const limit =
     Math.min(
 
       Number(
@@ -899,16 +721,14 @@ async function buildTextSummary(
 
     );
 
-    const bestSentences =
-    getBestSummarySentences(
-      safeText,
-      sentenceLimit
-    );
-
     const summary =
     truncateSummaryText(
 
-      bestSentences.join(". ")
+      getBestSummarySentences(
+        safeText,
+        limit
+      )
+      .join(". ")
 
     );
 
@@ -922,36 +742,8 @@ async function buildTextSummary(
         cacheKey,
         summary
       );
-    }
 
-
-
-    // ===================================
-    // CACHE LIMIT
-    // ===================================
-
-    while(
-
-      memorySummaryState
-      .cache
-      .size >
-
-      MEMORY_SUMMARY_CONFIG
-      .CACHE_LIMIT
-
-    ){
-
-      const firstKey =
-
-        memorySummaryState
-        .cache
-        .keys()
-        .next()
-        .value;
-
-      memorySummaryState
-      .cache
-      .delete(firstKey);
+      pruneSummaryCache();
 
     }
 
@@ -982,6 +774,39 @@ async function buildTextSummary(
 
 
 // =====================================
+// SUMMARY LEVELS
+// =====================================
+
+function createSummaryByLevel(
+  level,
+  text
+){
+
+  const levels = {
+
+    tiny:1,
+
+    short:3,
+
+    medium:6,
+
+    full:10
+
+  };
+
+  return buildTextSummary(
+    text,
+    {
+      limit:
+      levels[level] || 3
+    }
+  );
+
+}
+
+
+
+// =====================================
 // MEMORY SUMMARY
 // =====================================
 
@@ -990,78 +815,36 @@ async function summarizeMemory(
   options = {}
 ){
 
-  try{
-
-    if(
-      !memory
-    ){
-
-      return "";
-    }
-
-    const sections = [];
-
-    if(
-      memory.title
-    ){
-
-      sections.push(
-        memory.title
-      );
-
-    }
-
-    if(
-      memory.summary
-    ){
-
-      sections.push(
-        memory.summary
-      );
-
-    }
-
-    if(
-      memory.content
-    ){
-
-      sections.push(
-        memory.content
-      );
-
-    }
-
-    if(
-
-      Array.isArray(
-        memory.tags
-      )
-
-    ){
-
-      sections.push(
-        memory.tags.join(" ")
-      );
-
-    }
-
-    return await buildTextSummary(
-
-      sections.join(". "),
-      options
-
-    );
-
-  }
-
-  catch(error){
-
-    memorySummaryState
-    .failedSummaries++;
+  if(!memory){
 
     return "";
 
   }
+
+  const content = [
+
+    memory.title,
+
+    memory.summary,
+
+    memory.content,
+
+    Array.isArray(memory.tags)
+
+    ? memory.tags.join(" ")
+
+    : ""
+
+  ]
+
+  .filter(Boolean)
+
+  .join(". ");
+
+  return buildTextSummary(
+    content,
+    options
+  );
 
 }
 
@@ -1076,231 +859,48 @@ async function summarizeConversation(
   options = {}
 ){
 
-  try{
+  if(
+    !Array.isArray(
+      messages
+    )
+  ){
 
-    if(
-      !Array.isArray(
-        messages
-      )
-    ){
+    return "";
 
-      return "";
-    }
+  }
 
-    const limitedMessages =
-    messages.slice(
+  const content =
 
+    messages
+
+    .slice(
       -MEMORY_SUMMARY_CONFIG
       .MAX_MESSAGES
+    )
 
-    );
+    .map((message) => {
 
-    const lines = [];
+      return `${
 
-    limitedMessages
-    .forEach((message) => {
+        sanitizeSummaryText(
+          message?.role
+        )
 
-      if(
-        !message
-      ){
+      }: ${
 
-        return;
-      }
+        sanitizeSummaryText(
+          message?.content
+        )
 
-      const role =
-      sanitizeSummaryText(
-        message.role
-      );
-
-      const content =
-      sanitizeSummaryText(
-        message.content
-      );
-
-      if(
-        !content
-      ){
-
-        return;
-      }
-
-      lines.push(
-        `${role}: ${content}`
-      );
-
-    });
-
-    return await buildTextSummary(
-
-      lines.join(". "),
-      options
-
-    );
-
-  }
-
-  catch(error){
-
-    memorySummaryState
-    .failedSummaries++;
-
-    return "";
-
-  }
-
-}
-
-
-
-// =====================================
-// RECENT CONVERSATION SUMMARY
-// =====================================
-
-async function summarizeRecentConversation(
-  messages = []
-){
-
-  try{
-
-    if(
-      !Array.isArray(
-        messages
-      )
-    ){
-
-      return "";
-    }
-
-    return await summarizeConversation(
-
-      messages.slice(
-
-        -MEMORY_SUMMARY_CONFIG
-        .RECENT_MESSAGE_COUNT
-
-      )
-
-    );
-
-  }
-
-  catch(error){
-
-    return "";
-
-  }
-
-}
-
-
-
-// =====================================
-// BULLET SUMMARY
-// =====================================
-
-function createBulletSummary(
-  text,
-  options = {}
-){
-
-  try{
-
-    const bulletLimit =
-    Math.min(
-
-      Number(
-        options.limit
-      ) || 5,
-
-      MEMORY_SUMMARY_CONFIG
-      .MAX_BULLETS
-
-    );
-
-    const sentences =
-    getBestSummarySentences(
-      text,
-      bulletLimit
-    );
-
-    return sentences
-    .map((sentence) => {
-
-      return `• ${sentence}`;
+      }`;
 
     })
-    .join("\n");
 
-  }
-
-  catch(error){
-
-    return "";
-
-  }
-
-}
-
-
-
-// =====================================
-// MULTI LEVEL SUMMARIES
-// =====================================
-
-async function createTinySummary(
-  text
-){
+    .join(". ");
 
   return buildTextSummary(
-    text,
-    {
-      limit:1
-    }
-  );
-
-}
-
-
-
-async function createShortSummary(
-  text
-){
-
-  return buildTextSummary(
-    text,
-    {
-      limit:3
-    }
-  );
-
-}
-
-
-
-async function createMediumSummary(
-  text
-){
-
-  return buildTextSummary(
-    text,
-    {
-      limit:6
-    }
-  );
-
-}
-
-
-
-async function createFullSummary(
-  text
-){
-
-  return buildTextSummary(
-    text,
-    {
-      limit:10
-    }
+    content,
+    options
   );
 
 }
@@ -1308,7 +908,7 @@ async function createFullSummary(
 
 
 // =====================================
-// MEMORY GROUP SUMMARY
+// GROUP SUMMARY
 // =====================================
 
 async function summarizeMemoryGroup(
@@ -1316,103 +916,96 @@ async function summarizeMemoryGroup(
   options = {}
 ){
 
-  try{
+  const summaries =
+  await Promise.all(
 
-    if(
-      !Array.isArray(
-        memories
-      )
-    ){
+    memories.map((memory) => {
 
-      return "";
-    }
-
-    const summaries = [];
-
-    for(
-      const memory
-      of memories
-    ){
-
-      const summary =
-      await summarizeMemory(
+      return summarizeMemory(
         memory,
         options
       );
 
-      if(
-        summary
-      ){
+    })
 
-        summaries.push(
-          summary
-        );
+  );
 
-      }
+  return buildTextSummary(
 
-    }
+    summaries.join(". "),
 
-    return await buildTextSummary(
+    options
 
-      summaries.join(". "),
-      options
-
-    );
-
-  }
-
-  catch(error){
-
-    memorySummaryState
-    .failedSummaries++;
-
-    return "";
-
-  }
+  );
 
 }
 
 
 
 // =====================================
-// CONTEXT COMPRESSION
+// BULLETS
+// =====================================
+
+function createBulletSummary(
+  text,
+  options = {}
+){
+
+  const limit =
+  Math.min(
+
+    Number(
+      options.limit
+    ) || 5,
+
+    MEMORY_SUMMARY_CONFIG
+    .MAX_BULLETS
+
+  );
+
+  return getBestSummarySentences(
+    text,
+    limit
+  )
+
+  .map((sentence) => {
+
+    return `• ${sentence}`;
+
+  })
+
+  .join("\n");
+
+}
+
+
+
+// =====================================
+// COMPRESSION
 // =====================================
 
 async function compressMemoryContent(
   content,
-  maxLength =
-  1000
+  maxLength = 1000
 ){
 
-  try{
+  const summary =
+  await createSummaryByLevel(
+    "short",
+    content
+  );
 
-    const summary =
-    await createShortSummary(
-      content
-    );
-
-    return truncateSummaryText(
-      summary,
-      maxLength
-    );
-
-  }
-
-  catch(error){
-
-    return truncateSummaryText(
-      content,
-      maxLength
-    );
-
-  }
+  return truncateSummaryText(
+    summary,
+    maxLength
+  );
 
 }
 
 
 
 // =====================================
-// INCREMENTAL SUMMARY
+// DIRTY REBUILD
 // =====================================
 
 function markSummaryDirty(
@@ -1444,146 +1037,41 @@ function markSummaryDirty(
 
 async function rebuildDirtySummaries(){
 
-  try{
+  const dirtyIds = [
 
-    const dirtyIds = [
+    ...memorySummaryState
+    .dirtySummaryIds
 
-      ...memorySummaryState
-      .dirtySummaryIds
+  ];
 
-    ];
+  await Promise.all(
 
-    for(
-      const memoryId
-      of dirtyIds
-    ){
+    dirtyIds.map((memoryId) => {
 
       const memory =
-      getMemoryById(
+      getMemoryById?.(
         memoryId
       );
 
       if(!memory){
 
-        continue;
+        return null;
+
       }
 
-      await summarizeMemory(
+      return summarizeMemory(
         memory
       );
 
-    }
+    })
 
-    memorySummaryState
-    .dirtySummaryIds
-    .clear();
-
-    return true;
-
-  }
-
-  catch(error){
-
-    memorySummaryState
-    .failedSummaries++;
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SUMMARY METADATA
-// =====================================
-
-function createSummaryMetadata(
-  text
-){
-
-  const safeText =
-  sanitizeSummaryText(
-    text
   );
 
-  const sentences =
-  splitSummarySentences(
-    safeText
-  );
+  memorySummaryState
+  .dirtySummaryIds
+  .clear();
 
-  const keywords =
-  extractSummaryKeywords(
-    safeText
-  );
-
-  return {
-
-    createdAt:
-    Date.now(),
-
-    characterCount:
-    safeText.length,
-
-    sentenceCount:
-    sentences.length,
-
-    keywordCount:
-    keywords.length,
-
-    keywords
-
-  };
-
-}
-
-
-
-// =====================================
-// SUMMARY OBJECT
-// =====================================
-
-async function createSummaryObject(
-  text,
-  options = {}
-){
-
-  try{
-
-    const summary =
-    await buildTextSummary(
-      text,
-      options
-    );
-
-    return {
-
-      id:
-      createMemoryId(),
-
-      summary,
-
-      metadata:
-      createSummaryMetadata(
-        summary
-      ),
-
-      createdAt:
-      Date.now()
-
-    };
-
-  }
-
-  catch(error){
-
-    memorySummaryState
-    .failedSummaries++;
-
-    return null;
-
-  }
+  return true;
 
 }
 
@@ -1613,10 +1101,6 @@ function getMemorySummaryDiagnostics(){
     memorySummaryState
     .failedSummaries,
 
-    semanticScores:
-    memorySummaryState
-    .semanticScores,
-
     redundancyRemovals:
     memorySummaryState
     .redundancyRemovals,
@@ -1636,5 +1120,58 @@ function getMemorySummaryDiagnostics(){
     .lastSummaryAt
 
   };
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemorySummary =
+Object.freeze({
+
+  summarize:
+  buildTextSummary,
+
+  summarizeMemory,
+
+  summarizeConversation,
+
+  summarizeGroup:
+  summarizeMemoryGroup,
+
+  createBulletSummary,
+
+  createSummaryByLevel,
+
+  compress:
+  compressMemoryContent,
+
+  markDirty:
+  markSummaryDirty,
+
+  rebuildDirty:
+  rebuildDirtySummaries,
+
+  diagnostics:
+  getMemorySummaryDiagnostics
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemorySummary =
+  MemorySummary;
 
 }
