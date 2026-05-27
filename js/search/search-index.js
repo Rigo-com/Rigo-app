@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SEARCH INDEX
-// ENTERPRISE ULTRA FINAL
+// OPTIMIZED FINAL
 // =====================================
 
 
@@ -21,142 +21,239 @@ Object.seal({
 
   indexedTokens:0,
 
+  failedIndexes:0,
+
   lastIndexedAt:null,
 
   lastRebuildAt:null,
 
   tokenIndex:new Map(),
 
-  memoryIndex:new Map(),
-
-  failedIndexes:0
+  memoryIndex:new Map()
 
 });
 
 
 
 // =====================================
-// TOKENIZE SEARCH CONTENT
+// TOKENIZE CONTENT
 // =====================================
 
 function tokenizeSearchContent(
   content
 ){
 
-  return tokenizeMemoryText(
-    normalizeMemoryContent(
+  const tokens =
+  tokenizeMemoryText?.(
+
+    normalizeMemoryContent?.(
       content
     )
-  );
+
+  ) || [];
+
+  return [
+
+    ...new Set(tokens)
+
+  ];
 
 }
 
 
 
 // =====================================
-// INDEX MEMORY TOKENS
+// INDEX MEMORY
 // =====================================
 
 function indexMemoryTokens(
   memory
 ){
 
-  if(
-    !memory?.id
-  ){
-
-    return false;
-  }
-
-  const searchableContent = [
-
-    memory.title,
-
-    memory.summary,
-
-    memory.content,
-
-    Array.isArray(
-      memory.tags
-    )
-
-    ? memory.tags.join(" ")
-
-    : ""
-
-  ]
-  .join(" ");
-
-  const tokens =
-  tokenizeSearchContent(
-    searchableContent
-  );
-
-  searchIndexState
-  .memoryIndex
-  .set(
-    memory.id,
-    tokens
-  );
-
-  tokens.forEach((token) => {
+  try{
 
     if(
-
-      !searchIndexState
-      .tokenIndex
-      .has(token)
-
+      !memory?.id
     ){
 
-      searchIndexState
-      .tokenIndex
-      .set(
-        token,
-        new Set()
-      );
+      return false;
 
     }
 
-    searchIndexState
-    .tokenIndex
-    .get(token)
-    .add(
+
+
+    // ================================
+    // CLEAN OLD INDEX
+    // ================================
+
+    removeIndexedMemory(
       memory.id
     );
 
-  });
 
-  searchIndexState
-  .indexedMemories++;
 
-  searchIndexState
-  .lastIndexedAt =
-  Date.now();
+    // ================================
+    // BUILD CONTENT
+    // ================================
 
-  return true;
+    const searchableContent = [
+
+      memory.title,
+
+      memory.summary,
+
+      memory.content,
+
+      Array.isArray(
+        memory.tags
+      )
+
+      ? memory.tags.join(" ")
+
+      : ""
+
+    ]
+    .filter(Boolean)
+    .join(" ");
+
+
+
+    // ================================
+    // TOKENS
+    // ================================
+
+    const tokens =
+    tokenizeSearchContent(
+      searchableContent
+    );
+
+    if(
+      tokens.length <= 0
+    ){
+
+      return false;
+
+    }
+
+
+
+    // ================================
+    // MEMORY INDEX
+    // ================================
+
+    searchIndexState
+    .memoryIndex
+    .set(
+      memory.id,
+      tokens
+    );
+
+
+
+    // ================================
+    // TOKEN INDEX
+    // ================================
+
+    tokens.forEach((token) => {
+
+      if(
+
+        !searchIndexState
+        .tokenIndex
+        .has(token)
+
+      ){
+
+        searchIndexState
+        .tokenIndex
+        .set(
+          token,
+          new Set()
+        );
+
+      }
+
+      searchIndexState
+      .tokenIndex
+      .get(token)
+      .add(
+        memory.id
+      );
+
+    });
+
+
+
+    // ================================
+    // STATS
+    // ================================
+
+    searchIndexState
+    .indexedMemories =
+
+      searchIndexState
+      .memoryIndex
+      .size;
+
+    searchIndexState
+    .indexedTokens =
+
+      searchIndexState
+      .tokenIndex
+      .size;
+
+    searchIndexState
+    .lastIndexedAt =
+    Date.now();
+
+    return true;
+
+  }
+
+  catch(error){
+
+    searchIndexState
+    .failedIndexes++;
+
+    return false;
+
+  }
 
 }
 
 
 
 // =====================================
-// REMOVE MEMORY INDEX
+// REMOVE INDEXED MEMORY
 // =====================================
 
 function removeIndexedMemory(
   memoryId
 ){
 
+  const normalizedId =
+  normalizeMemoryString?.(
+    memoryId
+  );
+
+  if(!normalizedId){
+
+    return false;
+
+  }
+
   const tokens =
 
     searchIndexState
     .memoryIndex
-    .get(memoryId);
+    .get(
+      normalizedId
+    );
 
   if(!tokens){
 
     return false;
+
   }
 
   tokens.forEach((token) => {
@@ -173,7 +270,7 @@ function removeIndexedMemory(
     }
 
     indexed.delete(
-      memoryId
+      normalizedId
     );
 
     if(
@@ -191,8 +288,22 @@ function removeIndexedMemory(
   searchIndexState
   .memoryIndex
   .delete(
-    memoryId
+    normalizedId
   );
+
+  searchIndexState
+  .indexedMemories =
+
+    searchIndexState
+    .memoryIndex
+    .size;
+
+  searchIndexState
+  .indexedTokens =
+
+    searchIndexState
+    .tokenIndex
+    .size;
 
   return true;
 
@@ -201,7 +312,7 @@ function removeIndexedMemory(
 
 
 // =====================================
-// REBUILD INDEX
+// REBUILD INDEXES
 // =====================================
 
 function rebuildSearchIndexes(){
@@ -219,24 +330,31 @@ function rebuildSearchIndexes(){
     .memoryIndex
     .clear();
 
-    searchIndexState
-    .indexedMemories = 0;
+    const memories =
 
-    memoryState.memories
-    .forEach((memory) => {
+      Array.isArray(
+        memoryState?.memories
+      )
+
+      ? memoryState.memories
+
+      : [];
+
+    memories.forEach((memory) => {
+
+      if(
+        memory?.state ===
+        "deleted"
+      ){
+
+        return;
+      }
 
       indexMemoryTokens(
         memory
       );
 
     });
-
-    searchIndexState
-    .indexedTokens =
-
-      searchIndexState
-      .tokenIndex
-      .size;
 
     searchIndexState
     .initialized = true;
@@ -282,6 +400,13 @@ function searchIndexedMemories(
     query
   );
 
+  if(
+    tokens.length <= 0
+  ){
+
+    return [];
+  }
+
   const memoryIds =
   new Set();
 
@@ -311,11 +436,122 @@ function searchIndexedMemories(
     ...memoryIds
 
   ]
+
   .map((id) => {
 
-    return getMemoryById(id);
+    return getMemoryById?.(
+      id
+    );
 
   })
-  .filter(Boolean);
+
+  .filter((memory) => {
+
+    return (
+
+      memory
+
+      &&
+
+      memory.state !==
+      "deleted"
+
+    );
+
+  });
 
 }
+
+
+
+// =====================================
+// CLEAR INDEXES
+// =====================================
+
+function clearSearchIndexes(){
+
+  searchIndexState
+  .tokenIndex
+  .clear();
+
+  searchIndexState
+  .memoryIndex
+  .clear();
+
+  searchIndexState
+  .indexedMemories = 0;
+
+  searchIndexState
+  .indexedTokens = 0;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getSearchIndexDiagnostics(){
+
+  return {
+
+    initialized:
+    searchIndexState
+    .initialized,
+
+    rebuilding:
+    searchIndexState
+    .rebuilding,
+
+    indexedMemories:
+    searchIndexState
+    .indexedMemories,
+
+    indexedTokens:
+    searchIndexState
+    .indexedTokens,
+
+    failedIndexes:
+    searchIndexState
+    .failedIndexes,
+
+    lastIndexedAt:
+    searchIndexState
+    .lastIndexedAt,
+
+    lastRebuildAt:
+    searchIndexState
+    .lastRebuildAt
+
+  };
+
+}
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  searchIndexState,
+
+  tokenizeSearchContent,
+
+  indexMemoryTokens,
+
+  removeIndexedMemory,
+
+  rebuildSearchIndexes,
+
+  searchIndexedMemories,
+
+  clearSearchIndexes,
+
+  getSearchIndexDiagnostics
+
+};
