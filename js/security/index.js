@@ -649,7 +649,7 @@ function getSecurityIndexDiagnostics(){
 // GLOBAL SECURITY API
 // =====================================
 
-const Security =
+const RIGOSecurityRuntime =
 Object.freeze({
 
   get modules(){
@@ -798,11 +798,11 @@ export {
 
   getSecurityIndexDiagnostics,
 
-  Security
+  RIGOSecurityRuntime
 
 };
 
-export default Security;
+export default RIGOSecurityRuntime;
 
 
 
@@ -819,12 +819,12 @@ if(
 
     globalThis,
 
-    "Security",
+    "RIGOSecurityRuntime",
 
     {
 
       value:
-      Security,
+      RIGOSecurityRuntime,
 
       writable:
       false,
