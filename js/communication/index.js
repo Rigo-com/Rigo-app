@@ -1,7 +1,23 @@
 // =====================================
 // RIGO AI
 // COMMUNICATION INDEX
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "./communication-abort.js";
+import "./communication-core.js";
+import "./communication-health.js";
+import "./communication-helpers.js";
+import "./communication-queue.js";
+import "./communication-storage.js";
+import "./communication-stream.js";
+import "./communication-typing.js";
 
 
 
@@ -121,25 +137,71 @@ if(
   "undefined"
 ){
 
-  window.Communication =
-  Communication;
+  Object.defineProperty(
 
-  window.getCommunicationLayer =
-  getCommunicationLayer;
+    window,
 
-  window.validateCommunicationLayer =
-  validateCommunicationLayer;
+    "Communication",
 
-}
+    {
+
+      value:
+      Communication,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  Object.defineProperty(
 
-  globalThis.Communication =
-  Communication;
+    window,
+
+    "getCommunicationLayer",
+
+    {
+
+      value:
+      getCommunicationLayer,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+
+
+  Object.defineProperty(
+
+    window,
+
+    "validateCommunicationLayer",
+
+    {
+
+      value:
+      validateCommunicationLayer,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
