@@ -739,7 +739,7 @@ if(
   "undefined"
 ){
 
-  window.AppState =
+  window.RIGOAppState =
   AppState;
 
   window.updateAppPhase =
