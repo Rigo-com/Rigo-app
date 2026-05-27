@@ -1,8 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY SEARCH
-// ENTERPRISE INFINITY FINAL
-// PATCHED + STABILIZED
+// CLEAN FINAL ARCHITECTURE
 // =====================================
 
 
@@ -22,11 +21,10 @@ Object.freeze({
 
   MAX_QUERY_LENGTH:500,
 
-  MAX_CACHE_ENTRIES:
-  200,
+  MAX_CACHE_ENTRIES:200,
 
-  MAX_SEARCH_RESULTS:
-  5000,
+  CACHE_TTL:
+  60000,
 
   TITLE_WEIGHT:5,
 
@@ -49,7 +47,7 @@ Object.freeze({
 
 
 // =====================================
-// SEARCH HELPERS
+// QUERY HELPERS
 // =====================================
 
 function normalizeSearchQuery(
@@ -61,31 +59,6 @@ function normalizeSearchQuery(
   )
   .toLowerCase()
   .trim();
-
-}
-
-
-
-function createSearchResult(
-  memory,
-  score = 0
-){
-
-  return freezeSearchObject({
-
-    memory:
-    deepClone(memory),
-
-    score:
-    safeMemoryNumber(
-      score,
-      0
-    ),
-
-    memoryId:
-    memory?.id || null
-
-  });
 
 }
 
@@ -125,269 +98,39 @@ function clampSearchLimit(
 
 
 
-function normalizeSortDirection(
-  direction
-){
-
-  return direction ===
-  "asc"
-
-  ? "asc"
-
-  : "desc";
-
-}
-
-
-
-function normalizeSortField(
-  sortBy
-){
-
-  const allowedFields = [
-
-    "updatedAt",
-
-    "createdAt",
-
-    "priority",
-
-    "title",
-
-    "score"
-
-  ];
-
-  return allowedFields
-  .includes(sortBy)
-
-  ? sortBy
-
-  : "updatedAt";
-
-}
-
-
-
 // =====================================
-// IMMUTABLE HELPERS
+// RESULT HELPERS
 // =====================================
 
-function freezeSearchObject(
-  value,
-  visited = new WeakSet()
+function createSearchResult(
+  memory,
+  score = 0
 ){
 
-  if(
+  return {
 
-    !value ||
+    memory,
 
-    typeof value !==
-    "object"
+    memoryId:
+    memory?.id || null,
 
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezeSearchObject(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
-
-}
-
-
-
-// =====================================
-// SAFE CACHE KEY
-// =====================================
-
-function createSearchCacheKey(
-  query,
-  options = {}
-){
-
-  const normalizedQuery =
-  normalizeSearchQuery(
-    query
-  );
-
-  const safeOptions = {
-
-    limit:
-    Number(
-      options.limit
-    ) || null,
-
-    includeArchived:
-    Boolean(
-      options.includeArchived
-    ),
-
-    includeDeleted:
-    Boolean(
-      options.includeDeleted
-    ),
-
-    page:
-    Number(
-      options.page
-    ) || null,
-
-    sortBy:
-    normalizeSortField(
-      options.sortBy
-    ),
-
-    direction:
-    normalizeSortDirection(
-      options.direction
+    score:
+    safeMemoryNumber(
+      score,
+      0
     )
 
   };
 
-  return [
-
-    normalizedQuery,
-
-    safeOptions.limit,
-
-    safeOptions.includeArchived,
-
-    safeOptions.includeDeleted,
-
-    safeOptions.page,
-
-    safeOptions.sortBy,
-
-    safeOptions.direction
-
-  ]
-  .join("|");
-
 }
 
 
 
-// =====================================
-// SEARCH FILTER
-// =====================================
-
-function isSearchableMemory(
-  memory,
-  options = {}
-){
-
-  if(
-    !memory ||
-    typeof memory !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !memory.id
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    memoryState
-    ?.tracking
-    ?.corruptedIds
-    ?.has(memory.id)
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    memory.state ===
-    "deleted" &&
-
-    options.includeDeleted !==
-    true
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    memory.state ===
-    "archived" &&
-
-    options.includeArchived !==
-    true
-
-  ){
-
-    return false;
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SCORE MERGING
-// =====================================
-
-function mergeSearchScores(
+function normalizeSearchResults(
   results = []
 ){
 
-  const scoreMap =
+  const resultMap =
   new Map();
 
   results.forEach((result) => {
@@ -401,34 +144,34 @@ function mergeSearchScores(
     }
 
     const existing =
-    scoreMap.get(
+    resultMap.get(
       memoryId
     );
 
     if(!existing){
 
-      scoreMap.set(
+      resultMap.set(
         memoryId,
-        deepClone(result)
+        result
       );
 
       return;
     }
 
-    existing.score +=
-    result.score;
-
     existing.score =
-    Math.min(
+    Math.max(
+
       existing.score,
-      999999
+
+      result.score
+
     );
 
   });
 
   return [
 
-    ...scoreMap.values()
+    ...resultMap.values()
 
   ];
 
@@ -436,232 +179,12 @@ function mergeSearchScores(
 
 
 
-// =====================================
-// SCORING ENGINE
-// =====================================
-
-function calculateMemoryScore(
-  memory,
-  normalizedQuery
-){
-
-  if(
-    !memory
-  ){
-
-    return 0;
-
-  }
-
-  if(
-    !normalizedQuery
-  ){
-
-    return 0;
-
-  }
-
-  let score = 0;
-
-  const title =
-  normalizeMemoryContent(
-    memory.title
-  )
-  .toLowerCase();
-
-  const summary =
-  normalizeMemoryContent(
-    memory.summary
-  )
-  .toLowerCase();
-
-  const content =
-  normalizeMemoryContent(
-    memory.content
-  )
-  .toLowerCase();
-
-  const tags =
-
-    Array.isArray(
-      memory.tags
-    )
-
-    ? memory.tags.map((tag) => {
-
-        return normalizeMemoryString(
-          tag
-        )
-        .toLowerCase();
-
-      })
-
-    : [];
-
-
-
-  if(
-    title === normalizedQuery
-  ){
-
-    score +=
-
-      MEMORY_SEARCH_CONFIG
-      .EXACT_MATCH_WEIGHT;
-
-  }
-
-
-
-  if(
-    title.startsWith(
-      normalizedQuery
-    )
-  ){
-
-    score +=
-
-      MEMORY_SEARCH_CONFIG
-      .STARTS_WITH_WEIGHT;
-
-  }
-
-
-
-  if(
-    title.includes(
-      normalizedQuery
-    )
-  ){
-
-    score +=
-
-      MEMORY_SEARCH_CONFIG
-      .TITLE_WEIGHT;
-
-  }
-
-
-
-  if(
-    summary.includes(
-      normalizedQuery
-    )
-  ){
-
-    score +=
-
-      MEMORY_SEARCH_CONFIG
-      .SUMMARY_WEIGHT;
-
-  }
-
-
-
-  if(
-    content.includes(
-      normalizedQuery
-    )
-  ){
-
-    score +=
-
-      MEMORY_SEARCH_CONFIG
-      .CONTENT_WEIGHT;
-
-  }
-
-
-
-  tags.forEach((tag) => {
-
-    if(
-      tag.includes(
-        normalizedQuery
-      )
-    ){
-
-      score +=
-
-        MEMORY_SEARCH_CONFIG
-        .TAG_WEIGHT;
-
-    }
-
-  });
-
-
-
-  if(
-
-    memoryState
-    ?.tracking
-    ?.pinnedMemoryIds
-    ?.has(memory.id)
-
-  ){
-
-    score +=
-
-      MEMORY_SEARCH_CONFIG
-      .PINNED_WEIGHT;
-
-  }
-
-
-
-  const updatedAt =
-  Number(
-    memory.updatedAt
-  );
-
-  if(
-    Number.isFinite(
-      updatedAt
-    )
-  ){
-
-    const daysSinceUpdate =
-
-      (
-        Date.now() -
-        updatedAt
-      ) / 86400000;
-
-    if(
-      daysSinceUpdate <= 7
-    ){
-
-      score +=
-
-        MEMORY_SEARCH_CONFIG
-        .RECENT_WEIGHT;
-
-    }
-
-  }
-
-  return Math.min(
-    score,
-    999999
-  );
-
-}
-
-
-
-// =====================================
-// RESULT SORTING
-// =====================================
-
 function sortSearchResults(
   results = []
 ){
 
-  return [...results].sort((
-    a,
-    b
-  ) => {
+  return [...results]
+  .sort((a,b) => {
 
     if(
       b.score !==
@@ -698,99 +221,93 @@ function sortSearchResults(
 
 
 // =====================================
-// DEDUPLICATION
+// SEARCH CACHE
 // =====================================
 
-function deduplicateSearchResults(
-  results = []
+function createSearchCacheKey(
+  query,
+  options = {}
 ){
 
-  const bestResults =
-  new Map();
+  return safeJsonStringify({
 
-  results.forEach((result) => {
+    query:
+    normalizeSearchQuery(
+      query
+    ),
 
-    const memoryId =
-    result?.memoryId;
+    limit:
+    options.limit,
 
-    if(!memoryId){
+    includeArchived:
+    Boolean(
+      options.includeArchived
+    ),
 
-      return;
-    }
-
-    const existing =
-    bestResults.get(
-      memoryId
-    );
-
-    if(
-
-      !existing ||
-
-      result.score >
-      existing.score
-
-    ){
-
-      bestResults.set(
-        memoryId,
-        result
-      );
-
-    }
+    includeDeleted:
+    Boolean(
+      options.includeDeleted
+    )
 
   });
-
-  return [
-
-    ...bestResults.values()
-
-  ];
 
 }
 
 
 
-// =====================================
-// SEARCH CACHE
-// =====================================
-
 function getCachedSearchResults(
   cacheKey
 ){
 
-  if(
-    !cacheKey
-  ){
+  if(!cacheKey){
 
     return null;
-
   }
 
-  const cachedResults =
+  const cache =
   memoryState
   ?.cache
-  ?.searchResults
-  ?.get(
-    cacheKey
-  )
-
-  ||
-
-  null;
+  ?.searchResults;
 
   if(
-    !cachedResults
+    !(cache instanceof Map)
   ){
+
+    return null;
+  }
+
+  const cached =
+  cache.get(
+    cacheKey
+  );
+
+  if(!cached){
+
+    return null;
+  }
+
+  const expired =
+
+    (
+      Date.now() -
+      cached.timestamp
+    ) >
+
+    MEMORY_SEARCH_CONFIG
+    .CACHE_TTL;
+
+  if(expired){
+
+    cache.delete(
+      cacheKey
+    );
 
     return null;
 
   }
 
-  return freezeSearchObject(
-    deepClone(
-      cachedResults
-    )
+  return deepClone(
+    cached.results
   );
 
 }
@@ -807,17 +324,6 @@ function setCachedSearchResults(
   ){
 
     return false;
-
-  }
-
-  if(
-    !Array.isArray(
-      results
-    )
-  ){
-
-    return false;
-
   }
 
   const cache =
@@ -830,17 +336,26 @@ function setCachedSearchResults(
   ){
 
     return false;
-
   }
 
   cache.set(
+
     cacheKey,
-    freezeSearchObject(
+
+    {
+
+      timestamp:
+      Date.now(),
+
+      results:
       deepClone(results)
-    )
+
+    }
+
   );
 
   while(
+
     cache.size >
 
     MEMORY_SEARCH_CONFIG
@@ -872,7 +387,8 @@ function clearSearchCache(){
 
     memoryState
     ?.cache
-    ?.searchResults instanceof Map
+    ?.searchResults
+    instanceof Map
 
   ){
 
@@ -890,216 +406,298 @@ function clearSearchCache(){
 
 
 // =====================================
-// SEARCH BY ID
+// FILTERS
 // =====================================
 
-function searchById(
-  memoryId
+function isSearchableMemory(
+  memory,
+  options = {}
 ){
 
-  const normalizedId =
-  normalizeMemoryString(
-    memoryId
-  );
+  if(
+    !memory ||
+    !memory.id
+  ){
 
-  if(!normalizedId){
-
-    return null;
-
+    return false;
   }
 
-  const memory =
+  if(
 
     memoryState
-    ?.indexes
-    ?.byId
-    ?.get(
-      normalizedId
-    )
+    ?.tracking
+    ?.corruptedIds
+    ?.has(memory.id)
 
-    ||
+  ){
 
-    null;
+    return false;
+  }
 
-  return memory
-    ? freezeSearchObject(
-        deepClone(memory)
-      )
-    : null;
+  if(
+
+    memory.state ===
+    "deleted"
+
+    &&
+
+    options.includeDeleted !==
+    true
+
+  ){
+
+    return false;
+  }
+
+  if(
+
+    memory.state ===
+    "archived"
+
+    &&
+
+    options.includeArchived !==
+    true
+
+  ){
+
+    return false;
+  }
+
+  return true;
 
 }
 
 
 
 // =====================================
-// GENERIC INDEX SEARCH
+// FIELD SCORE
 // =====================================
 
-function searchByIndex(
+function calculateFieldScore(
+  value,
+  query,
+  weight
+){
+
+  const normalizedValue =
+
+    normalizeMemoryContent(
+      value
+    )
+    .toLowerCase();
+
+  if(
+    !normalizedValue
+  ){
+
+    return 0;
+  }
+
+  if(
+    normalizedValue === query
+  ){
+
+    return (
+
+      MEMORY_SEARCH_CONFIG
+      .EXACT_MATCH_WEIGHT +
+
+      weight
+
+    );
+
+  }
+
+  if(
+    normalizedValue.startsWith(
+      query
+    )
+  ){
+
+    return (
+
+      MEMORY_SEARCH_CONFIG
+      .STARTS_WITH_WEIGHT +
+
+      weight
+
+    );
+
+  }
+
+  if(
+    normalizedValue.includes(
+      query
+    )
+  ){
+
+    return weight;
+  }
+
+  return 0;
+
+}
+
+
+
+// =====================================
+// SCORE ENGINE
+// =====================================
+
+function calculateMemoryScore(
+  memory,
+  query
+){
+
+  if(
+    !memory
+  ){
+
+    return 0;
+  }
+
+  let score = 0;
+
+  score += calculateFieldScore(
+
+    memory.title,
+    query,
+
+    MEMORY_SEARCH_CONFIG
+    .TITLE_WEIGHT
+
+  );
+
+  score += calculateFieldScore(
+
+    memory.summary,
+    query,
+
+    MEMORY_SEARCH_CONFIG
+    .SUMMARY_WEIGHT
+
+  );
+
+  score += calculateFieldScore(
+
+    memory.content,
+    query,
+
+    MEMORY_SEARCH_CONFIG
+    .CONTENT_WEIGHT
+
+  );
+
+  if(
+    Array.isArray(
+      memory.tags
+    )
+  ){
+
+    memory.tags.forEach((tag) => {
+
+      score += calculateFieldScore(
+
+        tag,
+        query,
+
+        MEMORY_SEARCH_CONFIG
+        .TAG_WEIGHT
+
+      );
+
+    });
+
+  }
+
+  if(
+
+    memoryState
+    ?.tracking
+    ?.pinnedMemoryIds
+    ?.has(memory.id)
+
+  ){
+
+    score +=
+
+      MEMORY_SEARCH_CONFIG
+      .PINNED_WEIGHT;
+
+  }
+
+  const updatedAt =
+  Number(
+    memory.updatedAt
+  );
+
+  if(
+    Number.isFinite(
+      updatedAt
+    )
+  ){
+
+    const ageInDays =
+
+      (
+        Date.now() -
+        updatedAt
+      ) /
+
+      86400000;
+
+    if(
+      ageInDays <= 7
+    ){
+
+      score +=
+
+        MEMORY_SEARCH_CONFIG
+        .RECENT_WEIGHT;
+
+    }
+
+  }
+
+  return score;
+
+}
+
+
+
+// =====================================
+// INDEXED SEARCH
+// =====================================
+
+function searchIndexedMemories(
   index,
   key,
   options = {}
 ){
 
-  return getIndexedMemoryIds(
+  const ids =
+  getIndexedMemoryIds(
     index,
     key
-  )
-  .map((memoryId) => {
+  );
 
-    const memory =
-    searchById(
-      memoryId
-    );
+  return ids
+  .map((id) => {
 
-    if(
-      !memory
-    ){
-
-      return null;
-
-    }
-
-    return createSearchResult(
-      memory,
-      1
+    return getMemoryById?.(
+      id
     );
 
   })
-  .filter((result) => {
+  .filter((memory) => {
 
-    return (
-
-      result &&
-
-      isSearchableMemory(
-        result.memory,
-        options
-      )
-
+    return isSearchableMemory(
+      memory,
+      options
     );
 
   });
-
-}
-
-
-
-// =====================================
-// SEARCH BY TYPE
-// =====================================
-
-function searchByType(
-  type,
-  options = {}
-){
-
-  return searchByIndex(
-
-    memoryState.indexes
-    .byType,
-
-    type,
-
-    options
-
-  );
-
-}
-
-
-
-// =====================================
-// SEARCH BY CATEGORY
-// =====================================
-
-function searchByCategory(
-  category,
-  options = {}
-){
-
-  return searchByIndex(
-
-    memoryState.indexes
-    .byCategory,
-
-    category,
-
-    options
-
-  );
-
-}
-
-
-
-// =====================================
-// SEARCH BY TAG
-// =====================================
-
-function searchByTag(
-  tag,
-  options = {}
-){
-
-  return searchByIndex(
-
-    memoryState.indexes
-    .byTag,
-
-    tag,
-
-    options
-
-  );
-
-}
-
-
-
-// =====================================
-// SEARCH BY PRIORITY
-// =====================================
-
-function searchByPriority(
-  priority,
-  options = {}
-){
-
-  return searchByIndex(
-
-    memoryState.indexes
-    .byPriority,
-
-    priority,
-
-    options
-
-  );
-
-}
-
-
-
-// =====================================
-// SEARCH BY STATE
-// =====================================
-
-function searchByState(
-  state,
-  options = {}
-){
-
-  return searchByIndex(
-
-    memoryState.indexes
-    .byState,
-
-    state,
-
-    options
-
-  );
 
 }
 
@@ -1119,101 +717,82 @@ function searchByTokens(
     query
   );
 
-  if(
+  const tokens =
+  tokenizeMemoryText(
+    normalizedQuery
+  );
 
-    normalizedQuery.length <
-
-    MEMORY_SEARCH_CONFIG
-    .MIN_QUERY_LENGTH
-
-  ){
-
-    return [];
-
-  }
-
-  const tokens = [
-
-    ...new Set(
-
-      tokenizeMemoryText(
-        normalizedQuery
-      )
-
-    )
-
-  ];
-
-  const results = [];
+  const memoryMap =
+  new Map();
 
   tokens.forEach((token) => {
 
-    const memoryIds =
+    const memories =
+    searchIndexedMemories(
 
-      getIndexedMemoryIds(
+      memoryState
+      ?.indexes
+      ?.byToken,
 
-        memoryState.indexes
-        .byToken,
+      token,
 
-        token
+      options
 
-      );
+    );
 
-    memoryIds.forEach((memoryId) => {
+    memories.forEach((memory) => {
 
-      const memory =
-      searchById(
-        memoryId
-      );
-
-      if(
-
-        !memory ||
-
-        !isSearchableMemory(
-          memory,
-          options
-        )
-
-      ){
-
-        return;
-      }
-
-      const score =
-      calculateMemoryScore(
-        memory,
-        token
-      );
-
-      if(
-        score <= 0
-      ){
-
-        return;
-      }
-
-      results.push(
-
-        createSearchResult(
-          memory,
-          score
-        )
-
+      memoryMap.set(
+        memory.id,
+        memory
       );
 
     });
 
   });
 
-  return sortSearchResults(
+  return [
 
-    deduplicateSearchResults(
-      mergeSearchScores(
-        results
-      )
-    )
+    ...memoryMap.values()
 
+  ];
+
+}
+
+
+
+// =====================================
+// PAGINATION
+// =====================================
+
+function paginateSearchResults(
+  results = [],
+  limit = 20,
+  page = 1
+){
+
+  const safeLimit =
+  clampSearchLimit(
+    limit
+  );
+
+  const safePage =
+  Math.max(
+    1,
+    Number(page) || 1
+  );
+
+  const offset =
+
+    (
+      safePage - 1
+    ) *
+
+    safeLimit;
+
+  return results.slice(
+    offset,
+    offset + safeLimit
   );
 
 }
@@ -1266,124 +845,64 @@ function searchMemories(
     options
   );
 
-  const cachedResults =
+  const cached =
   getCachedSearchResults(
     cacheKey
   );
 
-  if(
-    cachedResults
-  ){
+  if(cached){
 
-    return cachedResults;
-
+    return cached;
   }
 
-  const limit =
-  clampSearchLimit(
-    options.limit
+  const memories =
+  searchByTokens(
+    normalizedQuery,
+    options
   );
 
-  const memories =
+  const results =
+  memories
+  .map((memory) => {
 
-    Array.isArray(
-      memoryState.memories
-    )
+    return createSearchResult(
 
-    ? memoryState.memories
+      memory,
 
-    : [];
-
-  const results = [];
-
-  for(
-
-    let i = 0;
-
-    i < memories.length;
-
-    i++
-
-  ){
-
-    if(
-
-      results.length >=
-
-      MEMORY_SEARCH_CONFIG
-      .MAX_SEARCH_RESULTS
-
-    ){
-
-      break;
-
-    }
-
-    const memory =
-    memories[i];
-
-    try{
-
-      if(
-
-        !isSearchableMemory(
-          memory,
-          options
-        )
-
-      ){
-
-        continue;
-
-      }
-
-      const score =
       calculateMemoryScore(
         memory,
         normalizedQuery
-      );
-
-      if(
-        score <= 0
-      ){
-
-        continue;
-
-      }
-
-      results.push(
-
-        createSearchResult(
-          memory,
-          score
-        )
-
-      );
-
-    }
-
-    catch(error){
-
-      markMemoryCorrupted?.(
-        memory?.id ||
-        createMemoryId?.()
-      );
-
-    }
-
-  }
-
-  const finalResults =
-  sortSearchResults(
-
-    deduplicateSearchResults(
-      mergeSearchScores(
-        results
       )
-    )
 
-  )
-  .slice(0,limit);
+    );
+
+  })
+  .filter((result) => {
+
+    return result.score > 0;
+
+  });
+
+  const normalizedResults =
+  normalizeSearchResults(
+    results
+  );
+
+  const sortedResults =
+  sortSearchResults(
+    normalizedResults
+  );
+
+  const paginatedResults =
+  paginateSearchResults(
+
+    sortedResults,
+
+    options.limit,
+
+    options.page
+
+  );
 
   if(
     memoryState?.stats
@@ -1396,13 +915,11 @@ function searchMemories(
 
   setCachedSearchResults(
     cacheKey,
-    finalResults
+    paginatedResults
   );
 
-  return freezeSearchObject(
-    deepClone(
-      finalResults
-    )
+  return deepClone(
+    paginatedResults
   );
 
 }
@@ -1418,13 +935,7 @@ async function advancedMemorySearch(
   options = {}
 ){
 
-  const tokenResults =
-  searchByTokens(
-    query,
-    options
-  );
-
-  const directResults =
+  const indexedResults =
   searchMemories(
     query,
     options
@@ -1478,36 +989,16 @@ async function advancedMemorySearch(
   }
 
   const mergedResults =
+  normalizeSearchResults([
 
-    mergeSearchScores([
+    ...indexedResults,
 
-      ...tokenResults,
+    ...semanticResults
 
-      ...directResults,
+  ]);
 
-      ...semanticResults
-
-    ]);
-
-  const finalResults =
-  sortSearchResults(
-
-    deduplicateSearchResults(
-      mergedResults
-    )
-
-  );
-
-  const limit =
-  clampSearchLimit(
-    options.limit
-  );
-
-  return freezeSearchObject(
-    deepClone(
-      finalResults
-      .slice(0,limit)
-    )
+  return sortSearchResults(
+    mergedResults
   );
 
 }
