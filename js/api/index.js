@@ -1,7 +1,91 @@
 // =====================================
 // RIGO AI
 // API INDEX
+// SAFE API COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// API FILES
+// =====================================
+
+import "./api-runtime.js";
+
+
+
+// =====================================
+// INTERNAL STATE
+// =====================================
+
+const apiIndexState =
+Object.seal({
+
+  initialized:false,
+
+  initializing:false,
+
+  lastInitializedAt:null,
+
+  lastError:null
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isFunction(
+  value
+){
+
+  return typeof value ===
+  "function";
+
+}
+
+
+
+function normalizeAPIError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+function emitAPIWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+
+    `[APIIndex] ${message}`,
+
+    error || ""
+
+  );
+
+}
 
 
 
@@ -11,9 +95,20 @@
 
 function validateAPISystems(){
 
+  if(
+    typeof window ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
   return (
 
-    typeof APIRuntime !==
+    typeof window
+    .RIGOAPIRuntime !==
+
     "undefined"
 
   );
@@ -29,25 +124,85 @@ function validateAPISystems(){
 async function initializeAPI(){
 
   if(
-    !validateAPISystems()
+    apiIndexState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    apiIndexState
+    .initializing
   ){
 
     return false;
 
   }
 
+  apiIndexState
+  .initializing =
+  true;
+
+  apiIndexState
+  .lastError =
+  null;
+
   try{
 
     if(
-      typeof APIRuntime
-      ?.initialize ===
-      "function"
+      !validateAPISystems()
     ){
 
-      await APIRuntime
-      .initialize();
+      throw new Error(
+        "API SYSTEM VALIDATION FAILED"
+      );
 
     }
+
+    const runtime =
+    window.RIGOAPIRuntime;
+
+    if(
+
+      runtime &&
+
+      isFunction(
+        runtime.initialize
+      )
+
+    ){
+
+      const initialized =
+      await runtime.initialize();
+
+      if(
+        initialized === false
+      ){
+
+        throw new Error(
+          "API RUNTIME INITIALIZATION FAILED"
+        );
+
+      }
+
+    }
+
+    apiIndexState
+    .initialized =
+    true;
+
+    apiIndexState
+    .lastInitializedAt =
+    Date.now();
+
+    window.__RIGO_API_READY__ =
+    true;
+
+    console.info(
+      "[APIIndex] API initialized"
+    );
 
     return true;
 
@@ -55,7 +210,26 @@ async function initializeAPI(){
 
   catch(error){
 
+    apiIndexState
+    .lastError =
+    normalizeAPIError(
+      error
+    );
+
+    emitAPIWarning(
+      "Initialization failed",
+      error
+    );
+
     return false;
+
+  }
+
+  finally{
+
+    apiIndexState
+    .initializing =
+    false;
 
   }
 
@@ -71,14 +245,20 @@ async function resetAPI(){
 
   try{
 
+    const runtime =
+    window.RIGOAPIRuntime;
+
     if(
-      typeof APIRuntime
-      ?.reset ===
-      "function"
+
+      runtime &&
+
+      isFunction(
+        runtime.reset
+      )
+
     ){
 
-      await APIRuntime
-      .reset();
+      await runtime.reset();
 
     }
 
@@ -87,6 +267,11 @@ async function resetAPI(){
   }
 
   catch(error){
+
+    emitAPIWarning(
+      "Reset failed",
+      error
+    );
 
     return false;
 
@@ -104,14 +289,20 @@ async function shutdownAPI(){
 
   try{
 
+    const runtime =
+    window.RIGOAPIRuntime;
+
     if(
-      typeof APIRuntime
-      ?.shutdown ===
-      "function"
+
+      runtime &&
+
+      isFunction(
+        runtime.shutdown
+      )
+
     ){
 
-      await APIRuntime
-      .shutdown();
+      await runtime.shutdown();
 
     }
 
@@ -120,6 +311,11 @@ async function shutdownAPI(){
   }
 
   catch(error){
+
+    emitAPIWarning(
+      "Shutdown failed",
+      error
+    );
 
     return false;
 
@@ -135,21 +331,29 @@ async function shutdownAPI(){
 
 function getAPIHealth(){
 
+  const runtime =
+  window.RIGOAPIRuntime;
+
   return Object.freeze({
+
+    initialized:
+    apiIndexState
+    .initialized,
 
     valid:
     validateAPISystems(),
 
     runtime:
 
-      typeof APIRuntime
-      ?.health ===
-      "function"
+      runtime &&
+
+      isFunction(
+        runtime.health
+      )
 
       ?
 
-      APIRuntime
-      .health()
+      runtime.health()
 
       :
 
@@ -170,25 +374,38 @@ function getAPIHealth(){
 
 function createAPISnapshot(){
 
+  const runtime =
+  window.RIGOAPIRuntime;
+
   return Object.freeze({
 
-    valid:
-    validateAPISystems(),
+    initialized:
+    apiIndexState
+    .initialized,
 
     snapshot:
 
-      typeof APIRuntime
-      ?.snapshot ===
-      "function"
+      runtime &&
+
+      isFunction(
+        runtime.snapshot
+      )
 
       ?
 
-      APIRuntime
-      .snapshot()
+      runtime.snapshot()
 
       :
 
       null,
+
+    lastInitializedAt:
+    apiIndexState
+    .lastInitializedAt,
+
+    lastError:
+    apiIndexState
+    .lastError,
 
     timestamp:
     Date.now()
@@ -200,14 +417,14 @@ function createAPISnapshot(){
 
 
 // =====================================
-// PUBLIC EXPORTS
+// PUBLIC API
 // =====================================
 
-const API =
+const RIGOAPI =
 Object.freeze({
 
   runtime:
-  APIRuntime,
+  window.RIGOAPIRuntime,
 
   initialize:
   initializeAPI,
@@ -229,7 +446,7 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -237,19 +454,58 @@ if(
   "undefined"
 ){
 
-  window.API =
-  API;
+  Object.defineProperty(
+
+    window,
+
+    "RIGOAPI",
+
+    {
+
+      value:
+      RIGOAPI,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
 
 
 
+// =====================================
+// SAFE AUTO INITIALIZATION
+// =====================================
+
 if(
-  typeof globalThis !==
+  typeof window !==
   "undefined"
 ){
 
-  globalThis.API =
-  API;
+  queueMicrotask(async() => {
+
+    try{
+
+      await initializeAPI();
+
+    }
+
+    catch(error){
+
+      emitAPIWarning(
+
+        "Queued initialization failed",
+
+        error
+
+      );
+
+    }
+
+  });
 
 }
