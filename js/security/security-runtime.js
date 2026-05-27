@@ -8,6 +8,32 @@
 
 
 // =====================================
+// RUNTIME CONFIG
+// =====================================
+
+const SECURITY_RUNTIME_CONFIG =
+Object.freeze({
+
+  STARTUP_TIMEOUT:
+  15000,
+
+  SHUTDOWN_TIMEOUT:
+  10000,
+
+  MAX_MODULES:
+  100,
+
+  ENABLE_HEALTHCHECK:
+  true,
+
+  ENABLE_STARTUP_LOGS:
+  true
+
+});
+
+
+
+// =====================================
 // SECURITY RUNTIME STATE
 // =====================================
 
@@ -38,6 +64,12 @@ Object.seal({
   lastError:
   null,
 
+  startupPromise:
+  null,
+
+  runtimeVersion:
+  "1.0.0",
+
   activeModules:
   new Set(),
 
@@ -47,8 +79,8 @@ Object.seal({
   runtimeLocks:
   new Set(),
 
-  startupPromise:
-  null
+  moduleStates:
+  new Map()
 
 });
 
@@ -69,25 +101,10 @@ Object.freeze([
     required:
     true,
 
-    async initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecurityCore !==
-        "undefined"
-
-        &&
-
-        typeof SecurityCore
-        .initialize ===
-        "function"
-
-        &&
-
-        await SecurityCore
-        .initialize()
-
-      );
+      return globalThis
+      .SecurityCore;
 
     }
 
@@ -103,25 +120,10 @@ Object.freeze([
     required:
     true,
 
-    async initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecurityPolicy !==
-        "undefined"
-
-        &&
-
-        typeof SecurityPolicy
-        .initialize ===
-        "function"
-
-        &&
-
-        await SecurityPolicy
-        .initialize()
-
-      );
+      return globalThis
+      .SecurityPolicy;
 
     }
 
@@ -137,14 +139,10 @@ Object.freeze([
     required:
     true,
 
-    initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecurityMonitor !==
-        "undefined"
-
-      );
+      return globalThis
+      .SecurityMonitor;
 
     }
 
@@ -160,14 +158,10 @@ Object.freeze([
     required:
     true,
 
-    initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecurityValidator !==
-        "undefined"
-
-      );
+      return globalThis
+      .SecurityValidator;
 
     }
 
@@ -183,14 +177,10 @@ Object.freeze([
     required:
     true,
 
-    initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecuritySanitize !==
-        "undefined"
-
-      );
+      return globalThis
+      .SecuritySanitize;
 
     }
 
@@ -206,14 +196,10 @@ Object.freeze([
     required:
     true,
 
-    initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecurityURL !==
-        "undefined"
-
-      );
+      return globalThis
+      .SecurityURL;
 
     }
 
@@ -229,14 +215,10 @@ Object.freeze([
     required:
     true,
 
-    initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecurityFreeze !==
-        "undefined"
-
-      );
+      return globalThis
+      .SecurityFreeze;
 
     }
 
@@ -252,14 +234,10 @@ Object.freeze([
     required:
     true,
 
-    initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecuritySandbox !==
-        "undefined"
-
-      );
+      return globalThis
+      .SecuritySandbox;
 
     }
 
@@ -275,14 +253,10 @@ Object.freeze([
     required:
     false,
 
-    initialize(){
+    resolver(){
 
-      return (
-
-        typeof SecurityReport !==
-        "undefined"
-
-      );
+      return globalThis
+      .SecurityReport;
 
     }
 
@@ -324,6 +298,40 @@ function logSecurityRuntimeEvent(
 
 
 // =====================================
+// MODULE RESOLVER
+// =====================================
+
+function resolveSecurityModule(
+  module
+){
+
+  try{
+
+    if(
+      !module
+      ?.resolver
+    ){
+
+      return null;
+
+    }
+
+    return module
+    .resolver();
+
+  }
+
+  catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
 // REGISTER MODULE
 // =====================================
 
@@ -354,6 +362,16 @@ function registerSecurityRuntimeModule(
   .failedModules
   .delete(
     normalizedName
+  );
+
+  securityRuntimeState
+  .moduleStates
+  .set(
+
+    normalizedName,
+
+    "ready"
+
   );
 
   return true;
@@ -395,6 +413,16 @@ function markSecurityModuleFailed(
     normalizedName
   );
 
+  securityRuntimeState
+  .moduleStates
+  .set(
+
+    normalizedName,
+
+    "failed"
+
+  );
+
   return true;
 
 }
@@ -406,6 +434,20 @@ function markSecurityModuleFailed(
 // =====================================
 
 function validateSecurityRuntimeModules(){
+
+  if(
+
+    SECURITY_RUNTIME_MODULES
+    .length >
+
+    SECURITY_RUNTIME_CONFIG
+    .MAX_MODULES
+
+  ){
+
+    return false;
+
+  }
 
   return SECURITY_RUNTIME_MODULES
   .every((module) => {
@@ -427,12 +469,127 @@ function validateSecurityRuntimeModules(){
       &&
 
       typeof module
-      .initialize ===
+      .resolver ===
       "function"
 
     );
 
   });
+
+}
+
+
+
+// =====================================
+// MODULE INITIALIZER
+// =====================================
+
+async function initializeSecurityModule(
+  module
+){
+
+  const resolved =
+  resolveSecurityModule(
+    module
+  );
+
+  if(!resolved){
+
+    markSecurityModuleFailed(
+      module.name
+    );
+
+    return !module.required;
+  }
+
+  try{
+
+    securityRuntimeState
+    .moduleStates
+    .set(
+
+      module.name,
+
+      "initializing"
+
+    );
+
+    if(
+
+      typeof resolved
+      .initialize ===
+      "function"
+
+    ){
+
+      const initialized =
+      await Promise.resolve(
+
+        resolved
+        .initialize()
+
+      );
+
+      if(!initialized){
+
+        throw new Error(
+          "MODULE_INIT_FAILED"
+        );
+
+      }
+
+    }
+
+    registerSecurityRuntimeModule(
+      module.name
+    );
+
+    logSecurityRuntimeEvent(
+
+      "SECURITY_MODULE_READY",
+
+      {
+
+        module:
+        module.name
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    markSecurityModuleFailed(
+      module.name
+    );
+
+    securityRuntimeState
+    .lastError =
+    error;
+
+    logSecurityRuntimeEvent(
+
+      "SECURITY_MODULE_CRASHED",
+
+      {
+
+        module:
+        module.name,
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    return !module.required;
+
+  }
 
 }
 
@@ -449,105 +606,58 @@ async function initializeSecurityModules(){
     SECURITY_RUNTIME_MODULES
   ){
 
-    try{
+    const initialized =
+    await initializeSecurityModule(
+      module
+    );
 
-      const initialized =
-      await Promise.resolve(
+    if(!initialized){
 
-        module
-        .initialize()
-
-      );
-
-      if(!initialized){
-
-        markSecurityModuleFailed(
-          module.name
-        );
-
-        logSecurityRuntimeEvent(
-
-          "SECURITY MODULE FAILED",
-
-          {
-
-            module:
-            module.name
-
-          }
-
-        );
-
-        if(
-          module.required
-        ){
-
-          return false;
-
-        }
-
-        continue;
-
-      }
-
-      registerSecurityRuntimeModule(
-        module.name
-      );
-
-      logSecurityRuntimeEvent(
-
-        "SECURITY MODULE READY",
-
-        {
-
-          module:
-          module.name
-
-        }
-
-      );
-
-    }
-
-    catch(error){
-
-      markSecurityModuleFailed(
-        module.name
-      );
-
-      securityRuntimeState
-      .lastError =
-      error;
-
-      logSecurityRuntimeEvent(
-
-        "SECURITY MODULE CRASHED",
-
-        {
-
-          module:
-          module.name,
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-      if(
-        module.required
-      ){
-
-        return false;
-
-      }
+      return false;
 
     }
 
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// TIMEOUT WRAPPER
+// =====================================
+
+async function executeRuntimeTimeout(
+  callback,
+  timeout
+){
+
+  return Promise.race([
+
+    Promise.resolve()
+    .then(callback),
+
+    new Promise((_,reject) => {
+
+      setTimeout(() => {
+
+        reject(
+
+          new Error(
+            "SECURITY_RUNTIME_TIMEOUT"
+          )
+
+        );
+
+      },
+
+      timeout);
+
+    })
+
+  ]);
 
 }
 
@@ -637,120 +747,136 @@ async function initializeSecurityRuntime(){
   securityRuntimeState
   .startupPromise =
 
-  (async() => {
+  executeRuntimeTimeout(
 
-    if(
-      securityRuntimeState
-      .starting
-    ){
+    async() => {
 
-      return false;
+      if(
+        securityRuntimeState
+        .starting
+      ){
 
-    }
-
-    securityRuntimeState
-    .starting =
-    true;
-
-    try{
-
-      const valid =
-      validateSecurityRuntimeModules();
-
-      if(!valid){
-
-        throw new Error(
-          "INVALID_SECURITY_MODULES"
-        );
+        return false;
 
       }
-
-      const initialized =
-      await initializeSecurityModules();
-
-      if(!initialized){
-
-        throw new Error(
-          "SECURITY_MODULE_INIT_FAILED"
-        );
-
-      }
-
-      securityRuntimeState
-      .initialized =
-      true;
-
-      securityRuntimeState
-      .crashed =
-      false;
-
-      securityRuntimeState
-      .initializedAt =
-      Date.now();
-
-      const healthy =
-      runSecurityHealthcheck();
-
-      if(!healthy){
-
-        throw new Error(
-          "SECURITY_HEALTHCHECK_FAILED"
-        );
-
-      }
-
-      logSecurityRuntimeEvent(
-        "SECURITY RUNTIME READY"
-      );
-
-      return true;
-
-    }
-
-    catch(error){
-
-      securityRuntimeState
-      .crashed =
-      true;
-
-      securityRuntimeState
-      .initialized =
-      false;
-
-      securityRuntimeState
-      .lastError =
-      error;
-
-      logSecurityRuntimeEvent(
-
-        "SECURITY RUNTIME FAILED",
-
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-      return false;
-
-    }
-
-    finally{
 
       securityRuntimeState
       .starting =
-      false;
+      true;
 
-      securityRuntimeState
-      .startupPromise =
-      null;
+      try{
 
-    }
+        const valid =
+        validateSecurityRuntimeModules();
 
-  })();
+        if(!valid){
+
+          throw new Error(
+            "INVALID_SECURITY_MODULES"
+          );
+
+        }
+
+        const initialized =
+        await initializeSecurityModules();
+
+        if(!initialized){
+
+          throw new Error(
+            "SECURITY_MODULE_INIT_FAILED"
+          );
+
+        }
+
+        securityRuntimeState
+        .initialized =
+        true;
+
+        securityRuntimeState
+        .crashed =
+        false;
+
+        securityRuntimeState
+        .initializedAt =
+        Date.now();
+
+        if(
+
+          SECURITY_RUNTIME_CONFIG
+          .ENABLE_HEALTHCHECK
+
+        ){
+
+          const healthy =
+          runSecurityHealthcheck();
+
+          if(!healthy){
+
+            throw new Error(
+              "SECURITY_HEALTHCHECK_FAILED"
+            );
+
+          }
+
+        }
+
+        logSecurityRuntimeEvent(
+          "SECURITY_RUNTIME_READY"
+        );
+
+        return true;
+
+      }
+
+      catch(error){
+
+        securityRuntimeState
+        .crashed =
+        true;
+
+        securityRuntimeState
+        .initialized =
+        false;
+
+        securityRuntimeState
+        .lastError =
+        error;
+
+        logSecurityRuntimeEvent(
+
+          "SECURITY_RUNTIME_FAILED",
+
+          {
+
+            error:
+            String(error)
+
+          }
+
+        );
+
+        return false;
+
+      }
+
+      finally{
+
+        securityRuntimeState
+        .starting =
+        false;
+
+        securityRuntimeState
+        .startupPromise =
+        null;
+
+      }
+
+    },
+
+    SECURITY_RUNTIME_CONFIG
+    .STARTUP_TIMEOUT
+
+  );
 
   return securityRuntimeState
   .startupPromise;
@@ -780,36 +906,51 @@ async function shutdownSecurityRuntime(){
 
   try{
 
-    securityRuntimeState
-    .activeModules
-    .clear();
+    await executeRuntimeTimeout(
 
-    securityRuntimeState
-    .failedModules
-    .clear();
+      async() => {
 
-    securityRuntimeState
-    .runtimeLocks
-    .clear();
+        securityRuntimeState
+        .activeModules
+        .clear();
 
-    securityRuntimeState
-    .shutdownAt =
-    Date.now();
+        securityRuntimeState
+        .failedModules
+        .clear();
 
-    securityRuntimeState
-    .initialized =
-    false;
+        securityRuntimeState
+        .runtimeLocks
+        .clear();
 
-    securityRuntimeState
-    .starting =
-    false;
+        securityRuntimeState
+        .moduleStates
+        .clear();
 
-    securityRuntimeState
-    .startupPromise =
-    null;
+        securityRuntimeState
+        .shutdownAt =
+        Date.now();
+
+        securityRuntimeState
+        .initialized =
+        false;
+
+        securityRuntimeState
+        .starting =
+        false;
+
+        securityRuntimeState
+        .startupPromise =
+        null;
+
+      },
+
+      SECURITY_RUNTIME_CONFIG
+      .SHUTDOWN_TIMEOUT
+
+    );
 
     logSecurityRuntimeEvent(
-      "SECURITY RUNTIME SHUTDOWN"
+      "SECURITY_RUNTIME_SHUTDOWN"
     );
 
     return true;
@@ -824,7 +965,7 @@ async function shutdownSecurityRuntime(){
 
     logSecurityRuntimeEvent(
 
-      "SECURITY RUNTIME SHUTDOWN FAILED",
+      "SECURITY_RUNTIME_SHUTDOWN_FAILED",
 
       {
 
@@ -901,6 +1042,10 @@ function getSecurityRuntimeDiagnostics(){
     securityRuntimeState
     .crashed,
 
+    runtimeVersion:
+    securityRuntimeState
+    .runtimeVersion,
+
     initializedAt:
     securityRuntimeState
     .initializedAt,
@@ -933,6 +1078,14 @@ function getSecurityRuntimeDiagnostics(){
       .runtimeLocks
 
     ],
+
+    moduleStates:
+
+      Object.fromEntries(
+
+        securityRuntimeState
+        .moduleStates
+      ),
 
     startupInProgress:
     Boolean(
@@ -989,17 +1142,61 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SECURITY_RUNTIME_CONFIG,
+
+  securityRuntimeState,
+
+  SECURITY_RUNTIME_MODULES,
+
+  logSecurityRuntimeEvent,
+
+  resolveSecurityModule,
+
+  registerSecurityRuntimeModule,
+
+  markSecurityModuleFailed,
+
+  validateSecurityRuntimeModules,
+
+  initializeSecurityModule,
+
+  initializeSecurityModules,
+
+  executeRuntimeTimeout,
+
+  runSecurityHealthcheck,
+
+  initializeSecurityRuntime,
+
+  shutdownSecurityRuntime,
+
+  resetSecurityRuntime,
+
+  getSecurityRuntimeDiagnostics,
+
+  SecurityRuntime
+
+};
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityRuntime",
 
