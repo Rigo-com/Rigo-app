@@ -1,15 +1,13 @@
-
 // =====================================
 // RIGO AI
 // MEMORY CLOUD SYNC
-// ENTERPRISE INFINITY FINAL
-// PATCHED + HARDENED
+// FINAL OPTIMIZED BUILD
 // =====================================
 
 
 
 // =====================================
-// CLOUD CONFIG
+// CONFIG
 // =====================================
 
 const MEMORY_SYNC_CONFIG =
@@ -19,43 +17,27 @@ Object.freeze({
 
   ENABLE_AUTO_SYNC:true,
 
-  ENABLE_CONFLICT_RESOLUTION:true,
-
-  ENABLE_OFFLINE_QUEUE:true,
-
-  ENABLE_SYNC_COMPRESSION:true,
-
-  ENABLE_DELTA_SYNC:true,
-
   AUTO_SYNC_INTERVAL:
   30000,
 
-  MAX_SYNC_RETRIES:5,
+  MAX_SYNC_RETRIES:
+  5,
 
-  MAX_QUEUE_SIZE:1000,
+  MAX_QUEUE_SIZE:
+  500,
 
-  MAX_BATCH_SIZE:100,
+  MAX_BATCH_SIZE:
+  100,
 
   SYNC_TIMEOUT:
-  15000,
-
-  MAX_SYNC_SESSION_AGE:
-  1000 * 60 * 60,
-
-  MAX_PARALLEL_BATCHES:
-  3,
-
-  SYNC_TRANSPORT:
-  "rest",
-
-  CLOUD_VERSION:"1.0.0"
+  15000
 
 });
 
 
 
 // =====================================
-// DEVICE IDENTITY
+// DEVICE ID
 // =====================================
 
 const MEMORY_DEVICE_ID =
@@ -70,46 +52,7 @@ const MEMORY_DEVICE_ID =
 
 
 // =====================================
-// SYNC LOCK
-// =====================================
-
-let memorySyncLock =
-false;
-
-
-
-function acquireMemorySyncLock(){
-
-  if(
-    memorySyncLock
-  ){
-
-    return false;
-
-  }
-
-  memorySyncLock =
-  true;
-
-  return true;
-
-}
-
-
-
-function releaseMemorySyncLock(){
-
-  memorySyncLock =
-  false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLOUD STATE
+// STATE
 // =====================================
 
 const memorySyncState =
@@ -139,22 +82,10 @@ Object.seal({
 
   queuedOperations:[],
 
-  pendingUploads:
-  new Set(),
-
-  pendingDownloads:
-  new Set(),
-
   syncedMemoryIds:
   new Set(),
 
-  failedMemoryIds:
-  new Set(),
-
   remoteMemoryHashes:
-  new Map(),
-
-  syncSessions:
   new Map(),
 
   syncTimer:null
@@ -164,7 +95,7 @@ Object.seal({
 
 
 // =====================================
-// CLOUD PROVIDER
+// PROVIDER
 // =====================================
 
 const memoryCloudProvider =
@@ -174,16 +105,14 @@ Object.seal({
 
   apiKey:null,
 
-  connected:false,
-
-  authenticated:false
+  connected:false
 
 });
 
 
 
 // =====================================
-// NETWORK HELPERS
+// HELPERS
 // =====================================
 
 function isNetworkAvailable(){
@@ -216,50 +145,6 @@ function isCloudSyncEnabled(){
 }
 
 
-
-// =====================================
-// SAFE HELPERS
-// =====================================
-
-function safeSyncArray(
-  value
-){
-
-  return Array.isArray(value)
-  ? value
-  : [];
-
-}
-
-
-
-function safeSyncSet(
-  value
-){
-
-  return value instanceof Set
-  ? value
-  : new Set();
-
-}
-
-
-
-function safeSyncMap(
-  value
-){
-
-  return value instanceof Map
-  ? value
-  : new Map();
-
-}
-
-
-
-// =====================================
-// SAFE BATCHING
-// =====================================
 
 function chunkSyncMemories(
   memories = []
@@ -303,88 +188,6 @@ function chunkSyncMemories(
 
 
 // =====================================
-// SESSION CLEANUP
-// =====================================
-
-function cleanupSyncSessions(){
-
-  const now =
-  Date.now();
-
-  safeSyncMap(
-    memorySyncState
-    .syncSessions
-  )
-  .forEach((session,id) => {
-
-    if(
-
-      now -
-      session.startedAt >
-
-      MEMORY_SYNC_CONFIG
-      .MAX_SYNC_SESSION_AGE
-
-    ){
-
-      memorySyncState
-      .syncSessions
-      .delete(id);
-
-    }
-
-  });
-
-}
-
-
-
-// =====================================
-// SYNC SESSION
-// =====================================
-
-function createSyncSession(){
-
-  cleanupSyncSessions();
-
-  const session = {
-
-    id:
-
-      typeof createMemoryId ===
-      "function"
-
-      ? createMemoryId()
-
-      : `session_${Date.now()}`,
-
-    startedAt:
-    Date.now(),
-
-    completed:false,
-
-    uploaded:0,
-
-    downloaded:0,
-
-    failed:0
-
-  };
-
-  memorySyncState
-  .syncSessions
-  .set(
-    session.id,
-    session
-  );
-
-  return session;
-
-}
-
-
-
-// =====================================
 // VECTOR CLOCK
 // =====================================
 
@@ -392,52 +195,28 @@ function incrementMemoryVectorClock(
   memory
 ){
 
-  const currentCounter =
+  const counter =
+  Number(
+    memory?.vectorClock
+    ?.counter || 0
+  );
 
-    typeof safeMemoryNumber ===
-    "function"
-
-    ? safeMemoryNumber(
-        memory?.vectorClock
-        ?.counter,
-        0
-      )
-
-    : Number(
-        memory?.vectorClock
-        ?.counter || 0
-      );
-
-  const vectorClock = {
+  return Object.freeze({
 
     deviceId:
     MEMORY_DEVICE_ID,
 
     counter:
-    Math.max(
-      0,
-      currentCounter
-    ) + 1,
+    counter + 1,
 
     updatedAt:
     Date.now()
 
-  };
-
-  return typeof deepFreeze ===
-  "function"
-
-  ? deepFreeze(vectorClock)
-
-  : Object.freeze(vectorClock);
+  });
 
 }
 
 
-
-// =====================================
-// VECTOR CLOCK COMPARE
-// =====================================
 
 function compareVectorClocks(
   localClock,
@@ -558,14 +337,6 @@ async function executeCloudRequest(
 
   }
 
-  if(
-    !endpoint
-  ){
-
-    return null;
-
-  }
-
   try{
 
     const controller =
@@ -616,23 +387,6 @@ async function executeCloudRequest(
 
     }
 
-    const contentType =
-    response.headers.get(
-      "content-type"
-    ) || "";
-
-    if(
-
-      !contentType.includes(
-        "application/json"
-      )
-
-    ){
-
-      return null;
-
-    }
-
     return await response.json();
 
   }
@@ -648,7 +402,7 @@ async function executeCloudRequest(
 
 
 // =====================================
-// MEMORY HASH
+// HASH
 // =====================================
 
 async function createCloudMemoryHash(
@@ -664,16 +418,14 @@ async function createCloudMemoryHash(
   const rawData =
   JSON.stringify({
 
-    id:memory.id,
+    id:
+    memory.id,
 
     updatedAt:
     memory.updatedAt,
 
     content:
     memory.content,
-
-    version:
-    memory.version,
 
     vectorClock:
     memory.vectorClock
@@ -700,77 +452,69 @@ async function createCloudMemoryHash(
 
 
 // =====================================
-// CLOUD PAYLOAD
+// PAYLOAD
 // =====================================
 
 async function createCloudPayload(
   memories = []
 ){
 
-  const safeMemories =
-  safeSyncArray(
-    memories
-  );
-
   const payload = [];
 
   for(
     const memory
-    of safeMemories
+    of memories
   ){
 
     const validation =
 
-      typeof validateMemoryObject ===
-      "function"
-
-      ? validateMemoryObject(
-          memory,
-          {
-            strict:true
-          }
-        )
-
-      : { valid:true };
+      validateMemoryObject?.(
+        memory,
+        {
+          strict:true
+        }
+      );
 
     if(
-      !validation.valid
+      !validation?.valid
     ){
 
       continue;
 
     }
 
-    const vectorClock =
-    incrementMemoryVectorClock(
-      memory
-    );
+    const clonedMemory =
+
+      deepClone?.(
+        memory
+      )
+
+      ||
+
+      { ...memory };
+
+
+
+    if(
+      !clonedMemory.vectorClock
+    ){
+
+      clonedMemory.vectorClock =
+      incrementMemoryVectorClock(
+        clonedMemory
+      );
+
+    }
 
     const sanitizedMemory =
 
-      typeof sanitizeMemoryObject ===
-      "function"
+      sanitizeMemoryObject?.(
+        clonedMemory
+      )
 
-      ? sanitizeMemoryObject({
+      ||
 
-          ...(typeof deepClone ===
-          "function"
-
-            ? deepClone(memory)
-
-            : memory),
-
-          vectorClock
-
-        })
-
-      : {
-
-          ...memory,
-
-          vectorClock
-
-        };
+      clonedMemory;
 
     const hash =
     await createCloudMemoryHash(
@@ -792,10 +536,6 @@ async function createCloudPayload(
   }
 
   return {
-
-    version:
-    MEMORY_SYNC_CONFIG
-    .CLOUD_VERSION,
 
     exportedAt:
     Date.now(),
@@ -819,45 +559,8 @@ async function createCloudPayload(
 // =====================================
 
 function enqueueSyncOperation(
-  operation
+  memories = []
 ){
-
-  if(
-    !operation ||
-    typeof operation !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  const safeOperation = {
-
-    type:
-
-      typeof normalizeMemoryString ===
-      "function"
-
-      ? normalizeMemoryString(
-          operation.type
-        )
-
-      : String(
-          operation.type || ""
-        ),
-
-    memories:
-
-      Array.isArray(
-        operation.memories
-      )
-
-      ? operation.memories
-
-      : []
-
-  };
 
   memorySyncState
   .queuedOperations
@@ -875,8 +578,15 @@ function enqueueSyncOperation(
     createdAt:
     Date.now(),
 
-    operation:
-    safeOperation
+    memories:
+
+      Array.isArray(
+        memories
+      )
+
+      ? memories
+
+      : []
 
   });
 
@@ -945,9 +655,6 @@ async function connectCloudProvider(
     memoryCloudProvider
     .connected = true;
 
-    memoryCloudProvider
-    .authenticated = true;
-
     memorySyncState
     .connected = true;
 
@@ -971,10 +678,6 @@ async function connectCloudProvider(
 
 
 
-// =====================================
-// DISCONNECT
-// =====================================
-
 function disconnectCloudProvider(){
 
   memoryCloudProvider
@@ -986,9 +689,6 @@ function disconnectCloudProvider(){
   memoryCloudProvider
   .connected = false;
 
-  memoryCloudProvider
-  .authenticated = false;
-
   memorySyncState
   .connected = false;
 
@@ -999,7 +699,7 @@ function disconnectCloudProvider(){
 
 
 // =====================================
-// RETRY SYSTEM
+// RETRY
 // =====================================
 
 async function executeSyncWithRetry(
@@ -1020,26 +720,7 @@ async function executeSyncWithRetry(
     try{
 
       const result =
-      await Promise.race([
-
-        Promise.resolve(
-          operation()
-        ),
-
-        new Promise((resolve) => {
-
-          setTimeout(() => {
-
-            resolve(false);
-
-          },
-
-          MEMORY_SYNC_CONFIG
-          .SYNC_TIMEOUT);
-
-        })
-
-      ]);
+      await operation();
 
       if(result){
 
@@ -1105,7 +786,7 @@ function resolveMemoryConflict(
 
   }
 
-  const clockResult =
+  const comparison =
   compareVectorClocks(
 
     localMemory.vectorClock,
@@ -1115,7 +796,7 @@ function resolveMemoryConflict(
   );
 
   if(
-    clockResult < 0
+    comparison < 0
   ){
 
     return remoteMemory;
@@ -1123,25 +804,20 @@ function resolveMemoryConflict(
   }
 
   if(
-    clockResult > 0
+    comparison > 0
   ){
 
     return localMemory;
 
   }
 
-  const localUpdatedAt =
-  Number(
-    localMemory.updatedAt || 0
-  );
+  return (
 
-  const remoteUpdatedAt =
-  Number(
-    remoteMemory.updatedAt || 0
-  );
+    remoteMemory.updatedAt >
 
-  return remoteUpdatedAt >
-  localUpdatedAt
+    localMemory.updatedAt
+
+  )
 
   ? remoteMemory
 
@@ -1152,7 +828,7 @@ function resolveMemoryConflict(
 
 
 // =====================================
-// DELTA SYNC
+// DELTA MEMORIES
 // =====================================
 
 async function getDeltaSyncMemories(){
@@ -1160,9 +836,14 @@ async function getDeltaSyncMemories(){
   const changedMemories = [];
 
   const memories =
-  safeSyncArray(
-    memoryState?.memories
-  );
+
+    Array.isArray(
+      memoryState?.memories
+    )
+
+    ? memoryState.memories
+
+    : [];
 
   for(
     const memory
@@ -1202,7 +883,7 @@ async function getDeltaSyncMemories(){
 
 
 // =====================================
-// PUSH CLOUD
+// PUSH
 // =====================================
 
 async function pushMemoriesToCloud(
@@ -1218,13 +899,9 @@ async function pushMemoriesToCloud(
       memorySyncState
       .offlineMode = true;
 
-      enqueueSyncOperation({
-
-        type:"push",
-
+      enqueueSyncOperation(
         memories
-
-      });
+      );
 
       return false;
 
@@ -1247,7 +924,7 @@ async function pushMemoriesToCloud(
 
       const success =
       await executeSyncWithRetry(
-        async () => {
+        async() => {
 
           const response =
           await executeCloudRequest(
@@ -1320,7 +997,7 @@ async function pushMemoriesToCloud(
 
 
 // =====================================
-// PULL CLOUD
+// PULL
 // =====================================
 
 async function pullMemoriesFromCloud(){
@@ -1357,10 +1034,24 @@ async function pullMemoriesFromCloud(){
     ){
 
       return [];
-
     }
 
-    return response.memories;
+    return response.memories
+    .filter((memory) => {
+
+      const validation =
+
+        validateMemoryObject?.(
+          memory,
+          {
+            strict:true
+          }
+        );
+
+      return validation?.valid ===
+      true;
+
+    });
 
   }
 
@@ -1402,14 +1093,13 @@ async function processRemoteMemories(
 
     const localMemory =
 
-      typeof getMemoryById ===
-      "function"
+      getMemoryById?.(
+        remoteMemory.id
+      )
 
-      ? getMemoryById(
-          remoteMemory.id
-        )
+      ||
 
-      : null;
+      null;
 
     const resolvedMemory =
     resolveMemoryConflict(
@@ -1474,18 +1164,8 @@ async function syncMemoryCloud(){
   }
 
   if(
-    !acquireMemorySyncLock()
-  ){
-
-    return false;
-
-  }
-
-  if(
     !isCloudSyncEnabled()
   ){
-
-    releaseMemorySyncLock();
 
     return false;
 
@@ -1493,9 +1173,6 @@ async function syncMemoryCloud(){
 
   memorySyncState
   .syncing = true;
-
-  const session =
-  createSyncSession();
 
   try{
 
@@ -1506,14 +1183,9 @@ async function syncMemoryCloud(){
       memorySyncState
       .offlineMode = true;
 
-      enqueueSyncOperation({
-
-        type:"push",
-
-        memories:
+      enqueueSyncOperation(
         memoryState.memories
-
-      });
+      );
 
       return false;
 
@@ -1568,12 +1240,6 @@ async function syncMemoryCloud(){
 
     }
 
-    session.completed =
-    true;
-
-    session.completedAt =
-    Date.now();
-
     return pushSuccess;
 
   }
@@ -1587,8 +1253,6 @@ async function syncMemoryCloud(){
     .lastFailedSyncAt =
     Date.now();
 
-    session.failed = true;
-
     return false;
 
   }
@@ -1597,8 +1261,6 @@ async function syncMemoryCloud(){
 
     memorySyncState
     .syncing = false;
-
-    releaseMemorySyncLock();
 
   }
 
@@ -1634,19 +1296,9 @@ async function processOfflineQueue(){
     of operations
   ){
 
-    const operation =
-    queued.operation;
-
-    if(
-      operation.type ===
-      "push"
-    ){
-
-      await pushMemoriesToCloud(
-        operation.memories
-      );
-
-    }
+    await pushMemoriesToCloud(
+      queued.memories
+    );
 
   }
 
@@ -1734,7 +1386,7 @@ function stopAutoMemorySync(){
 
 function getMemorySyncDiagnostics(){
 
-  return {
+  return Object.freeze({
 
     initialized:
     memorySyncState
@@ -1755,10 +1407,6 @@ function getMemorySyncDiagnostics(){
     offlineMode:
     memorySyncState
     .offlineMode,
-
-    transport:
-    MEMORY_SYNC_CONFIG
-    .SYNC_TRANSPORT,
 
     totalSyncs:
     memorySyncState
@@ -1784,18 +1432,6 @@ function getMemorySyncDiagnostics(){
       .syncedMemoryIds
       .size,
 
-    failedMemories:
-
-      memorySyncState
-      .failedMemoryIds
-      .size,
-
-    activeSessions:
-
-      memorySyncState
-      .syncSessions
-      .size,
-
     lastSyncAt:
     memorySyncState
     .lastSyncAt,
@@ -1810,6 +1446,68 @@ function getMemorySyncDiagnostics(){
       memorySyncState
       .lastFailedSyncAt
 
-  };
+  });
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryCloudSync =
+Object.freeze({
+
+  connect:
+  connectCloudProvider,
+
+  disconnect:
+  disconnectCloudProvider,
+
+  sync:
+  syncMemoryCloud,
+
+  push:
+  pushMemoriesToCloud,
+
+  pull:
+  pullMemoriesFromCloud,
+
+  processRemote:
+  processRemoteMemories,
+
+  processQueue:
+  processOfflineQueue,
+
+  startAutoSync:
+  startAutoMemorySync,
+
+  stopAutoSync:
+  stopAutoMemorySync,
+
+  diagnostics:
+  getMemorySyncDiagnostics
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryCloudSync =
+  MemoryCloudSync;
+
+}
+
+
+
+export default
+MemoryCloudSync;
