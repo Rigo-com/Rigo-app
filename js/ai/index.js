@@ -1,96 +1,43 @@
 // =====================================
 // RIGO AI
-// AI RUNTIME ORCHESTRATOR
-// FULL PRODUCTION BOOTSTRAP INDEX
-// FINAL INTEGRATED VERSION
+// AI INDEX
+// SAFE AI COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
 
 // =====================================
-// IMPORTS
+// AI FILES
 // =====================================
 
-import "../kernel/ai-kernel.js";
-import "../contexts/context-manager.js";
-import "../agents/agent-manager.js";
-import "../tools/tool-executor.js";
-import "../workflows/workflow-engine.js";
-import "../planner/planner-engine.js";
-
-
-
-// =====================================
-// AI STACK STATES
-// =====================================
-
-const AI_STACK_STATES =
-Object.freeze({
-
-  IDLE:
-  "idle",
-
-  BOOTING:
-  "booting",
-
-  READY:
-  "ready",
-
-  FAILED:
-  "failed",
-
-  RESETTING:
-  "resetting",
-
-  SHUTTING_DOWN:
-  "shutting_down"
-
-});
+import "./ai-kernel.js";
+import "./context-manager.js";
+import "./agent-manager.js";
+import "./tool-executor.js";
+import "./workflow-engine.js";
+import "./planner-engine.js";
 
 
 
 // =====================================
-// AI RUNTIME STATE
+// INTERNAL STATE
 // =====================================
 
-const aiRuntimeState =
+const aiIndexState =
 Object.seal({
 
   initialized:false,
 
+  booted:false,
+
   initializing:false,
 
-  shuttingDown:false,
+  booting:false,
 
-  startupPromise:null,
+  lastInitializedAt:null,
 
-  state:
-  AI_STACK_STATES
-  .IDLE,
-
-  initializedSystems:
-  new Set(),
-
-  failedSystems:
-  new Set(),
-
-  diagnostics:{
-
-    bootAttempts:0,
-
-    successfulBoots:0,
-
-    failedBoots:0,
-
-    shutdowns:0,
-
-    resets:0
-
-  },
-
-  startupStartedAt:null,
-
-  startupCompletedAt:null,
+  lastBootedAt:null,
 
   lastError:null
 
@@ -99,21 +46,62 @@ Object.seal({
 
 
 // =====================================
-// SAFE FREEZE
+// HELPERS
 // =====================================
 
-function freezeAIObject(
+function isFunction(
+  value
+){
+
+  return typeof value ===
+  "function";
+
+}
+
+
+
+function isPlainObject(
+  value
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
+
+}
+
+
+
+function safeFreeze(
   value,
   visited = new WeakSet()
 ){
 
   if(
-
     !value ||
-
     typeof value !==
     "object"
-
   ){
 
     return value;
@@ -130,17 +118,38 @@ function freezeAIObject(
 
   if(
 
+    value instanceof Promise ||
+
     value instanceof Map ||
 
     value instanceof Set ||
+
+    value instanceof Date ||
+
+    value instanceof RegExp ||
 
     value instanceof WeakMap ||
 
     value instanceof WeakSet ||
 
-    value instanceof AbortController ||
+    (
+      typeof HTMLElement !==
+      "undefined" &&
 
-    value instanceof AbortSignal
+      value instanceof HTMLElement
+    )
+
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    !Array.isArray(value) &&
+
+    !isPlainObject(value)
 
   ){
 
@@ -150,29 +159,58 @@ function freezeAIObject(
 
   visited.add(value);
 
+  Object.freeze(value);
+
   Object.values(value)
-  .forEach((nested) => {
+  .forEach((nestedValue) => {
 
-    if(
-
-      nested &&
-
-      typeof nested ===
-      "object"
-
-    ){
-
-      freezeAIObject(
-        nested,
-        visited
-      );
-
-    }
+    safeFreeze(
+      nestedValue,
+      visited
+    );
 
   });
 
-  return Object.freeze(
-    value
+  return value;
+
+}
+
+
+
+function normalizeAIIndexError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+function emitAIIndexWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+
+    `[AIIndex] ${message}`,
+
+    error || ""
+
   );
 
 }
@@ -180,141 +218,86 @@ function freezeAIObject(
 
 
 // =====================================
-// SAFE CLONE
+// EVENTS
 // =====================================
 
-function cloneAIObject(
-  value
-){
-
-  try{
-
-    if(
-      typeof structuredClone ===
-      "function"
-    ){
-
-      return structuredClone(
-        value
-      );
-
-    }
-
-  }
-
-  catch(error){}
-
-  try{
-
-    if(
-      Array.isArray(value)
-    ){
-
-      return [
-        ...value
-      ];
-
-    }
-
-    if(
-
-      value &&
-
-      typeof value ===
-      "object"
-
-    ){
-
-      return {
-        ...value
-      };
-
-    }
-
-    return value;
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// MODULES
-// =====================================
-
-const AIModules =
+const AI_INDEX_EVENTS =
 Object.freeze({
 
-  kernel:
-  AIKernel,
+  INITIALIZATION_STARTED:
+  "ai.index.initialization.started",
 
-  context:
-  ContextManager,
+  INITIALIZATION_COMPLETED:
+  "ai.index.initialization.completed",
 
-  agents:
-  AgentManager,
+  BOOT_STARTED:
+  "ai.index.boot.started",
 
-  tools:
-  ToolExecutor,
+  BOOT_COMPLETED:
+  "ai.index.boot.completed",
 
-  workflows:
-  WorkflowEngine,
-
-  planner:
-  PlannerEngine
+  HEALTHCHECK:
+  "ai.index.healthcheck"
 
 });
 
 
 
 // =====================================
-// KERNEL SYSTEM REGISTRATION
+// EVENT EMITTER
 // =====================================
 
-function registerKernelSystems(){
+async function emitAIIndexEvent(
+  event,
+  payload = {}
+){
 
-  if(
-    typeof AIKernel?.registerSystem !==
-    "function"
-  ){
+  try{
+
+    if(
+      typeof emitSystemEvent !==
+      "function"
+    ){
+
+      return false;
+
+    }
+
+    await emitSystemEvent(
+
+      event,
+
+      {
+
+        source:
+        "ai-index",
+
+        timestamp:
+        Date.now(),
+
+        ...payload
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    emitAIIndexWarning(
+
+      `Event failed: ${event}`,
+
+      error
+
+    );
 
     return false;
 
   }
-
-  AIKernel.registerSystem(
-    "contexts",
-    ContextManager
-  );
-
-  AIKernel.registerSystem(
-    "agents",
-    AgentManager
-  );
-
-  AIKernel.registerSystem(
-    "tools",
-    ToolExecutor
-  );
-
-  AIKernel.registerSystem(
-    "workflows",
-    WorkflowEngine
-  );
-
-  AIKernel.registerSystem(
-    "planner",
-    PlannerEngine
-  );
-
-  return true;
 
 }
 
@@ -324,168 +307,144 @@ function registerKernelSystems(){
 // VALIDATION
 // =====================================
 
-function validateSubsystem(
-  system
-){
+function validateAILayer(){
 
-  return (
+  if(
+    typeof window ===
+    "undefined"
+  ){
 
-    system
+    return false;
 
-    &&
+  }
 
-    typeof system.initialize ===
-    "function"
+  const requiredSystems = [
 
-    &&
+    "RIGOAIKernel",
 
-    typeof system.health ===
-    "function"
+    "RIGOContextManager",
 
-    &&
+    "RIGOAgentManager",
 
-    typeof system.reset ===
-    "function"
+    "RIGOToolExecutor",
 
-  );
+    "RIGOWorkflowEngine",
 
-}
+    "RIGOPlannerEngine"
 
+  ];
 
+  const missingSystems =
 
-function validateAISubsystems(){
+    requiredSystems.filter((systemName) => {
 
-  return (
+      return (
 
-    validateSubsystem(
-      ContextManager
-    )
+        typeof window[
+          systemName
+        ] ===
 
-    &&
+        "undefined"
 
-    validateSubsystem(
-      AgentManager
-    )
+      );
 
-    &&
+    });
 
-    validateSubsystem(
-      ToolExecutor
-    )
+  if(
+    missingSystems.length > 0
+  ){
 
-    &&
+    emitAIIndexWarning(
 
-    validateSubsystem(
-      WorkflowEngine
-    )
+      `Missing systems: ${missingSystems.join(", ")}`
 
-    &&
+    );
 
-    validateSubsystem(
-      PlannerEngine
-    )
+    return false;
 
-    &&
+  }
 
-    validateSubsystem(
-      AIKernel
-    )
-
-  );
+  return true;
 
 }
 
 
 
 // =====================================
-// DEPENDENCY VALIDATION
+// KERNEL REGISTRATION
 // =====================================
 
-function validateAIDependencies(){
-
-  return (
-
-    typeof ContextManager !==
-    "undefined"
-
-    &&
-
-    typeof AgentManager !==
-    "undefined"
-
-    &&
-
-    typeof ToolExecutor !==
-    "undefined"
-
-    &&
-
-    typeof WorkflowEngine !==
-    "undefined"
-
-    &&
-
-    typeof PlannerEngine !==
-    "undefined"
-
-    &&
-
-    typeof AIKernel !==
-    "undefined"
-
-  );
-
-}
-
-
-
-// =====================================
-// SYSTEM INITIALIZATION
-// =====================================
-
-async function initializeAISystem(
-  name,
-  system
-){
+function registerAISystems(){
 
   try{
 
-    const result =
-    await system.initialize();
+    const kernel =
+    window.RIGOAIKernel;
 
     if(
-      result !== false
+
+      !kernel ||
+
+      !isFunction(
+        kernel.registerSystem
+      )
+
     ){
 
-      aiRuntimeState
-      .initializedSystems
-      .add(name);
-
-      aiRuntimeState
-      .failedSystems
-      .delete(name);
-
-      return true;
+      return false;
 
     }
 
-    aiRuntimeState
-    .failedSystems
-    .add(name);
+    kernel.registerSystem(
 
-    return false;
+      "contexts",
+
+      window.RIGOContextManager
+
+    );
+
+    kernel.registerSystem(
+
+      "agents",
+
+      window.RIGOAgentManager
+
+    );
+
+    kernel.registerSystem(
+
+      "tools",
+
+      window.RIGOToolExecutor
+
+    );
+
+    kernel.registerSystem(
+
+      "workflows",
+
+      window.RIGOWorkflowEngine
+
+    );
+
+    kernel.registerSystem(
+
+      "planner",
+
+      window.RIGOPlannerEngine
+
+    );
+
+    return true;
 
   }
 
   catch(error){
 
-    aiRuntimeState
-    .failedSystems
-    .add(name);
-
-    aiRuntimeState
-    .lastError =
-    String(error);
+    emitAIIndexWarning(
+      "System registration failed",
+      error
+    );
 
     return false;
 
@@ -496,13 +455,13 @@ async function initializeAISystem(
 
 
 // =====================================
-// INITIALIZE AI STACK
+// INITIALIZE
 // =====================================
 
-async function initializeAIStack(){
+async function initializeAILayer(){
 
   if(
-    aiRuntimeState
+    aiIndexState
     .initialized
   ){
 
@@ -511,381 +470,118 @@ async function initializeAIStack(){
   }
 
   if(
-    aiRuntimeState
-    .startupPromise
-  ){
-
-    return aiRuntimeState
-    .startupPromise;
-
-  }
-
-  aiRuntimeState
-  .startupPromise =
-
-  (async() => {
-
-    if(
-      aiRuntimeState
-      .initializing
-    ){
-
-      return false;
-
-    }
-
-    aiRuntimeState
-    .initializing =
-    true;
-
-    aiRuntimeState
-    .state =
-    AI_STACK_STATES
-    .BOOTING;
-
-    aiRuntimeState
-    .startupStartedAt =
-    Date.now();
-
-    aiRuntimeState
-    .diagnostics
-    .bootAttempts++;
-
-    try{
-
-      if(
-        !validateAIDependencies()
-      ){
-
-        throw new Error(
-          "AI DEPENDENCIES INVALID"
-        );
-
-      }
-
-      if(
-        !validateAISubsystems()
-      ){
-
-        throw new Error(
-          "AI SUBSYSTEMS INVALID"
-        );
-
-      }
-
-      registerKernelSystems();
-
-      const initializationPipeline = [
-
-        [
-          "context",
-          ContextManager
-        ],
-
-        [
-          "agents",
-          AgentManager
-        ],
-
-        [
-          "tools",
-          ToolExecutor
-        ],
-
-        [
-          "workflows",
-          WorkflowEngine
-        ],
-
-        [
-          "planner",
-          PlannerEngine
-        ],
-
-        [
-          "kernel",
-          AIKernel
-        ]
-
-      ];
-
-      for(
-        const [
-          name,
-          system
-        ]
-
-        of initializationPipeline
-      ){
-
-        const success =
-        await initializeAISystem(
-
-          name,
-          system
-
-        );
-
-        if(!success){
-
-          throw new Error(
-
-            "FAILED TO INITIALIZE " +
-
-            name
-
-          );
-
-        }
-
-      }
-
-      aiRuntimeState
-      .initialized =
-      true;
-
-      aiRuntimeState
-      .state =
-      AI_STACK_STATES
-      .READY;
-
-      aiRuntimeState
-      .startupCompletedAt =
-      Date.now();
-
-      aiRuntimeState
-      .diagnostics
-      .successfulBoots++;
-
-      return true;
-
-    }
-
-    catch(error){
-
-      aiRuntimeState
-      .initialized =
-      false;
-
-      aiRuntimeState
-      .state =
-      AI_STACK_STATES
-      .FAILED;
-
-      aiRuntimeState
-      .lastError =
-      String(error);
-
-      aiRuntimeState
-      .diagnostics
-      .failedBoots++;
-
-      console.error(
-        "AI STACK INITIALIZATION FAILED",
-        error
-      );
-
-      return false;
-
-    }
-
-    finally{
-
-      aiRuntimeState
-      .initializing =
-      false;
-
-      aiRuntimeState
-      .startupPromise =
-      null;
-
-    }
-
-  })();
-
-  return aiRuntimeState
-  .startupPromise;
-
-}
-
-
-
-// =====================================
-// SHUTDOWN
-// =====================================
-
-async function shutdownAIStack(){
-
-  if(
-    aiRuntimeState
-    .shuttingDown
+    aiIndexState
+    .initializing
   ){
 
     return false;
 
   }
 
-  aiRuntimeState
-  .shuttingDown =
+  aiIndexState
+  .initializing =
   true;
 
-  aiRuntimeState
-  .state =
-  AI_STACK_STATES
-  .SHUTTING_DOWN;
+  aiIndexState
+  .lastError =
+  null;
 
   try{
 
-    const shutdownPipeline = [
+    await emitAIIndexEvent(
 
-      AIKernel,
+      AI_INDEX_EVENTS
+      .INITIALIZATION_STARTED
 
-      PlannerEngine,
+    );
 
-      WorkflowEngine,
+    if(
+      !validateAILayer()
+    ){
 
-      ToolExecutor,
+      throw new Error(
+        "AI LAYER VALIDATION FAILED"
+      );
 
-      AgentManager,
+    }
 
-      ContextManager
+    registerAISystems();
+
+    const initializationPipeline = [
+
+      window.RIGOContextManager,
+
+      window.RIGOAgentManager,
+
+      window.RIGOToolExecutor,
+
+      window.RIGOWorkflowEngine,
+
+      window.RIGOPlannerEngine,
+
+      window.RIGOAIKernel
 
     ];
 
     for(
       const system
-      of shutdownPipeline
+      of initializationPipeline
     ){
 
-      try{
+      if(
+
+        system &&
+
+        isFunction(
+          system.initialize
+        )
+
+      ){
+
+        const initialized =
+        await system.initialize();
 
         if(
-          typeof system.shutdown ===
-          "function"
+          initialized === false
         ){
 
-          await system.shutdown();
+          throw new Error(
+            "AI SYSTEM INITIALIZATION FAILED"
+          );
 
         }
 
       }
 
-      catch(error){
-
-        console.error(
-          "SYSTEM SHUTDOWN FAILED",
-          error
-        );
-
-      }
-
     }
 
-    aiRuntimeState
+    aiIndexState
     .initialized =
-    false;
+    true;
 
-    aiRuntimeState
-    .initializedSystems
-    .clear();
+    aiIndexState
+    .lastInitializedAt =
+    Date.now();
 
-    aiRuntimeState
-    .failedSystems
-    .clear();
+    window.__RIGO_AI_READY__ =
+    true;
 
-    aiRuntimeState
-    .diagnostics
-    .shutdowns++;
+    await emitAIIndexEvent(
 
-    aiRuntimeState
-    .state =
-    AI_STACK_STATES
-    .IDLE;
+      AI_INDEX_EVENTS
+      .INITIALIZATION_COMPLETED,
 
-    return true;
+      {
 
-  }
-
-  finally{
-
-    aiRuntimeState
-    .shuttingDown =
-    false;
-
-  }
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-async function resetAIStack(){
-
-  aiRuntimeState
-  .state =
-  AI_STACK_STATES
-  .RESETTING;
-
-  try{
-
-    await shutdownAIStack();
-
-    const resetPipeline = [
-
-      AIKernel,
-
-      PlannerEngine,
-
-      WorkflowEngine,
-
-      ToolExecutor,
-
-      AgentManager,
-
-      ContextManager
-
-    ];
-
-    for(
-      const system
-      of resetPipeline
-    ){
-
-      try{
-
-        if(
-          typeof system.reset ===
-          "function"
-        ){
-
-          await system.reset();
-
-        }
+        initialized:true
 
       }
 
-      catch(error){
+    );
 
-        console.error(
-          "SYSTEM RESET FAILED",
-          error
-        );
-
-      }
-
-    }
-
-    aiRuntimeState
-    .diagnostics
-    .resets++;
-
-    aiRuntimeState
-    .state =
-    AI_STACK_STATES
-    .IDLE;
+    console.info(
+      "[AIIndex] AI layer initialized"
+    );
 
     return true;
 
@@ -893,16 +589,276 @@ async function resetAIStack(){
 
   catch(error){
 
-    aiRuntimeState
-    .state =
-    AI_STACK_STATES
-    .FAILED;
-
-    aiRuntimeState
+    aiIndexState
     .lastError =
-    String(error);
+    normalizeAIIndexError(
+      error
+    );
+
+    emitAIIndexWarning(
+
+      "AI initialization failed",
+
+      error
+
+    );
 
     return false;
+
+  }
+
+  finally{
+
+    aiIndexState
+    .initializing =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// BOOT
+// =====================================
+
+async function bootAILayer(){
+
+  if(
+    aiIndexState
+    .booted
+  ){
+
+    return true;
+
+  }
+
+  if(
+    aiIndexState
+    .booting
+  ){
+
+    return false;
+
+  }
+
+  aiIndexState
+  .booting =
+  true;
+
+  try{
+
+    await emitAIIndexEvent(
+
+      AI_INDEX_EVENTS
+      .BOOT_STARTED
+
+    );
+
+    const initialized =
+    await initializeAILayer();
+
+    if(
+      !initialized
+    ){
+
+      throw new Error(
+        "AI INITIALIZATION FAILED"
+      );
+
+    }
+
+    const kernel =
+    window.RIGOAIKernel;
+
+    if(
+
+      !kernel ||
+
+      !isFunction(
+        kernel.boot
+      )
+
+    ){
+
+      throw new Error(
+        "INVALID AI KERNEL"
+      );
+
+    }
+
+    const booted =
+    await kernel.boot();
+
+    if(
+      !booted
+    ){
+
+      throw new Error(
+        "AI BOOT FAILED"
+      );
+
+    }
+
+    aiIndexState
+    .booted =
+    true;
+
+    aiIndexState
+    .lastBootedAt =
+    Date.now();
+
+    await emitAIIndexEvent(
+
+      AI_INDEX_EVENTS
+      .BOOT_COMPLETED,
+
+      {
+
+        booted:true
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    aiIndexState
+    .lastError =
+    normalizeAIIndexError(
+      error
+    );
+
+    emitAIIndexWarning(
+      "AI boot failed",
+      error
+    );
+
+    return false;
+
+  }
+
+  finally{
+
+    aiIndexState
+    .booting =
+    false;
+
+  }
+
+}
+
+
+
+// =====================================
+// HEALTHCHECK
+// =====================================
+
+async function getAILayerHealth(){
+
+  try{
+
+    const kernel =
+    window.RIGOAIKernel;
+
+    const health =
+
+      kernel &&
+
+      isFunction(
+        kernel.health
+      )
+
+      ?
+
+      await kernel.health()
+
+      :
+
+      null;
+
+    const snapshot =
+    safeFreeze({
+
+      initialized:
+      aiIndexState
+      .initialized,
+
+      booted:
+      aiIndexState
+      .booted,
+
+      initializing:
+      aiIndexState
+      .initializing,
+
+      booting:
+      aiIndexState
+      .booting,
+
+      lastInitializedAt:
+
+        aiIndexState
+        .lastInitializedAt,
+
+      lastBootedAt:
+
+        aiIndexState
+        .lastBootedAt,
+
+      lastError:
+
+        aiIndexState
+        .lastError,
+
+      kernel:
+      health,
+
+      timestamp:
+      Date.now()
+
+    });
+
+    await emitAIIndexEvent(
+
+      AI_INDEX_EVENTS
+      .HEALTHCHECK,
+
+      {
+
+        health:
+        snapshot
+
+      }
+
+    );
+
+    return snapshot;
+
+  }
+
+  catch(error){
+
+    aiIndexState
+    .lastError =
+    normalizeAIIndexError(
+      error
+    );
+
+    emitAIIndexWarning(
+
+      "AI healthcheck failed",
+
+      error
+
+    );
+
+    return null;
 
   }
 
@@ -914,138 +870,40 @@ async function resetAIStack(){
 // SNAPSHOT
 // =====================================
 
-function createAIStackSnapshot(){
+function createAILayerSnapshot(){
 
-  return freezeAIObject({
-
-    initialized:
-    aiRuntimeState
-    .initialized,
-
-    state:
-    aiRuntimeState
-    .state,
-
-    initializedSystems:[
-
-      ...aiRuntimeState
-      .initializedSystems
-
-    ],
-
-    failedSystems:[
-
-      ...aiRuntimeState
-      .failedSystems
-
-    ],
-
-    timestamp:
-    Date.now()
-
-  });
-
-}
-
-
-
-// =====================================
-// HEALTH REPORT
-// =====================================
-
-function getAIStackHealthReport(){
-
-  return freezeAIObject({
+  return safeFreeze({
 
     initialized:
-    aiRuntimeState
+    aiIndexState
     .initialized,
 
-    state:
-    aiRuntimeState
-    .state,
+    booted:
+    aiIndexState
+    .booted,
 
-    valid:
-    validateAISubsystems(),
+    initializing:
+    aiIndexState
+    .initializing,
 
-    dependencies:
-    validateAIDependencies(),
+    booting:
+    aiIndexState
+    .booting,
 
-    systems:{
+    lastInitializedAt:
 
-      kernel:
-      AIKernel
-      ?.health?.(),
+      aiIndexState
+      .lastInitializedAt,
 
-      context:
-      ContextManager
-      ?.health?.(),
+    lastBootedAt:
 
-      agents:
-      AgentManager
-      ?.health?.(),
-
-      tools:
-      ToolExecutor
-      ?.health?.(),
-
-      workflows:
-      WorkflowEngine
-      ?.health?.(),
-
-      planner:
-      PlannerEngine
-      ?.health?.()
-
-    },
-
-    initializedSystems:[
-
-      ...aiRuntimeState
-      .initializedSystems
-
-    ],
-
-    failedSystems:[
-
-      ...aiRuntimeState
-      .failedSystems
-
-    ],
-
-    diagnostics:
-    cloneAIObject(
-
-      aiRuntimeState
-      .diagnostics
-
-    ),
-
-    startupDuration:
-
-      aiRuntimeState
-      .startupCompletedAt
-
-      &&
-
-      aiRuntimeState
-      .startupStartedAt
-
-      ?
-
-      aiRuntimeState
-      .startupCompletedAt -
-
-      aiRuntimeState
-      .startupStartedAt
-
-      :
-
-      null,
+      aiIndexState
+      .lastBootedAt,
 
     lastError:
-    aiRuntimeState
-    .lastError,
+
+      aiIndexState
+      .lastError,
 
     timestamp:
     Date.now()
@@ -1057,52 +915,48 @@ function getAIStackHealthReport(){
 
 
 // =====================================
-// PUBLIC API
+// PUBLIC SURFACE
 // =====================================
 
-const AI =
-freezeAIObject({
+const RIGOAI =
+Object.freeze({
 
-  modules:
-  AIModules,
+  kernel:
+  window.RIGOAIKernel,
+
+  context:
+  window.RIGOContextManager,
+
+  agents:
+  window.RIGOAgentManager,
+
+  tools:
+  window.RIGOToolExecutor,
+
+  workflows:
+  window.RIGOWorkflowEngine,
+
+  planner:
+  window.RIGOPlannerEngine,
 
   initialize:
-  initializeAIStack,
+  initializeAILayer,
 
-  shutdown:
-  shutdownAIStack,
+  boot:
+  bootAILayer,
 
-  reset:
-  resetAIStack,
+  healthcheck:
+  getAILayerHealth,
 
   snapshot:
-  createAIStackSnapshot,
-
-  health:
-  getAIStackHealthReport
+  createAILayerSnapshot
 
 });
 
 
 
 // =====================================
-// AUTO INITIALIZATION
-// =====================================
-
-initializeAIStack()
-.catch((error) => {
-
-  console.error(
-    "AI STACK AUTO INIT FAILED",
-    error
-  );
-
-});
-
-
-
-// =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -1110,81 +964,58 @@ if(
   "undefined"
 ){
 
-  window.AI =
-  AI;
+  Object.defineProperty(
 
-  window.AIKernel =
-  AIKernel;
+    window,
 
-  window.ContextManager =
-  ContextManager;
+    "RIGOAI",
 
-  window.AgentManager =
-  AgentManager;
+    {
 
-  window.ToolExecutor =
-  ToolExecutor;
+      value:
+      RIGOAI,
 
-  window.WorkflowEngine =
-  WorkflowEngine;
+      writable:false,
 
-  window.PlannerEngine =
-  PlannerEngine;
+      configurable:false
+
+    }
+
+  );
 
 }
 
 
 
+// =====================================
+// SAFE AUTO INITIALIZATION
+// =====================================
+
 if(
-  typeof globalThis !==
+  typeof window !==
   "undefined"
 ){
 
-  globalThis.AI =
-  AI;
+  queueMicrotask(async() => {
 
-  globalThis.AIKernel =
-  AIKernel;
+    try{
 
-  globalThis.ContextManager =
-  ContextManager;
+      await initializeAILayer();
 
-  globalThis.AgentManager =
-  AgentManager;
+    }
 
-  globalThis.ToolExecutor =
-  ToolExecutor;
+    catch(error){
 
-  globalThis.WorkflowEngine =
-  WorkflowEngine;
+      emitAIIndexWarning(
 
-  globalThis.PlannerEngine =
-  PlannerEngine;
+        "Queued AI initialization failed",
+
+        error
+
+      );
+
+    }
+
+  });
 
 }
-
-
-
-// =====================================
-// MODULE EXPORTS
-// =====================================
-
-export {
-
-  AI,
-
-  AIKernel,
-
-  ContextManager,
-
-  AgentManager,
-
-  ToolExecutor,
-
-  WorkflowEngine,
-
-  PlannerEngine
-
-};
-
-export default AI;
