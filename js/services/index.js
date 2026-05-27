@@ -8,6 +8,16 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import "./service-registry.js";
+import "./api-service.js";
+import "./ai-service.js";
+
+
+
+// =====================================
 // REQUIRED SERVICES
 // =====================================
 
@@ -29,7 +39,7 @@ Object.freeze([
 function validateServicesAvailability(){
 
   if(
-    typeof window ===
+    typeof globalThis ===
     "undefined"
   ){
 
@@ -40,7 +50,7 @@ function validateServicesAvailability(){
   return REQUIRED_SERVICES
   .every((serviceName) => {
 
-    return typeof window[
+    return typeof globalThis[
       serviceName
     ] !== "undefined";
 
@@ -1276,17 +1286,61 @@ Object.freeze({
 
 
 // =====================================
+// MODULE EXPORTS
+// =====================================
+
+export {
+
+  REQUIRED_SERVICES,
+
+  SERVICES_RUNTIME_CONFIG,
+
+  servicesRuntimeState,
+
+  SERVICES_RUNTIME,
+
+  validateServicesAvailability,
+
+  validateServicesRuntime,
+
+  validateServiceDependencies,
+
+  registerLoadedService,
+
+  registerFailedService,
+
+  initializeServicesRuntime,
+
+  shutdownServicesRuntime,
+
+  resetServicesRuntime,
+
+  runServicesHealthcheck,
+
+  getRegisteredService,
+
+  getServicesDiagnostics,
+
+  ServicesRuntime
+
+};
+
+export default ServicesRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "ServicesRuntime",
 
