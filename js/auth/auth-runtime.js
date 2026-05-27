@@ -1654,7 +1654,7 @@ function resetAuthRuntime(){
 // =====================================
 
 const AuthRuntime =
-Object.freeze({
+freezeAuthObject({
 
   initialize:
   initializeAuthRuntime,
@@ -1688,6 +1688,15 @@ if(
 ){
 
   window.AuthRuntime =
+  AuthRuntime;
+
+}
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.AuthRuntime =
   AuthRuntime;
 
 }
