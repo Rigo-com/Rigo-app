@@ -2,7 +2,50 @@
 // RIGO AI
 // MEMORY INDEX
 // FINAL ROOT EXPORT
+// HARDENED INTEGRATED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "./memory-core.js";
+import "./memory-state.js";
+import "./memory-types.js";
+import "./memory-constants.js";
+import "./memory-utils.js";
+
+import "./memory-storage.js";
+
+import "./memory-context.js";
+
+import "./memory-search.js";
+import "./memory-ranking.js";
+import "./memory-indexing.js";
+
+import "./memory-security.js";
+
+import "./memory-events.js";
+
+import "./memory-validation.js";
+
+import "./memory-summary.js";
+
+import "./memory-embeddings.js";
+
+import "./memory-cleanup.js";
+
+import "./memory-sync-cloud.js";
+
+import "./memory-export.js";
+
+import "./memory-debug.js";
+
+import "./memory-manager.js";
+
+import "./memory-subsystem.js";
 
 
 
@@ -145,10 +188,31 @@ from "./memory-subsystem.js";
 // GLOBAL EXPORTS
 // =====================================
 
-if(typeof globalThis === "object"){
+if(
+  typeof globalThis ===
+  "object"
+){
 
-  globalThis.MemoryAPI =
-  MemoryAPI;
+  Object.defineProperty(
+
+    globalThis,
+
+    "MemoryAPI",
+
+    {
+
+      value:
+      MemoryAPI,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
 
