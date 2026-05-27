@@ -242,3 +242,49 @@ async function processCommunicationQueue(){
   }
 
 }
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationQueue =
+Object.freeze({
+
+  enqueue:
+  enqueueCommunicationMessage,
+
+  process:
+  processCommunicationQueue
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window
+  .CommunicationQueue =
+  CommunicationQueue;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis
+  .CommunicationQueue =
+  CommunicationQueue;
+
+}
