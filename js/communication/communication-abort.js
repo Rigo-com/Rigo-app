@@ -115,3 +115,48 @@ function abortAllCommunicationMessages(){
   return true;
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationAbort =
+Object.freeze({
+
+  abort:
+  abortCommunicationMessage,
+
+  abortAll:
+  abortAllCommunicationMessages
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.CommunicationAbort =
+  CommunicationAbort;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.CommunicationAbort =
+  CommunicationAbort;
+
+}
