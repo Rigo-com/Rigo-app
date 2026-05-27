@@ -279,7 +279,7 @@ function createCommunicationId(
 
 
 
-function wait(
+function waitCommunication(
   duration = 0
 ){
 
@@ -291,5 +291,407 @@ function wait(
     );
 
   });
+
+}
+
+
+
+function createMessageHash(
+  value = ""
+){
+
+  return String(value)
+  .trim()
+  .toLowerCase();
+
+}
+
+
+
+function isDuplicateMessage(
+  hash
+){
+
+  if(
+    !hash
+  ){
+
+    return false;
+
+  }
+
+  const existing =
+
+    communicationRuntimeState
+    .processedHashes
+    .get(hash);
+
+  if(
+    !existing
+  ){
+
+    return false;
+
+  }
+
+  const expired =
+
+    Date.now() - existing >
+
+    COMMUNICATION_RUNTIME_CONFIG
+    .HASH_TTL;
+
+  if(expired){
+
+    communicationRuntimeState
+    .processedHashes
+    .delete(hash);
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+function registerProcessedMessage(
+  hash
+){
+
+  if(
+    !hash
+  ){
+
+    return false;
+
+  }
+
+  communicationRuntimeState
+  .processedHashes
+  .set(
+
+    hash,
+    Date.now()
+
+  );
+
+  if(
+
+    communicationRuntimeState
+    .processedHashes
+    .size >
+
+    COMMUNICATION_RUNTIME_CONFIG
+    .MAX_HASH_CACHE
+
+  ){
+
+    const firstKey =
+
+      communicationRuntimeState
+      .processedHashes
+      .keys()
+      .next()
+      .value;
+
+    communicationRuntimeState
+    .processedHashes
+    .delete(
+      firstKey
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// EVENT EMITTER
+// =====================================
+
+async function emitCommunicationEvent(
+  eventName,
+  payload = {}
+){
+
+  if(
+    !COMMUNICATION_RUNTIME_CONFIG
+    .ENABLE_EVENTS
+  ){
+
+    return false;
+
+  }
+
+  if(
+    typeof emitSystemEvent !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  try{
+
+    await emitSystemEvent(
+
+      eventName,
+
+      {
+
+        source:
+        "communication-runtime",
+
+        timestamp:
+        Date.now(),
+
+        ...payload
+
+      }
+
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// HEALTH
+// =====================================
+
+function getCommunicationHealth(){
+
+  return Object.freeze({
+
+    initialized:
+    communicationRuntimeState
+    .initialized,
+
+    state:
+    communicationRuntimeState
+    .state,
+
+    processing:
+    communicationRuntimeState
+    .processing,
+
+    streaming:
+    communicationRuntimeState
+    .streaming,
+
+    queueSize:
+
+      communicationRuntimeState
+      .messageQueue
+      .length,
+
+    activeStreams:
+
+      communicationRuntimeState
+      .activeStreams
+      .size,
+
+    activeRequests:
+
+      communicationRuntimeState
+      .activeRequests
+      .size,
+
+    lastMessageAt:
+    communicationRuntimeState
+    .lastMessageAt,
+
+    diagnostics:{
+
+      ...communicationRuntimeState
+      .diagnostics
+
+    }
+
+  });
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetCommunicationRuntime(){
+
+  communicationRuntimeState
+  .messageQueue = [];
+
+  communicationRuntimeState
+  .activeStreams
+  .clear();
+
+  communicationRuntimeState
+  .conversations
+  .clear();
+
+  communicationRuntimeState
+  .activeRequests
+  .clear();
+
+  communicationRuntimeState
+  .abortControllers
+  .clear();
+
+  communicationRuntimeState
+  .processedHashes
+  .clear();
+
+  communicationRuntimeState
+  .initialized =
+  false;
+
+  communicationRuntimeState
+  .destroyed =
+  false;
+
+  communicationRuntimeState
+  .processing =
+  false;
+
+  communicationRuntimeState
+  .streaming =
+  false;
+
+  communicationRuntimeState
+  .recovering =
+  false;
+
+  communicationRuntimeState
+  .typing =
+  false;
+
+  communicationRuntimeState
+  .lastMessageAt =
+  null;
+
+  setCommunicationState(
+    COMMUNICATION_RUNTIME_STATES
+    .IDLE
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+async function initializeCommunicationRuntime(){
+
+  if(
+    communicationRuntimeState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  setCommunicationState(
+    COMMUNICATION_RUNTIME_STATES
+    .INITIALIZING
+  );
+
+  communicationRuntimeState
+  .initialized =
+  true;
+
+  communicationRuntimeState
+  .destroyed =
+  false;
+
+  communicationRuntimeState
+  .diagnostics
+  .initialized++;
+
+  setCommunicationState(
+    COMMUNICATION_RUNTIME_STATES
+    .READY
+  );
+
+  await emitCommunicationEvent(
+
+    COMMUNICATION_RUNTIME_EVENTS
+    .INITIALIZED
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationRuntime =
+Object.freeze({
+
+  initialize:
+  initializeCommunicationRuntime,
+
+  reset:
+  resetCommunicationRuntime,
+
+  health:
+  getCommunicationHealth
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.CommunicationRuntime =
+  CommunicationRuntime;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis
+  .CommunicationRuntime =
+  CommunicationRuntime;
 
 }
