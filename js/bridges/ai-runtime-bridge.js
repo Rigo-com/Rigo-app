@@ -193,6 +193,22 @@ function freezeBridgeObject(
 
   }
 
+  if(
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof WeakMap ||
+
+    value instanceof WeakSet
+
+  ){
+
+    return value;
+
+  }
+
   visited.add(value);
 
   Object.freeze(value);
@@ -321,9 +337,19 @@ function validateBridgeSystems(){
 
   return (
 
+    typeof RuntimeManager !==
+    "undefined"
+
+    &&
+
     typeof RuntimeManager
     ?.health ===
     "function"
+
+    &&
+
+    typeof AIKernel !==
+    "undefined"
 
     &&
 
@@ -1205,13 +1231,7 @@ async function resetAIRuntimeBridge(){
 
     }
 
-    catch(error){
-
-      safeLogError?.(
-        error
-      );
-
-    }
+    catch(error){}
 
   }
 
@@ -1402,7 +1422,7 @@ async function initializeAIRuntimeBridge(){
 // =====================================
 
 const AIRuntimeBridge =
-Object.freeze({
+freezeBridgeObject({
 
   initialize:
   initializeAIRuntimeBridge,
@@ -1420,3 +1440,31 @@ Object.freeze({
   resetAIRuntimeBridge
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.AIRuntimeBridge =
+  AIRuntimeBridge;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.AIRuntimeBridge =
+  AIRuntimeBridge;
+
+}
