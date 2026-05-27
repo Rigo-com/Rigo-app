@@ -1,8 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY INDEXING
-// ENTERPRISE INDEX ENGINE FINAL
-// STABLE + HARDENED
+// CLEAN FINAL ARCHITECTURE
 // =====================================
 
 
@@ -28,14 +27,6 @@ Object.freeze({
 
   ENABLE_EMBEDDING_INDEXING:true,
 
-  ENABLE_INCREMENTAL_INDEXING:true,
-
-  ENABLE_AUTO_REPAIR:true,
-
-  MAX_TOKEN_LENGTH:64,
-
-  MIN_TOKEN_LENGTH:2,
-
   MAX_INDEXED_TOKENS:5000
 
 });
@@ -43,26 +34,22 @@ Object.freeze({
 
 
 // =====================================
-// INDEX HELPERS
+// INTERNAL HELPERS
 // =====================================
 
-function createMemoryIndexMap(){
+function normalizeIndexKey(
+  value
+){
 
-  return new Map();
-
-}
-
-
-
-function createMemoryIndexSet(){
-
-  return new Set();
+  return normalizeMemoryString?.(
+    value
+  );
 
 }
 
 
 
-function ensureMemoryIndex(
+function ensureIndexBucket(
   index,
   key
 ){
@@ -72,18 +59,16 @@ function ensureMemoryIndex(
   ){
 
     return null;
-
   }
 
   const normalizedKey =
-  normalizeMemoryString?.(
+  normalizeIndexKey(
     key
   );
 
   if(!normalizedKey){
 
     return null;
-
   }
 
   if(
@@ -93,11 +78,8 @@ function ensureMemoryIndex(
   ){
 
     index.set(
-
       normalizedKey,
-
-      createMemoryIndexSet()
-
+      new Set()
     );
 
   }
@@ -110,25 +92,24 @@ function ensureMemoryIndex(
 
 
 
-function addMemoryIndexValue(
+function addIndexValue(
   index,
   key,
   memoryId
 ){
 
   const normalizedMemoryId =
-  normalizeMemoryString?.(
+  normalizeIndexKey(
     memoryId
   );
 
   if(!normalizedMemoryId){
 
     return false;
-
   }
 
   const bucket =
-  ensureMemoryIndex(
+  ensureIndexBucket(
     index,
     key
   );
@@ -136,7 +117,6 @@ function addMemoryIndexValue(
   if(!bucket){
 
     return false;
-
   }
 
   bucket.add(
@@ -149,7 +129,7 @@ function addMemoryIndexValue(
 
 
 
-function removeMemoryIndexValue(
+function removeIndexValue(
   index,
   key,
   memoryId
@@ -160,16 +140,15 @@ function removeMemoryIndexValue(
   ){
 
     return false;
-
   }
 
   const normalizedKey =
-  normalizeMemoryString?.(
+  normalizeIndexKey(
     key
   );
 
   const normalizedMemoryId =
-  normalizeMemoryString?.(
+  normalizeIndexKey(
     memoryId
   );
 
@@ -182,7 +161,6 @@ function removeMemoryIndexValue(
   ){
 
     return false;
-
   }
 
   const bucket =
@@ -190,10 +168,11 @@ function removeMemoryIndexValue(
     normalizedKey
   );
 
-  if(!bucket){
+  if(
+    !(bucket instanceof Set)
+  ){
 
     return false;
-
   }
 
   bucket.delete(
@@ -216,138 +195,54 @@ function removeMemoryIndexValue(
 
 
 
-function getIndexedMemoryIds(
-  index,
-  key
+// =====================================
+// TOKEN EXTRACTION
+// =====================================
+
+function extractMemoryTokens(
+  memory
 ){
 
-  if(
-    !(index instanceof Map)
-  ){
+  if(!memory){
 
     return [];
-
   }
 
-  const normalizedKey =
-  normalizeMemoryString?.(
-    key
-  );
+  const tokenSource = [
 
-  if(!normalizedKey){
+    memory.title,
 
-    return [];
+    memory.summary,
 
-  }
+    memory.content,
 
-  const bucket =
-  index.get(
-    normalizedKey
-  );
-
-  if(
-    !(bucket instanceof Set)
-  ){
-
-    return [];
-
-  }
-
-  return [
-
-    ...bucket.values()
+    ...(Array.isArray(memory.tags)
+      ? memory.tags
+      : [])
 
   ];
 
-}
-
-
-
-// =====================================
-// TOKENIZATION
-// =====================================
-
-function tokenizeMemoryText(
-  text
-){
-
-  const normalizedText =
-
-    normalizeMemoryContent?.(
-      text
-    )
-
-    ?.toLowerCase()
-
-    ||
-
-    "";
-
-  if(!normalizedText){
-
-    return [];
-
-  }
-
-  const rawTokens =
-
-    normalizedText
-    .match(/[a-z0-9]+/gi)
-
-    ||
-
-    [];
-
-  const uniqueTokens =
+  const tokenSet =
   new Set();
 
-  rawTokens.forEach((token) => {
+  tokenSource.forEach((value) => {
 
-    const normalizedToken =
-    normalizeMemoryString?.(
-      token
-    );
+    const tokens =
+    tokenizeMemoryText?.(
+      value
+    ) || [];
 
-    if(
-      !normalizedToken
-    ){
+    tokens.forEach((token) => {
 
-      return;
-    }
+      tokenSet.add(token);
 
-    if(
-
-      normalizedToken.length <
-
-      MEMORY_INDEX_CONFIG
-      .MIN_TOKEN_LENGTH
-
-    ){
-
-      return;
-    }
-
-    if(
-
-      normalizedToken.length >
-
-      MEMORY_INDEX_CONFIG
-      .MAX_TOKEN_LENGTH
-
-    ){
-
-      return;
-    }
-
-    uniqueTokens.add(
-      normalizedToken
-    );
+    });
 
   });
 
   return [
 
-    ...uniqueTokens
+    ...tokenSet
 
   ]
   .slice(
@@ -361,34 +256,127 @@ function tokenizeMemoryText(
 
 
 // =====================================
-// TOKEN EXTRACTION
+// INDEX PROCESSOR
 // =====================================
 
-function extractMemoryTokens(
-  memory
+function processMemoryIndexes(
+  memory,
+  operation = "add"
 ){
 
-  if(!memory){
+  if(
+    !memory ||
+    !memory.id
+  ){
 
-    return [];
+    return false;
+  }
+
+  const indexes =
+  memoryState?.indexes;
+
+  if(!indexes){
+
+    return false;
+  }
+
+  const memoryId =
+  normalizeIndexKey(
+    memory.id
+  );
+
+  if(!memoryId){
+
+    return false;
+  }
+
+  const executor =
+
+    operation === "remove"
+    ? removeIndexValue
+    : addIndexValue;
+
+
+
+  // ===================================
+  // TYPE
+  // ===================================
+
+  if(
+    MEMORY_INDEX_CONFIG
+    .ENABLE_TYPE_INDEXING
+  ){
+
+    executor(
+      indexes.byType,
+      memory.type,
+      memoryId
+    );
 
   }
 
-  const tokens = [
 
-    ...tokenizeMemoryText(
-      memory.title
-    ),
 
-    ...tokenizeMemoryText(
-      memory.summary
-    ),
+  // ===================================
+  // CATEGORY
+  // ===================================
 
-    ...tokenizeMemoryText(
-      memory.content
-    )
+  if(
+    MEMORY_INDEX_CONFIG
+    .ENABLE_CATEGORY_INDEXING
+  ){
 
-  ];
+    executor(
+      indexes.byCategory,
+      memory.category,
+      memoryId
+    );
+
+  }
+
+
+
+  // ===================================
+  // PRIORITY
+  // ===================================
+
+  if(
+    MEMORY_INDEX_CONFIG
+    .ENABLE_PRIORITY_INDEXING
+  ){
+
+    executor(
+      indexes.byPriority,
+      memory.priority,
+      memoryId
+    );
+
+  }
+
+
+
+  // ===================================
+  // STATE
+  // ===================================
+
+  if(
+    MEMORY_INDEX_CONFIG
+    .ENABLE_STATE_INDEXING
+  ){
+
+    executor(
+      indexes.byState,
+      memory.state,
+      memoryId
+    );
+
+  }
+
+
+
+  // ===================================
+  // TAGS
+  // ===================================
 
   if(
     Array.isArray(
@@ -398,154 +386,117 @@ function extractMemoryTokens(
 
     memory.tags.forEach((tag) => {
 
-      tokens.push(
-        ...tokenizeMemoryText(
-          tag
-        )
+      executor(
+        indexes.byTag,
+        tag,
+        memoryId
       );
 
     });
 
   }
 
-  return [
-
-    ...new Set(tokens)
-
-  ];
-
-}
 
 
+  // ===================================
+  // TOKENS
+  // ===================================
 
-// =====================================
-// INDEX VALIDATION
-// =====================================
+  if(
+    MEMORY_INDEX_CONFIG
+    .ENABLE_TOKEN_INDEXING
+  ){
 
-function validateMemoryIndexes(){
+    const tokens =
+    extractMemoryTokens(
+      memory
+    );
 
-  const errors = [];
-  const warnings = [];
+    tokens.forEach((token) => {
 
-  try{
-
-    const indexes =
-    memoryState?.indexes;
-
-    if(!indexes){
-
-      return {
-
-        valid:false,
-
-        errors:[
-          "INDEXES_NOT_FOUND"
-        ],
-
-        warnings
-
-      };
-
-    }
-
-    const requiredIndexes = [
-
-      "byId",
-
-      "byType",
-
-      "byCategory",
-
-      "byPriority",
-
-      "byState",
-
-      "byTag",
-
-      "byToken",
-
-      "byRelation"
-
-    ];
-
-    requiredIndexes.forEach((indexName) => {
-
-      if(
-
-        !(
-
-          indexes[
-            indexName
-          ] instanceof Map
-
-        )
-
-      ){
-
-        errors.push(
-
-          `INVALID_INDEX_${indexName}`
-
-        );
-
-        return;
-
-      }
-
-      indexes[indexName]
-      .forEach((bucket) => {
-
-        if(
-
-          indexName !== "byId"
-
-          &&
-
-          !(bucket instanceof Set)
-
-        ){
-
-          errors.push(
-
-            `INVALID_BUCKET_${indexName}`
-
-          );
-
-        }
-
-      });
+      executor(
+        indexes.byToken,
+        token,
+        memoryId
+      );
 
     });
 
-    return {
+  }
 
-      valid:
-      errors.length === 0,
 
-      errors,
 
-      warnings
+  // ===================================
+  // RELATIONS
+  // ===================================
 
-    };
+  if(
+
+    MEMORY_INDEX_CONFIG
+    .ENABLE_RELATION_INDEXING
+
+    &&
+
+    memory.relations
+
+  ){
+
+    const relations =
+    memory.relations;
+
+    if(
+      relations.parentMemoryId
+    ){
+
+      executor(
+        indexes.byParent,
+        relations.parentMemoryId,
+        memoryId
+      );
+
+    }
+
+    if(
+      Array.isArray(
+        relations.childMemoryIds
+      )
+    ){
+
+      relations.childMemoryIds
+      .forEach((childId) => {
+
+        executor(
+          indexes.byChild,
+          childId,
+          memoryId
+        );
+
+      });
+
+    }
+
+    if(
+      Array.isArray(
+        relations.relatedMemoryIds
+      )
+    ){
+
+      relations.relatedMemoryIds
+      .forEach((relatedId) => {
+
+        executor(
+          indexes.byRelation,
+          relatedId,
+          memoryId
+        );
+
+      });
+
+    }
 
   }
 
-  catch(error){
-
-    return {
-
-      valid:false,
-
-      errors:[
-        error?.message ||
-        "UNKNOWN_INDEX_ERROR"
-      ],
-
-      warnings
-
-    };
-
-  }
+  return true;
 
 }
 
@@ -565,18 +516,6 @@ function indexMemory(
   ){
 
     return false;
-
-  }
-
-  const memoryId =
-  normalizeMemoryString?.(
-    memory.id
-  );
-
-  if(!memoryId){
-
-    return false;
-
   }
 
   const indexes =
@@ -585,7 +524,16 @@ function indexMemory(
   if(!indexes){
 
     return false;
+  }
 
+  const memoryId =
+  normalizeIndexKey(
+    memory.id
+  );
+
+  if(!memoryId){
+
+    return false;
   }
 
   const existingMemory =
@@ -602,255 +550,14 @@ function indexMemory(
   }
 
   indexes.byId.set(
-
     memoryId,
-
-    freezeMemoryObject?.(
-      memory
-    )
-
-    ||
-
-    Object.freeze(
-      {...memory}
-    )
-
+    memory
   );
 
-  if(
-
-    MEMORY_INDEX_CONFIG
-    .ENABLE_TYPE_INDEXING
-
-  ){
-
-    addMemoryIndexValue(
-
-      indexes.byType,
-
-      memory.type,
-
-      memoryId
-
-    );
-
-  }
-
-  if(
-
-    MEMORY_INDEX_CONFIG
-    .ENABLE_CATEGORY_INDEXING
-
-  ){
-
-    addMemoryIndexValue(
-
-      indexes.byCategory,
-
-      memory.category,
-
-      memoryId
-
-    );
-
-  }
-
-  if(
-
-    MEMORY_INDEX_CONFIG
-    .ENABLE_PRIORITY_INDEXING
-
-  ){
-
-    addMemoryIndexValue(
-
-      indexes.byPriority,
-
-      memory.priority,
-
-      memoryId
-
-    );
-
-  }
-
-  if(
-
-    MEMORY_INDEX_CONFIG
-    .ENABLE_STATE_INDEXING
-
-  ){
-
-    addMemoryIndexValue(
-
-      indexes.byState,
-
-      memory.state,
-
-      memoryId
-
-    );
-
-  }
-
-  if(
-    Array.isArray(
-      memory.tags
-    )
-  ){
-
-    memory.tags.forEach((tag) => {
-
-      addMemoryIndexValue(
-
-        indexes.byTag,
-
-        tag,
-
-        memoryId
-
-      );
-
-    });
-
-  }
-
-  if(
-
-    MEMORY_INDEX_CONFIG
-    .ENABLE_TOKEN_INDEXING
-
-  ){
-
-    const tokens =
-    extractMemoryTokens(
-      memory
-    );
-
-    tokens.forEach((token) => {
-
-      addMemoryIndexValue(
-
-        indexes.byToken,
-
-        token,
-
-        memoryId
-
-      );
-
-    });
-
-  }
-
-  if(
-
-    MEMORY_INDEX_CONFIG
-    .ENABLE_RELATION_INDEXING
-
-  ){
-
-    const relations =
-    memory.relations;
-
-    if(
-      relations
-    ){
-
-      if(
-
-        relations.parentMemoryId
-
-        &&
-
-        relations.parentMemoryId !==
-        memoryId
-
-      ){
-
-        addMemoryIndexValue(
-
-          indexes.byRelation,
-
-          relations.parentMemoryId,
-
-          memoryId
-
-        );
-
-      }
-
-      if(
-
-        Array.isArray(
-          relations.relatedMemoryIds
-        )
-
-      ){
-
-        relations.relatedMemoryIds
-        .forEach((relatedId) => {
-
-          if(
-            relatedId ===
-            memoryId
-          ){
-
-            return;
-
-          }
-
-          addMemoryIndexValue(
-
-            indexes.byRelation,
-
-            relatedId,
-
-            memoryId
-
-          );
-
-        });
-
-      }
-
-      if(
-
-        Array.isArray(
-          relations.childMemoryIds
-        )
-
-      ){
-
-        relations.childMemoryIds
-        .forEach((childId) => {
-
-          if(
-            childId ===
-            memoryId
-          ){
-
-            return;
-
-          }
-
-          addMemoryIndexValue(
-
-            indexes.byRelation,
-
-            childId,
-
-            memoryId
-
-          );
-
-        });
-
-      }
-
-    }
-
-  }
+  processMemoryIndexes(
+    memory,
+    "add"
+  );
 
   if(
 
@@ -890,18 +597,6 @@ function deindexMemory(
   ){
 
     return false;
-
-  }
-
-  const memoryId =
-  normalizeMemoryString?.(
-    memory.id
-  );
-
-  if(!memoryId){
-
-    return false;
-
   }
 
   const indexes =
@@ -910,127 +605,259 @@ function deindexMemory(
   if(!indexes){
 
     return false;
+  }
 
+  const memoryId =
+  normalizeIndexKey(
+    memory.id
+  );
+
+  if(!memoryId){
+
+    return false;
   }
 
   indexes.byId.delete(
     memoryId
   );
 
-  removeMemoryIndexValue(
-    indexes.byType,
-    memory.type,
-    memoryId
+  processMemoryIndexes(
+    memory,
+    "remove"
   );
-
-  removeMemoryIndexValue(
-    indexes.byCategory,
-    memory.category,
-    memoryId
-  );
-
-  removeMemoryIndexValue(
-    indexes.byPriority,
-    memory.priority,
-    memoryId
-  );
-
-  removeMemoryIndexValue(
-    indexes.byState,
-    memory.state,
-    memoryId
-  );
-
-  if(
-    Array.isArray(
-      memory.tags
-    )
-  ){
-
-    memory.tags.forEach((tag) => {
-
-      removeMemoryIndexValue(
-        indexes.byTag,
-        tag,
-        memoryId
-      );
-
-    });
-
-  }
-
-  const tokens =
-  extractMemoryTokens(
-    memory
-  );
-
-  tokens.forEach((token) => {
-
-    removeMemoryIndexValue(
-      indexes.byToken,
-      token,
-      memoryId
-    );
-
-  });
-
-  if(
-    memory.relations
-  ){
-
-    removeMemoryIndexValue(
-      indexes.byRelation,
-      memory.relations.parentMemoryId,
-      memoryId
-    );
-
-    if(
-
-      Array.isArray(
-        memory.relations.relatedMemoryIds
-      )
-
-    ){
-
-      memory.relations
-      .relatedMemoryIds
-      .forEach((relatedId) => {
-
-        removeMemoryIndexValue(
-          indexes.byRelation,
-          relatedId,
-          memoryId
-        );
-
-      });
-
-    }
-
-    if(
-
-      Array.isArray(
-        memory.relations.childMemoryIds
-      )
-
-    ){
-
-      memory.relations
-      .childMemoryIds
-      .forEach((childId) => {
-
-        removeMemoryIndexValue(
-          indexes.byRelation,
-          childId,
-          memoryId
-        );
-
-      });
-
-    }
-
-  }
 
   return true;
+
+}
+
+
+
+// =====================================
+// LOOKUP HELPERS
+// =====================================
+
+function getIndexedMemoryIds(
+  index,
+  key
+){
+
+  if(
+    !(index instanceof Map)
+  ){
+
+    return [];
+  }
+
+  const normalizedKey =
+  normalizeIndexKey(
+    key
+  );
+
+  if(!normalizedKey){
+
+    return [];
+  }
+
+  const bucket =
+  index.get(
+    normalizedKey
+  );
+
+  if(
+    !(bucket instanceof Set)
+  ){
+
+    return [];
+  }
+
+  return [
+    ...bucket.values()
+  ];
+
+}
+
+
+
+function resolveIndexedMemories(
+  ids = []
+){
+
+  return ids
+  .map((id) => {
+
+    return getMemoryById?.(
+      id
+    );
+
+  })
+  .filter(Boolean);
+
+}
+
+
+
+function getMemoriesByToken(
+  token
+){
+
+  return resolveIndexedMemories(
+
+    getIndexedMemoryIds(
+      memoryState?.indexes?.byToken,
+      token
+    )
+
+  );
+
+}
+
+
+
+function getMemoriesByTag(
+  tag
+){
+
+  return resolveIndexedMemories(
+
+    getIndexedMemoryIds(
+      memoryState?.indexes?.byTag,
+      tag
+    )
+
+  );
+
+}
+
+
+
+function getMemoriesByCategory(
+  category
+){
+
+  return resolveIndexedMemories(
+
+    getIndexedMemoryIds(
+      memoryState?.indexes?.byCategory,
+      category
+    )
+
+  );
+
+}
+
+
+
+function getRelatedMemories(
+  memoryId
+){
+
+  return resolveIndexedMemories(
+
+    getIndexedMemoryIds(
+      memoryState?.indexes?.byRelation,
+      memoryId
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// INDEX VALIDATION
+// =====================================
+
+function validateMemoryIndexes(){
+
+  try{
+
+    const indexes =
+    memoryState?.indexes;
+
+    if(!indexes){
+
+      return {
+
+        valid:false,
+        errors:[
+          "INDEXES_NOT_FOUND"
+        ],
+        warnings:[]
+
+      };
+
+    }
+
+    const requiredIndexes = [
+
+      "byId",
+      "byType",
+      "byCategory",
+      "byPriority",
+      "byState",
+      "byTag",
+      "byToken",
+      "byParent",
+      "byChild",
+      "byRelation"
+
+    ];
+
+    for(
+      const indexName
+      of requiredIndexes
+    ){
+
+      if(
+
+        !(indexes[indexName]
+        instanceof Map)
+
+      ){
+
+        return {
+
+          valid:false,
+
+          errors:[
+            `INVALID_INDEX_${indexName}`
+          ],
+
+          warnings:[]
+
+        };
+
+      }
+
+    }
+
+    return {
+
+      valid:true,
+      errors:[],
+      warnings:[]
+
+    };
+
+  }
+
+  catch(error){
+
+    return {
+
+      valid:false,
+
+      errors:[
+        error?.message ||
+        "INDEX_VALIDATION_FAILED"
+      ],
+
+      warnings:[]
+
+    };
+
+  }
 
 }
 
@@ -1049,7 +876,6 @@ function cleanupOrphanIndexes(){
   ){
 
     return false;
-
   }
 
   const validIds =
@@ -1058,8 +884,8 @@ function cleanupOrphanIndexes(){
     memoryState.memories
     .map((memory) => {
 
-      return normalizeMemoryString?.(
-        memory.id
+      return normalizeIndexKey(
+        memory?.id
       );
 
     })
@@ -1067,45 +893,52 @@ function cleanupOrphanIndexes(){
 
   );
 
-  Object.values(
+  Object.entries(
     memoryState.indexes
   )
-  .forEach((index) => {
+  .forEach(([indexName,index]) => {
+
+    if(
+      indexName === "byId"
+    ){
+
+      return;
+    }
 
     if(
       !(index instanceof Map)
     ){
 
       return;
-
     }
 
     index.forEach((bucket,key) => {
 
       if(
-        bucket instanceof Set
+        !(bucket instanceof Set)
       ){
 
-        [...bucket]
-        .forEach((id) => {
+        return;
+      }
 
-          if(
-            !validIds.has(id)
-          ){
-
-            bucket.delete(id);
-
-          }
-
-        });
+      [...bucket]
+      .forEach((id) => {
 
         if(
-          bucket.size <= 0
+          !validIds.has(id)
         ){
 
-          index.delete(key);
+          bucket.delete(id);
 
         }
+
+      });
+
+      if(
+        bucket.size <= 0
+      ){
+
+        index.delete(key);
 
       }
 
@@ -1130,46 +963,71 @@ function rebuildMemoryIndexes(){
   ){
 
     return false;
-
   }
 
-  Object.keys(
-    memoryState.indexes
-  )
-  .forEach((key) => {
+  try{
 
     if(
-      memoryState.indexes[key]
-      instanceof Map
+      memoryState?.runtime
     ){
 
-      memoryState.indexes[key]
-      .clear();
+      memoryState.runtime
+      .rebuildingIndexes =
+      true;
 
     }
 
-  });
-
-  if(
-    Array.isArray(
-      memoryState.memories
+    Object.values(
+      memoryState.indexes
     )
-  ){
+    .forEach((index) => {
 
-    memoryState.memories
-    .forEach((memory) => {
+      if(
+        index instanceof Map
+      ){
 
-      indexMemory(
-        memory
-      );
+        index.clear();
+
+      }
 
     });
 
+    if(
+      Array.isArray(
+        memoryState.memories
+      )
+    ){
+
+      memoryState.memories
+      .forEach((memory) => {
+
+        indexMemory(
+          memory
+        );
+
+      });
+
+    }
+
+    cleanupOrphanIndexes();
+
+    return true;
+
   }
 
-  cleanupOrphanIndexes();
+  finally{
 
-  return true;
+    if(
+      memoryState?.runtime
+    ){
+
+      memoryState.runtime
+      .rebuildingIndexes =
+      false;
+
+    }
+
+  }
 
 }
 
@@ -1181,12 +1039,6 @@ function rebuildMemoryIndexes(){
 
 const MemoryIndexing =
 Object.freeze({
-
-  createIndexMap:
-  createMemoryIndexMap,
-
-  createIndexSet:
-  createMemoryIndexSet,
 
   index:
   indexMemory,
@@ -1203,14 +1055,20 @@ Object.freeze({
   cleanup:
   cleanupOrphanIndexes,
 
-  getIds:
-  getIndexedMemoryIds,
-
   tokenize:
-  tokenizeMemoryText,
+  extractMemoryTokens,
 
-  extractTokens:
-  extractMemoryTokens
+  getByToken:
+  getMemoriesByToken,
+
+  getByTag:
+  getMemoriesByTag,
+
+  getByCategory:
+  getMemoriesByCategory,
+
+  getRelated:
+  getRelatedMemories
 
 });
 
