@@ -135,3 +135,49 @@ async function stopTypingIndicator(){
   return true;
 
 }
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationTyping =
+Object.freeze({
+
+  start:
+  startTypingIndicator,
+
+  stop:
+  stopTypingIndicator
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window
+  .CommunicationTyping =
+  CommunicationTyping;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis
+  .CommunicationTyping =
+  CommunicationTyping;
+
+}
