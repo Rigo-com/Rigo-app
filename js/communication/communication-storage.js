@@ -396,3 +396,55 @@ function clearCommunicationStorage(){
   }
 
 }
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationStorage =
+Object.freeze({
+
+  available:
+  isCommunicationStorageAvailable,
+
+  persist:
+  persistCommunicationState,
+
+  restore:
+  restoreCommunicationState,
+
+  clear:
+  clearCommunicationStorage
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window
+  .CommunicationStorage =
+  CommunicationStorage;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis
+  .CommunicationStorage =
+  CommunicationStorage;
+
+}
