@@ -2,6 +2,7 @@
 // RIGO AI
 // LIFECYCLE INDEX
 // SAFE LIFECYCLE COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -18,6 +19,8 @@ import "./app-message-runtime.js";
 import "./app-shutdown.js";
 import "./app-startup.js";
 
+
+
 // =====================================
 // HELPERS
 // =====================================
@@ -29,7 +32,7 @@ function resolveLifecycleDependency(
   try{
 
     if(
-      typeof DependencySystem ===
+      typeof RIGODependencySystem ===
       "undefined"
     ){
 
@@ -38,7 +41,7 @@ function resolveLifecycleDependency(
     }
 
     if(
-      typeof DependencySystem
+      typeof RIGODependencySystem
       .resolve !==
       "function"
     ){
@@ -48,7 +51,7 @@ function resolveLifecycleDependency(
     }
 
     const dependency =
-    DependencySystem
+    RIGODependencySystem
     .resolve(
       dependencyName
     );
@@ -59,7 +62,7 @@ function resolveLifecycleDependency(
     ){
 
       console.warn(
-        `[LifecycleAPI] Missing dependency: ${dependencyName}`
+        `[RIGOLifecycle] Missing dependency: ${dependencyName}`
       );
 
       return null;
@@ -73,8 +76,11 @@ function resolveLifecycleDependency(
   catch(error){
 
     console.warn(
-      `[LifecycleAPI] Failed resolving dependency: ${dependencyName}`,
+
+      `[RIGOLifecycle] Failed resolving dependency: ${dependencyName}`,
+
       error
+
     );
 
     return null;
@@ -85,10 +91,47 @@ function resolveLifecycleDependency(
 
 
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
-  return typeof value ===
-  "function";
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
+
+function isPlainObject(
+  value
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
 
 }
 
@@ -142,11 +185,28 @@ function safeFreeze(
 
   }
 
-  visited.add(value);
+  if(
 
-  Object.freeze(value);
+    !Array.isArray(value) &&
 
-  Object.values(value).forEach((nestedValue) => {
+    !isPlainObject(value)
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
 
     if(
       nestedValue &&
@@ -178,7 +238,9 @@ async function safelyExecuteLifecycleOperation(
   try{
 
     if(
-      !isFunction(operation)
+      !isFunction(
+        operation
+      )
     ){
 
       return fallback;
@@ -192,8 +254,11 @@ async function safelyExecuteLifecycleOperation(
   catch(error){
 
     console.warn(
-      `[LifecycleAPI] ${label} failed`,
+
+      `[RIGOLifecycle] ${label} failed`,
+
       error
+
     );
 
     return fallback;
@@ -221,12 +286,16 @@ function createReadonlyAccessor(
       async() => {
 
         const dependency =
-          resolveLifecycleDependency(
-            dependencyName
-          );
+        resolveLifecycleDependency(
+          dependencyName
+        );
 
-        if(!dependency){
+        if(
+          !dependency
+        ){
+
           return null;
+
         }
 
         if(
@@ -298,15 +367,18 @@ async function lifecycleStart(){
     async() => {
 
       const lifecycle =
-        resolveLifecycleDependency(
-          "AppLifecycle"
-        );
+      resolveLifecycleDependency(
+        "RIGOAppLifecycle"
+      );
 
       if(
+
         !lifecycle ||
+
         !isFunction(
           lifecycle.start
         )
+
       ){
 
         return false;
@@ -335,15 +407,18 @@ async function lifecycleShutdown(){
     async() => {
 
       const lifecycle =
-        resolveLifecycleDependency(
-          "AppLifecycle"
-        );
+      resolveLifecycleDependency(
+        "RIGOAppLifecycle"
+      );
 
       if(
+
         !lifecycle ||
+
         !isFunction(
           lifecycle.shutdown
         )
+
       ){
 
         return false;
@@ -372,15 +447,18 @@ async function lifecycleBootstrap(){
     async() => {
 
       const lifecycle =
-        resolveLifecycleDependency(
-          "AppLifecycle"
-        );
+      resolveLifecycleDependency(
+        "RIGOAppLifecycle"
+      );
 
       if(
+
         !lifecycle ||
+
         !isFunction(
           lifecycle.initialize
         )
+
       ){
 
         return false;
@@ -409,15 +487,18 @@ async function lifecycleCleanup(){
     async() => {
 
       const lifecycle =
-        resolveLifecycleDependency(
-          "AppLifecycle"
-        );
+      resolveLifecycleDependency(
+        "RIGOAppLifecycle"
+      );
 
       if(
+
         !lifecycle ||
+
         !isFunction(
           lifecycle.cleanup
         )
+
       ){
 
         return false;
@@ -446,15 +527,18 @@ async function lifecycleRecover(){
     async() => {
 
       const lifecycle =
-        resolveLifecycleDependency(
-          "AppLifecycle"
-        );
+      resolveLifecycleDependency(
+        "RIGOAppLifecycle"
+      );
 
       if(
+
         !lifecycle ||
+
         !isFunction(
           lifecycle.recover
         )
+
       ){
 
         return false;
@@ -483,15 +567,18 @@ async function lifecycleStatus(){
     async() => {
 
       const lifecycle =
-        resolveLifecycleDependency(
-          "AppLifecycle"
-        );
+      resolveLifecycleDependency(
+        "RIGOAppLifecycle"
+      );
 
       if(
+
         !lifecycle ||
+
         !isFunction(
           lifecycle.status
         )
+
       ){
 
         return null;
@@ -524,48 +611,48 @@ async function getLifecycleDiagnostics(){
     async() => {
 
       const lifecycle =
-        await LifecycleAPI
-        .lifecycle();
+      await RIGOLifecycle
+      .lifecycle();
 
       const startup =
-        await LifecycleAPI
-        .startup();
+      await RIGOLifecycle
+      .startup();
 
       const bootstrap =
-        await LifecycleAPI
-        .bootstrap();
+      await RIGOLifecycle
+      .bootstrap();
 
       const shutdown =
-        await LifecycleAPI
-        .shutdown();
+      await RIGOLifecycle
+      .shutdown();
 
       const environment =
-        await LifecycleAPI
-        .environment();
+      await RIGOLifecycle
+      .environment();
 
       const messages =
-        await LifecycleAPI
-        .messages();
+      await RIGOLifecycle
+      .messages();
 
       const diagnostics =
-        await LifecycleAPI
-        .appDiagnostics();
+      await RIGOLifecycle
+      .appDiagnostics();
 
       const health =
-        await LifecycleAPI
-        .health();
+      await RIGOLifecycle
+      .health();
 
       const runtime =
-        await LifecycleAPI
-        .runtime();
+      await RIGOLifecycle
+      .runtime();
 
       const config =
-        await LifecycleAPI
-        .config();
+      await RIGOLifecycle
+      .config();
 
       const dependencies =
-        await LifecycleAPI
-        .dependencies();
+      await RIGOLifecycle
+      .dependencies();
 
       return safeFreeze({
 
@@ -600,7 +687,7 @@ async function getLifecycleDiagnostics(){
 // LIFECYCLE API
 // =====================================
 
-const LifecycleAPI =
+const RIGOLifecycle =
 safeFreeze({
 
 
@@ -611,49 +698,49 @@ safeFreeze({
 
   lifecycle:
   createReadonlyAccessor(
-    "AppLifecycle"
+    "RIGOAppLifecycle"
   ),
 
 
 
   startup:
   createReadonlyAccessor(
-    "AppStartup"
+    "RIGOAppStartup"
   ),
 
 
 
   bootstrap:
   createReadonlyAccessor(
-    "AppBootstrap"
+    "RIGOAppBootstrap"
   ),
 
 
 
   shutdown:
   createReadonlyAccessor(
-    "AppShutdown"
+    "RIGOAppShutdown"
   ),
 
 
 
   environment:
   createReadonlyAccessor(
-    "AppEnvironment"
+    "RIGOAppEnvironment"
   ),
 
 
 
   messages:
   createReadonlyAccessor(
-    "MessageRuntime"
+    "RIGOMessageRuntime"
   ),
 
 
 
   appDiagnostics:
   createReadonlyAccessor(
-    "AppDiagnostics"
+    "RIGOAppDiagnostics"
   ),
 
 
@@ -667,7 +754,7 @@ safeFreeze({
 
   runtime:
   createReadonlyAccessor(
-    "RuntimeManager"
+    "RIGORuntimeManager"
   ),
 
 
@@ -681,7 +768,7 @@ safeFreeze({
 
   dependencies:
   createReadonlyAccessor(
-    "DependencySystem"
+    "RIGODependencySystem"
   ),
 
 
@@ -752,7 +839,7 @@ safeFreeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -764,12 +851,12 @@ if(
 
     window,
 
-    "LifecycleAPI",
+    "RIGOLifecycle",
 
     {
 
       value:
-      LifecycleAPI,
+      RIGOLifecycle,
 
       writable:
       false,
