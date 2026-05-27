@@ -30,8 +30,6 @@ Object.freeze({
 
     /vbscript\s*:/i,
 
-    /data\s*:/i,
-
     /onerror\s*=/i,
 
     /onload\s*=/i,
@@ -49,10 +47,6 @@ Object.freeze({
     /<embed\b/i,
 
     /<svg\b/i,
-
-    /<link\b/i,
-
-    /<meta\b/i,
 
     /document\.cookie/i,
 
@@ -123,6 +117,18 @@ Object.freeze({
 const SECURITY_VALIDATOR_CONFIG =
 Object.freeze({
 
+  MAX_STRING_LENGTH:
+  50000,
+
+  MAX_ARRAY_LENGTH:
+  5000,
+
+  MAX_OBJECT_KEYS:
+  1000,
+
+  MAX_JSON_DEPTH:
+  20,
+
   MAX_REGEX_SOURCE_LENGTH:
   500,
 
@@ -134,6 +140,31 @@ Object.freeze({
 
   MAX_TOTAL_NODES:
   10000
+
+});
+
+
+
+// =====================================
+// VALIDATOR STATE
+// =====================================
+
+const securityValidatorState =
+Object.seal({
+
+  validatedInputs:0,
+
+  blockedInputs:0,
+
+  blockedXSS:0,
+
+  blockedSQLInjection:0,
+
+  blockedPromptInjection:0,
+
+  failedValidations:0,
+
+  lastValidatedAt:null
 
 });
 
@@ -309,28 +340,19 @@ function safeRegexTest(
 
   try{
 
-    const valid =
-    validateSecurityRegex(
-      pattern
-    );
+    if(
 
-    if(!valid){
+      !validateSecurityRegex(
+        pattern
+      )
+
+    ){
 
       return false;
 
     }
 
-    const safePattern =
-    new RegExp(
-
-      pattern.source,
-
-      pattern.flags
-      .replace(/g/g,"")
-
-    );
-
-    return safePattern.test(
+    return pattern.test(
       input
     );
 
@@ -532,10 +554,20 @@ function validateSecureInput(
   input
 ){
 
+  securityValidatorState
+  .validatedInputs++;
+
+  securityValidatorState
+  .lastValidatedAt =
+  Date.now();
+
   if(
     typeof input !==
     "string"
   ){
+
+    securityValidatorState
+    .failedValidations++;
 
     return safeValidationResult({
 
@@ -576,10 +608,13 @@ function validateSecureInput(
 
     normalized.length >
 
-    SECURITY_CONFIG
+    SECURITY_VALIDATOR_CONFIG
     .MAX_STRING_LENGTH
 
   ){
+
+    securityValidatorState
+    .blockedInputs++;
 
     return safeValidationResult({
 
@@ -603,7 +638,7 @@ function validateSecureInput(
 
 
   // ===================================
-  // XSS DETECTION
+  // XSS
   // ===================================
 
   const hasXSS =
@@ -630,26 +665,15 @@ function validateSecureInput(
 
   if(hasXSS){
 
-    if(
-      typeof securityState ===
-      "object"
-    ){
+    securityValidatorState
+    .blockedInputs++;
 
-      securityState
-      .blockedRequests++;
+    securityValidatorState
+    .blockedXSS++;
 
-    }
-
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-        "XSS PAYLOAD BLOCKED"
-      );
-
-    }
+    logSecurityEvent?.(
+      "XSS PAYLOAD BLOCKED"
+    );
 
     return safeValidationResult({
 
@@ -695,26 +719,15 @@ function validateSecureInput(
 
   if(hasSQLInjection){
 
-    if(
-      typeof securityState ===
-      "object"
-    ){
+    securityValidatorState
+    .blockedInputs++;
 
-      securityState
-      .blockedRequests++;
+    securityValidatorState
+    .blockedSQLInjection++;
 
-    }
-
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-        "SQL INJECTION BLOCKED"
-      );
-
-    }
+    logSecurityEvent?.(
+      "SQL INJECTION BLOCKED"
+    );
 
     return safeValidationResult({
 
@@ -745,26 +758,15 @@ function validateSecureInput(
     promptAnalysis.detected
   ){
 
-    if(
-      typeof securityState ===
-      "object"
-    ){
+    securityValidatorState
+    .blockedInputs++;
 
-      securityState
-      .blockedPrompts++;
+    securityValidatorState
+    .blockedPromptInjection++;
 
-    }
-
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-        "PROMPT INJECTION BLOCKED"
-      );
-
-    }
+    logSecurityEvent?.(
+      "PROMPT INJECTION BLOCKED"
+    );
 
     return safeValidationResult({
 
@@ -808,71 +810,6 @@ function validateSecureInput(
 
 
 // =====================================
-// VALIDATE JSON DEPTH
-// =====================================
-
-function validateJSONDepth(
-  value,
-  depth = 0,
-  visited = new WeakSet()
-){
-
-  if(
-
-    depth >
-
-    SECURITY_CONFIG
-    .MAX_JSON_DEPTH
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return true;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return false;
-
-  }
-
-  visited.add(value);
-
-  return Object.values(value)
-  .every((nestedValue) => {
-
-    return validateJSONDepth(
-
-      nestedValue,
-
-      depth + 1,
-
-      visited
-
-    );
-
-  });
-
-}
-
-
-
-// =====================================
 // VALIDATE ARRAY SIZE
 // =====================================
 
@@ -892,7 +829,7 @@ function validateArraySize(
 
     array.length <=
 
-    SECURITY_CONFIG
+    SECURITY_VALIDATOR_CONFIG
     .MAX_ARRAY_LENGTH
 
   );
@@ -906,8 +843,7 @@ function validateArraySize(
 // =====================================
 
 function validateObjectKeys(
-  object,
-  visited = new WeakSet()
+  object
 ){
 
   if(
@@ -923,16 +859,6 @@ function validateObjectKeys(
 
   }
 
-  if(
-    visited.has(object)
-  ){
-
-    return false;
-
-  }
-
-  visited.add(object);
-
   const keys =
   Object.keys(object);
 
@@ -940,7 +866,7 @@ function validateObjectKeys(
 
     keys.length >
 
-    SECURITY_CONFIG
+    SECURITY_VALIDATOR_CONFIG
     .MAX_OBJECT_KEYS
 
   ){
@@ -949,8 +875,7 @@ function validateObjectKeys(
 
   }
 
-  const polluted =
-  keys.some((key) => {
+  return !keys.some((key) => {
 
     return matchSecurityPatterns(
 
@@ -963,35 +888,6 @@ function validateObjectKeys(
 
   });
 
-  if(polluted){
-
-    return false;
-
-  }
-
-  return Object.values(object)
-  .every((value) => {
-
-    if(
-
-      value &&
-
-      typeof value ===
-      "object"
-
-    ){
-
-      return validateObjectKeys(
-        value,
-        visited
-      );
-
-    }
-
-    return true;
-
-  });
-
 }
 
 
@@ -1001,102 +897,135 @@ function validateObjectKeys(
 // =====================================
 
 function validatePayload(
-  payload,
-  state = {
-
-    depth:0,
-
-    totalNodes:0,
-
-    visited:
-    new WeakSet()
-
-  }
-
+  payload
 ){
 
-  if(
+  const stack = [
 
-    state.depth >
+    {
+      value:payload,
+      depth:0
+    }
 
-    SECURITY_VALIDATOR_CONFIG
-    .MAX_VALIDATION_DEPTH
+  ];
 
-  ){
+  const visited =
+  new WeakSet();
 
-    return false;
+  let totalNodes = 0;
 
-  }
+  while(stack.length){
 
-  state.totalNodes++;
+    const current =
+    stack.pop();
 
-  if(
-
-    state.totalNodes >
-
-    SECURITY_VALIDATOR_CONFIG
-    .MAX_TOTAL_NODES
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof payload ===
-    "string"
-  ){
-
-    return validateSecureInput(
-      payload
-    ).valid;
-
-  }
-
-  if(
-
-    payload == null ||
-
-    typeof payload !==
-    "object"
-
-  ){
-
-    return true;
-
-  }
-
-  if(
-    state.visited.has(payload)
-  ){
-
-    return false;
-
-  }
-
-  state.visited.add(
-    payload
-  );
-
-  const validDepth =
-  validateJSONDepth(
-    payload
-  );
-
-  if(!validDepth){
-
-    return false;
-
-  }
-
-  if(
-    Array.isArray(payload)
-  ){
+    totalNodes++;
 
     if(
-      !validateArraySize(
-        payload
+
+      totalNodes >
+
+      SECURITY_VALIDATOR_CONFIG
+      .MAX_TOTAL_NODES
+
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      current.depth >
+
+      SECURITY_VALIDATOR_CONFIG
+      .MAX_VALIDATION_DEPTH
+
+    ){
+
+      return false;
+
+    }
+
+    const value =
+    current.value;
+
+    if(
+      typeof value ===
+      "string"
+    ){
+
+      if(
+        !validateSecureInput(
+          value
+        ).valid
+      ){
+
+        return false;
+
+      }
+
+      continue;
+
+    }
+
+    if(
+
+      value == null ||
+
+      typeof value !==
+      "object"
+
+    ){
+
+      continue;
+
+    }
+
+    if(
+      visited.has(value)
+    ){
+
+      return false;
+
+    }
+
+    visited.add(value);
+
+    if(
+      Array.isArray(value)
+    ){
+
+      if(
+        !validateArraySize(
+          value
+        )
+      ){
+
+        return false;
+
+      }
+
+      value.forEach((item) => {
+
+        stack.push({
+
+          value:item,
+
+          depth:
+          current.depth + 1
+
+        });
+
+      });
+
+      continue;
+
+    }
+
+    if(
+      !validateObjectKeys(
+        value
       )
     ){
 
@@ -1104,62 +1033,64 @@ function validatePayload(
 
     }
 
-    return payload.every((item) => {
+    Object.values(value)
+    .forEach((nestedValue) => {
 
-      return validatePayload(
+      stack.push({
 
-        item,
+        value:nestedValue,
 
-        {
+        depth:
+        current.depth + 1
 
-          depth:
-          state.depth + 1,
-
-          totalNodes:
-          state.totalNodes,
-
-          visited:
-          state.visited
-
-        }
-
-      );
+      });
 
     });
 
   }
 
-  if(
-    !validateObjectKeys(
-      payload
-    )
-  ){
+  return true;
 
-    return false;
+}
 
-  }
 
-  return Object.values(payload)
-  .every((value) => {
 
-    return validatePayload(
+// =====================================
+// DIAGNOSTICS
+// =====================================
 
-      value,
+function getSecurityValidatorDiagnostics(){
 
-      {
+  return Object.freeze({
 
-        depth:
-        state.depth + 1,
+    validatedInputs:
+    securityValidatorState
+    .validatedInputs,
 
-        totalNodes:
-        state.totalNodes,
+    blockedInputs:
+    securityValidatorState
+    .blockedInputs,
 
-        visited:
-        state.visited
+    blockedXSS:
+    securityValidatorState
+    .blockedXSS,
 
-      }
+    blockedSQLInjection:
+    securityValidatorState
+    .blockedSQLInjection,
 
-    );
+    blockedPromptInjection:
+
+      securityValidatorState
+      .blockedPromptInjection,
+
+    failedValidations:
+    securityValidatorState
+    .failedValidations,
+
+    lastValidatedAt:
+    securityValidatorState
+    .lastValidatedAt
 
   });
 
@@ -1177,8 +1108,6 @@ Object.freeze({
   validateInput:
   validateSecureInput,
 
-  validateJSONDepth,
-
   validateArraySize,
 
   validateObjectKeys,
@@ -1188,9 +1117,52 @@ Object.freeze({
   detectPromptInjection,
 
   normalize:
-  normalizeValidationInput
+  normalizeValidationInput,
+
+  diagnostics:
+  getSecurityValidatorDiagnostics
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SECURITY_PATTERNS,
+
+  SECURITY_VALIDATOR_CONFIG,
+
+  securityValidatorState,
+
+  normalizeValidationInput,
+
+  validateSecurityRegex,
+
+  safeRegexTest,
+
+  matchSecurityPatterns,
+
+  decodeValidationPayload,
+
+  detectPromptInjection,
+
+  validateSecureInput,
+
+  validateArraySize,
+
+  validateObjectKeys,
+
+  validatePayload,
+
+  getSecurityValidatorDiagnostics,
+
+  SecurityValidator
+
+};
 
 
 
@@ -1199,13 +1171,13 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityValidator",
 
