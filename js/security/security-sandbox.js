@@ -26,6 +26,9 @@ Object.freeze({
   MAX_SOURCE_LENGTH:
   50000,
 
+  MAX_SCOPE_KEYS:
+  100,
+
   ENABLE_SOURCE_VALIDATION:
   true,
 
@@ -35,10 +38,7 @@ Object.freeze({
   ENABLE_ASYNC_EXECUTION:
   true,
 
-  ENABLE_FUNCTION_BLOCKING:
-  true,
-
-  ENABLE_EVAL_BLOCKING:
+  ENABLE_SCOPE_FREEZE:
   true,
 
   ENABLE_GLOBAL_BLOCKING:
@@ -73,6 +73,9 @@ Object.seal({
   abortedExecutions:
   0,
 
+  totalExecutions:
+  0,
+
   lastExecutionAt:
   null
 
@@ -89,8 +92,6 @@ Object.freeze([
 
   "eval(",
 
-  "globalThis.eval",
-
   "Function(",
 
   "new Function",
@@ -105,19 +106,23 @@ Object.freeze([
 
   "window.location",
 
-  "while(true)",
+  "importScripts",
 
-  "for(;;)",
+  "XMLHttpRequest",
 
-  "globalThis",
+  "fetch(",
+
+  "WebSocket",
+
+  "navigator.",
+
+  "globalThis.",
 
   "window.",
 
   "document.",
 
-  "self.",
-
-  "importScripts"
+  "self."
 
 ]);
 
@@ -155,6 +160,34 @@ function logSandboxEvent(
 
 
 // =====================================
+// NORMALIZE SOURCE
+// =====================================
+
+function normalizeSandboxSource(
+  source
+){
+
+  try{
+
+    return String(
+      source || ""
+    )
+    .normalize("NFKC")
+    .trim();
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
+
+// =====================================
 // VALIDATE CALLBACK
 // =====================================
 
@@ -181,7 +214,7 @@ function getSandboxSource(
 
   try{
 
-    return safeString(
+    return normalizeSandboxSource(
       callback.toString()
     );
 
@@ -296,7 +329,9 @@ function validateSandboxExecution(
     .blockedExecutions++;
 
     logSandboxEvent(
-      "SANDBOX EXECUTION BLOCKED"
+
+      "SANDBOX_EXECUTION_BLOCKED"
+
     );
 
     return false;
@@ -304,6 +339,73 @@ function validateSandboxExecution(
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// CREATE EXECUTION SCOPE
+// =====================================
+
+function createSandboxScope(
+  scope = {}
+){
+
+  if(
+
+    !scope ||
+
+    typeof scope !==
+    "object"
+
+  ){
+
+    return Object.freeze({});
+
+  }
+
+  const entries =
+  Object.entries(scope)
+  .slice(
+
+    0,
+
+    SANDBOX_CONFIG
+    .MAX_SCOPE_KEYS
+
+  );
+
+  const cleanScope =
+  Object.create(null);
+
+  entries.forEach(([key,value]) => {
+
+    cleanScope[key] = value;
+
+  });
+
+  if(
+
+    SANDBOX_CONFIG
+    .ENABLE_SCOPE_FREEZE
+
+    &&
+
+    typeof deepFreezeSecurity ===
+    "function"
+
+  ){
+
+    return deepFreezeSecurity(
+      cleanScope
+    );
+
+  }
+
+  return Object.freeze(
+    cleanScope
+  );
 
 }
 
@@ -457,7 +559,7 @@ function createSandboxExecutionResult(
 
       ?
 
-      safeString(
+      normalizeSandboxSource(
         payload.error
       )
 
@@ -494,6 +596,46 @@ function createSandboxExecutionResult(
 
 
 // =====================================
+// EXECUTE SANDBOX TASK
+// =====================================
+
+async function executeSandboxTask(
+  callback,
+  context
+){
+
+  if(
+    context.signal.aborted
+  ){
+
+    throw new Error(
+      "SANDBOX_ABORTED"
+    );
+
+  }
+
+  if(
+
+    !SANDBOX_CONFIG
+    .ENABLE_ASYNC_EXECUTION
+
+  ){
+
+    return callback(
+      context
+    );
+
+  }
+
+  return await callback(
+    context
+  );
+
+}
+
+
+
+// =====================================
 // EXECUTE IN SANDBOX
 // =====================================
 
@@ -501,6 +643,9 @@ async function executeInSandbox(
   callback,
   options = {}
 ){
+
+  sandboxState
+  .totalExecutions++;
 
   if(
     !validateSandboxExecution(
@@ -579,6 +724,21 @@ async function executeInSandbox(
 
   );
 
+  const executionContext =
+  Object.freeze({
+
+    signal:
+    controller.signal,
+
+    scope:
+    createSandboxScope(
+      options.scope
+    ),
+
+    executionId
+
+  });
+
   sandboxState
   .activeExecutions
   .set(
@@ -588,8 +748,6 @@ async function executeInSandbox(
     {
 
       startedAt,
-
-      controller,
 
       timeout:
 
@@ -606,33 +764,14 @@ async function executeInSandbox(
 
     const executionPromise =
     Promise.resolve()
-    .then(async() => {
+    .then(() => {
 
-      if(
-        controller.signal.aborted
-      ){
+      return executeSandboxTask(
 
-        throw new Error(
-          "SANDBOX_ABORTED"
-        );
+        callback,
 
-      }
+        executionContext
 
-      if(
-
-        !SANDBOX_CONFIG
-        .ENABLE_ASYNC_EXECUTION
-
-      ){
-
-        return callback(
-          controller.signal
-        );
-
-      }
-
-      return await callback(
-        controller.signal
       );
 
     });
@@ -670,7 +809,7 @@ async function executeInSandbox(
   catch(error){
 
     const message =
-    safeString(
+    normalizeSandboxSource(
       error?.message
     );
 
@@ -711,7 +850,7 @@ async function executeInSandbox(
 
     logSandboxEvent(
 
-      "SANDBOX EXECUTION FAILED",
+      "SANDBOX_EXECUTION_FAILED",
 
       {
 
@@ -803,6 +942,11 @@ function getSandboxDiagnostics(){
       sandboxState
       .abortedExecutions,
 
+    totalExecutions:
+
+      sandboxState
+      .totalExecutions,
+
     lastExecutionAt:
 
       sandboxState
@@ -819,22 +963,6 @@ function getSandboxDiagnostics(){
 // =====================================
 
 function resetSandboxState(){
-
-  sandboxState
-  .activeExecutions
-  .forEach((execution) => {
-
-    try{
-
-      execution
-      .controller
-      ?.abort();
-
-    }
-
-    catch(error){}
-
-  });
 
   sandboxState
   .activeExecutions
@@ -858,6 +986,10 @@ function resetSandboxState(){
 
   sandboxState
   .abortedExecutions =
+  0;
+
+  sandboxState
+  .totalExecutions =
   0;
 
   sandboxState
@@ -891,17 +1023,61 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SANDBOX_CONFIG,
+
+  sandboxState,
+
+  BLOCKED_SANDBOX_PATTERNS,
+
+  logSandboxEvent,
+
+  normalizeSandboxSource,
+
+  validateSandboxCallback,
+
+  getSandboxSource,
+
+  validateSandboxSource,
+
+  validateSandboxExecution,
+
+  createSandboxScope,
+
+  createSandboxTimeout,
+
+  createSandboxExecutionResult,
+
+  executeSandboxTask,
+
+  executeInSandbox,
+
+  getSandboxDiagnostics,
+
+  resetSandboxState,
+
+  SecuritySandbox
+
+};
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecuritySandbox",
 
