@@ -2,6 +2,7 @@
 // RIGO AI
 // EVENTS INDEX
 // CLEAN EVENTS COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -16,7 +17,7 @@ import "./app-events.js";
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
 function emitEventsWarning(
@@ -25,9 +26,49 @@ function emitEventsWarning(
 ){
 
   console.warn(
+
     `[EventsIndex] ${message}`,
+
     error || ""
+
   );
+
+}
+
+
+
+function getGlobalEvent(
+  eventName
+){
+
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
+
+      return null;
+
+    }
+
+    return (
+      window[eventName] ||
+      null
+    );
+
+  }
+
+  catch(error){
+
+    emitEventsWarning(
+      `Failed resolving event system: ${eventName}`,
+      error
+    );
+
+    return null;
+
+  }
 
 }
 
@@ -52,8 +93,8 @@ function validateEventsLayer(){
 
     const requiredSystems = [
 
-      "SystemEvents",
-      "AppEvents"
+      "RIGOSystemEvents",
+      "RIGOAppEvents"
 
     ];
 
@@ -68,7 +109,9 @@ function validateEventsLayer(){
 
       });
 
-    if(missingSystems.length > 0){
+    if(
+      missingSystems.length > 0
+    ){
 
       emitEventsWarning(
 
@@ -106,33 +149,51 @@ function validateEventsLayer(){
 const EventsAPI =
 Object.freeze({
 
-  system:
-  window.SystemEvents,
 
-  app:
-  window.AppEvents,
-
-  events:
-  typeof APP_EVENTS !==
-  "undefined"
-
-    ?
-
-    APP_EVENTS
-
-    :
-
-    null,
 
   validate:
-  validateEventsLayer
+  validateEventsLayer,
+
+
+
+  // ===================================
+  // SAFE ACCESSORS
+  // ===================================
+
+  get system(){
+
+    return getGlobalEvent(
+      "RIGOSystemEvents"
+    );
+
+  },
+
+
+
+  get app(){
+
+    return getGlobalEvent(
+      "RIGOAppEvents"
+    );
+
+  },
+
+
+
+  get events(){
+
+    return getGlobalEvent(
+      "APP_EVENTS"
+    );
+
+  }
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
