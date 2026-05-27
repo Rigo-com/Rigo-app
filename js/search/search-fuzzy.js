@@ -1,124 +1,220 @@
 // =====================================
 // RIGO AI
 // SEARCH FUZZY
-// ENTERPRISE FINAL
+// OPTIMIZED FINAL
 // =====================================
 
 
+
+// =====================================
+// FUZZY CONFIG
+// =====================================
+
+const SEARCH_FUZZY_CONFIG =
+Object.freeze({
+
+  MIN_FUZZY_SCORE:0.7,
+
+  MAX_FUZZY_RESULTS:20,
+
+  MIN_TOKEN_LENGTH:2
+
+});
+
+
+
+// =====================================
+// NORMALIZE
+// =====================================
+
+function normalizeFuzzyText(
+  value
+){
+
+  return normalizeMemoryString?.(
+    value
+  )
+  .toLowerCase();
+
+}
+
+
+
+// =====================================
+// LEVENSHTEIN DISTANCE
+// =====================================
 
 function calculateLevenshteinDistance(
   first = "",
   second = ""
 ){
 
-  const matrix = [];
+  const source =
+  normalizeFuzzyText(
+    first
+  );
+
+  const target =
+  normalizeFuzzyText(
+    second
+  );
+
+  if(
+    source === target
+  ){
+
+    return 0;
+
+  }
+
+  if(
+    source.length <= 0
+  ){
+
+    return target.length;
+
+  }
+
+  if(
+    target.length <= 0
+  ){
+
+    return source.length;
+
+  }
+
+  const matrix =
+  Array.from({
+
+    length:
+    target.length + 1
+
+  },(_,index) => {
+
+    return [index];
+
+  });
 
   for(
 
-    let i = 0;
+    let column = 0;
 
-    i <= second.length;
+    column <= source.length;
 
-    i++
+    column++
 
   ){
 
-    matrix[i] = [i];
+    matrix[0][column] =
+    column;
 
   }
 
   for(
 
-    let j = 0;
+    let row = 1;
 
-    j <= first.length;
+    row <= target.length;
 
-    j++
-
-  ){
-
-    matrix[0][j] = j;
-
-  }
-
-  for(
-
-    let i = 1;
-
-    i <= second.length;
-
-    i++
+    row++
 
   ){
 
     for(
 
-      let j = 1;
+      let column = 1;
 
-      j <= first.length;
+      column <= source.length;
 
-      j++
+      column++
 
     ){
 
-      if(
+      const cost =
 
-        second.charAt(i - 1) ===
+        target[
+          row - 1
+        ] ===
 
-        first.charAt(j - 1)
+        source[
+          column - 1
+        ]
 
-      ){
+        ? 0
 
-        matrix[i][j] =
+        : 1;
 
-        matrix[i - 1][j - 1];
+      matrix[row][column] =
+      Math.min(
 
-      }
+        matrix[row - 1][column] + 1,
 
-      else{
+        matrix[row][column - 1] + 1,
 
-        matrix[i][j] =
-        Math.min(
+        matrix[row - 1][column - 1] + cost
 
-          matrix[i - 1][j - 1] + 1,
-
-          matrix[i][j - 1] + 1,
-
-          matrix[i - 1][j] + 1
-
-        );
-
-      }
+      );
 
     }
 
   }
 
   return matrix
-  [second.length]
-  [first.length];
+  [target.length]
+  [source.length];
 
 }
 
 
+
+// =====================================
+// FUZZY SCORE
+// =====================================
 
 function fuzzyMatchScore(
   first,
   second
 ){
 
+  const source =
+  normalizeFuzzyText(
+    first
+  );
+
+  const target =
+  normalizeFuzzyText(
+    second
+  );
+
+  if(
+    !source ||
+    !target
+  ){
+
+    return 0;
+
+  }
+
+  if(
+    source === target
+  ){
+
+    return 1;
+
+  }
+
   const distance =
   calculateLevenshteinDistance(
-    first,
-    second
+    source,
+    target
   );
 
   const maxLength =
   Math.max(
 
-    first.length,
+    source.length,
 
-    second.length
+    target.length
 
   );
 
@@ -127,20 +223,51 @@ function fuzzyMatchScore(
   ){
 
     return 0;
+
   }
 
-  return 1 - (
-    distance /
-    maxLength
+  return Math.max(
+
+    0,
+
+    1 - (
+      distance /
+      maxLength
+    )
+
   );
 
 }
 
 
 
+// =====================================
+// FIND FUZZY TOKENS
+// =====================================
+
 function findFuzzyTokens(
   token
 ){
+
+  const normalizedToken =
+  normalizeFuzzyText(
+    token
+  );
+
+  if(
+
+    !normalizedToken ||
+
+    normalizedToken.length <
+
+    SEARCH_FUZZY_CONFIG
+    .MIN_TOKEN_LENGTH
+
+  ){
+
+    return [];
+
+  }
 
   const matches = [];
 
@@ -150,31 +277,69 @@ function findFuzzyTokens(
 
     const score =
     fuzzyMatchScore(
-      token,
+
+      normalizedToken,
+
       indexedToken
+
     );
 
     if(
-      score >= 0.7
+
+      score <
+
+      SEARCH_FUZZY_CONFIG
+      .MIN_FUZZY_SCORE
+
     ){
 
-      matches.push({
-
-        token:indexedToken,
-
-        score
-
-      });
+      return;
 
     }
+
+    matches.push({
+
+      token:indexedToken,
+
+      score
+
+    });
 
   });
 
   return matches
+
   .sort((a,b) => {
 
     return b.score - a.score;
 
-  });
+  })
+
+  .slice(
+
+    0,
+
+    SEARCH_FUZZY_CONFIG
+    .MAX_FUZZY_RESULTS
+
+  );
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SEARCH_FUZZY_CONFIG,
+
+  calculateLevenshteinDistance,
+
+  fuzzyMatchScore,
+
+  findFuzzyTokens
+
+};
