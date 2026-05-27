@@ -1,8 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY EVENTS
-// ENTERPRISE INFINITY FINAL
-// HARDENED + STABILIZED
+// FINAL OPTIMIZED EVENT BUS
 // =====================================
 
 
@@ -14,11 +13,14 @@
 const MEMORY_EVENTS_CONFIG =
 Object.freeze({
 
-  MAX_LISTENERS_PER_EVENT:100,
+  MAX_LISTENERS_PER_EVENT:
+  100,
 
-  MAX_EVENT_HISTORY:1000,
+  MAX_EVENT_HISTORY:
+  1000,
 
-  ENABLE_EVENT_HISTORY:true,
+  ENABLE_EVENT_HISTORY:
+  true,
 
   MAX_EVENT_PAYLOAD_SIZE:
   500000,
@@ -26,11 +28,11 @@ Object.freeze({
   MAX_RECURSIVE_EVENT_DEPTH:
   10,
 
-  EVENT_NAME_PATTERN:
-  /^[a-z0-9._*-]+$/,
-
   EVENT_LISTENER_TIMEOUT:
-  10000
+  10000,
+
+  EVENT_NAME_PATTERN:
+  /^[a-z0-9._*-]+$/
 
 });
 
@@ -99,13 +101,15 @@ Object.seal({
   listeners:
   new Map(),
 
-  onceListeners:
-  new Map(),
-
   wildcardListeners:
   new Set(),
 
   eventHistory:[],
+
+  eventDepth:
+  new Map(),
+
+  activeStack:[],
 
   activeEmits:0,
 
@@ -113,19 +117,14 @@ Object.seal({
 
   failedEvents:0,
 
-  lastEventAt:null,
-
-  activeEventStack:[],
-
-  eventDepthMap:
-  new Map()
+  lastEventAt:null
 
 });
 
 
 
 // =====================================
-// EVENT HELPERS
+// HELPERS
 // =====================================
 
 function normalizeEventName(
@@ -137,22 +136,28 @@ function normalizeEventName(
   ){
 
     return "*";
+
   }
 
-  const normalizedEvent =
+  const normalized =
   String(
+
     normalizeMemoryString?.(
       eventName
-    ) || ""
+    )
+
+    || ""
+
   )
   .toLowerCase()
   .trim();
 
   if(
-    !normalizedEvent
+    !normalized
   ){
 
     return "";
+
   }
 
   if(
@@ -160,15 +165,16 @@ function normalizeEventName(
     !MEMORY_EVENTS_CONFIG
     .EVENT_NAME_PATTERN
     .test(
-      normalizedEvent
+      normalized
     )
 
   ){
 
     return "";
+
   }
 
-  return normalizedEvent;
+  return normalized;
 
 }
 
@@ -187,233 +193,60 @@ function isValidEventListener(
 
 
 
-function getEventDepth(
-  eventName
+function updateEventDepth(
+  eventName,
+  operation
 ){
 
-  return (
+  const currentDepth =
 
     memoryEventsState
-    .eventDepthMap
-    .get(
-      eventName
-    )
+    .eventDepth
+    .get(eventName)
 
-    ||
+    || 0;
 
-    0
+  if(
+    operation === "increment"
+  ){
 
-  );
+    memoryEventsState
+    .eventDepth
+    .set(
+      eventName,
+      currentDepth + 1
+    );
 
-}
+    return currentDepth + 1;
 
-
-
-function incrementEventDepth(
-  eventName
-){
-
-  const currentDepth =
-  getEventDepth(
-    eventName
-  );
-
-  memoryEventsState
-  .eventDepthMap
-  .set(
-    eventName,
-    currentDepth + 1
-  );
-
-}
-
-
-
-function decrementEventDepth(
-  eventName
-){
-
-  const currentDepth =
-  getEventDepth(
-    eventName
-  );
+  }
 
   if(
     currentDepth <= 1
   ){
 
     memoryEventsState
-    .eventDepthMap
+    .eventDepth
     .delete(
       eventName
     );
 
-    return;
+    return 0;
+
   }
 
   memoryEventsState
-  .eventDepthMap
+  .eventDepth
   .set(
     eventName,
     currentDepth - 1
   );
 
-}
-
-
-
-// =====================================
-// SAFE CLONE
-// =====================================
-
-function safeCloneEventPayload(
-  value,
-  visited = new WeakMap()
-){
-
-  if(
-    value === null ||
-    value === undefined
-  ){
-
-    return value;
-  }
-
-  if(
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-  }
-
-  if(
-    value instanceof Date
-  ){
-
-    return new Date(
-      value.getTime()
-    );
-  }
-
-  if(
-    value instanceof Set
-  ){
-
-    return [
-      ...value
-    ];
-  }
-
-  if(
-    value instanceof Map
-  ){
-
-    return Object.fromEntries(
-      value.entries()
-    );
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return visited.get(
-      value
-    );
-
-  }
-
-  const clone =
-
-    Array.isArray(value)
-
-    ? []
-
-    : {};
-
-  visited.set(
-    value,
-    clone
-  );
-
-  Object.keys(value)
-  .forEach((key) => {
-
-    clone[key] =
-    safeCloneEventPayload(
-      value[key],
-      visited
-    );
-
-  });
-
-  return clone;
+  return currentDepth - 1;
 
 }
 
 
-
-// =====================================
-// DEEP FREEZE
-// =====================================
-
-function deepFreezeEventObject(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    if(
-      nestedValue &&
-      typeof nestedValue ===
-      "object"
-    ){
-
-      deepFreezeEventObject(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
-
-}
-
-
-
-// =====================================
-// PAYLOAD VALIDATION
-// =====================================
 
 function validateEventPayload(
   payload
@@ -421,14 +254,9 @@ function validateEventPayload(
 
   try{
 
-    const safePayload =
-    safeCloneEventPayload(
-      payload
-    );
-
     const serialized =
     JSON.stringify(
-      safePayload
+      payload
     );
 
     return (
@@ -447,7 +275,7 @@ function validateEventPayload(
 
   }
 
-  catch(error){
+  catch{
 
     return false;
 
@@ -457,9 +285,31 @@ function validateEventPayload(
 
 
 
-// =====================================
-// EVENT HISTORY
-// =====================================
+function createMemoryEvent(
+  type,
+  payload = {}
+){
+
+  return {
+
+    id:
+    createMemoryId?.(),
+
+    type:
+    normalizeEventName(
+      type
+    ),
+
+    payload,
+
+    timestamp:
+    Date.now()
+
+  };
+
+}
+
+
 
 function storeEventHistory(
   event
@@ -477,21 +327,20 @@ function storeEventHistory(
 
   }
 
-  const compactEvent = {
-
-    id:event.id,
-
-    type:event.type,
-
-    timestamp:event.timestamp
-
-  };
-
   memoryEventsState
   .eventHistory
-  .push(
-    compactEvent
-  );
+  .push({
+
+    id:
+    event.id,
+
+    type:
+    event.type,
+
+    timestamp:
+    event.timestamp
+
+  });
 
   while(
 
@@ -516,34 +365,38 @@ function storeEventHistory(
 
 
 
-// =====================================
-// EVENT OBJECT
-// =====================================
-
-function createMemoryEvent(
-  type,
-  payload = {}
+function getEventListeners(
+  eventName
 ){
 
-  return deepFreezeEventObject({
+  return [
 
-    id:
-    createMemoryId(),
+    ...(memoryEventsState
+    .listeners
+    .get(eventName)
 
-    type:
-    normalizeEventName(
-      type
-    ),
+    ||
 
-    payload:
-    safeCloneEventPayload(
-      payload
-    ),
+    []),
 
-    timestamp:
-    Date.now()
+    ...memoryEventsState
+    .wildcardListeners
 
-  });
+  ];
+
+}
+
+
+
+function hasEventListeners(
+  eventName
+){
+
+  return (
+    getEventListeners(
+      eventName
+    ).length > 0
+  );
 
 }
 
@@ -555,7 +408,8 @@ function createMemoryEvent(
 
 function subscribeMemoryEvent(
   eventName,
-  listener
+  listener,
+  options = {}
 ){
 
   const normalizedEvent =
@@ -568,6 +422,7 @@ function subscribeMemoryEvent(
   ){
 
     return false;
+
   }
 
   if(
@@ -577,7 +432,18 @@ function subscribeMemoryEvent(
   ){
 
     return false;
+
   }
+
+  const listenerObject = {
+
+    callback:
+    listener,
+
+    once:
+    options.once === true
+
+  };
 
   if(
     normalizedEvent === "*"
@@ -585,7 +451,9 @@ function subscribeMemoryEvent(
 
     memoryEventsState
     .wildcardListeners
-    .add(listener);
+    .add(
+      listenerObject
+    );
 
     return true;
 
@@ -632,7 +500,7 @@ function subscribeMemoryEvent(
   }
 
   listeners.add(
-    listener
+    listenerObject
   );
 
   return true;
@@ -641,68 +509,22 @@ function subscribeMemoryEvent(
 
 
 
-// =====================================
-// SUBSCRIBE ONCE
-// =====================================
-
 function onceMemoryEvent(
   eventName,
   listener
 ){
 
-  const normalizedEvent =
-  normalizeEventName(
-    eventName
+  return subscribeMemoryEvent(
+
+    eventName,
+
+    listener,
+
+    {
+      once:true
+    }
+
   );
-
-  if(
-    !normalizedEvent
-  ){
-
-    return false;
-  }
-
-  if(
-    !isValidEventListener(
-      listener
-    )
-  ){
-
-    return false;
-  }
-
-  if(
-
-    !memoryEventsState
-    .onceListeners
-    .has(
-      normalizedEvent
-    )
-
-  ){
-
-    memoryEventsState
-    .onceListeners
-    .set(
-      normalizedEvent,
-      new Set()
-    );
-
-  }
-
-  const listeners =
-
-    memoryEventsState
-    .onceListeners
-    .get(
-      normalizedEvent
-    );
-
-  listeners.add(
-    listener
-  );
-
-  return true;
 
 }
 
@@ -727,21 +549,47 @@ function unsubscribeMemoryEvent(
   ){
 
     return false;
+
   }
+
+  const removeListener =
+  (collection) => {
+
+    let removed = false;
+
+    collection.forEach((item) => {
+
+      if(
+        item.callback ===
+        listener
+      ){
+
+        collection.delete(
+          item
+        );
+
+        removed = true;
+
+      }
+
+    });
+
+    return removed;
+
+  };
 
   if(
     normalizedEvent === "*"
   ){
 
-    return memoryEventsState
-    .wildcardListeners
-    .delete(
-      listener
+    return removeListener(
+
+      memoryEventsState
+      .wildcardListeners
+
     );
 
   }
-
-  let removed = false;
 
   const listeners =
 
@@ -751,57 +599,28 @@ function unsubscribeMemoryEvent(
       normalizedEvent
     );
 
-  const onceListeners =
-
-    memoryEventsState
-    .onceListeners
-    .get(
-      normalizedEvent
-    );
-
   if(
-    listeners
+    !listeners
   ){
 
-    removed =
-    listeners.delete(
-      listener
-    ) || removed;
-
-    if(
-      listeners.size <= 0
-    ){
-
-      memoryEventsState
-      .listeners
-      .delete(
-        normalizedEvent
-      );
-
-    }
+    return false;
 
   }
 
+  const removed =
+  removeListener(
+    listeners
+  );
+
   if(
-    onceListeners
+    listeners.size <= 0
   ){
 
-    removed =
-    onceListeners.delete(
-      listener
-    ) || removed;
-
-    if(
-      onceListeners.size <= 0
-    ){
-
-      memoryEventsState
-      .onceListeners
-      .delete(
-        normalizedEvent
-      );
-
-    }
+    memoryEventsState
+    .listeners
+    .delete(
+      normalizedEvent
+    );
 
   }
 
@@ -843,7 +662,11 @@ async function executeEventListener(
     await Promise.race([
 
       Promise.resolve(
-        listener(event)
+
+        listener.callback(
+          event
+        )
+
       ),
 
       timeoutPromise
@@ -859,15 +682,12 @@ async function executeEventListener(
     memoryEventsState
     .failedEvents++;
 
-    if(
-      memoryState?.runtime
-    ){
-
+    memoryState
+    ?.runtime &&
+    (
       memoryState.runtime
-      .lastError =
-      error;
-
-    }
+      .lastError = error
+    );
 
     return false;
 
@@ -875,7 +695,9 @@ async function executeEventListener(
 
   finally{
 
-    if(timeoutId){
+    if(
+      timeoutId
+    ){
 
       clearTimeout(
         timeoutId
@@ -890,7 +712,7 @@ async function executeEventListener(
 
 
 // =====================================
-// EMIT EVENT
+// EMIT
 // =====================================
 
 async function emitMemoryEvent(
@@ -908,12 +730,28 @@ async function emitMemoryEvent(
   ){
 
     return false;
+
+  }
+
+  if(
+    !validateEventPayload(
+      payload
+    )
+  ){
+
+    return false;
+
   }
 
   const currentDepth =
-  getEventDepth(
-    normalizedEvent
-  );
+
+    memoryEventsState
+    .eventDepth
+    .get(
+      normalizedEvent
+    )
+
+    || 0;
 
   if(
 
@@ -931,76 +769,34 @@ async function emitMemoryEvent(
 
   }
 
-  if(
-    !validateEventPayload(
-      payload
-    )
-  ){
-
-    memoryEventsState
-    .failedEvents++;
-
-    return false;
-
-  }
-
   const event =
   createMemoryEvent(
+
     normalizedEvent,
     payload
+
+  );
+
+  const listeners =
+  getEventListeners(
+    normalizedEvent
   );
 
   memoryEventsState
   .activeEmits++;
 
-  incrementEventDepth(
-    normalizedEvent
-  );
-
   memoryEventsState
-  .activeEventStack
+  .activeStack
   .push(
     normalizedEvent
   );
 
+  updateEventDepth(
+    normalizedEvent,
+    "increment"
+  );
+
   try{
-
-    const listeners = [
-
-      ...(memoryEventsState
-      .listeners
-      .get(
-        normalizedEvent
-      )
-
-      ||
-
-      [])
-
-    ];
-
-    const onceListeners = [
-
-      ...(memoryEventsState
-      .onceListeners
-      .get(
-        normalizedEvent
-      )
-
-      ||
-
-      [])
-
-    ];
-
-    const wildcardListeners = [
-
-      ...memoryEventsState
-      .wildcardListeners
-
-    ];
-
-
 
     await Promise.allSettled(
 
@@ -1015,49 +811,23 @@ async function emitMemoryEvent(
 
     );
 
+    listeners.forEach((listener) => {
 
+      if(
+        listener.once === true
+      ){
 
-    await Promise.allSettled(
+        unsubscribeMemoryEvent(
 
-      onceListeners.map((listener) => {
+          normalizedEvent,
 
-        return executeEventListener(
-          listener,
-          event
+          listener.callback
+
         );
 
-      })
+      }
 
-    );
-
-
-
-    await Promise.allSettled(
-
-      wildcardListeners.map((listener) => {
-
-        return executeEventListener(
-          listener,
-          event
-        );
-
-      })
-
-    );
-
-
-
-    if(
-      onceListeners.length > 0
-    ){
-
-      memoryEventsState
-      .onceListeners
-      .delete(
-        normalizedEvent
-      );
-
-    }
+    });
 
     memoryEventsState
     .totalEvents++;
@@ -1079,15 +849,12 @@ async function emitMemoryEvent(
     memoryEventsState
     .failedEvents++;
 
-    if(
-      memoryState?.runtime
-    ){
-
+    memoryState
+    ?.runtime &&
+    (
       memoryState.runtime
-      .lastError =
-      error;
-
-    }
+      .lastError = error
+    );
 
     return false;
 
@@ -1095,44 +862,26 @@ async function emitMemoryEvent(
 
   finally{
 
-    decrementEventDepth(
-      normalizedEvent
+    updateEventDepth(
+      normalizedEvent,
+      "decrement"
     );
 
     memoryEventsState
-    .activeEventStack =
-
-      memoryEventsState
-      .activeEventStack
-      .filter((item,index,array) => {
-
-        return !(
-
-          item === normalizedEvent
-
-          &&
-
-          index ===
-
-          array.lastIndexOf(
-            normalizedEvent
-          )
-
-        );
-
-      });
+    .activeStack
+    .pop();
 
     memoryEventsState
     .activeEmits =
 
-    Math.max(
+      Math.max(
 
-      0,
+        0,
 
-      memoryEventsState
-      .activeEmits - 1
+        memoryEventsState
+        .activeEmits - 1
 
-    );
+      );
 
   }
 
@@ -1141,7 +890,7 @@ async function emitMemoryEvent(
 
 
 // =====================================
-// CLEAR HISTORY
+// CLEANUP
 // =====================================
 
 function clearMemoryEventHistory(){
@@ -1156,10 +905,6 @@ function clearMemoryEventHistory(){
 
 
 
-// =====================================
-// CLEAR LISTENERS
-// =====================================
-
 function clearMemoryEventListeners(){
 
   memoryEventsState
@@ -1167,23 +912,27 @@ function clearMemoryEventListeners(){
   .clear();
 
   memoryEventsState
-  .onceListeners
-  .clear();
-
-  memoryEventsState
   .wildcardListeners
   .clear();
 
   memoryEventsState
-  .eventDepthMap
+  .eventDepth
   .clear();
 
   memoryEventsState
-  .activeEventStack =
+  .activeStack =
   [];
 
   memoryEventsState
   .activeEmits = 0;
+
+  return true;
+
+}
+
+
+
+function resetMemoryEventDiagnostics(){
 
   memoryEventsState
   .totalEvents = 0;
@@ -1200,23 +949,31 @@ function clearMemoryEventListeners(){
 
 
 
+function destroyMemoryEventBus(){
+
+  clearMemoryEventListeners();
+
+  clearMemoryEventHistory();
+
+  resetMemoryEventDiagnostics();
+
+  return true;
+
+}
+
+
+
 // =====================================
 // DIAGNOSTICS
 // =====================================
 
 function getMemoryEventDiagnostics(){
 
-  const listenerCounts = {};
-
   let activeListeners = 0;
 
   memoryEventsState
   .listeners
-  .forEach((listeners,eventName) => {
-
-    listenerCounts[
-      eventName
-    ] = listeners.size;
+  .forEach((listeners) => {
 
     activeListeners +=
     listeners.size;
@@ -1241,17 +998,18 @@ function getMemoryEventDiagnostics(){
       .listeners
       .size,
 
-    onceEvents:
-
-      memoryEventsState
-      .onceListeners
-      .size,
-
     wildcardListeners:
 
       memoryEventsState
       .wildcardListeners
       .size,
+
+    activeListeners,
+
+    activeEmits:
+
+      memoryEventsState
+      .activeEmits,
 
     historySize:
 
@@ -1259,26 +1017,99 @@ function getMemoryEventDiagnostics(){
       .eventHistory
       .length,
 
-    activeEmits:
-
-      memoryEventsState
-      .activeEmits,
-
-    activeListeners,
-
-    activeEventStack:[
+    activeStack:[
       ...memoryEventsState
-      .activeEventStack
+      .activeStack
     ],
 
     lastEventAt:
 
       memoryEventsState
-      .lastEventAt,
-
-    listeners:
-    listenerCounts
+      .lastEventAt
 
   };
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryEvents =
+Object.freeze({
+
+  on:
+  subscribeMemoryEvent,
+
+  once:
+  onceMemoryEvent,
+
+  off:
+  unsubscribeMemoryEvent,
+
+  emit:
+  emitMemoryEvent,
+
+  hasListeners:
+  hasEventListeners,
+
+  clear:
+  clearMemoryEventListeners,
+
+  clearHistory:
+  clearMemoryEventHistory,
+
+  resetDiagnostics:
+  resetMemoryEventDiagnostics,
+
+  destroy:
+  destroyMemoryEventBus,
+
+  diagnostics:
+  getMemoryEventDiagnostics,
+
+  types:
+  MEMORY_EVENT_TYPES
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  MEMORY_EVENT_TYPES,
+
+  subscribeMemoryEvent,
+
+  onceMemoryEvent,
+
+  unsubscribeMemoryEvent,
+
+  emitMemoryEvent,
+
+  hasEventListeners,
+
+  clearMemoryEventListeners,
+
+  clearMemoryEventHistory,
+
+  resetMemoryEventDiagnostics,
+
+  destroyMemoryEventBus,
+
+  getMemoryEventDiagnostics,
+
+  MemoryEvents
+
+};
+
+
+
+export default
+MemoryEvents;
