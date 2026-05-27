@@ -1,7 +1,8 @@
 // =====================================
 // RIGO AI
 // DEPENDENCY INDEX
-// SAFE DEPENDENCY COMPOSITION LAYER
+// LEGACY COMPATIBILITY LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -15,10 +16,10 @@ import "./dependency-system.js";
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
-function getDependencyContainer(){
+function getContainer(){
 
   try{
 
@@ -31,24 +32,21 @@ function getDependencyContainer(){
 
     }
 
-    if(
-      typeof window.Container ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    return window.Container;
+    return (
+      window.RIGOContainer ||
+      null
+    );
 
   }
 
   catch(error){
 
     console.warn(
+
       "[DependencySystem] Failed resolving container",
+
       error
+
     );
 
     return null;
@@ -61,15 +59,17 @@ function getDependencyContainer(){
 
 function isFunction(value){
 
-  return typeof value ===
-  "function";
+  return (
+    typeof value ===
+    "function"
+  );
 
 }
 
 
 
 // =====================================
-// DEPENDENCY API
+// LEGACY ADAPTER API
 // =====================================
 
 const DependencySystem =
@@ -77,18 +77,26 @@ Object.freeze({
 
 
 
+  // ===================================
+  // CONTAINER ACCESS
+  // ===================================
+
   container(){
 
-    return getDependencyContainer();
+    return getContainer();
 
   },
 
 
 
+  // ===================================
+  // RESOLUTION
+  // ===================================
+
   resolve(key){
 
     const container =
-      getDependencyContainer();
+      getContainer();
 
     if(
       !container
@@ -116,10 +124,14 @@ Object.freeze({
 
 
 
+  // ===================================
+  // REGISTRATION
+  // ===================================
+
   register(...args){
 
     const container =
-      getDependencyContainer();
+      getContainer();
 
     if(
       !container
@@ -147,10 +159,14 @@ Object.freeze({
 
 
 
+  // ===================================
+  // DIAGNOSTICS
+  // ===================================
+
   diagnostics(){
 
     const container =
-      getDependencyContainer();
+      getContainer();
 
     if(
       !container
@@ -179,7 +195,7 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
