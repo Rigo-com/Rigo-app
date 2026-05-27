@@ -8,6 +8,35 @@
 
 
 // =====================================
+// REQUIRED MODULES
+// =====================================
+
+const REQUIRED_SECURITY_MODULES =
+Object.freeze([
+
+  "Core",
+
+  "Freeze",
+
+  "Monitor",
+
+  "Policy",
+
+  "Runtime",
+
+  "Sandbox",
+
+  "Sanitize",
+
+  "URL",
+
+  "Validator"
+
+]);
+
+
+
+// =====================================
 // SAFE MODULE ACCESS
 // =====================================
 
@@ -38,168 +67,91 @@ function resolveSecurityModule(
 // SECURITY MODULE REGISTRY
 // =====================================
 
-const SECURITY_MODULES =
-Object.freeze({
+function getSecurityModules(){
 
-  Core:
-  resolveSecurityModule(
-    typeof SecurityCore !==
-    "undefined"
+  return Object.freeze({
 
-    ?
+    Core:
+    resolveSecurityModule(
+      globalThis
+      .SecurityCore
+    ),
 
-    SecurityCore
 
-    :
 
-    undefined
-  ),
+    Freeze:
+    resolveSecurityModule(
+      globalThis
+      .SecurityFreeze
+    ),
 
 
 
-  Freeze:
-  resolveSecurityModule(
-    typeof SecurityFreeze !==
-    "undefined"
+    Monitor:
+    resolveSecurityModule(
+      globalThis
+      .SecurityMonitor
+    ),
 
-    ?
 
-    SecurityFreeze
 
-    :
+    Policy:
+    resolveSecurityModule(
+      globalThis
+      .SecurityPolicy
+    ),
 
-    undefined
-  ),
 
 
+    Report:
+    resolveSecurityModule(
+      globalThis
+      .SecurityReport
+    ),
 
-  Monitor:
-  resolveSecurityModule(
-    typeof SecurityMonitor !==
-    "undefined"
 
-    ?
 
-    SecurityMonitor
+    Runtime:
+    resolveSecurityModule(
+      globalThis
+      .SecurityRuntime
+    ),
 
-    :
 
-    undefined
-  ),
 
+    Sandbox:
+    resolveSecurityModule(
+      globalThis
+      .SecuritySandbox
+    ),
 
 
-  Policy:
-  resolveSecurityModule(
-    typeof SecurityPolicy !==
-    "undefined"
 
-    ?
+    Sanitize:
+    resolveSecurityModule(
+      globalThis
+      .SecuritySanitize
+    ),
 
-    SecurityPolicy
 
-    :
 
-    undefined
-  ),
+    URL:
+    resolveSecurityModule(
+      globalThis
+      .SecurityURL
+    ),
 
 
 
-  Report:
-  resolveSecurityModule(
-    typeof SecurityReport !==
-    "undefined"
+    Validator:
+    resolveSecurityModule(
+      globalThis
+      .SecurityValidator
+    )
 
-    ?
+  });
 
-    SecurityReport
-
-    :
-
-    undefined
-  ),
-
-
-
-  Runtime:
-  resolveSecurityModule(
-    typeof SecurityRuntime !==
-    "undefined"
-
-    ?
-
-    SecurityRuntime
-
-    :
-
-    undefined
-  ),
-
-
-
-  Sandbox:
-  resolveSecurityModule(
-    typeof SecuritySandbox !==
-    "undefined"
-
-    ?
-
-    SecuritySandbox
-
-    :
-
-    undefined
-  ),
-
-
-
-  Sanitize:
-  resolveSecurityModule(
-    typeof SecuritySanitize !==
-    "undefined"
-
-    ?
-
-    SecuritySanitize
-
-    :
-
-    undefined
-  ),
-
-
-
-  URL:
-  resolveSecurityModule(
-    typeof SecurityURL !==
-    "undefined"
-
-    ?
-
-    SecurityURL
-
-    :
-
-    undefined
-  ),
-
-
-
-  Validator:
-  resolveSecurityModule(
-    typeof SecurityValidator !==
-    "undefined"
-
-    ?
-
-    SecurityValidator
-
-    :
-
-    undefined
-  )
-
-});
+}
 
 
 
@@ -259,17 +211,51 @@ function logSecurityIndexEvent(
       return;
     }
 
-    console.info(
-      "[RIGO SECURITY]",
-      message,
-      metadata || ""
-    );
+    if(
+      typeof console !==
+      "undefined"
+
+      &&
+
+      typeof console.info ===
+      "function"
+    ){
+
+      console.info(
+
+        "[RIGO SECURITY]",
+
+        message,
+
+        metadata || ""
+
+      );
+
+    }
 
   }
 
   catch(error){
 
-    console.error(error);
+    try{
+
+      if(
+        typeof console !==
+        "undefined"
+
+        &&
+
+        typeof console.error ===
+        "function"
+      ){
+
+        console.error(error);
+
+      }
+
+    }
+
+    catch(innerError){}
 
   }
 
@@ -283,6 +269,9 @@ function logSecurityIndexEvent(
 
 function validateSecurityModules(){
 
+  const modules =
+  getSecurityModules();
+
   securityIndexState
   .failedModules
   .clear();
@@ -295,11 +284,26 @@ function validateSecurityModules(){
   true;
 
   Object.entries(
-    SECURITY_MODULES
+    modules
   )
   .forEach(([name,module]) => {
 
-    if(!module){
+    if(module){
+
+      securityIndexState
+      .loadedModules
+      .add(name);
+
+      return;
+
+    }
+
+    if(
+
+      REQUIRED_SECURITY_MODULES
+      .includes(name)
+
+    ){
 
       securityIndexState
       .failedModules
@@ -307,13 +311,7 @@ function validateSecurityModules(){
 
       valid = false;
 
-      return;
-
     }
-
-    securityIndexState
-    .loadedModules
-    .add(name);
 
   });
 
@@ -379,14 +377,17 @@ async function initializeSecurityIndex(){
 
       }
 
+      const modules =
+      getSecurityModules();
+
       if(
 
-        SECURITY_MODULES
+        modules
         .Runtime
 
         &&
 
-        typeof SECURITY_MODULES
+        typeof modules
         .Runtime
         .initialize ===
         "function"
@@ -394,7 +395,7 @@ async function initializeSecurityIndex(){
       ){
 
         const initialized =
-        await SECURITY_MODULES
+        await modules
         .Runtime
         .initialize();
 
@@ -421,7 +422,7 @@ async function initializeSecurityIndex(){
       Date.now();
 
       logSecurityIndexEvent(
-        "SECURITY INDEX READY"
+        "SECURITY_INDEX_READY"
       );
 
       return true;
@@ -432,7 +433,7 @@ async function initializeSecurityIndex(){
 
       logSecurityIndexEvent(
 
-        "SECURITY INDEX FAILED",
+        "SECURITY_INDEX_FAILED",
 
         {
 
@@ -478,21 +479,24 @@ function runSecurityIndexHealthcheck(){
   .lastHealthcheckAt =
   Date.now();
 
+  const modules =
+  getSecurityModules();
+
   const runtimeHealthy =
 
-    SECURITY_MODULES
+    modules
     .Runtime
 
     &&
 
-    typeof SECURITY_MODULES
+    typeof modules
     .Runtime
     .healthcheck ===
     "function"
 
     ?
 
-    SECURITY_MODULES
+    modules
     .Runtime
     .healthcheck()
 
@@ -555,9 +559,12 @@ function getSecurityModule(
 
   }
 
+  const modules =
+  getSecurityModules();
+
   return (
 
-    SECURITY_MODULES[
+    modules[
       normalized
     ]
 
@@ -628,8 +635,11 @@ function getSecurityIndexDiagnostics(){
 const Security =
 Object.freeze({
 
-  modules:
-  SECURITY_MODULES,
+  get modules(){
+
+    return getSecurityModules();
+
+  },
 
 
 
@@ -653,65 +663,127 @@ Object.freeze({
 
 
 
-  core:
-  SECURITY_MODULES
-  .Core,
+  get core(){
+
+    return getSecurityModules()
+    .Core;
+
+  },
 
 
 
-  freeze:
-  SECURITY_MODULES
-  .Freeze,
+  get freeze(){
+
+    return getSecurityModules()
+    .Freeze;
+
+  },
 
 
 
-  monitor:
-  SECURITY_MODULES
-  .Monitor,
+  get monitor(){
+
+    return getSecurityModules()
+    .Monitor;
+
+  },
 
 
 
-  policy:
-  SECURITY_MODULES
-  .Policy,
+  get policy(){
+
+    return getSecurityModules()
+    .Policy;
+
+  },
 
 
 
-  report:
-  SECURITY_MODULES
-  .Report,
+  get report(){
+
+    return getSecurityModules()
+    .Report;
+
+  },
 
 
 
-  runtime:
-  SECURITY_MODULES
-  .Runtime,
+  get runtime(){
+
+    return getSecurityModules()
+    .Runtime;
+
+  },
 
 
 
-  sandbox:
-  SECURITY_MODULES
-  .Sandbox,
+  get sandbox(){
+
+    return getSecurityModules()
+    .Sandbox;
+
+  },
 
 
 
-  sanitize:
-  SECURITY_MODULES
-  .Sanitize,
+  get sanitize(){
+
+    return getSecurityModules()
+    .Sanitize;
+
+  },
 
 
 
-  url:
-  SECURITY_MODULES
-  .URL,
+  get url(){
+
+    return getSecurityModules()
+    .URL;
+
+  },
 
 
 
-  validator:
-  SECURITY_MODULES
-  .Validator
+  get validator(){
+
+    return getSecurityModules()
+    .Validator;
+
+  }
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  REQUIRED_SECURITY_MODULES,
+
+  securityIndexState,
+
+  resolveSecurityModule,
+
+  getSecurityModules,
+
+  logSecurityIndexEvent,
+
+  validateSecurityModules,
+
+  initializeSecurityIndex,
+
+  runSecurityIndexHealthcheck,
+
+  getSecurityModule,
+
+  getSecurityIndexDiagnostics,
+
+  Security
+
+};
 
 
 
@@ -720,13 +792,13 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "Security",
 
