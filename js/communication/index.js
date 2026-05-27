@@ -6,506 +6,52 @@
 
 
 // =====================================
-// DEPENDENCY CHECK
+// VALIDATION
 // =====================================
 
-const COMMUNICATION_REQUIRED_MODULES =
+function validateCommunicationLayer(){
 
-Object.freeze([
+  return (
 
-  "COMMUNICATION_RUNTIME_CONFIG",
-  "COMMUNICATION_RUNTIME_STATES",
-  "COMMUNICATION_RUNTIME_EVENTS",
-  "communicationRuntimeState",
+    typeof CommunicationCore !==
+    "undefined"
 
-  "safeCommunicationClone",
-  "createMessageHash",
-  "cleanupProcessedHashes",
-  "trimConversationHistory",
-  "emitCommunicationEvent",
-  "freezeCommunicationObject",
-  "validateCommunicationMessage",
+    &&
 
-  "persistCommunicationState",
-  "restoreCommunicationState",
-  "clearCommunicationStorage",
+    typeof CommunicationQueue !==
+    "undefined"
 
-  "enqueueCommunicationMessage",
-  "processCommunicationQueue",
+    &&
 
-  "startCommunicationStream",
-  "stopCommunicationStream",
+    typeof CommunicationStream !==
+    "undefined"
 
-  "startTypingIndicator",
-  "stopTypingIndicator",
+    &&
 
-  "abortCommunicationMessage",
-  "abortAllCommunicationMessages",
+    typeof CommunicationTyping !==
+    "undefined"
 
-  "monitorCommunicationHealth",
-  "recoverCommunicationRuntime"
+    &&
 
-]);
+    typeof CommunicationStorage !==
+    "undefined"
 
+    &&
 
+    typeof CommunicationAbort !==
+    "undefined"
 
-// =====================================
-// CHECK MODULES
-// =====================================
+    &&
 
-function validateCommunicationModules(){
+    typeof CommunicationHelpers !==
+    "undefined"
 
-  const missingModules =
+    &&
 
-    COMMUNICATION_REQUIRED_MODULES
-    .filter((moduleName) => {
-
-      return (
-        typeof globalThis[
-          moduleName
-        ] ===
-        "undefined"
-      );
-
-    });
-
-  if(
-    missingModules.length > 0
-  ){
-
-    if(
-      COMMUNICATION_RUNTIME_CONFIG
-      .DEBUG
-    ){
-
-      console.error(
-
-        "COMMUNICATION_MODULES_MISSING:",
-
-        missingModules
-
-      );
-
-    }
-
-    return false;
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// STATUS
-// =====================================
-
-function getCommunicationRuntimeStatus(){
-
-  return freezeCommunicationObject({
-
-    initialized:
-
-      communicationRuntimeState
-      .initialized,
-
-    destroyed:
-
-      communicationRuntimeState
-      .destroyed,
-
-    processing:
-
-      communicationRuntimeState
-      .processing,
-
-    streaming:
-
-      communicationRuntimeState
-      .streaming,
-
-    typing:
-
-      communicationRuntimeState
-      .typing,
-
-    recovering:
-
-      communicationRuntimeState
-      .recovering,
-
-    state:
-
-      communicationRuntimeState
-      .state,
-
-    queuedMessages:
-
-      communicationRuntimeState
-      .messageQueue
-      .length,
-
-    activeStreams:
-
-      communicationRuntimeState
-      .activeStreams
-      .size,
-
-    activeRequests:
-
-      communicationRuntimeState
-      .activeRequests
-      .size,
-
-    conversations:
-
-      communicationRuntimeState
-      .conversations
-      .size,
-
-    lastMessageAt:
-
-      communicationRuntimeState
-      .lastMessageAt,
-
-    diagnostics:
-
-      safeCommunicationClone(
-
-        communicationRuntimeState
-        .diagnostics
-
-      )
-
-  });
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-async function resetCommunicationRuntime(){
-
-  await stopTypingIndicator();
-
-  abortAllCommunicationMessages();
-
-  communicationRuntimeState
-  .messageQueue = [];
-
-  communicationRuntimeState
-  .activeStreams
-  .clear();
-
-  communicationRuntimeState
-  .activeRequests
-  .clear();
-
-  communicationRuntimeState
-  .abortControllers
-  .clear();
-
-  communicationRuntimeState
-  .processedHashes
-  .clear();
-
-  communicationRuntimeState
-  .conversations
-  .clear();
-
-  clearCommunicationStorage();
-
-  if(
-
-    communicationRuntimeState
-    .runtimeRecoveryUnsubscribe
-
-  ){
-
-    try{
-
-      communicationRuntimeState
-      .runtimeRecoveryUnsubscribe();
-
-    }
-
-    catch(error){
-
-    }
-
-    communicationRuntimeState
-    .runtimeRecoveryUnsubscribe =
-    null;
-
-  }
-
-  if(
-    communicationRuntimeState
-    .healthTimer
-  ){
-
-    clearInterval(
-
-      communicationRuntimeState
-      .healthTimer
-
-    );
-
-    communicationRuntimeState
-    .healthTimer =
-    null;
-
-  }
-
-  communicationRuntimeState
-  .initialized =
-  false;
-
-  communicationRuntimeState
-  .destroyed =
-  false;
-
-  communicationRuntimeState
-  .processing =
-  false;
-
-  communicationRuntimeState
-  .streaming =
-  false;
-
-  communicationRuntimeState
-  .typing =
-  false;
-
-  communicationRuntimeState
-  .recovering =
-  false;
-
-  communicationRuntimeState
-  .lastMessageAt =
-  null;
-
-  communicationRuntimeState
-  .diagnostics
-  .initialized = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .sent = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .received = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .failed = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .queued = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .streams = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .retries = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .recoveries = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .timeouts = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .aborted = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .duplicatesPrevented = 0;
-
-  communicationRuntimeState
-  .diagnostics
-  .recoveredQueues = 0;
-
-  setCommunicationState(
-
-    COMMUNICATION_RUNTIME_STATES
-    .IDLE
+    typeof CommunicationHealth !==
+    "undefined"
 
   );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-async function initializeCommunicationRuntime(){
-
-  if(
-    communicationRuntimeState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  if(
-    !validateCommunicationModules()
-  ){
-
-    return false;
-
-  }
-
-  setCommunicationState(
-
-    COMMUNICATION_RUNTIME_STATES
-    .INITIALIZING
-
-  );
-
-  try{
-
-    restoreCommunicationState();
-
-    if(
-
-      COMMUNICATION_RUNTIME_CONFIG
-      .ENABLE_HEALTH_MONITORING
-
-    ){
-
-      if(
-        !communicationRuntimeState
-        .healthTimer
-      ){
-
-        communicationRuntimeState
-        .healthTimer =
-
-        setInterval(() => {
-
-          monitorCommunicationHealth();
-
-        },
-
-        COMMUNICATION_RUNTIME_CONFIG
-        .HEALTH_INTERVAL);
-
-      }
-
-    }
-
-    communicationRuntimeState
-    .initialized =
-    true;
-
-    communicationRuntimeState
-    .diagnostics
-    .initialized++;
-
-    setCommunicationState(
-
-      COMMUNICATION_RUNTIME_STATES
-      .READY
-
-    );
-
-    await emitCommunicationEvent(
-
-      COMMUNICATION_RUNTIME_EVENTS
-      .INITIALIZED
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    if(
-      COMMUNICATION_RUNTIME_CONFIG
-      .DEBUG
-    ){
-
-      console.error(
-        "COMMUNICATION_INITIALIZE_ERROR:",
-        error
-      );
-
-    }
-
-    setCommunicationState(
-
-      COMMUNICATION_RUNTIME_STATES
-      .FAILED
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// DESTROY
-// =====================================
-
-async function destroyCommunicationRuntime(){
-
-  if(
-    communicationRuntimeState
-    .healthTimer
-  ){
-
-    clearInterval(
-
-      communicationRuntimeState
-      .healthTimer
-
-    );
-
-    communicationRuntimeState
-    .healthTimer =
-    null;
-
-  }
-
-  await resetCommunicationRuntime();
-
-  communicationRuntimeState
-  .destroyed =
-  true;
-
-  setCommunicationState(
-
-    COMMUNICATION_RUNTIME_STATES
-    .DESTROYED
-
-  );
-
-  return true;
 
 }
 
@@ -515,39 +61,59 @@ async function destroyCommunicationRuntime(){
 // PUBLIC API
 // =====================================
 
-const CommunicationRuntime =
+const Communication =
 Object.freeze({
 
-  initialize:
-  initializeCommunicationRuntime,
+  core:
+  CommunicationCore,
 
-  send:
-  sendCommunicationMessage,
+  queue:
+  CommunicationQueue,
+
+  stream:
+  CommunicationStream,
+
+  typing:
+  CommunicationTyping,
+
+  storage:
+  CommunicationStorage,
 
   abort:
-  abortCommunicationMessage,
+  CommunicationAbort,
 
-  abortAll:
-  abortAllCommunicationMessages,
+  helpers:
+  CommunicationHelpers,
 
-  recover:
-  recoverCommunicationRuntime,
-
-  status:
-  getCommunicationRuntimeStatus,
-
-  reset:
-  resetCommunicationRuntime,
-
-  destroy:
-  destroyCommunicationRuntime
+  health:
+  CommunicationHealth
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORT
+// SAFE ACCESS
+// =====================================
+
+function getCommunicationLayer(){
+
+  if(
+    !validateCommunicationLayer()
+  ){
+
+    return null;
+
+  }
+
+  return Communication;
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
 // =====================================
 
 if(
@@ -555,7 +121,25 @@ if(
   "undefined"
 ){
 
-  window.CommunicationRuntime =
-  CommunicationRuntime;
+  window.Communication =
+  Communication;
+
+  window.getCommunicationLayer =
+  getCommunicationLayer;
+
+  window.validateCommunicationLayer =
+  validateCommunicationLayer;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.Communication =
+  Communication;
 
 }
