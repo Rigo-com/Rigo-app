@@ -2,6 +2,7 @@
 // RIGO AI
 // CONTAINER INDEX
 // CLEAN CONTAINER COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -11,17 +12,17 @@
 // =====================================
 
 import "./container-constants.js";
-import "./container-health.js";
-import "./container-registry.js";
-import "./container-resolution.js";
 import "./container-scopes.js";
 import "./container-state.js";
+import "./container-registry.js";
+import "./container-resolution.js";
+import "./container-health.js";
 import "./container.js";
 
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
 function emitContainerWarning(
@@ -30,8 +31,11 @@ function emitContainerWarning(
 ){
 
   console.warn(
+
     `[ContainerIndex] ${message}`,
+
     error || ""
+
   );
 
 }
@@ -57,7 +61,7 @@ function validateContainerLayer(){
 
     const requiredSystems = [
 
-      "Container"
+      "RIGOContainer"
 
     ];
 
@@ -72,7 +76,9 @@ function validateContainerLayer(){
 
       });
 
-    if(missingSystems.length > 0){
+    if(
+      missingSystems.length > 0
+    ){
 
       emitContainerWarning(
 
@@ -110,11 +116,22 @@ function validateContainerLayer(){
 const ContainerAPI =
 Object.freeze({
 
-  container:
-  window.Container,
+
 
   validate:
-  validateContainerLayer
+  validateContainerLayer,
+
+
+
+  // ===================================
+  // SAFE ACCESSOR
+  // ===================================
+
+  get container(){
+
+    return window.RIGOContainer;
+
+  }
 
 });
 
