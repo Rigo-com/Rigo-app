@@ -2,7 +2,7 @@
 // RIGO AI
 // MODULES INDEX
 // CLEAN COMPOSITION LAYER
-// ENTERPRISE FINAL
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -11,13 +11,13 @@
 // MODULE FILES
 // =====================================
 
-import "./module-activation.js";
 import "./module-constants.js";
-import "./module-health.js";
-import "./module-kernel.js";
-import "./module-loader.js";
 import "./module-registry.js";
 import "./module-runtime.js";
+import "./module-health.js";
+import "./module-loader.js";
+import "./module-activation.js";
+import "./module-kernel.js";
 
 
 
@@ -47,15 +47,17 @@ Object.seal({
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
 function isFunction(
   value
 ){
 
-  return typeof value ===
-  "function";
+  return (
+    typeof value ===
+    "function"
+  );
 
 }
 
@@ -154,9 +156,13 @@ function safeFreeze(
 
   }
 
-  visited.add(value);
+  visited.add(
+    value
+  );
 
-  Object.freeze(value);
+  Object.freeze(
+    value
+  );
 
   Object.values(value)
   .forEach((nestedValue) => {
@@ -302,7 +308,7 @@ async function emitModulesIndexEvent(
 
 
 // =====================================
-// DEPENDENCY VALIDATION
+// VALIDATION
 // =====================================
 
 function validateModulesLayer(){
@@ -318,19 +324,13 @@ function validateModulesLayer(){
 
   const requiredSystems = [
 
-    "ModuleConstants",
-
-    "ModuleRegistry",
-
-    "ModuleRuntime",
-
-    "ModuleHealth",
-
-    "ModuleLoader",
-
-    "ModuleKernel",
-
-    "ModuleActivation"
+    "RIGOModuleConstants",
+    "RIGOModuleRegistry",
+    "RIGOModuleRuntime",
+    "RIGOModuleHealth",
+    "RIGOModuleLoader",
+    "RIGOModuleKernel",
+    "RIGOModuleActivation"
 
   ];
 
@@ -371,7 +371,7 @@ function validateModulesLayer(){
 
 
 // =====================================
-// INITIALIZE
+// INITIALIZATION
 // =====================================
 
 async function initializeModulesLayer(){
@@ -422,7 +422,7 @@ async function initializeModulesLayer(){
     }
 
     const kernel =
-    window.ModuleKernel;
+      window.RIGOModuleKernel;
 
     if(
 
@@ -566,7 +566,7 @@ async function bootModulesLayer(){
     }
 
     const kernel =
-    window.ModuleKernel;
+      window.RIGOModuleKernel;
 
     if(
 
@@ -660,7 +660,7 @@ async function getModulesLayerHealth(){
   try{
 
     const kernel =
-    window.ModuleKernel;
+      window.RIGOModuleKernel;
 
     const health =
 
@@ -811,41 +811,84 @@ function createModulesLayerSnapshot(){
 
 
 // =====================================
-// PUBLIC SURFACE
+// PUBLIC API
 // =====================================
 
-const RigoModules =
+const RIGOModules =
 Object.freeze({
 
-  constants:
-  window.ModuleConstants,
 
-  registry:
-  window.ModuleRegistry,
 
-  runtime:
-  window.ModuleRuntime,
+  get constants(){
 
-  health:
-  window.ModuleHealth,
+    return window.RIGOModuleConstants;
 
-  loader:
-  window.ModuleLoader,
+  },
 
-  kernel:
-  window.ModuleKernel,
 
-  activation:
-  window.ModuleActivation,
+
+  get registry(){
+
+    return window.RIGOModuleRegistry;
+
+  },
+
+
+
+  get runtime(){
+
+    return window.RIGOModuleRuntime;
+
+  },
+
+
+
+  get health(){
+
+    return window.RIGOModuleHealth;
+
+  },
+
+
+
+  get loader(){
+
+    return window.RIGOModuleLoader;
+
+  },
+
+
+
+  get kernel(){
+
+    return window.RIGOModuleKernel;
+
+  },
+
+
+
+  get activation(){
+
+    return window.RIGOModuleActivation;
+
+  },
+
+
 
   initialize:
   initializeModulesLayer,
 
+
+
   boot:
   bootModulesLayer,
 
+
+
   healthcheck:
   getModulesLayerHealth,
+
+
 
   snapshot:
   createModulesLayerSnapshot
@@ -867,16 +910,18 @@ if(
 
     window,
 
-    "RigoModules",
+    "RIGOModules",
 
     {
 
       value:
-      RigoModules,
+      RIGOModules,
 
-      writable:false,
+      writable:
+      false,
 
-      configurable:false
+      configurable:
+      false
 
     }
 
