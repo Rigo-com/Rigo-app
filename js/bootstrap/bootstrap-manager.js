@@ -409,33 +409,141 @@ function validateBootstrapSystems(){
 
   const requiredSystems = [
 
-    initializeDiagnosticsSystem,
+    typeof initializeDiagnosticsSystem !==
+    "undefined"
 
-    initializeSystemEvents,
+    ?
+
+    initializeDiagnosticsSystem
+
+    :
+
+    null,
+
+
+
+    typeof initializeSystemEvents !==
+    "undefined"
+
+    ?
+
+    initializeSystemEvents
+
+    :
+
+    null,
+
+
+
+    typeof RuntimeManager !==
+    "undefined"
+
+    ?
 
     RuntimeManager
-    ?.initialize,
+    ?.initialize
+
+    :
+
+    null,
+
+
+
+    typeof AgentManager !==
+    "undefined"
+
+    ?
 
     AgentManager
-    ?.initialize,
+    ?.initialize
+
+    :
+
+    null,
+
+
+
+    typeof ContextManager !==
+    "undefined"
+
+    ?
 
     ContextManager
-    ?.initialize,
+    ?.initialize
+
+    :
+
+    null,
+
+
+
+    typeof ToolExecutor !==
+    "undefined"
+
+    ?
 
     ToolExecutor
-    ?.initialize,
+    ?.initialize
+
+    :
+
+    null,
+
+
+
+    typeof WorkflowEngine !==
+    "undefined"
+
+    ?
 
     WorkflowEngine
-    ?.initialize,
+    ?.initialize
+
+    :
+
+    null,
+
+
+
+    typeof PlannerEngine !==
+    "undefined"
+
+    ?
 
     PlannerEngine
-    ?.initialize,
+    ?.initialize
+
+    :
+
+    null,
+
+
+
+    typeof AIKernel !==
+    "undefined"
+
+    ?
 
     AIKernel
-    ?.initialize,
+    ?.initialize
+
+    :
+
+    null,
+
+
+
+    typeof AIRuntimeBridge !==
+    "undefined"
+
+    ?
 
     AIRuntimeBridge
     ?.initialize
+
+    :
+
+    null
 
   ];
 
@@ -462,70 +570,198 @@ async function initializeBootstrapSystems(){
 
     {
       name:"diagnostics",
+
       initialize:
+
+      typeof initializeDiagnosticsSystem !==
+      "undefined"
+
+      ?
+
       initializeDiagnosticsSystem
+
+      :
+
+      null
     },
+
+
 
     {
       name:"events",
+
       initialize:
+
+      typeof initializeSystemEvents !==
+      "undefined"
+
+      ?
+
       initializeSystemEvents
+
+      :
+
+      null
     },
+
+
 
     {
       name:"runtime",
+
       initialize:
+
+      typeof RuntimeManager !==
+      "undefined"
+
+      ?
+
       RuntimeManager
       ?.initialize
+
+      :
+
+      null
     },
+
+
 
     {
       name:"agents",
+
       initialize:
+
+      typeof AgentManager !==
+      "undefined"
+
+      ?
+
       AgentManager
       ?.initialize
+
+      :
+
+      null
     },
+
+
 
     {
       name:"contexts",
+
       initialize:
+
+      typeof ContextManager !==
+      "undefined"
+
+      ?
+
       ContextManager
       ?.initialize
+
+      :
+
+      null
     },
+
+
 
     {
       name:"tools",
+
       initialize:
+
+      typeof ToolExecutor !==
+      "undefined"
+
+      ?
+
       ToolExecutor
       ?.initialize
+
+      :
+
+      null
     },
+
+
 
     {
       name:"planner",
+
       initialize:
+
+      typeof PlannerEngine !==
+      "undefined"
+
+      ?
+
       PlannerEngine
       ?.initialize
+
+      :
+
+      null
     },
+
+
 
     {
       name:"workflows",
+
       initialize:
+
+      typeof WorkflowEngine !==
+      "undefined"
+
+      ?
+
       WorkflowEngine
       ?.initialize
+
+      :
+
+      null
     },
+
+
 
     {
       name:"kernel",
+
       initialize:
+
+      typeof AIKernel !==
+      "undefined"
+
+      ?
+
       AIKernel
       ?.initialize
+
+      :
+
+      null
     },
+
+
 
     {
       name:"bridge",
+
       initialize:
+
+      typeof AIRuntimeBridge !==
+      "undefined"
+
+      ?
+
       AIRuntimeBridge
       ?.initialize
+
+      :
+
+      null
     }
 
   ];
@@ -620,12 +856,32 @@ async function validateBootHealth(){
   try{
 
     const kernelHealth =
-    AIKernel
-    ?.health?.();
+
+      typeof AIKernel !==
+      "undefined"
+
+      ?
+
+      AIKernel
+      ?.health?.()
+
+      :
+
+      null;
 
     const bridgeHealth =
-    AIRuntimeBridge
-    ?.diagnostics?.();
+
+      typeof AIRuntimeBridge !==
+      "undefined"
+
+      ?
+
+      AIRuntimeBridge
+      ?.diagnostics?.()
+
+      :
+
+      null;
 
     const healthy = (
 
@@ -1314,7 +1570,7 @@ async function resetBootstrapManager(){
 // =====================================
 
 const BootstrapManager =
-Object.freeze({
+freezeBootstrapObject({
 
   boot:
   bootRigoPlatform,
@@ -1345,6 +1601,18 @@ if(
 ){
 
   window.BootstrapManager =
+  BootstrapManager;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.BootstrapManager =
   BootstrapManager;
 
 }
