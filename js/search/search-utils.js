@@ -1,120 +1,23 @@
 // =====================================
 // RIGO AI
 // SEARCH UTILS
-// ENTERPRISE FINAL
+// OPTIMIZED FINAL EDITION
 // =====================================
 
 
 
-function normalizeSearchQuery(
-  query
-){
+// =====================================
+// SEARCH CACHE KEY
+// =====================================
 
-  return normalizeMemoryText(
-    query
-  )
-  .slice(
-
-    0,
-
-    SEARCH_CONFIG
-    .MAX_QUERY_LENGTH
-
-  );
-
-}
-
-
-
-function isValidSearchQuery(
-  query
-){
-
-  return (
-
-    normalizeSearchQuery(
-      query
-    )
-    .length >=
-
-    SEARCH_CONFIG
-    .MIN_QUERY_LENGTH
-
-  );
-
-}
-
-
-
-function clampSearchLimit(
-  limit
-){
-
-  return clampMemoryNumber(
-
-    Number(limit) ||
-
-    SEARCH_CONFIG
-    .DEFAULT_LIMIT,
-
-    1,
-
-    SEARCH_CONFIG
-    .MAX_RESULTS
-
-  );
-
-}
-
-
-
-function normalizeSearchOffset(
-  offset
-){
-
-  return Math.max(
-
-    0,
-
-    Number(offset) || 0
-
-  );
-
-}
-
-
-
-function safeSearchObject(
-  value
-){
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object" ||
-
-    Array.isArray(value)
-
-  ){
-
-    return {};
-  }
-
-  return value;
-
-}
-
-
-
-function createSearchCacheKey(
+async function createSearchCacheKey(
   query,
   options = {}
 ){
 
-  return createMemoryHash(
+  try{
 
+    const payload =
     JSON.stringify({
 
       query:
@@ -122,15 +25,43 @@ function createSearchCacheKey(
         query
       ),
 
-      options
+      options:
+      safeSearchObject(
+        options
+      )
 
-    })
+    });
 
-  );
+    if(
+
+      typeof createMemoryHash ===
+      "function"
+
+    ){
+
+      return await createMemoryHash(
+        payload
+      );
+
+    }
+
+    return payload;
+
+  }
+
+  catch(error){
+
+    return String(query || "");
+
+  }
 
 }
 
 
+
+// =====================================
+// RESULT DEDUPLICATION
+// =====================================
 
 function deduplicateSearchResults(
   results = []
@@ -147,10 +78,13 @@ function deduplicateSearchResults(
     if(!memoryId){
 
       return;
+
     }
 
     const existing =
-    unique.get(memoryId);
+    unique.get(
+      memoryId
+    );
 
     if(
 
@@ -177,3 +111,197 @@ function deduplicateSearchResults(
   ];
 
 }
+
+
+
+// =====================================
+// SORT RESULTS
+// =====================================
+
+function sortSearchResults(
+  results = []
+){
+
+  return [
+
+    ...results
+
+  ]
+
+  .sort((a,b) => {
+
+    return (
+
+      (b?.score || 0)
+
+      -
+
+      (a?.score || 0)
+
+    );
+
+  });
+
+}
+
+
+
+// =====================================
+// LIMIT RESULTS
+// =====================================
+
+function limitSearchResults(
+  results = [],
+  limit =
+  SEARCH_CONFIG
+  .DEFAULT_LIMIT
+){
+
+  return results.slice(
+
+    0,
+
+    normalizeSearchLimit(
+      limit
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// FILTER VALID RESULTS
+// =====================================
+
+function filterValidSearchResults(
+  results = []
+){
+
+  return results.filter((result) => {
+
+    return (
+
+      result &&
+
+      result.memory &&
+
+      result.memory.id
+
+    );
+
+  });
+
+}
+
+
+
+// =====================================
+// PREPARE RESULTS
+// =====================================
+
+function prepareSearchResults(
+  results = [],
+  limit
+){
+
+  return limitSearchResults(
+
+    sortSearchResults(
+
+      deduplicateSearchResults(
+
+        filterValidSearchResults(
+          results
+        )
+
+      )
+
+    ),
+
+    limit
+
+  );
+
+}
+
+
+
+// =====================================
+// SEARCH DIAGNOSTICS
+// =====================================
+
+function getSearchUtilityDiagnostics(){
+
+  return {
+
+    utilities:true,
+
+    timestamp:
+    Date.now()
+
+  };
+
+}
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(typeof globalThis === "object"){
+
+  globalThis.prepareSearchResults =
+  prepareSearchResults;
+
+}
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  createSearchCacheKey,
+
+  deduplicateSearchResults,
+
+  sortSearchResults,
+
+  limitSearchResults,
+
+  filterValidSearchResults,
+
+  prepareSearchResults,
+
+  getSearchUtilityDiagnostics
+
+};
+
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
+export default {
+
+  createSearchCacheKey,
+
+  deduplicateSearchResults,
+
+  sortSearchResults,
+
+  limitSearchResults,
+
+  filterValidSearchResults,
+
+  prepareSearchResults,
+
+  getSearchUtilityDiagnostics
+
+};
