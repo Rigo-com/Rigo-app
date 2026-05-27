@@ -2,29 +2,32 @@
 // RIGO AI
 // APP INDEX
 // CLEAN APPLICATION COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
 
 // =====================================
-// APPLICATION LAYER
+// APPLICATION MODULES
 // =====================================
 
 import "./app-dom.js";
 import "./app-recovery.js";
-import "./application-runtime.js";
 import "./app.js";
+import "./application-runtime.js";
 
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
 function isFunction(value){
 
-  return typeof value ===
-  "function";
+  return (
+    typeof value ===
+    "function"
+  );
 
 }
 
@@ -36,8 +39,11 @@ function emitAppIndexWarning(
 ){
 
   console.warn(
+
     `[AppIndex] ${message}`,
+
     error || ""
+
   );
 
 }
@@ -65,8 +71,8 @@ function validateAppLayer(){
 
       "AppDOM",
       "AppRecovery",
-      "ApplicationRuntime",
-      "RIGOApplication"
+      "RIGOApplication",
+      "ApplicationRuntime"
 
     ];
 
@@ -81,7 +87,9 @@ function validateAppLayer(){
 
       });
 
-    if(missingSystems.length > 0){
+    if(
+      missingSystems.length > 0
+    ){
 
       emitAppIndexWarning(
 
@@ -121,7 +129,8 @@ async function initializeAppLayer(){
   try{
 
     if(
-      !validateAppLayer()
+      typeof window ===
+      "undefined"
     ){
 
       return false;
@@ -129,10 +138,19 @@ async function initializeAppLayer(){
     }
 
     if(
-      window.__RIGO_APP_LAYER_READY__
+      window.__RIGO_APP_LAYER_READY__ ===
+      true
     ){
 
       return true;
+
+    }
+
+    if(
+      !validateAppLayer()
+    ){
+
+      return false;
 
     }
 
@@ -189,17 +207,41 @@ Object.freeze({
   validate:
   validateAppLayer,
 
-  dom:
-  window.AppDOM,
 
-  recovery:
-  window.AppRecovery,
 
-  runtime:
-  window.ApplicationRuntime,
+  // ===================================
+  // SAFE LAZY ACCESSORS
+  // ===================================
 
-  application:
-  window.RIGOApplication
+  get dom(){
+
+    return window.AppDOM;
+
+  },
+
+
+
+  get recovery(){
+
+    return window.AppRecovery;
+
+  },
+
+
+
+  get runtime(){
+
+    return window.ApplicationRuntime;
+
+  },
+
+
+
+  get application(){
+
+    return window.RIGOApplication;
+
+  }
 
 });
 
