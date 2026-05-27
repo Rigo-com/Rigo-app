@@ -1,7 +1,91 @@
 // =====================================
 // RIGO AI
 // AUTH INDEX
+// SAFE AUTH COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// AUTH FILES
+// =====================================
+
+import "./auth-runtime.js";
+
+
+
+// =====================================
+// INTERNAL STATE
+// =====================================
+
+const authIndexState =
+Object.seal({
+
+  initialized:false,
+
+  initializing:false,
+
+  lastInitializedAt:null,
+
+  lastError:null
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isFunction(
+  value
+){
+
+  return typeof value ===
+  "function";
+
+}
+
+
+
+function normalizeAuthError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+function emitAuthWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+
+    `[AuthIndex] ${message}`,
+
+    error || ""
+
+  );
+
+}
 
 
 
@@ -11,9 +95,20 @@
 
 function validateAuthSystems(){
 
+  if(
+    typeof window ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
   return (
 
-    typeof AuthRuntime !==
+    typeof window
+    .RIGOAuthRuntime !==
+
     "undefined"
 
   );
@@ -29,25 +124,85 @@ function validateAuthSystems(){
 async function initializeAuth(){
 
   if(
-    !validateAuthSystems()
+    authIndexState
+    .initialized
+  ){
+
+    return true;
+
+  }
+
+  if(
+    authIndexState
+    .initializing
   ){
 
     return false;
 
   }
 
+  authIndexState
+  .initializing =
+  true;
+
+  authIndexState
+  .lastError =
+  null;
+
   try{
 
     if(
-      typeof AuthRuntime
-      ?.initialize ===
-      "function"
+      !validateAuthSystems()
     ){
 
-      await AuthRuntime
-      .initialize();
+      throw new Error(
+        "AUTH SYSTEM VALIDATION FAILED"
+      );
 
     }
+
+    const runtime =
+    window.RIGOAuthRuntime;
+
+    if(
+
+      runtime &&
+
+      isFunction(
+        runtime.initialize
+      )
+
+    ){
+
+      const initialized =
+      await runtime.initialize();
+
+      if(
+        initialized === false
+      ){
+
+        throw new Error(
+          "AUTH RUNTIME INITIALIZATION FAILED"
+        );
+
+      }
+
+    }
+
+    authIndexState
+    .initialized =
+    true;
+
+    authIndexState
+    .lastInitializedAt =
+    Date.now();
+
+    window.__RIGO_AUTH_READY__ =
+    true;
+
+    console.info(
+      "[AuthIndex] Auth initialized"
+    );
 
     return true;
 
@@ -55,7 +210,26 @@ async function initializeAuth(){
 
   catch(error){
 
+    authIndexState
+    .lastError =
+    normalizeAuthError(
+      error
+    );
+
+    emitAuthWarning(
+      "Initialization failed",
+      error
+    );
+
     return false;
+
+  }
+
+  finally{
+
+    authIndexState
+    .initializing =
+    false;
 
   }
 
@@ -71,14 +245,20 @@ async function resetAuth(){
 
   try{
 
+    const runtime =
+    window.RIGOAuthRuntime;
+
     if(
-      typeof AuthRuntime
-      ?.reset ===
-      "function"
+
+      runtime &&
+
+      isFunction(
+        runtime.reset
+      )
+
     ){
 
-      await AuthRuntime
-      .reset();
+      await runtime.reset();
 
     }
 
@@ -87,6 +267,55 @@ async function resetAuth(){
   }
 
   catch(error){
+
+    emitAuthWarning(
+      "Reset failed",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownAuth(){
+
+  try{
+
+    const runtime =
+    window.RIGOAuthRuntime;
+
+    if(
+
+      runtime &&
+
+      isFunction(
+        runtime.shutdown
+      )
+
+    ){
+
+      await runtime.shutdown();
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    emitAuthWarning(
+      "Shutdown failed",
+      error
+    );
 
     return false;
 
@@ -102,21 +331,29 @@ async function resetAuth(){
 
 function getAuthHealth(){
 
+  const runtime =
+  window.RIGOAuthRuntime;
+
   return Object.freeze({
+
+    initialized:
+    authIndexState
+    .initialized,
 
     valid:
     validateAuthSystems(),
 
     runtime:
 
-      typeof AuthRuntime
-      ?.status ===
-      "function"
+      runtime &&
+
+      isFunction(
+        runtime.status
+      )
 
       ?
 
-      AuthRuntime
-      .status()
+      runtime.status()
 
       :
 
@@ -132,14 +369,62 @@ function getAuthHealth(){
 
 
 // =====================================
-// PUBLIC EXPORTS
+// SNAPSHOT
 // =====================================
 
-const Auth =
+function createAuthSnapshot(){
+
+  const runtime =
+  window.RIGOAuthRuntime;
+
+  return Object.freeze({
+
+    initialized:
+    authIndexState
+    .initialized,
+
+    snapshot:
+
+      runtime &&
+
+      isFunction(
+        runtime.snapshot
+      )
+
+      ?
+
+      runtime.snapshot()
+
+      :
+
+      null,
+
+    lastInitializedAt:
+    authIndexState
+    .lastInitializedAt,
+
+    lastError:
+    authIndexState
+    .lastError,
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const RIGOAuth =
 Object.freeze({
 
   runtime:
-  AuthRuntime,
+  window.RIGOAuthRuntime,
 
   initialize:
   initializeAuth,
@@ -147,15 +432,21 @@ Object.freeze({
   reset:
   resetAuth,
 
+  shutdown:
+  shutdownAuth,
+
   health:
-  getAuthHealth
+  getAuthHealth,
+
+  snapshot:
+  createAuthSnapshot
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -163,19 +454,58 @@ if(
   "undefined"
 ){
 
-  window.Auth =
-  Auth;
+  Object.defineProperty(
+
+    window,
+
+    "RIGOAuth",
+
+    {
+
+      value:
+      RIGOAuth,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
 
 
 
+// =====================================
+// SAFE AUTO INITIALIZATION
+// =====================================
+
 if(
-  typeof globalThis !==
+  typeof window !==
   "undefined"
 ){
 
-  globalThis.Auth =
-  Auth;
+  queueMicrotask(async() => {
+
+    try{
+
+      await initializeAuth();
+
+    }
+
+    catch(error){
+
+      emitAuthWarning(
+
+        "Queued initialization failed",
+
+        error
+
+      );
+
+    }
+
+  });
 
 }
