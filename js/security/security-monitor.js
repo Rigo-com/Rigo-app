@@ -59,11 +59,18 @@ function normalizeSecurityMetadata(
   try{
 
     if(
-      typeof sanitizeObject ===
+      typeof SecuritySanitize ===
+      "object"
+
+      &&
+
+      typeof SecuritySanitize
+      .object ===
       "function"
     ){
 
-      return sanitizeObject(
+      return SecuritySanitize
+      .object(
         metadata
       );
 
@@ -99,10 +106,37 @@ function normalizeSecurityMetadata(
 
 
 // =====================================
+// VALIDATE REQUEST TRACKER
+// =====================================
+
+function validateRequestTracker(){
+
+  return (
+
+    securityState
+    ?.requestTracker
+
+    instanceof Map
+
+  );
+
+}
+
+
+
+// =====================================
 // RATE LIMIT CLEANUP
 // =====================================
 
 function cleanupRateLimitTracker(){
+
+  if(
+    !validateRequestTracker()
+  ){
+
+    return false;
+
+  }
 
   const now =
   Date.now();
@@ -226,6 +260,8 @@ function cleanupRateLimitTracker(){
 
   }
 
+  return true;
+
 }
 
 
@@ -237,6 +273,14 @@ function cleanupRateLimitTracker(){
 function trackSecurityRequest(
   key
 ){
+
+  if(
+    !validateRequestTracker()
+  ){
+
+    return false;
+
+  }
 
   const normalizedKey =
   normalizeSecurityKey(
@@ -322,6 +366,14 @@ function checkRateLimit(
   ){
 
     return true;
+
+  }
+
+  if(
+    !validateRequestTracker()
+  ){
+
+    return false;
 
   }
 
@@ -441,6 +493,14 @@ function getRateLimitStatus(
   key
 ){
 
+  if(
+    !validateRequestTracker()
+  ){
+
+    return null;
+
+  }
+
   const normalizedKey =
   normalizeSecurityKey(
     key
@@ -535,9 +595,56 @@ function getSecurityMetrics(){
 
     trackedRequests:
 
+      validateRequestTracker()
+
+      ?
+
       securityState
       .requestTracker
       .size
+
+      :
+
+      0
+
+  });
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getSecurityMonitorDiagnostics(){
+
+  return Object.freeze({
+
+    initialized:
+    true,
+
+    rateLimiting:
+
+      SECURITY_CONFIG
+      .ENABLE_RATE_LIMITING,
+
+    trackedKeys:
+
+      validateRequestTracker()
+
+      ?
+
+      securityState
+      .requestTracker
+      .size
+
+      :
+
+      0,
+
+    metrics:
+    getSecurityMetrics()
 
   });
 
@@ -575,9 +682,29 @@ function resetSecurityMetrics(){
   .rateLimitHits =
   0;
 
-  securityState
-  .requestTracker
-  .clear();
+  if(
+    validateRequestTracker()
+  ){
+
+    securityState
+    .requestTracker
+    .clear();
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+function initializeSecurityMonitor(){
+
+  cleanupRateLimitTracker();
 
   return true;
 
@@ -591,6 +718,9 @@ function resetSecurityMetrics(){
 
 const SecurityMonitor =
 Object.freeze({
+
+  initialize:
+  initializeSecurityMonitor,
 
   cleanupTracker:
   cleanupRateLimitTracker,
@@ -608,6 +738,9 @@ Object.freeze({
   metrics:
   getSecurityMetrics,
 
+  diagnostics:
+  getSecurityMonitorDiagnostics,
+
   reset:
   resetSecurityMetrics
 
@@ -620,13 +753,13 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityMonitor",
 
@@ -646,3 +779,33 @@ if(
   );
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SecurityMonitor,
+
+  initializeSecurityMonitor,
+
+  cleanupRateLimitTracker,
+
+  trackSecurityRequest,
+
+  checkRateLimit,
+
+  getRateLimitStatus,
+
+  trackSuspiciousActivity,
+
+  getSecurityMetrics,
+
+  getSecurityMonitorDiagnostics,
+
+  resetSecurityMetrics
+
+};
