@@ -1,8 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY MANAGER
-// ENTERPRISE INFINITY FINAL
-// PATCHED + HARDENED
+// FINAL STABILIZED ARCHITECTURE
 // =====================================
 
 
@@ -14,20 +13,8 @@
 const MEMORY_MANAGER_CONFIG =
 Object.freeze({
 
-  MAX_RECOVERY_ATTEMPTS:
-  3,
-
-  TRANSACTION_LOCK_TIMEOUT:
-  30000,
-
-  AUTO_SYNC_INTERVAL:
-  30000,
-
-  AUTO_HEALTHCHECK_INTERVAL:
-  60000,
-
-  AUTO_CLEANUP_INTERVAL:
-  300000
+  TRANSACTION_TIMEOUT:
+  30000
 
 });
 
@@ -48,104 +35,66 @@ Object.seal({
 
   restarting:false,
 
-  maintenanceRunning:false,
-
-  healthcheckRunning:false,
-
-  cleanupTimer:null,
-
-  healthcheckTimer:null,
-
-  syncTimer:null,
-
-  transactionLockStartedAt:null,
-
-  lastHealthCheckAt:null,
-
-  lastCleanupAt:null,
-
-  lastSyncAt:null,
-
-  recoveryAttempts:0
+  transactionStartedAt:null
 
 });
 
 
 
 // =====================================
-// LOCK HELPERS
+// TRANSACTION LOCK
 // =====================================
 
-function cleanupStaleMemoryLock(){
+function cleanupExpiredTransaction(){
 
-  try{
+  if(
+    !isMemoryLocked()
+  ){
 
-    if(
-      typeof isMemoryLocked !==
-      "function"
-    ){
+    return false;
 
-      return false;
+  }
 
-    }
+  const startedAt =
+  memoryManagerState
+  .transactionStartedAt;
 
-    if(
-      !isMemoryLocked()
-    ){
-
-      return false;
-
-    }
-
-    const startedAt =
-
-      memoryManagerState
-      .transactionLockStartedAt;
-
-    if(
-      !Number.isFinite(
-        startedAt
-      )
-    ){
-
-      unlockMemoryState?.();
-
-      return true;
-
-    }
-
-    const expired = (
-
-      Date.now() -
-
+  if(
+    !Number.isFinite(
       startedAt
+    )
+  ){
 
-    ) >
-
-    MEMORY_MANAGER_CONFIG
-    .TRANSACTION_LOCK_TIMEOUT;
-
-    if(!expired){
-
-      return false;
-
-    }
-
-    unlockMemoryState?.();
-
-    memoryManagerState
-    .transactionLockStartedAt =
-    null;
+    unlockMemoryState();
 
     return true;
 
   }
 
-  catch(error){
+  const expired = (
+
+    Date.now() -
+
+    startedAt
+
+  ) >
+
+  MEMORY_MANAGER_CONFIG
+  .TRANSACTION_TIMEOUT;
+
+  if(!expired){
 
     return false;
 
   }
+
+  unlockMemoryState();
+
+  memoryManagerState
+  .transactionStartedAt =
+  null;
+
+  return true;
 
 }
 
@@ -156,488 +105,63 @@ function cleanupStaleMemoryLock(){
 // =====================================
 
 async function runMemoryTransaction(
-  transaction
+  callback
 ){
 
   if(
-    typeof transaction !==
+    typeof callback !==
     "function"
   ){
 
-    return false;
+    return null;
 
   }
 
-  cleanupStaleMemoryLock();
+  cleanupExpiredTransaction();
 
   if(
-    isMemoryLocked?.()
+    isMemoryLocked()
   ){
 
-    return false;
+    return null;
 
   }
 
   try{
 
-    incrementMemoryOperations?.();
+    incrementMemoryOperations();
 
-    lockMemoryState?.();
+    lockMemoryState();
 
     memoryManagerState
-    .transactionLockStartedAt =
+    .transactionStartedAt =
     Date.now();
 
-    return await transaction();
+    return await callback();
 
   }
 
   catch(error){
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .lastError =
-      error;
-
-    }
-
-    if(
-      memoryState?.metrics
-    ){
-
-      memoryState.metrics
-      .failedOperations++;
-
-    }
-
-    console.error(
-      "MEMORY TRANSACTION ERROR:",
+    registerMemoryRuntimeError(
       error
     );
 
-    return false;
+    return null;
 
   }
 
   finally{
 
-    unlockMemoryState?.();
+    unlockMemoryState();
 
     memoryManagerState
-    .transactionLockStartedAt =
+    .transactionStartedAt =
     null;
 
-    decrementMemoryOperations?.();
+    decrementMemoryOperations();
 
   }
-
-}
-
-
-
-// =====================================
-// HEALTH CHECK
-// =====================================
-
-function runMemoryHealthCheck(){
-
-  try{
-
-    memoryManagerState
-    .healthcheckRunning =
-    true;
-
-    const validation =
-
-      typeof validateMemoryIndexes ===
-      "function"
-
-      ? validateMemoryIndexes()
-
-      : {
-          valid:false,
-          errors:[
-            "INDEX_VALIDATOR_MISSING"
-          ],
-          warnings:[]
-        };
-
-    const cacheHealthy =
-
-      typeof memoryState?.cache ===
-      "object";
-
-    const runtimeHealthy =
-
-      typeof memoryState?.runtime ===
-      "object";
-
-    const mapsHealthy =
-
-      memoryState?.indexes
-      ?.byId instanceof Map
-
-      &&
-
-      memoryState?.cache
-      ?.searchResults instanceof Map;
-
-    const setsHealthy =
-
-      memoryState?.tracking
-      ?.dirtyIds instanceof Set
-
-      &&
-
-      memoryState?.tracking
-      ?.deletedIds instanceof Set;
-
-    const indexConsistency =
-
-      Array.isArray(
-        memoryState?.memories
-      )
-
-      &&
-
-      memoryState.memories
-      .every((memory) => {
-
-        return memoryState
-        ?.indexes
-        ?.byId
-        ?.has(
-
-          normalizeMemoryString?.(
-            memory.id
-          )
-
-        );
-
-      });
-
-    const valid = (
-
-      validation.valid
-
-      &&
-
-      cacheHealthy
-
-      &&
-
-      runtimeHealthy
-
-      &&
-
-      mapsHealthy
-
-      &&
-
-      setsHealthy
-
-      &&
-
-      indexConsistency
-
-    );
-
-    if(!valid){
-
-      if(
-        memoryState?.runtime
-      ){
-
-        memoryState.runtime
-        .corrupted = true;
-
-      }
-
-      if(
-        memoryState?.health
-      ){
-
-        memoryState.health
-        .corruptionCount++;
-
-      }
-
-    }
-
-    cleanupOrphanIndexes?.();
-
-    clearSearchCache?.();
-
-    updateMemoryMetrics?.();
-
-    memoryManagerState
-    .lastHealthCheckAt =
-    Date.now();
-
-    return {
-
-      valid,
-
-      errors:
-      validation.errors || [],
-
-      warnings:
-      validation.warnings || []
-
-    };
-
-  }
-
-  catch(error){
-
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .lastError =
-      error;
-
-    }
-
-    if(
-      memoryState?.metrics
-    ){
-
-      memoryState.metrics
-      .failedOperations++;
-
-    }
-
-    return {
-
-      valid:false,
-
-      errors:[
-        error.message
-      ],
-
-      warnings:[]
-
-    };
-
-  }
-
-  finally{
-
-    memoryManagerState
-    .healthcheckRunning =
-    false;
-
-  }
-
-}
-
-
-
-// =====================================
-// CLEANUP SYSTEM
-// =====================================
-
-function cleanupMemorySystem(){
-
-  if(
-    memoryManagerState
-    .maintenanceRunning
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    memoryManagerState
-    .maintenanceRunning =
-    true;
-
-    cleanupOrphanIndexes?.();
-
-    cleanupMemoryCaches?.();
-
-    clearSearchCache?.();
-
-    cleanupEmbeddingRelations?.();
-
-    if(
-      memoryState?.tracking
-      ?.deletedIds instanceof Set
-    ){
-
-      memoryState.tracking
-      .deletedIds
-      .forEach((memoryId) => {
-
-        memoryState?.tracking
-        ?.dirtyIds
-        ?.delete(memoryId);
-
-        memoryState?.tracking
-        ?.accessedIds
-        ?.delete(memoryId);
-
-      });
-
-    }
-
-    updateMemoryMetrics?.();
-
-    if(
-      memoryState?.metrics
-    ){
-
-      memoryState.metrics
-      .lastCleanupAt =
-      Date.now();
-
-    }
-
-    memoryManagerState
-    .lastCleanupAt =
-    Date.now();
-
-    if(
-      memoryState?.stats
-    ){
-
-      memoryState.stats
-      .cleanups++;
-
-    }
-
-    return true;
-
-  }
-
-  catch(error){
-
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .lastError =
-      error;
-
-    }
-
-    if(
-      memoryState?.metrics
-    ){
-
-      memoryState.metrics
-      .failedOperations++;
-
-    }
-
-    return false;
-
-  }
-
-  finally{
-
-    memoryManagerState
-    .maintenanceRunning =
-    false;
-
-  }
-
-}
-
-
-
-// =====================================
-// START SERVICES
-// =====================================
-
-function startMemoryServices(){
-
-  stopMemoryServices();
-
-  memoryManagerState
-  .syncTimer =
-  setInterval(() => {
-
-    syncMemorySystem();
-
-  },
-
-    MEMORY_MANAGER_CONFIG
-    .AUTO_SYNC_INTERVAL
-
-  );
-
-  memoryManagerState
-  .healthcheckTimer =
-  setInterval(() => {
-
-    runMemoryHealthCheck();
-
-  },
-
-    MEMORY_MANAGER_CONFIG
-    .AUTO_HEALTHCHECK_INTERVAL
-
-  );
-
-  memoryManagerState
-  .cleanupTimer =
-  setInterval(() => {
-
-    cleanupMemorySystem();
-
-  },
-
-    MEMORY_MANAGER_CONFIG
-    .AUTO_CLEANUP_INTERVAL
-
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// STOP SERVICES
-// =====================================
-
-function stopMemoryServices(){
-
-  clearInterval(
-    memoryManagerState
-    .syncTimer
-  );
-
-  clearInterval(
-    memoryManagerState
-    .healthcheckTimer
-  );
-
-  clearInterval(
-    memoryManagerState
-    .cleanupTimer
-  );
-
-  memoryManagerState
-  .syncTimer = null;
-
-  memoryManagerState
-  .healthcheckTimer = null;
-
-  memoryManagerState
-  .cleanupTimer = null;
-
-  return true;
 
 }
 
@@ -650,29 +174,11 @@ function stopMemoryServices(){
 async function initializeMemorySystem(){
 
   if(
-    typeof canInitializeMemorySystem ===
-    "function"
-
-    &&
-
-    !canInitializeMemorySystem()
-  ){
-
-    return false;
-
-  }
-
-  if(
-
     memoryManagerState
-    .recoveryAttempts >=
-
-    MEMORY_MANAGER_CONFIG
-    .MAX_RECOVERY_ATTEMPTS
-
+    .initialized
   ){
 
-    return false;
+    return true;
 
   }
 
@@ -686,72 +192,39 @@ async function initializeMemorySystem(){
   }
 
   memoryManagerState
-  .initializing = true;
+  .initializing =
+  true;
 
   try{
 
     const hydrated =
-
-      await hydrateMemorySystem?.();
+    await hydrateMemorySystem();
 
     if(!hydrated){
 
-      memoryManagerState
-      .recoveryAttempts++;
-
-      const recovered =
-
-        await recoverMemorySystem?.();
-
-      if(!recovered){
-
-        return false;
-
-      }
-
-      const rehydrated =
-
-        await hydrateMemorySystem?.();
-
-      if(!rehydrated){
-
-        return false;
-
-      }
+      return false;
 
     }
 
-    rebuildMemoryIndexes?.();
+    rebuildMemoryIndexes();
 
-    rebuildDirtyEmbeddings?.();
+    updateMemoryMetrics();
 
-    restoreEmbeddingCache?.();
-
-    updateMemoryMetrics?.();
-
-    startMemoryServices();
-
-    setMemoryStateInitialized?.(
+    setMemoryStateInitialized(
       true
     );
 
     memoryManagerState
-    .initialized = true;
+    .initialized =
+    true;
 
-    memoryManagerState
-    .recoveryAttempts = 0;
+    memoryState.runtime
+    .initialized =
+    true;
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .initialized = true;
-
-      memoryState.runtime
-      .corrupted = false;
-
-    }
+    memoryState.runtime
+    .corrupted =
+    false;
 
     return true;
 
@@ -759,24 +232,9 @@ async function initializeMemorySystem(){
 
   catch(error){
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .lastError =
-      error;
-
-    }
-
-    if(
-      memoryState?.metrics
-    ){
-
-      memoryState.metrics
-      .failedOperations++;
-
-    }
+    registerMemoryRuntimeError(
+      error
+    );
 
     return false;
 
@@ -785,7 +243,8 @@ async function initializeMemorySystem(){
   finally{
 
     memoryManagerState
-    .initializing = false;
+    .initializing =
+    false;
 
   }
 
@@ -811,27 +270,20 @@ async function shutdownMemorySystem(){
   try{
 
     memoryManagerState
-    .shuttingDown = true;
+    .shuttingDown =
+    true;
 
-    stopMemoryServices();
+    await performMemorySync();
 
-    await syncMemorySystem();
-
-    persistEmbeddingCache?.();
-
-    cleanupMemorySystem();
+    cleanupMemoryCaches();
 
     memoryManagerState
-    .initialized = false;
+    .initialized =
+    false;
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .initialized = false;
-
-    }
+    memoryState.runtime
+    .initialized =
+    false;
 
     return true;
 
@@ -839,15 +291,9 @@ async function shutdownMemorySystem(){
 
   catch(error){
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .lastError =
-      error;
-
-    }
+    registerMemoryRuntimeError(
+      error
+    );
 
     return false;
 
@@ -856,7 +302,8 @@ async function shutdownMemorySystem(){
   finally{
 
     memoryManagerState
-    .shuttingDown = false;
+    .shuttingDown =
+    false;
 
   }
 
@@ -865,7 +312,7 @@ async function shutdownMemorySystem(){
 
 
 // =====================================
-// RESTART SYSTEM
+// RESTART
 // =====================================
 
 async function restartMemorySystem(){
@@ -880,16 +327,15 @@ async function restartMemorySystem(){
   }
 
   memoryManagerState
-  .restarting = true;
+  .restarting =
+  true;
 
   try{
 
-    cleanupMemorySystem();
-
-    const shutdownSuccess =
+    const shutdown =
     await shutdownMemorySystem();
 
-    if(!shutdownSuccess){
+    if(!shutdown){
 
       return false;
 
@@ -901,15 +347,9 @@ async function restartMemorySystem(){
 
   catch(error){
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .lastError =
-      error;
-
-    }
+    registerMemoryRuntimeError(
+      error
+    );
 
     return false;
 
@@ -918,7 +358,8 @@ async function restartMemorySystem(){
   finally{
 
     memoryManagerState
-    .restarting = false;
+    .restarting =
+    false;
 
   }
 
@@ -947,12 +388,12 @@ async function createMemory(
     async() => {
 
       const memory =
-      createMemoryObject?.(
+      await createMemoryObject(
         memoryData
       );
 
       const validation =
-      validateMemoryObject?.(
+      validateMemoryObject(
         memory,
         {
           strict:true
@@ -960,7 +401,7 @@ async function createMemory(
       );
 
       if(
-        !validation?.valid
+        !validation.valid
       ){
 
         return null;
@@ -970,69 +411,59 @@ async function createMemory(
       memoryState.memories
       .push(memory);
 
-      indexMemory?.(
+      indexMemory(
         memory
       );
 
-      markMemoryDirty?.(
+      markMemoryDirty(
         memory.id
       );
 
-      markEmbeddingDirty?.(
-        memory.id
-      );
+      clearSearchCache();
 
-      clearSearchCache?.();
-
-      updateMemoryMetrics?.();
+      updateMemoryMetrics();
 
       const saved =
-      await saveMemory?.(
+      await saveMemory(
         memory
       );
 
       if(!saved){
 
         memoryState.memories =
+        memoryState.memories
+        .filter((item) => {
 
-          memoryState.memories
-          .filter((item) => {
+          return (
+            item.id !==
+            memory.id
+          );
 
-            return (
-              item.id !==
-              memory.id
-            );
+        });
 
-          });
-
-        deindexMemory?.(
+        deindexMemory(
           memory
         );
 
-        memoryState?.tracking
-        ?.dirtyIds
-        ?.delete(
+        memoryState
+        .tracking
+        .dirtyIds
+        .delete(
           memory.id
         );
 
-        clearSearchCache?.();
-
-        updateMemoryMetrics?.();
+        updateMemoryMetrics();
 
         return null;
 
       }
 
-      memoryState?.stats
-      ?.saves++;
+      memoryState.stats
+      .saves++;
 
-      return freezeMemoryObject?.(
+      return freezeMemoryObject(
         memory
-      )
-
-      ||
-
-      memory;
+      );
 
     }
   );
@@ -1062,35 +493,33 @@ async function updateMemoryData(
   return runMemoryTransaction(
     async() => {
 
-      const normalizedMemoryId =
-      normalizeMemoryString?.(
+      const normalizedId =
+      normalizeMemoryString(
         memoryId
       );
 
       const existingMemory =
-      getMemoryById?.(
-        normalizedMemoryId
+      getMemoryById(
+        normalizedId
       );
 
-      if(
-        !existingMemory
-      ){
+      if(!existingMemory){
 
         return null;
 
       }
 
       const previousMemory =
-      deepClone?.(
+      deepClone(
         existingMemory
       );
 
       const updatedMemory =
-      sanitizeMemoryObject?.({
+      await sanitizeMemoryObject({
 
         ...existingMemory,
 
-        ...sanitizeMemoryInput?.(
+        ...sanitizeMemoryInput(
           updates
         ),
 
@@ -1100,7 +529,7 @@ async function updateMemoryData(
       });
 
       const validation =
-      validateMemoryObject?.(
+      validateMemoryObject(
         updatedMemory,
         {
           strict:true
@@ -1108,34 +537,27 @@ async function updateMemoryData(
       );
 
       if(
-        !validation?.valid
+        !validation.valid
       ){
 
         return null;
 
       }
 
-      const memoryIndex =
+      const index =
 
         memoryState.memories
         .findIndex((memory) => {
 
           return (
-
-            normalizeMemoryString?.(
-              memory.id
-            )
-
-            ===
-
-            normalizedMemoryId
-
+            memory.id ===
+            normalizedId
           );
 
         });
 
       if(
-        memoryIndex < 0
+        index < 0
       ){
 
         return null;
@@ -1143,72 +565,56 @@ async function updateMemoryData(
       }
 
       memoryState.memories[
-        memoryIndex
+        index
       ] = updatedMemory;
 
-      deindexMemory?.(
+      deindexMemory(
         previousMemory
       );
 
-      indexMemory?.(
+      indexMemory(
         updatedMemory
       );
 
-      markMemoryDirty?.(
-        normalizedMemoryId
+      markMemoryDirty(
+        normalizedId
       );
 
-      markEmbeddingDirty?.(
-        normalizedMemoryId
-      );
+      clearSearchCache();
 
-      clearSearchCache?.();
-
-      updateMemoryMetrics?.();
+      updateMemoryMetrics();
 
       const saved =
-      await saveMemory?.(
+      await saveMemory(
         updatedMemory
       );
 
       if(!saved){
 
         memoryState.memories[
-          memoryIndex
+          index
         ] = previousMemory;
 
-        deindexMemory?.(
+        deindexMemory(
           updatedMemory
         );
 
-        indexMemory?.(
+        indexMemory(
           previousMemory
         );
 
-        memoryState?.tracking
-        ?.dirtyIds
-        ?.delete(
-          normalizedMemoryId
-        );
-
-        clearSearchCache?.();
-
-        updateMemoryMetrics?.();
+        updateMemoryMetrics();
 
         return null;
 
       }
 
-      memoryState?.stats
-      ?.updates++;
+      memoryState.stats
+      .updates++;
 
-      return freezeMemoryObject?.(
+      return freezeMemoryObject(
         updatedMemory
-      )
-
-      ||
-
-      updatedMemory;
+      );
 
     }
   );
@@ -1237,14 +643,14 @@ async function deleteMemoryData(
   return runMemoryTransaction(
     async() => {
 
-      const normalizedMemoryId =
-      normalizeMemoryString?.(
+      const normalizedId =
+      normalizeMemoryString(
         memoryId
       );
 
       const memory =
-      getMemoryById?.(
-        normalizedMemoryId
+      getMemoryById(
+        normalizedId
       );
 
       if(!memory){
@@ -1253,27 +659,20 @@ async function deleteMemoryData(
 
       }
 
-      const memoryIndex =
+      const index =
 
         memoryState.memories
         .findIndex((item) => {
 
           return (
-
-            normalizeMemoryString?.(
-              item.id
-            )
-
-            ===
-
-            normalizedMemoryId
-
+            item.id ===
+            normalizedId
           );
 
         });
 
       if(
-        memoryIndex < 0
+        index < 0
       ){
 
         return false;
@@ -1282,35 +681,33 @@ async function deleteMemoryData(
 
       const removedMemory =
       memoryState.memories[
-        memoryIndex
+        index
       ];
 
       memoryState.memories
       .splice(
-        memoryIndex,
+        index,
         1
       );
 
-      deindexMemory?.(
-        memory
+      deindexMemory(
+        removedMemory
       );
 
-      memoryEmbeddingsState
-      ?.embeddingIndex
-      ?.delete(
-        normalizedMemoryId
+      removeMemoryEmbedding(
+        normalizedId
       );
 
-      markMemoryDeleted?.(
-        normalizedMemoryId
+      markMemoryDeleted(
+        normalizedId
       );
 
-      clearSearchCache?.();
+      clearSearchCache();
 
-      updateMemoryMetrics?.();
+      updateMemoryMetrics();
 
       const saved =
-      await saveMemories?.(
+      await saveMemories(
         memoryState.memories
       );
 
@@ -1318,31 +715,30 @@ async function deleteMemoryData(
 
         memoryState.memories
         .splice(
-          memoryIndex,
+          index,
           0,
           removedMemory
         );
 
-        indexMemory?.(
+        indexMemory(
           removedMemory
         );
 
-        memoryState?.tracking
-        ?.deletedIds
-        ?.delete(
-          normalizedMemoryId
+        memoryState
+        .tracking
+        .deletedIds
+        .delete(
+          normalizedId
         );
 
-        clearSearchCache?.();
-
-        updateMemoryMetrics?.();
+        updateMemoryMetrics();
 
         return false;
 
       }
 
-      memoryState?.stats
-      ?.deletions++;
+      memoryState.stats
+      .deletions++;
 
       return true;
 
@@ -1354,10 +750,10 @@ async function deleteMemoryData(
 
 
 // =====================================
-// SYNC SYSTEM
+// MEMORY SYNC
 // =====================================
 
-async function syncMemorySystem(){
+async function performMemorySync(){
 
   if(
     !memoryManagerState
@@ -1378,8 +774,8 @@ async function syncMemorySystem(){
   }
 
   if(
-    memoryState?.runtime
-    ?.syncing
+    memoryState.runtime
+    .syncing
   ){
 
     return false;
@@ -1393,9 +789,10 @@ async function syncMemorySystem(){
 
     if(
 
-      memoryState?.tracking
-      ?.dirtyIds
-      ?.size <= 0
+      memoryState
+      .tracking
+      .dirtyIds
+      .size <= 0
 
     ){
 
@@ -1404,7 +801,7 @@ async function syncMemorySystem(){
     }
 
     const saved =
-    await saveMemories?.(
+    await saveMemories(
       memoryState.memories
     );
 
@@ -1414,17 +811,12 @@ async function syncMemorySystem(){
 
     }
 
-    memoryState.tracking
+    memoryState
+    .tracking
     .dirtyIds
     .clear();
 
-    persistEmbeddingCache?.();
-
-    memoryManagerState
-    .lastSyncAt =
-    Date.now();
-
-    updateMemoryMetrics?.();
+    updateMemoryMetrics();
 
     return true;
 
@@ -1432,24 +824,9 @@ async function syncMemorySystem(){
 
   catch(error){
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .lastError =
-      error;
-
-    }
-
-    if(
-      memoryState?.metrics
-    ){
-
-      memoryState.metrics
-      .failedOperations++;
-
-    }
+    registerMemoryRuntimeError(
+      error
+    );
 
     return false;
 
@@ -1457,14 +834,8 @@ async function syncMemorySystem(){
 
   finally{
 
-    if(
-      memoryState?.runtime
-    ){
-
-      memoryState.runtime
-      .syncing = false;
-
-    }
+    memoryState.runtime
+    .syncing = false;
 
   }
 
