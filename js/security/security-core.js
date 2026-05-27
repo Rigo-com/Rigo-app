@@ -160,6 +160,34 @@ Object.freeze({
 
 function createSecurityState(){
 
+  const trustedOrigins = [];
+
+  try{
+
+    const origin =
+    globalThis
+    ?.location
+    ?.origin;
+
+    if(
+      typeof origin ===
+      "string"
+    ){
+
+      trustedOrigins.push(
+
+        String(origin)
+        .trim()
+        .toLowerCase()
+
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
   return {
 
     initialized:
@@ -206,39 +234,7 @@ function createSecurityState(){
 
     trustedOrigins:
     new Set(
-
-      typeof window !==
-      "undefined"
-
-      &&
-
-      window.location
-
-      &&
-
-      typeof window
-      .location
-      .origin ===
-      "string"
-
-      ?
-
-      [
-
-        String(
-          window
-          .location
-          .origin
-        )
-        .trim()
-        .toLowerCase()
-
-      ]
-
-      :
-
-      []
-
+      trustedOrigins
     )
 
   };
@@ -323,9 +319,13 @@ function safeString(
 
 
 
+// =====================================
+// CREATE SECURITY SNAPSHOT
+// =====================================
+
 function createSecuritySnapshot(){
 
-  return Object.freeze({
+  const snapshot = {
 
     initialized:
     securityState
@@ -409,7 +409,31 @@ function createSecuritySnapshot(){
     timestamp:
     Date.now()
 
-  });
+  };
+
+  if(
+
+    typeof SecurityFreeze ===
+    "object"
+
+    &&
+
+    typeof SecurityFreeze
+    .deepFreeze ===
+    "function"
+
+  ){
+
+    return SecurityFreeze
+    .deepFreeze(
+      snapshot
+    );
+
+  }
+
+  return Object.freeze(
+    snapshot
+  );
 
 }
 
@@ -431,6 +455,26 @@ function sanitizeSecurityMetadata(
   }
 
   try{
+
+    if(
+
+      typeof SecuritySanitize ===
+      "object"
+
+      &&
+
+      typeof SecuritySanitize
+      .object ===
+      "function"
+
+    ){
+
+      return SecuritySanitize
+      .object(
+        metadata
+      );
+
+    }
 
     if(
       isPlainObject(
@@ -560,7 +604,15 @@ async function logSecurityEvent(
 
     }
 
-    else{
+    else if(
+      typeof console !==
+      "undefined"
+
+      &&
+
+      typeof console.warn ===
+      "function"
+    ){
 
       console.warn(
 
@@ -578,13 +630,31 @@ async function logSecurityEvent(
 
   catch(error){
 
-    console.error(
+    try{
 
-      "[SECURITY LOGGER FAILURE]",
+      if(
+        typeof console !==
+        "undefined"
 
-      error
+        &&
 
-    );
+        typeof console.error ===
+        "function"
+      ){
+
+        console.error(
+
+          "[SECURITY LOGGER FAILURE]",
+
+          error
+
+        );
+
+      }
+
+    }
+
+    catch(innerError){}
 
     return false;
 
@@ -924,7 +994,15 @@ function validateSecurityHealth(){
 
 function getSecurityDiagnostics(){
 
-  return createSecuritySnapshot();
+  return {
+
+    snapshot:
+    createSecuritySnapshot(),
+
+    healthcheck:
+    validateSecurityHealth()
+
+  };
 
 }
 
@@ -961,13 +1039,13 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityCore",
 
@@ -987,3 +1065,55 @@ if(
   );
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SECURITY_CONFIG,
+
+  SECURITY_EVENTS,
+
+  FREEZE_STATES,
+
+  ACCESSOR_BLOCKED_SYMBOL,
+
+  CIRCULAR_REFERENCE_SYMBOL,
+
+  ACCESSOR_BLOCKED_MARKER,
+
+  CIRCULAR_REFERENCE_MARKER,
+
+  securityState,
+
+  isPlainObject,
+
+  safeString,
+
+  createSecuritySnapshot,
+
+  sanitizeSecurityMetadata,
+
+  shouldThrottleSecurityLog,
+
+  logSecurityEvent,
+
+  validateSecurityPattern,
+
+  registerSecurityPatterns,
+
+  hardenSecurityState,
+
+  initializeSecuritySystem,
+
+  validateSecurityHealth,
+
+  getSecurityDiagnostics,
+
+  SecurityCore
+
+};
