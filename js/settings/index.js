@@ -1044,7 +1044,7 @@ function getSettingsRuntimeDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const SettingsAPI =
+const RIGOSettingsRuntime =
 Object.freeze({
 
   initialize:
@@ -1100,11 +1100,11 @@ export {
 
   getSettingsRuntimeDiagnostics,
 
-  SettingsAPI
+  ROGOSettingsRuntime
 
 };
 
-export default SettingsAPI;
+export default RIGOSettingsRuntime;
 
 
 
@@ -1121,12 +1121,12 @@ if(
 
     globalThis,
 
-    "SettingsAPI",
+    "RIGOSettingsRuntime",
 
     {
 
       value:
-      SettingsAPI,
+      RIGOSettingsRuntime,
 
       writable:false,
 
