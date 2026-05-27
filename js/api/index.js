@@ -420,7 +420,7 @@ function createAPISnapshot(){
 // PUBLIC API
 // =====================================
 
-const RIGOAPI =
+const RIGOAPIRuntime =
 Object.freeze({
 
   runtime:
@@ -446,24 +446,51 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  apiIndexState,
+
+  initializeAPI,
+
+  resetAPI,
+
+  shutdownAPI,
+
+  getAPIHealth,
+
+  createAPISnapshot,
+
+  RIGOAPIRuntime
+
+};
+
+export default
+RIGOAPIRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGOAPI",
+    "RIGOAPIRuntime",
 
     {
 
       value:
-      RIGOAPI,
+      RIGOAPIRuntime,
 
       writable:false,
 
