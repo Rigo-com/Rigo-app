@@ -533,3 +533,64 @@ function validateCommunicationMessage(
   return true;
 
 }
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationHelpers =
+Object.freeze({
+
+  clone:
+  safeCommunicationClone,
+
+  hash:
+  createMessageHash,
+
+  cleanupHashes:
+  cleanupProcessedHashes,
+
+  trimConversations:
+  trimConversationHistory,
+
+  emitEvent:
+  emitCommunicationEvent,
+
+  freeze:
+  freezeCommunicationObject,
+
+  validateMessage:
+  validateCommunicationMessage
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window
+  .CommunicationHelpers =
+  CommunicationHelpers;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis
+  .CommunicationHelpers =
+  CommunicationHelpers;
+
+}
