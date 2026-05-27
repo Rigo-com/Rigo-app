@@ -342,6 +342,12 @@ Object.freeze({
     false,
 
     allowRemoteScripts:
+    false,
+
+    allowStyles:
+    false,
+
+    allowImages:
     false
 
   }
@@ -453,6 +459,20 @@ function validateFeatureAccess(
   if(!normalized){
 
     return false;
+
+  }
+
+  if(
+
+    securityPolicyState
+    .trustedFeatures
+    .has(
+      normalized
+    )
+
+  ){
+
+    return true;
 
   }
 
@@ -645,6 +665,10 @@ function removeRuntimeLock(
 
   }
 
+  securityPolicyState
+  .lastUpdatedAt =
+  Date.now();
+
   return securityPolicyState
   .runtimeLocks
   .delete(
@@ -704,7 +728,13 @@ function buildCSPPolicy(){
 
     "img-src 'self' data: blob:",
 
-    "style-src 'self' 'unsafe-inline'"
+    "style-src 'self' 'unsafe-inline'",
+
+    "connect-src 'self'",
+
+    "font-src 'self'",
+
+    "media-src 'self'"
 
   ];
 
@@ -909,26 +939,20 @@ function getSecurityPolicyDiagnostics(){
     securityPolicyState
     .blockedActions,
 
-    runtimeLocks:[
+    runtimeLocks:
+    securityPolicyState
+    .runtimeLocks
+    .size,
 
-      ...securityPolicyState
-      .runtimeLocks
+    trustedFeatures:
+    securityPolicyState
+    .trustedFeatures
+    .size,
 
-    ],
-
-    trustedFeatures:[
-
-      ...securityPolicyState
-      .trustedFeatures
-
-    ],
-
-    blockedFeatures:[
-
-      ...securityPolicyState
-      .blockedFeatures
-
-    ],
+    blockedFeatures:
+    securityPolicyState
+    .blockedFeatures
+    .size,
 
     lastUpdatedAt:
     securityPolicyState
@@ -988,17 +1012,63 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SECURITY_LEVELS,
+
+  SECURITY_POLICY_CONFIG,
+
+  SECURITY_POLICY_RULES,
+
+  securityPolicyState,
+
+  normalizePolicyFeature,
+
+  getActiveSecurityPolicy,
+
+  setSecurityLevel,
+
+  validateFeatureAccess,
+
+  blockSecurityFeature,
+
+  trustSecurityFeature,
+
+  addRuntimeLock,
+
+  removeRuntimeLock,
+
+  hasRuntimeLock,
+
+  buildCSPPolicy,
+
+  validateRuntimeExecution,
+
+  initializeSecurityPolicyEngine,
+
+  getSecurityPolicyDiagnostics,
+
+  SecurityPolicy
+
+};
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityPolicy",
 
