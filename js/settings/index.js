@@ -1100,7 +1100,7 @@ export {
 
   getSettingsRuntimeDiagnostics,
 
-  ROGOSettingsRuntime
+  RIGOSettingsRuntime
 
 };
 
