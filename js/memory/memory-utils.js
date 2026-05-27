@@ -14,12 +14,6 @@
 const MEMORY_UTILS_CONFIG =
 Object.freeze({
 
-  MIN_TOKEN_LENGTH:2,
-
-  MAX_TOKEN_LENGTH:64,
-
-  MAX_TOKENS:1000,
-
   HASH_LENGTH:64,
 
   MAX_TEXT_LENGTH:50000,
@@ -209,6 +203,16 @@ function normalizeMemoryText(
   text
 ){
 
+  if(
+    typeof normalizeMemoryString ===
+    "function"
+  ){
+
+    return normalizeMemoryString(
+      text
+    );
+  }
+
   return safeMemoryString(
     text
   )
@@ -249,109 +253,20 @@ function normalizeMemoryTextLower(
 
 
 // =====================================
-// SAFE CONTENT NORMALIZATION
-// =====================================
-
-function normalizeMemoryContent(
-  text
-){
-
-  return normalizeMemoryText(
-    text
-  )
-  .slice(
-
-    0,
-
-    MEMORY_UTILS_CONFIG
-    .MAX_TEXT_LENGTH
-
-  );
-
-}
-
-
-
-// =====================================
-// TOKENIZE TEXT
-// =====================================
-
-function tokenizeMemoryText(
-  text
-){
-
-  const normalizedText =
-  normalizeMemoryTextLower(
-    text
-  );
-
-  if(
-    !normalizedText
-  ){
-
-    return [];
-  }
-
-  const tokens =
-
-    normalizedText
-
-    .split(
-      /[^a-z0-9\u0600-\u06FF_]+/giu
-    )
-
-    .filter((token) => {
-
-      return (
-
-        token &&
-
-        token.length >=
-
-        MEMORY_UTILS_CONFIG
-        .MIN_TOKEN_LENGTH
-
-        &&
-
-        token.length <=
-
-        MEMORY_UTILS_CONFIG
-        .MAX_TOKEN_LENGTH
-
-        &&
-
-        !MEMORY_STOP_WORDS
-        .has(token)
-
-      );
-
-    });
-
-  return [
-
-    ...new Set(tokens)
-
-  ]
-  .slice(
-
-    0,
-
-    MEMORY_UTILS_CONFIG
-    .MAX_TOKENS
-
-  );
-
-}
-
-
-
-// =====================================
 // TOKEN COUNTS
 // =====================================
 
 function countMemoryTokens(
   text
 ){
+
+  if(
+    typeof tokenizeMemoryText !==
+    "function"
+  ){
+
+    return 0;
+  }
 
   return tokenizeMemoryText(
     text
@@ -1104,6 +1019,14 @@ function calculateMemoryRelevance(
     return 0.85;
   }
 
+  if(
+    typeof tokenizeMemoryText !==
+    "function"
+  ){
+
+    return 0;
+  }
+
   const textTokens =
   tokenizeMemoryText(
     normalizedText
@@ -1173,166 +1096,6 @@ function areMemoryValuesEqual(
     )
 
   );
-
-}
-
-
-
-// =====================================
-// INDEX HELPERS
-// =====================================
-
-function addIndexedMemoryId(
-  indexMap,
-  key,
-  memoryId
-){
-
-  if(
-
-    !(indexMap instanceof Map)
-
-    ||
-
-    !key
-
-    ||
-
-    !memoryId
-
-  ){
-
-    return false;
-
-  }
-
-  const normalizedKey =
-  normalizeMemoryTextLower(
-    key
-  );
-
-  if(
-    !indexMap.has(
-      normalizedKey
-    )
-  ){
-
-    indexMap.set(
-      normalizedKey,
-      new Set()
-    );
-
-  }
-
-  indexMap
-  .get(
-    normalizedKey
-  )
-  .add(
-    memoryId
-  );
-
-  return true;
-
-}
-
-
-
-function removeIndexedMemoryId(
-  indexMap,
-  key,
-  memoryId
-){
-
-  if(
-
-    !(indexMap instanceof Map)
-
-    ||
-
-    !key
-
-    ||
-
-    !memoryId
-
-  ){
-
-    return false;
-
-  }
-
-  const normalizedKey =
-  normalizeMemoryTextLower(
-    key
-  );
-
-  const values =
-  indexMap.get(
-    normalizedKey
-  );
-
-  if(!values){
-
-    return false;
-
-  }
-
-  values.delete(
-    memoryId
-  );
-
-  if(
-    values.size <= 0
-  ){
-
-    indexMap.delete(
-      normalizedKey
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-function getIndexedMemoryIds(
-  indexMap,
-  key
-){
-
-  if(
-
-    !(indexMap instanceof Map)
-
-    ||
-
-    !key
-
-  ){
-
-    return [];
-
-  }
-
-  const normalizedKey =
-  normalizeMemoryTextLower(
-    key
-  );
-
-  return [
-
-    ...(indexMap.get(
-      normalizedKey
-    )
-
-    ||
-
-    new Set())
-
-  ];
 
 }
 
@@ -1583,5 +1346,91 @@ function throttleMemoryFunction(
     },delay);
 
   };
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryUtils =
+Object.freeze({
+
+  safeMemoryString,
+  safeMemoryNumber,
+  safeMemoryArray,
+  safeMemoryObject,
+  safeMemoryBoolean,
+
+  normalizeMemoryText,
+  normalizeMemoryTextLower,
+
+  countMemoryTokens,
+
+  createUtilityMemoryHash,
+
+  getCurrentTimestamp,
+  isExpiredTimestamp,
+  getDaysBetweenDates,
+
+  deduplicateMemoryArray,
+  chunkMemoryArray,
+
+  sortMemoriesByDate,
+  sortMemoriesByScore,
+
+  clampMemoryNumber,
+
+  safeJsonParse,
+  safeJsonStringify,
+
+  deepClone,
+  deepFreeze,
+
+  calculateMemorySize,
+  truncateMemoryText,
+  compressMemoryText,
+
+  calculateMemoryRelevance,
+  areMemoryValuesEqual,
+
+  isValidMemoryObject,
+  normalizeMemoryScore,
+
+  waitMemoryRetryDelay,
+  retryMemoryOperation,
+
+  debounceMemoryFunction,
+  throttleMemoryFunction
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryUtils =
+  MemoryUtils;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.MemoryUtils =
+  MemoryUtils;
 
 }
