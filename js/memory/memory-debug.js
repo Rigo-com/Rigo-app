@@ -1,8 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY DEBUG
-// ENTERPRISE INFINITY ULTRA FINAL
-// PATCHED + STABILIZED
+// OPTIMIZED FINAL EDITION
 // =====================================
 
 
@@ -20,27 +19,19 @@ Object.freeze({
 
   ENABLE_PROFILING:true,
 
-  ENABLE_TRACING:true,
-
   ENABLE_HEALTH_MONITOR:true,
 
   ENABLE_AUTO_REPAIR:true,
 
   ENABLE_SNAPSHOTS:true,
 
-  ENABLE_BENCHMARKS:true,
+  MAX_ENTRIES:3000,
 
-  MAX_LOGS:5000,
+  MAX_SNAPSHOTS:20,
 
-  MAX_TRACES:2000,
+  MAX_WARNINGS:100,
 
-  MAX_SNAPSHOTS:50,
-
-  MAX_BENCHMARKS:1000,
-
-  MAX_REPORT_WARNINGS:100,
-
-  LOG_TRUNCATE_LENGTH:2000,
+  LOG_TRUNCATE_LENGTH:1000,
 
   SLOW_OPERATION_THRESHOLD:
   100,
@@ -61,17 +52,9 @@ Object.seal({
 
   initialized:false,
 
-  logs:[],
-
-  traces:[],
+  entries:[],
 
   snapshots:[],
-
-  warnings:[],
-
-  criticalErrors:[],
-
-  benchmarks:[],
 
   activeProfiles:
   new Map(),
@@ -96,22 +79,7 @@ Object.seal({
 
 
 // =====================================
-// INITIALIZE DEBUG
-// =====================================
-
-function initializeMemoryDebug(){
-
-  memoryDebugState
-  .initialized = true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// DEBUG HELPERS
+// HELPERS
 // =====================================
 
 function isDebugEnabled(){
@@ -137,27 +105,20 @@ function createDebugId(
   prefix = "debug"
 ){
 
-  if(
-    typeof createMemoryId ===
-    "function"
-  ){
-
-    return createMemoryId();
-  }
-
   return (
 
-    String(prefix) +
+    typeof createMemoryId ===
+    "function"
 
-    "_" +
+    ?
 
-    Date.now() +
+    createMemoryId()
 
-    "_" +
+    :
 
-    Math.random()
+    `${prefix}_${Date.now()}_${Math.random()
     .toString(36)
-    .slice(2,10)
+    .slice(2,8)}`
 
   );
 
@@ -166,37 +127,35 @@ function createDebugId(
 
 
 function truncateDebugText(
-  text
+  value
 ){
 
-  const normalized =
-  String(text || "");
+  const text =
+  String(value ?? "");
 
   if(
 
-    normalized.length <=
+    text.length <=
 
     MEMORY_DEBUG_CONFIG
     .LOG_TRUNCATE_LENGTH
 
   ){
 
-    return normalized;
+    return text;
 
   }
 
   return (
 
-    normalized.slice(
+    text.slice(
 
       0,
 
       MEMORY_DEBUG_CONFIG
       .LOG_TRUNCATE_LENGTH
 
-    )
-
-    +
+    ) +
 
     "...[TRUNCATED]"
 
@@ -206,64 +165,73 @@ function truncateDebugText(
 
 
 
+function pruneDebugEntries(){
+
+  while(
+
+    memoryDebugState
+    .entries
+    .length >
+
+    MEMORY_DEBUG_CONFIG
+    .MAX_ENTRIES
+
+  ){
+
+    memoryDebugState
+    .entries
+    .shift();
+
+  }
+
+}
+
+
+
 // =====================================
-// SAFE SERIALIZER
+// DEBUG ENTRY
 // =====================================
 
-function safeDebugSerialize(
-  value
+function addMemoryDebugEntry(
+  type,
+  message,
+  metadata = {}
 ){
 
-  const visited =
-  new WeakSet();
+  if(
+    !isDebugEnabled()
+  ){
 
-  try{
-
-    return JSON.stringify(
-
-      value,
-
-      (key,current) => {
-
-        if(
-
-          typeof current ===
-          "object"
-
-          &&
-
-          current !== null
-
-        ){
-
-          if(
-            visited.has(
-              current
-            )
-          ){
-
-            return "[Circular]";
-          }
-
-          visited.add(
-            current
-          );
-
-        }
-
-        return current;
-
-      }
-
-    );
+    return false;
 
   }
 
-  catch(error){
+  memoryDebugState
+  .entries
+  .push({
 
-    return "[Unserializable]";
+    id:createDebugId(type),
 
-  }
+    type:
+    normalizeMemoryString?.(
+      type
+    ) || "log",
+
+    message:
+    truncateDebugText(
+      message
+    ),
+
+    metadata,
+
+    timestamp:
+    createDebugTimestamp()
+
+  });
+
+  pruneDebugEntries();
+
+  return true;
 
 }
 
@@ -279,76 +247,15 @@ function addMemoryDebugLog(
   metadata = {}
 ){
 
-  if(
-    !isDebugEnabled()
-  ){
+  return addMemoryDebugEntry(
 
-    return false;
+    level,
 
-  }
+    message,
 
-  const log = {
+    metadata
 
-    id:createDebugId(
-      "log"
-    ),
-
-    level:
-
-      typeof normalizeMemoryString ===
-      "function"
-
-      ?
-
-      normalizeMemoryString(
-        level
-      )
-
-      :
-
-      String(level || "")
-      .trim()
-      .toLowerCase(),
-
-    message:
-    truncateDebugText(
-      String(message ?? "")
-    ),
-
-    metadata:
-    safeDebugSerialize(
-      metadata
-    ),
-
-    timestamp:
-    createDebugTimestamp()
-
-  };
-
-  memoryDebugState
-  .logs
-  .push(
-    log
   );
-
-  while(
-
-    memoryDebugState
-    .logs
-    .length >
-
-    MEMORY_DEBUG_CONFIG
-    .MAX_LOGS
-
-  ){
-
-    memoryDebugState
-    .logs
-    .shift();
-
-  }
-
-  return true;
 
 }
 
@@ -363,69 +270,22 @@ function addMemoryTrace(
   metadata = {}
 ){
 
-  if(
+  return addMemoryDebugEntry(
 
-    !MEMORY_DEBUG_CONFIG
-    .ENABLE_TRACING
+    "trace",
 
-  ){
+    operation,
 
-    return false;
+    metadata
 
-  }
-
-  const trace = {
-
-    id:createDebugId(
-      "trace"
-    ),
-
-    operation:
-    String(
-      operation || ""
-    ),
-
-    metadata:
-    safeDebugSerialize(
-      metadata
-    ),
-
-    timestamp:
-    Date.now()
-
-  };
-
-  memoryDebugState
-  .traces
-  .push(
-    trace
   );
-
-  while(
-
-    memoryDebugState
-    .traces
-    .length >
-
-    MEMORY_DEBUG_CONFIG
-    .MAX_TRACES
-
-  ){
-
-    memoryDebugState
-    .traces
-    .shift();
-
-  }
-
-  return true;
 
 }
 
 
 
 // =====================================
-// PROFILER
+// PROFILING
 // =====================================
 
 function startMemoryProfile(
@@ -433,8 +293,10 @@ function startMemoryProfile(
 ){
 
   if(
+
     !MEMORY_DEBUG_CONFIG
     .ENABLE_PROFILING
+
   ){
 
     return null;
@@ -446,14 +308,12 @@ function startMemoryProfile(
     "profile"
   );
 
-  const profile = {
-
-    id:profileId,
+  memoryDebugState
+  .activeProfiles
+  .set(profileId,{
 
     operation:
-    String(
-      operation || ""
-    ),
+    String(operation || ""),
 
     startedAt:
 
@@ -468,14 +328,7 @@ function startMemoryProfile(
 
       Date.now()
 
-  };
-
-  memoryDebugState
-  .activeProfiles
-  .set(
-    profileId,
-    profile
-  );
+  });
 
   return profileId;
 
@@ -491,9 +344,7 @@ function endMemoryProfile(
 
     memoryDebugState
     .activeProfiles
-    .get(
-      profileId
-    );
+    .get(profileId);
 
   if(!profile){
 
@@ -520,32 +371,7 @@ function endMemoryProfile(
 
   memoryDebugState
   .activeProfiles
-  .delete(
-    profileId
-  );
-
-  if(
-
-    duration >
-
-    MEMORY_DEBUG_CONFIG
-    .SLOW_OPERATION_THRESHOLD
-
-  ){
-
-    addMemoryDebugLog(
-
-      "warn",
-
-      `Slow operation: ${profile.operation}`,
-
-      {
-        duration
-      }
-
-    );
-
-  }
+  .delete(profileId);
 
   const stats =
 
@@ -561,9 +387,7 @@ function endMemoryProfile(
 
       count:0,
 
-      totalDuration:0,
-
-      averageDuration:0
+      totalDuration:0
 
     };
 
@@ -572,17 +396,35 @@ function endMemoryProfile(
   stats.totalDuration +=
   duration;
 
-  stats.averageDuration =
-
-    stats.totalDuration /
-    stats.count;
-
   memoryDebugState
   .operationStats
   .set(
     profile.operation,
     stats
   );
+
+  if(
+
+    duration >
+
+    MEMORY_DEBUG_CONFIG
+    .SLOW_OPERATION_THRESHOLD
+
+  ){
+
+    addMemoryDebugEntry(
+
+      "warn",
+
+      `Slow operation: ${profile.operation}`,
+
+      {
+        duration
+      }
+
+    );
+
+  }
 
   return duration;
 
@@ -591,7 +433,82 @@ function endMemoryProfile(
 
 
 // =====================================
-// MEMORY HEALTH
+// BENCHMARK
+// =====================================
+
+async function benchmarkMemoryOperation(
+  operation,
+  callback
+){
+
+  const profileId =
+  startMemoryProfile(
+    operation
+  );
+
+  try{
+
+    const result =
+    await Promise.resolve(
+      callback()
+    );
+
+    const duration =
+    endMemoryProfile(
+      profileId
+    );
+
+    addMemoryDebugEntry(
+
+      "benchmark",
+
+      operation,
+
+      {
+        duration,
+        success:true
+      }
+
+    );
+
+    return {
+
+      result,
+      duration
+
+    };
+
+  }
+
+  catch(error){
+
+    endMemoryProfile(
+      profileId
+    );
+
+    addMemoryDebugEntry(
+
+      "error",
+
+      operation,
+
+      {
+        success:false,
+        error:error?.message
+      }
+
+    );
+
+    throw error;
+
+  }
+
+}
+
+
+
+// =====================================
+// HEALTH ANALYSIS
 // =====================================
 
 function analyzeMemoryHealth(){
@@ -601,8 +518,7 @@ function analyzeMemoryHealth(){
   const critical = [];
 
   if(
-    typeof memoryState !==
-    "object"
+    !memoryState
   ){
 
     return {
@@ -610,11 +526,9 @@ function analyzeMemoryHealth(){
       score:0,
 
       warnings:[
-
         {
-          type:"memory-state-missing"
+          type:"missing-state"
         }
-
       ],
 
       critical:[],
@@ -632,13 +546,15 @@ function analyzeMemoryHealth(){
   // CORRUPTION
   // ===================================
 
-  if(
+  const corruptedCount =
 
     memoryState
     ?.tracking
     ?.corruptedIds
-    ?.size > 0
+    ?.size || 0;
 
+  if(
+    corruptedCount > 0
   ){
 
     warnings.push({
@@ -646,11 +562,7 @@ function analyzeMemoryHealth(){
       type:"corruption",
 
       count:
-
-      memoryState
-      .tracking
-      .corruptedIds
-      .size
+      corruptedCount
 
     });
 
@@ -659,70 +571,26 @@ function analyzeMemoryHealth(){
 
 
   // ===================================
-  // ORPHAN INDEXES
+  // DUPLICATES
   // ===================================
 
-  const indexedIds =
-  new Set(
-
-    memoryState
-    ?.indexes
-    ?.byId
-    ?.keys?.()
-
-    ||
-
-    []
-
-  );
-
-  indexedIds.forEach((id) => {
-
-    const exists =
-    memoryState
-    ?.memories
-    ?.some?.((memory) => {
-
-      return memory?.id === id;
-
-    });
-
-    if(!exists){
-
-      warnings.push({
-
-        type:"orphan-index",
-
-        id
-
-      });
-
-    }
-
-  });
-
-
-
-  // ===================================
-  // DUPLICATE IDS
-  // ===================================
-
-  const duplicateCheck =
+  const ids =
   new Set();
 
-  memoryState
-  ?.memories
-  ?.forEach?.((memory) => {
+  safeMemoryArray(
+    memoryState?.memories
+  )
+  .forEach((memory) => {
 
-    if(!memory?.id){
+    if(
+      !memory?.id
+    ){
 
       return;
     }
 
     if(
-      duplicateCheck.has(
-        memory.id
-      )
+      ids.has(memory.id)
     ){
 
       critical.push({
@@ -735,9 +603,7 @@ function analyzeMemoryHealth(){
 
     }
 
-    duplicateCheck.add(
-      memory.id
-    );
+    ids.add(memory.id);
 
   });
 
@@ -749,19 +615,10 @@ function analyzeMemoryHealth(){
 
   const cacheSize =
 
-    memoryState?.cache
-    ?.memories instanceof Map
-
-    ?
-
     memoryState
-    .cache
-    .memories
-    .size
-
-    :
-
-    0;
+    ?.cache
+    ?.memories
+    ?.size || 0;
 
   if(
 
@@ -782,21 +639,6 @@ function analyzeMemoryHealth(){
 
   }
 
-  memoryDebugState
-  .warnings = warnings;
-
-  memoryDebugState
-  .criticalErrors =
-  critical;
-
-  memoryDebugState
-  .totalWarnings =
-  warnings.length;
-
-  memoryDebugState
-  .totalCriticalErrors =
-  critical.length;
-
   const report = {
 
     score:
@@ -807,15 +649,9 @@ function analyzeMemoryHealth(){
 
         100 -
 
-        (
-          warnings.length * 5
-        )
+        (warnings.length * 5) -
 
-        -
-
-        (
-          critical.length * 20
-        )
+        (critical.length * 20)
 
       ),
 
@@ -825,7 +661,7 @@ function analyzeMemoryHealth(){
       0,
 
       MEMORY_DEBUG_CONFIG
-      .MAX_REPORT_WARNINGS
+      .MAX_WARNINGS
 
     ),
 
@@ -835,7 +671,7 @@ function analyzeMemoryHealth(){
       0,
 
       MEMORY_DEBUG_CONFIG
-      .MAX_REPORT_WARNINGS
+      .MAX_WARNINGS
 
     ),
 
@@ -847,6 +683,14 @@ function analyzeMemoryHealth(){
   memoryDebugState
   .lastHealthReport =
   report;
+
+  memoryDebugState
+  .totalWarnings =
+  warnings.length;
+
+  memoryDebugState
+  .totalCriticalErrors =
+  critical.length;
 
   return report;
 
@@ -873,45 +717,15 @@ function attemptMemoryRepair(){
 
   try{
 
-    if(
-      typeof cleanupOrphanIndexes ===
-      "function"
-    ){
+    repairMemoryIndexes?.();
 
-      cleanupOrphanIndexes();
-    }
+    rebuildDirtySummaries?.();
 
-    if(
-      typeof repairMemoryIndexes ===
-      "function"
-    ){
+    rebuildMemoryEmbeddings?.();
 
-      repairMemoryIndexes();
-    }
+    updateMemoryMetrics?.();
 
-    if(
-      typeof rebuildDirtySummaries ===
-      "function"
-    ){
-
-      rebuildDirtySummaries();
-    }
-
-    if(
-      typeof rebuildMemoryEmbeddings ===
-      "function"
-    ){
-
-      rebuildMemoryEmbeddings();
-    }
-
-    if(
-      typeof updateMemoryMetrics ===
-      "function"
-    ){
-
-      updateMemoryMetrics();
-    }
+    cleanupOrphanIndexes?.();
 
     memoryDebugState
     .lastRepairAt =
@@ -920,7 +734,7 @@ function attemptMemoryRepair(){
     memoryDebugState
     .totalRepairs++;
 
-    addMemoryDebugLog(
+    addMemoryDebugEntry(
 
       "info",
 
@@ -934,15 +748,14 @@ function attemptMemoryRepair(){
 
   catch(error){
 
-    addMemoryDebugLog(
+    addMemoryDebugEntry(
 
       "error",
 
       "Repair failed",
 
       {
-        error:
-        error?.message
+        error:error?.message
       }
 
     );
@@ -981,57 +794,36 @@ function createMemorySnapshot(){
     createdAt:
     Date.now(),
 
-    state:
+    metrics:
+    cloneMemoryObject?.({
 
-      typeof cloneMemoryObject ===
-      "function"
+      memoryCount:
 
-      ?
-
-      cloneMemoryObject({
-
-        memories:
         memoryState
-        ?.memories,
+        ?.memories
+        ?.length || 0,
 
-        metrics:
+      corrupted:
+
         memoryState
-        ?.metrics,
+        ?.tracking
+        ?.corruptedIds
+        ?.size || 0,
 
-        health:
+      cacheSize:
+
         memoryState
-        ?.health,
+        ?.cache
+        ?.memories
+        ?.size || 0
 
-        tracking:
-        {
-
-          corruptedIds:[
-
-            ...(memoryState
-            ?.tracking
-            ?.corruptedIds
-
-            ||
-
-            [])
-
-          ]
-
-        }
-
-      })
-
-      :
-
-      null
+    })
 
   };
 
   memoryDebugState
   .snapshots
-  .push(
-    snapshot
-  );
+  .push(snapshot);
 
   while(
 
@@ -1061,171 +853,7 @@ function createMemorySnapshot(){
 
 
 // =====================================
-// BENCHMARK
-// =====================================
-
-async function benchmarkMemoryOperation(
-  operation,
-  callback
-){
-
-  const startedAt =
-
-    typeof performance !==
-    "undefined"
-
-    ?
-
-    performance.now()
-
-    :
-
-    Date.now();
-
-  try{
-
-    const result =
-    await Promise.resolve(
-      callback()
-    );
-
-    const duration =
-
-      (
-        typeof performance !==
-        "undefined"
-
-        ?
-
-        performance.now()
-
-        :
-
-        Date.now()
-
-      ) -
-
-      startedAt;
-
-    const benchmark = {
-
-      id:createDebugId(
-        "benchmark"
-      ),
-
-      operation,
-
-      duration,
-
-      success:true,
-
-      timestamp:
-      Date.now()
-
-    };
-
-    memoryDebugState
-    .benchmarks
-    .push(
-      benchmark
-    );
-
-    while(
-
-      memoryDebugState
-      .benchmarks
-      .length >
-
-      MEMORY_DEBUG_CONFIG
-      .MAX_BENCHMARKS
-
-    ){
-
-      memoryDebugState
-      .benchmarks
-      .shift();
-
-    }
-
-    return {
-
-      result,
-
-      duration
-
-    };
-
-  }
-
-  catch(error){
-
-    const duration =
-
-      (
-        typeof performance !==
-        "undefined"
-
-        ?
-
-        performance.now()
-
-        :
-
-        Date.now()
-
-      ) -
-
-      startedAt;
-
-    memoryDebugState
-    .benchmarks
-    .push({
-
-      id:createDebugId(
-        "benchmark"
-      ),
-
-      operation,
-
-      duration,
-
-      success:false,
-
-      error:
-      error?.message,
-
-      timestamp:
-      Date.now()
-
-    });
-
-    while(
-
-      memoryDebugState
-      .benchmarks
-      .length >
-
-      MEMORY_DEBUG_CONFIG
-      .MAX_BENCHMARKS
-
-    ){
-
-      memoryDebugState
-      .benchmarks
-      .shift();
-
-    }
-
-    throw error;
-
-  }
-
-}
-
-
-
-// =====================================
-// MEMORY REPORT
+// DEBUG REPORT
 // =====================================
 
 function generateMemoryDebugReport(){
@@ -1233,7 +861,7 @@ function generateMemoryDebugReport(){
   const health =
   analyzeMemoryHealth();
 
-  return deepFreeze({
+  return {
 
     generatedAt:
     Date.now(),
@@ -1251,146 +879,54 @@ function generateMemoryDebugReport(){
     {
 
       memory:
-
-        typeof getMemoryDiagnostics ===
-        "function"
-
-        ?
-
-        getMemoryDiagnostics()
-
-        :
-
-        null,
+      getMemoryDiagnostics?.(),
 
       embeddings:
-
-        typeof getMemoryEmbeddingDiagnostics ===
-        "function"
-
-        ?
-
-        getMemoryEmbeddingDiagnostics()
-
-        :
-
-        null,
+      getMemoryEmbeddingDiagnostics?.(),
 
       summaries:
-
-        typeof getMemorySummaryDiagnostics ===
-        "function"
-
-        ?
-
-        getMemorySummaryDiagnostics()
-
-        :
-
-        null,
-
-      sync:
-
-        typeof getMemorySyncDiagnostics ===
-        "function"
-
-        ?
-
-        getMemorySyncDiagnostics()
-
-        :
-
-        null,
+      getMemorySummaryDiagnostics?.(),
 
       export:
-
-        typeof getMemoryExportDiagnostics ===
-        "function"
-
-        ?
-
-        getMemoryExportDiagnostics()
-
-        :
-
-        null,
+      getMemoryExportDiagnostics?.(),
 
       security:
+      getMemorySecurityDiagnostics?.(),
 
-        typeof getMemorySecurityDiagnostics ===
-        "function"
-
-        ?
-
-        getMemorySecurityDiagnostics()
-
-        :
-
-        null,
-
-      events:
-
-        typeof getMemoryEventDiagnostics ===
-        "function"
-
-        ?
-
-        getMemoryEventDiagnostics()
-
-        :
-
-        null
+      cleanup:
+      getMemoryCleanupDiagnostics?.()
 
     },
 
     runtime:
     {
 
+      initialized:
+      memoryState
+      ?.initialized,
+
       activeOperations:
 
         memoryState
         ?.runtime
-        ?.activeOperations,
-
-      initialized:
-
-        memoryState
-        ?.initialized,
-
-      corrupted:
-
-        memoryState
-        ?.runtime
-        ?.corrupted
+        ?.activeOperations
 
     }
 
-  });
+  };
 
 }
 
 
 
 // =====================================
-// DEBUG RESET
+// RESET
 // =====================================
 
 function clearMemoryDebugData(){
 
   memoryDebugState
-  .logs = [];
-
-  memoryDebugState
-  .traces = [];
-
-  memoryDebugState
-  .warnings = [];
-
-  memoryDebugState
-  .criticalErrors = [];
-
-  memoryDebugState
-  .benchmarks = [];
+  .entries = [];
 
   memoryDebugState
   .snapshots = [];
@@ -1410,7 +946,7 @@ function clearMemoryDebugData(){
 
 
 // =====================================
-// DEBUG DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getMemoryDebugDiagnostics(){
@@ -1421,35 +957,14 @@ function getMemoryDebugDiagnostics(){
     memoryDebugState
     .initialized,
 
-    logs:
+    entries:
     memoryDebugState
-    .logs
-    .length,
-
-    traces:
-    memoryDebugState
-    .traces
+    .entries
     .length,
 
     snapshots:
     memoryDebugState
     .snapshots
-    .length,
-
-    warnings:
-    memoryDebugState
-    .warnings
-    .length,
-
-    criticalErrors:
-
-      memoryDebugState
-      .criticalErrors
-      .length,
-
-    benchmarks:
-    memoryDebugState
-    .benchmarks
     .length,
 
     activeProfiles:
