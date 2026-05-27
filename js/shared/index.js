@@ -831,7 +831,7 @@ function createSharedSnapshot(){
 // PUBLIC API
 // =====================================
 
-const SharedRuntime =
+const RIGOSharedRuntime =
 safeFreeze({
 
   initialize:
@@ -869,12 +869,12 @@ if(
 
     window,
 
-    "SharedRuntime",
+    "RIGOSharedRuntime",
 
     {
 
       value:
-      SharedRuntime,
+      RIGOSharedRuntime,
 
       writable:
       false,
@@ -887,3 +887,17 @@ if(
   );
 
 }
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  RIGOSharedRuntime
+
+};
+
+export default
+RIGOSharedRuntime;
