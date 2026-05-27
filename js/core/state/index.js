@@ -2,7 +2,7 @@
 // RIGO AI
 // STATE INDEX
 // SAFE STATE COMPOSITION LAYER
-// ENTERPRISE FINAL
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -36,17 +36,17 @@ Object.seal({
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
-function getStateDependency(
-  dependencyName
+function getContainerService(
+  serviceName
 ){
 
   try{
 
     if(
-      typeof DependencySystem ===
+      typeof window ===
       "undefined"
     ){
 
@@ -54,9 +54,19 @@ function getStateDependency(
 
     }
 
+    const container =
+      window.RIGOContainer;
+
     if(
-      typeof DependencySystem
-      .resolve !==
+      !container
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof container.resolve !==
       "function"
     ){
 
@@ -64,9 +74,8 @@ function getStateDependency(
 
     }
 
-    return DependencySystem
-    .resolve(
-      dependencyName
+    return container.resolve(
+      serviceName
     );
 
   }
@@ -75,7 +84,7 @@ function getStateDependency(
 
     console.warn(
 
-      `[StateAPI] Failed resolving dependency: ${dependencyName}`,
+      `[StateAPI] Failed resolving service: ${serviceName}`,
 
       error
 
@@ -93,8 +102,10 @@ function isFunction(
   value
 ){
 
-  return typeof value ===
-  "function";
+  return (
+    typeof value ===
+    "function"
+  );
 
 }
 
@@ -328,9 +339,8 @@ function validateStateLayer(){
 
   const requiredSystems = [
 
-    "AppState",
-
-    "StateManager"
+    "RIGOAppState",
+    "RIGOStateManager"
 
   ];
 
@@ -371,7 +381,7 @@ function validateStateLayer(){
 
 
 // =====================================
-// INITIALIZE
+// INITIALIZATION
 // =====================================
 
 async function initializeStateLayer(){
@@ -478,7 +488,7 @@ function getReadonlyAppState(){
     () => {
 
       const appStateAPI =
-      getStateDependency(
+      getContainerService(
         "AppState"
       );
 
@@ -527,7 +537,7 @@ function getReadonlyStateManager(){
     () => {
 
       const manager =
-      getStateDependency(
+      getContainerService(
         "StateManager"
       );
 
@@ -579,7 +589,7 @@ function getReadonlyStateDiagnostics(){
     () => {
 
       const manager =
-      getStateDependency(
+      getContainerService(
         "StateManager"
       );
 
@@ -672,6 +682,31 @@ safeFreeze({
 
 
 
+  validate:
+  validateStateLayer,
+
+
+
+  // ===================================
+  // SAFE ACCESSORS
+  // ===================================
+
+  get appState(){
+
+    return window.RIGOAppState;
+
+  },
+
+
+
+  get stateManager(){
+
+    return window.RIGOStateManager;
+
+  },
+
+
+
   // ===================================
   // READONLY
   // ===================================
@@ -713,7 +748,7 @@ safeFreeze({
       () => {
 
         const appStateAPI =
-        getStateDependency(
+        getContainerService(
           "AppState"
         );
 
@@ -760,7 +795,7 @@ safeFreeze({
       () => {
 
         const appStateAPI =
-        getStateDependency(
+        getContainerService(
           "AppState"
         );
 
@@ -807,7 +842,7 @@ safeFreeze({
       () => {
 
         const appStateAPI =
-        getStateDependency(
+        getContainerService(
           "AppState"
         );
 
@@ -856,7 +891,7 @@ safeFreeze({
       () => {
 
         const manager =
-        getStateDependency(
+        getContainerService(
           "StateManager"
         );
 
@@ -906,7 +941,7 @@ safeFreeze({
       () => {
 
         const manager =
-        getStateDependency(
+        getContainerService(
           "StateManager"
         );
 
@@ -928,8 +963,7 @@ safeFreeze({
 
         }
 
-        return manager
-        .update(
+        return manager.update(
 
           path,
           value,
@@ -958,7 +992,7 @@ safeFreeze({
       () => {
 
         const manager =
-        getStateDependency(
+        getContainerService(
           "StateManager"
         );
 
@@ -980,8 +1014,7 @@ safeFreeze({
 
         }
 
-        return manager
-        .remove(
+        return manager.remove(
           path
         );
 
@@ -1006,7 +1039,7 @@ safeFreeze({
       () => {
 
         const manager =
-        getStateDependency(
+        getContainerService(
           "StateManager"
         );
 
@@ -1028,8 +1061,7 @@ safeFreeze({
 
         }
 
-        return manager
-        .rollback(
+        return manager.rollback(
           version
         );
 
