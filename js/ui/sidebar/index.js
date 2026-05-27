@@ -2,7 +2,21 @@
 // RIGO AI
 // SIDEBAR INDEX
 // ENTERPRISE SIDEBAR PUBLIC API
+// FINAL STABILIZED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "./sidebar-state.js";
+import "./sidebar-elements.js";
+import "./sidebar-events.js";
+import "./sidebar-actions.js";
+import "./sidebar-renderer.js";
+import "./sidebar-runtime.js";
 
 
 
@@ -92,8 +106,8 @@ function isSidebarReady(){
     &&
 
     sidebarRuntimeState
-    .destroyed ===
-    false
+    .destroyed !==
+    true
 
   );
 
@@ -292,21 +306,139 @@ Object.freeze({
   // ===================================
 
   runtime:
-  SidebarRuntime,
+
+    typeof SidebarRuntime !==
+    "undefined"
+
+    ?
+
+    SidebarRuntime
+
+    :
+
+    null,
+
+
 
   renderer:
-  SidebarRenderer,
+
+    typeof SidebarRenderer !==
+    "undefined"
+
+    ?
+
+    SidebarRenderer
+
+    :
+
+    null,
+
+
 
   events:
-  SidebarEvents,
+
+    typeof SidebarEvents !==
+    "undefined"
+
+    ?
+
+    SidebarEvents
+
+    :
+
+    null,
+
+
 
   actions:
-  SidebarActions,
+
+    typeof SidebarActions !==
+    "undefined"
+
+    ?
+
+    SidebarActions
+
+    :
+
+    null,
+
+
 
   elements:
-  SidebarElements,
+
+    typeof SidebarElements !==
+    "undefined"
+
+    ?
+
+    SidebarElements
+
+    :
+
+    null,
+
+
 
   state:
-  sidebarRuntimeState
+
+    typeof sidebarRuntimeState !==
+    "undefined"
+
+    ?
+
+    sidebarRuntimeState
+
+    :
+
+    null
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  Sidebar,
+
+  initializeSidebarSystem,
+
+  resetSidebarSystem,
+
+  destroySidebarSystem,
+
+  refreshSidebarSystem,
+
+  isSidebarReady,
+
+  getSidebarSystemDiagnostics
+
+};
+
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
+export default Sidebar;
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.Sidebar =
+  Sidebar;
+
+}
