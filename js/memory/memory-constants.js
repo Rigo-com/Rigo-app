@@ -7,6 +7,20 @@
 
 
 // =====================================
+// SAFE FREEZE
+// =====================================
+
+const freeze =
+typeof deepFreeze ===
+"function"
+
+? deepFreeze
+
+: Object.freeze;
+
+
+
+// =====================================
 // MEMORY VERSION
 // =====================================
 
@@ -62,8 +76,11 @@ function createImmutableSet(
 
     },
 
-    size:
-    internalSet.size
+    get size(){
+
+      return internalSet.size;
+
+    }
 
   });
 
@@ -76,7 +93,7 @@ function createImmutableSet(
 // =====================================
 
 const MEMORY_TYPES =
-deepFreeze([
+freeze([
 
   "conversation",
 
@@ -120,7 +137,7 @@ createImmutableSet(
 // =====================================
 
 const MEMORY_PRIORITIES =
-deepFreeze({
+freeze({
 
   LOW:
   "low",
@@ -154,7 +171,7 @@ createImmutableSet(
 // =====================================
 
 const MEMORY_PRIORITY_WEIGHTS =
-deepFreeze({
+freeze({
 
   low:
   0.2,
@@ -177,7 +194,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_EXPIRATION =
-deepFreeze({
+freeze({
 
   SESSION:
   "session",
@@ -214,7 +231,7 @@ createImmutableSet(
 // =====================================
 
 const MEMORY_SCORE_WEIGHTS =
-deepFreeze({
+freeze({
 
   PINNED:
   1.0,
@@ -252,7 +269,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_DEFAULTS =
-deepFreeze({
+freeze({
 
   TYPE:
   "conversation",
@@ -290,13 +307,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_LIMITS =
-deepFreeze({
-
-
-
-  // ===================================
-  // TOTAL LIMITS
-  // ===================================
+freeze({
 
   MAX_TOTAL_MEMORIES:
   5000,
@@ -306,12 +317,6 @@ deepFreeze({
 
   MAX_SESSION_MEMORIES:
   500,
-
-
-
-  // ===================================
-  // CONTENT
-  // ===================================
 
   MIN_CONTENT_LENGTH:
   1,
@@ -334,12 +339,6 @@ deepFreeze({
   MAX_TAG_LENGTH:
   40,
 
-
-
-  // ===================================
-  // CONTEXT
-  // ===================================
-
   MAX_CONTEXT_MEMORIES:
   50,
 
@@ -349,20 +348,8 @@ deepFreeze({
   MAX_CONTEXT_TOKENS:
   12000,
 
-
-
-  // ===================================
-  // SEARCH
-  // ===================================
-
   MAX_SEARCH_RESULTS:
   100,
-
-
-
-  // ===================================
-  // IMPORT / EXPORT
-  // ===================================
 
   MAX_EXPORT_SIZE:
   10 * 1024 * 1024,
@@ -370,29 +357,11 @@ deepFreeze({
   MAX_IMPORT_ITEMS:
   5000,
 
-
-
-  // ===================================
-  // STORAGE
-  // ===================================
-
   AUTO_SAVE_DELAY:
   300,
 
-
-
-  // ===================================
-  // CACHE
-  // ===================================
-
   MAX_CACHE_MEMORY_SIZE:
   5 * 1024 * 1024,
-
-
-
-  // ===================================
-  // CLEANUP
-  // ===================================
 
   CLEANUP_BATCH_SIZE:
   100,
@@ -412,7 +381,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_STORAGE_KEYS =
-deepFreeze({
+freeze({
 
   MEMORIES:
   "rigo_memories",
@@ -444,7 +413,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_STATES =
-deepFreeze([
+freeze([
 
   "active",
 
@@ -468,7 +437,7 @@ createImmutableSet(
 // =====================================
 
 const MEMORY_CATEGORIES =
-deepFreeze([
+freeze([
 
   "chat",
 
@@ -506,7 +475,7 @@ createImmutableSet(
 // =====================================
 
 const RESERVED_MEMORY_TAGS =
-deepFreeze([
+freeze([
 
   "pinned",
 
@@ -536,7 +505,7 @@ createImmutableSet(
 // =====================================
 
 const MEMORY_SORT_OPTIONS =
-deepFreeze([
+freeze([
 
   "createdAt",
 
@@ -566,7 +535,7 @@ createImmutableSet(
 // =====================================
 
 const MEMORY_SEARCH_MODES =
-deepFreeze([
+freeze([
 
   "exact",
 
@@ -592,7 +561,7 @@ createImmutableSet(
 // =====================================
 
 const MEMORY_CLEANUP_RULES =
-deepFreeze({
+freeze({
 
   REMOVE_EXPIRED:
   true,
@@ -618,7 +587,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_DEBUG =
-deepFreeze({
+freeze({
 
   ENABLE_LOGS:
   false,
@@ -647,7 +616,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_CACHE =
-deepFreeze({
+freeze({
 
   ENABLED:
   true,
@@ -673,7 +642,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_CONTEXT =
-deepFreeze({
+freeze({
 
   ENABLE_SMART_SELECTION:
   true,
@@ -702,7 +671,7 @@ deepFreeze({
 // =====================================
 
 const MEMORY_EXPORT_FORMATS =
-deepFreeze([
+freeze([
 
   "json",
 
@@ -720,123 +689,83 @@ createImmutableSet(
 
 
 // =====================================
-// MEMORY LOOKUP HELPERS
+// LOOKUP HELPERS
 // =====================================
 
-function isValidMemoryType(
-  type
-){
+function isValidMemoryType(type){
 
-  return MEMORY_TYPE_SET
-  .has(
-    normalizeMemoryValue(
-      type
-    )
+  return MEMORY_TYPE_SET.has(
+    normalizeMemoryValue(type)
   );
 
 }
 
 
 
-function isValidMemoryPriority(
-  priority
-){
+function isValidMemoryPriority(priority){
 
-  return MEMORY_PRIORITY_SET
-  .has(
-    normalizeMemoryValue(
-      priority
-    )
+  return MEMORY_PRIORITY_SET.has(
+    normalizeMemoryValue(priority)
   );
 
 }
 
 
 
-function isValidMemoryExpiration(
-  expiration
-){
+function isValidMemoryExpiration(expiration){
 
-  return MEMORY_EXPIRATION_SET
-  .has(
-    normalizeMemoryValue(
-      expiration
-    )
+  return MEMORY_EXPIRATION_SET.has(
+    normalizeMemoryValue(expiration)
   );
 
 }
 
 
 
-function isValidMemoryState(
-  state
-){
+function isValidMemoryState(state){
 
-  return MEMORY_STATE_SET
-  .has(
-    normalizeMemoryValue(
-      state
-    )
+  return MEMORY_STATE_SET.has(
+    normalizeMemoryValue(state)
   );
 
 }
 
 
 
-function isValidMemoryCategory(
-  category
-){
+function isValidMemoryCategory(category){
 
-  return MEMORY_CATEGORY_SET
-  .has(
-    normalizeMemoryValue(
-      category
-    )
+  return MEMORY_CATEGORY_SET.has(
+    normalizeMemoryValue(category)
   );
 
 }
 
 
 
-function isValidMemorySearchMode(
-  mode
-){
+function isValidMemorySearchMode(mode){
 
-  return MEMORY_SEARCH_MODE_SET
-  .has(
-    normalizeMemoryValue(
-      mode
-    )
+  return MEMORY_SEARCH_MODE_SET.has(
+    normalizeMemoryValue(mode)
   );
 
 }
 
 
 
-function isValidMemorySortOption(
-  option
-){
+function isValidMemorySortOption(option){
 
-  return MEMORY_SORT_OPTION_SET
-  .has(
-    normalizeMemoryValue(
-      option
-    )
+  return MEMORY_SORT_OPTION_SET.has(
+    normalizeMemoryValue(option)
   );
 
 }
 
 
 
-function isValidMemoryExportFormat(
-  format
-){
+function isValidMemoryExportFormat(format){
 
-  return MEMORY_EXPORT_FORMAT_SET
-  .has(
-    normalizeMemoryValue(
-      format
-    )
+  return MEMORY_EXPORT_FORMAT_SET.has(
+    normalizeMemoryValue(format)
   );
 
 }
@@ -848,7 +777,7 @@ function isValidMemoryExportFormat(
 // =====================================
 
 const MEMORY_CONFIG =
-deepFreeze({
+freeze({
 
   VERSION:
   MEMORY_VERSION,
@@ -899,3 +828,156 @@ deepFreeze({
   [...MEMORY_EXPORT_FORMATS]
 
 });
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryConstants =
+Object.freeze({
+
+  VERSION:
+  MEMORY_VERSION,
+
+  TYPES:
+  MEMORY_TYPES,
+
+  TYPE_SET:
+  MEMORY_TYPE_SET,
+
+  PRIORITIES:
+  MEMORY_PRIORITIES,
+
+  PRIORITY_SET:
+  MEMORY_PRIORITY_SET,
+
+  PRIORITY_WEIGHTS:
+  MEMORY_PRIORITY_WEIGHTS,
+
+  EXPIRATION:
+  MEMORY_EXPIRATION,
+
+  EXPIRATION_SET:
+  MEMORY_EXPIRATION_SET,
+
+  SCORE_WEIGHTS:
+  MEMORY_SCORE_WEIGHTS,
+
+  DEFAULTS:
+  MEMORY_DEFAULTS,
+
+  LIMITS:
+  MEMORY_LIMITS,
+
+  STORAGE_KEYS:
+  MEMORY_STORAGE_KEYS,
+
+  STATES:
+  MEMORY_STATES,
+
+  STATE_SET:
+  MEMORY_STATE_SET,
+
+  CATEGORIES:
+  MEMORY_CATEGORIES,
+
+  CATEGORY_SET:
+  MEMORY_CATEGORY_SET,
+
+  RESERVED_TAGS:
+  RESERVED_MEMORY_TAGS,
+
+  RESERVED_TAG_SET:
+  RESERVED_MEMORY_TAG_SET,
+
+  SORT_OPTIONS:
+  MEMORY_SORT_OPTIONS,
+
+  SORT_OPTION_SET:
+  MEMORY_SORT_OPTION_SET,
+
+  SEARCH_MODES:
+  MEMORY_SEARCH_MODES,
+
+  SEARCH_MODE_SET:
+  MEMORY_SEARCH_MODE_SET,
+
+  CLEANUP_RULES:
+  MEMORY_CLEANUP_RULES,
+
+  DEBUG:
+  MEMORY_DEBUG,
+
+  CACHE:
+  MEMORY_CACHE,
+
+  CONTEXT:
+  MEMORY_CONTEXT,
+
+  EXPORT_FORMATS:
+  MEMORY_EXPORT_FORMATS,
+
+  EXPORT_FORMAT_SET:
+  MEMORY_EXPORT_FORMAT_SET,
+
+  CONFIG:
+  MEMORY_CONFIG,
+
+  normalize:
+  normalizeMemoryValue,
+
+  isValidType:
+  isValidMemoryType,
+
+  isValidPriority:
+  isValidMemoryPriority,
+
+  isValidExpiration:
+  isValidMemoryExpiration,
+
+  isValidState:
+  isValidMemoryState,
+
+  isValidCategory:
+  isValidMemoryCategory,
+
+  isValidSearchMode:
+  isValidMemorySearchMode,
+
+  isValidSortOption:
+  isValidMemorySortOption,
+
+  isValidExportFormat:
+  isValidMemoryExportFormat
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryConstants =
+  MemoryConstants;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.MemoryConstants =
+  MemoryConstants;
+
+}
