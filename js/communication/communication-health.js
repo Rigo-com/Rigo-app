@@ -4,6 +4,158 @@
 // =====================================
 
 
+// =====================================
+// INTERNAL HELPERS
+// =====================================
+
+function cleanupProcessedHashes(){
+
+  const now =
+  Date.now();
+
+  communicationRuntimeState
+  .processedHashes
+  .forEach((timestamp,hash) => {
+
+    const expired =
+
+      now - timestamp >
+
+      COMMUNICATION_RUNTIME_CONFIG
+      .HASH_TTL;
+
+    if(expired){
+
+      communicationRuntimeState
+      .processedHashes
+      .delete(hash);
+
+    }
+
+  });
+
+  return true;
+
+}
+
+
+
+function trimConversationHistory(){
+
+  const limit =
+
+    COMMUNICATION_RUNTIME_CONFIG
+    .MAX_CONVERSATIONS;
+
+  if(
+
+    communicationRuntimeState
+    .conversations
+    .size <= limit
+
+  ){
+
+    return true;
+
+  }
+
+  const overflow =
+
+    communicationRuntimeState
+    .conversations
+    .size - limit;
+
+  const keys = [
+
+    ...communicationRuntimeState
+    .conversations
+    .keys()
+
+  ];
+
+  for(
+    let index = 0;
+    index < overflow;
+    index++
+  ){
+
+    communicationRuntimeState
+    .conversations
+    .delete(
+      keys[index]
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+async function stopTypingIndicator(){
+
+  communicationRuntimeState
+  .typing =
+  false;
+
+  await emitCommunicationEvent(
+
+    COMMUNICATION_RUNTIME_EVENTS
+    .TYPING_STOPPED
+
+  );
+
+  return true;
+
+}
+
+
+
+async function processCommunicationQueue(){
+
+  if(
+    communicationRuntimeState
+    .processing
+  ){
+
+    return false;
+
+  }
+
+  communicationRuntimeState
+  .processing =
+  true;
+
+  try{
+
+    while(
+
+      communicationRuntimeState
+      .messageQueue
+      .length > 0
+
+    ){
+
+      communicationRuntimeState
+      .messageQueue
+      .shift();
+
+    }
+
+    return true;
+
+  }
+
+  finally{
+
+    communicationRuntimeState
+    .processing =
+    false;
+
+  }
+
+}
 
 // =====================================
 // HEALTH CHECK
