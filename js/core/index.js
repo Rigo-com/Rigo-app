@@ -1,187 +1,77 @@
 // =====================================
 // RIGO AI
-// ROOT CORE INDEX
-// ENTERPRISE MASTER ORCHESTRATOR
-// FINAL ARCHITECTURE
+// CORE INDEX
+// CENTRAL CORE ORCHESTRATION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
 
 // =====================================
-// ROOT COMPOSITION IMPORTS
-// LOAD ORDER MATTERS
+// FOUNDATIONAL SYSTEMS
 // =====================================
 
 import "./constants/index.js";
-import "./state/index.js";
-import "./dependencies/index.js";
 import "./config/index.js";
+
+
+
+// =====================================
+// CONTAINER SYSTEMS
+// =====================================
+
 import "./container/index.js";
+import "./dependencies/index.js";
+
+
+
+// =====================================
+// EVENT + STATE SYSTEMS
+// =====================================
+
 import "./events/index.js";
-import "./health/index.js";
+import "./state/index.js";
+
+
+
+// =====================================
+// MODULE MANAGEMENT
+// =====================================
+
 import "./modules/index.js";
+
+
+
+// =====================================
+// RUNTIME SYSTEMS
+// =====================================
+
 import "./runtime/index.js";
 import "./lifecycle/index.js";
+import "./health/index.js";
+
+
+
+// =====================================
+// APPLICATION LAYER
+// =====================================
+
 import "./app/index.js";
 
 
 
 // =====================================
-// INTERNAL STATE
+// INTERNAL HELPERS
 // =====================================
 
-const coreRuntimeState =
-Object.seal({
-
-  initialized:false,
-
-  booting:false,
-
-  booted:false,
-
-  shuttingDown:false,
-
-  recovering:false,
-
-  lifecycleBound:false,
-
-  startupStartedAt:null,
-
-  startupCompletedAt:null,
-
-  lastHealthcheckAt:null,
-
-  lastError:null,
-
-  diagnostics:{
-
-    boots:0,
-
-    shutdowns:0,
-
-    recoveries:0,
-
-    healthchecks:0,
-
-    runtimeErrors:0
-
-  }
-
-});
-
-
-
-// =====================================
-// HELPERS
-// =====================================
-
-function isFunction(
-  value
-){
-
-  return typeof value ===
-  "function";
-
-}
-
-
-
-function isPlainObject(
-  value
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  const prototype =
-  Object.getPrototypeOf(
-    value
-  );
-
-  return (
-
-    prototype ===
-    Object.prototype ||
-
-    prototype ===
-    null
-
-  );
-
-}
-
-
-
-function normalizeCoreError(
-  error
-){
-
-  if(
-    typeof getSafeErrorMessage ===
-    "function"
-  ){
-
-    return getSafeErrorMessage(
-      error
-    );
-
-  }
-
-  return String(
-    error || "UNKNOWN ERROR"
-  );
-
-}
-
-
-
-function getCoreDependency(
-  dependencyName
-){
-
-  try{
-
-    if(
-      typeof window ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    return (
-      window[dependencyName] ||
-      null
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-function emitCoreWarning(
+function emitCoreIndexWarning(
   message,
   error = null
 ){
 
   console.warn(
 
-    `[RIGOCore] ${message}`,
+    `[CoreIndex] ${message}`,
 
     error || ""
 
@@ -191,204 +81,14 @@ function emitCoreWarning(
 
 
 
-// =====================================
-// SAFE FREEZE
-// =====================================
+function isObject(value){
 
-function safeFreeze(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Promise ||
-
-    value instanceof Date ||
-
-    value instanceof RegExp ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    (
-      typeof HTMLElement !==
-      "undefined" &&
-
-      value instanceof HTMLElement
-    )
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    !Array.isArray(value) &&
-
-    !isPlainObject(value)
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(value);
-
-  Object.freeze(value);
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    safeFreeze(
-      nestedValue,
-      visited
-    );
-
-  });
-
-  return value;
+  return (
+    typeof value === "object" &&
+    value !== null
+  );
 
 }
-
-
-
-// =====================================
-// SAFE EXECUTION
-// =====================================
-
-async function safelyExecuteCoreOperation(
-  label,
-  operation,
-  fallback = null
-){
-
-  try{
-
-    if(
-      !isFunction(
-        operation
-      )
-    ){
-
-      return fallback;
-
-    }
-
-    return await operation();
-
-  }
-
-  catch(error){
-
-    coreRuntimeState
-    .lastError =
-    normalizeCoreError(
-      error
-    );
-
-    coreRuntimeState
-    .diagnostics
-    .runtimeErrors++;
-
-    emitCoreWarning(
-
-      `${label} failed`,
-
-      error
-
-    );
-
-    if(
-      typeof logCriticalError ===
-      "function"
-    ){
-
-      try{
-
-        await logCriticalError(
-
-          label.toUpperCase(),
-
-          {
-
-            error:
-
-            normalizeCoreError(
-              error
-            )
-
-          }
-
-        );
-
-      }
-
-      catch(loggingError){
-
-        emitCoreWarning(
-
-          "Critical logging failed",
-
-          loggingError
-
-        );
-
-      }
-
-    }
-
-    return fallback;
-
-  }
-
-}
-
-
-
-// =====================================
-// REQUIRED SYSTEMS
-// =====================================
-
-const REQUIRED_SYSTEMS =
-Object.freeze([
-
-  "ConstantsAPI",
-  "StateAPI",
-  "DependencySystem",
-  "ConfigAPI",
-  "HealthAPI",
-  "Runtime",
-  "RuntimeManager",
-  "RigoModules",
-  "LifecycleAPI",
-  "ApplicationRuntime",
-  "AppRecovery",
-  "RIGOApplication"
-
-]);
 
 
 
@@ -396,30 +96,68 @@ Object.freeze([
 // VALIDATION
 // =====================================
 
-async function validateCoreSystems(){
+function validateCoreSystems(){
 
-  return safelyExecuteCoreOperation(
+  try{
 
-    "Core validation",
+    if(
+      typeof window ===
+      "undefined"
+    ){
 
-    async() => {
+      return false;
 
-      return REQUIRED_SYSTEMS
-      .every((systemName) => {
+    }
 
-        return Boolean(
-          getCoreDependency(
-            systemName
-          )
+    const requiredSystems = [
+
+      "RIGOContainer",
+      "RIGOEventBus",
+      "RIGOStateManager",
+      "RIGORuntime",
+      "RIGOLifecycle"
+
+    ];
+
+    const missingSystems =
+
+      requiredSystems.filter((systemName) => {
+
+        return (
+          typeof window[systemName] ===
+          "undefined"
         );
 
       });
 
-    },
+    if(
+      missingSystems.length > 0
+    ){
 
-    false
+      emitCoreIndexWarning(
 
-  );
+        `Missing systems: ${missingSystems.join(", ")}`
+
+      );
+
+      return false;
+
+    }
+
+    return true;
+
+  }
+
+  catch(error){
+
+    emitCoreIndexWarning(
+      "Validation failed",
+      error
+    );
+
+    return false;
+
+  }
 
 }
 
@@ -431,611 +169,53 @@ async function validateCoreSystems(){
 
 async function initializeCoreSystems(){
 
-  return safelyExecuteCoreOperation(
-
-    "Core initialization",
-
-    async() => {
-
-      if(
-        coreRuntimeState
-        .initialized
-      ){
-
-        return true;
-
-      }
-
-      const modules =
-      getCoreDependency(
-        "RigoModules"
-      );
-
-      const runtime =
-      getCoreDependency(
-        "ApplicationRuntime"
-      );
-
-      const lifecycle =
-      getCoreDependency(
-        "LifecycleAPI"
-      );
-
-      // =============================
-      // MODULES
-      // =============================
-
-      if(
-
-        modules &&
-
-        isFunction(
-          modules.initialize
-        )
-
-      ){
-
-        await modules
-        .initialize();
-
-      }
-
-      // =============================
-      // APPLICATION RUNTIME
-      // =============================
-
-      if(
-
-        runtime &&
-
-        isFunction(
-          runtime.initialize
-        )
-
-      ){
-
-        await runtime
-        .initialize();
-
-      }
-
-      // =============================
-      // LIFECYCLE
-      // =============================
-
-      if(
-
-        lifecycle &&
-
-        isFunction(
-          lifecycle.initialize
-        )
-
-      ){
-
-        await lifecycle
-        .initialize();
-
-      }
-
-      coreRuntimeState
-      .initialized =
-      true;
-
-      return true;
-
-    },
-
-    false
-
-  );
-
-}
-
-
-
-// =====================================
-// BOOT
-// =====================================
-
-async function bootCore(){
-
-  return safelyExecuteCoreOperation(
-
-    "Core boot",
-
-    async() => {
-
-      if(
-
-        coreRuntimeState
-        .booting ||
-
-        coreRuntimeState
-        .booted
-
-      ){
-
-        return false;
-
-      }
-
-      coreRuntimeState
-      .booting =
-      true;
-
-      coreRuntimeState
-      .startupStartedAt =
-      Date.now();
-
-      coreRuntimeState
-      .diagnostics
-      .boots++;
-
-      // =============================
-      // VALIDATION
-      // =============================
-
-      const validCore =
-      await validateCoreSystems();
-
-      if(
-        !validCore
-      ){
-
-        throw new Error(
-          "CORE VALIDATION FAILED"
-        );
-
-      }
-
-      // =============================
-      // INITIALIZATION
-      // =============================
-
-      const initialized =
-      await initializeCoreSystems();
-
-      if(
-        !initialized
-      ){
-
-        throw new Error(
-          "CORE INITIALIZATION FAILED"
-        );
-
-      }
-
-      // =============================
-      // MODULE BOOT
-      // =============================
-
-      const modules =
-      getCoreDependency(
-        "RigoModules"
-      );
-
-      if(
-
-        modules &&
-
-        isFunction(
-          modules.boot
-        )
-
-      ){
-
-        await modules
-        .boot();
-
-      }
-
-      // =============================
-      // LIFECYCLE START
-      // =============================
-
-      const lifecycle =
-      getCoreDependency(
-        "LifecycleAPI"
-      );
-
-      if(
-
-        lifecycle &&
-
-        isFunction(
-          lifecycle.start
-        )
-
-      ){
-
-        await lifecycle
-        .start();
-
-      }
-
-      // =============================
-      // APPLICATION
-      // =============================
-
-      const application =
-      getCoreDependency(
-        "RIGOApplication"
-      );
-
-      if(
-
-        application &&
-
-        isFunction(
-          application.bootstrap
-        )
-
-      ){
-
-        await application
-        .bootstrap();
-
-      }
-
-      // =============================
-      // HEALTHCHECK
-      // =============================
-
-      const healthy =
-      await isCoreReady();
-
-      if(
-        !healthy
-      ){
-
-        throw new Error(
-          "CORE HEALTHCHECK FAILED"
-        );
-
-      }
-
-      coreRuntimeState
-      .booted =
-      true;
-
-      coreRuntimeState
-      .startupCompletedAt =
-      Date.now();
-
-      console.info(
-        "[RIGOCore] Core boot completed"
-      );
-
-      return true;
-
-    },
-
-    false
-
-  )
-
-  .finally(() => {
-
-    coreRuntimeState
-    .booting =
-    false;
-
-  });
-
-}
-
-
-
-// =====================================
-// SHUTDOWN
-// =====================================
-
-async function shutdownCore(){
-
-  return safelyExecuteCoreOperation(
-
-    "Core shutdown",
-
-    async() => {
-
-      if(
-        coreRuntimeState
-        .shuttingDown
-      ){
-
-        return false;
-
-      }
-
-      coreRuntimeState
-      .shuttingDown =
-      true;
-
-      coreRuntimeState
-      .diagnostics
-      .shutdowns++;
-
-      const lifecycle =
-      getCoreDependency(
-        "LifecycleAPI"
-      );
-
-      if(
-
-        lifecycle &&
-
-        isFunction(
-          lifecycle.shutdown
-        )
-
-      ){
-
-        await lifecycle
-        .shutdown();
-
-      }
-
-      const runtime =
-      getCoreDependency(
-        "ApplicationRuntime"
-      );
-
-      if(
-
-        runtime &&
-
-        isFunction(
-          runtime.shutdown
-        )
-
-      ){
-
-        await runtime
-        .shutdown();
-
-      }
-
-      coreRuntimeState
-      .booted =
-      false;
-
-      return true;
-
-    },
-
-    false
-
-  )
-
-  .finally(() => {
-
-    coreRuntimeState
-    .shuttingDown =
-    false;
-
-  });
-
-}
-
-
-
-// =====================================
-// RECOVERY
-// =====================================
-
-async function recoverCore(){
-
-  return safelyExecuteCoreOperation(
-
-    "Core recovery",
-
-    async() => {
-
-      if(
-        coreRuntimeState
-        .recovering
-      ){
-
-        return false;
-
-      }
-
-      coreRuntimeState
-      .recovering =
-      true;
-
-      coreRuntimeState
-      .diagnostics
-      .recoveries++;
-
-      const recovery =
-      getCoreDependency(
-        "AppRecovery"
-      );
-
-      if(
-
-        recovery &&
-
-        isFunction(
-          recovery.recover
-        )
-
-      ){
-
-        return await recovery
-        .recover();
-
-      }
+  try{
+
+    if(
+      typeof window ===
+      "undefined"
+    ){
 
       return false;
 
-    },
+    }
 
-    false
+    if(
+      window.__RIGO_CORE_READY__ ===
+      true
+    ){
 
-  )
+      return true;
 
-  .finally(() => {
+    }
 
-    coreRuntimeState
-    .recovering =
-    false;
+    if(
+      !validateCoreSystems()
+    ){
 
-  });
+      return false;
 
-}
+    }
 
+    const runtime =
+      window.RIGORuntime;
 
+    if(
+      runtime &&
+      typeof runtime.initialize ===
+      "function"
+    ){
 
-// =====================================
-// HEALTHCHECK
-// =====================================
+      await runtime.initialize();
 
-async function isCoreReady(){
+    }
 
-  return safelyExecuteCoreOperation(
+    window.__RIGO_CORE_READY__ =
+      true;
 
-    "Core readiness",
-
-    async() => {
-
-      if(
-        !coreRuntimeState
-        .initialized
-      ){
-
-        return false;
-
-      }
-
-      const runtime =
-      getCoreDependency(
-        "ApplicationRuntime"
-      );
-
-      if(
-        !runtime
-      ){
-
-        return false;
-
-      }
-
-      if(
-        !isFunction(
-          runtime.health
-        )
-      ){
-
-        return false;
-
-      }
-
-      const healthy =
-      await runtime
-      .health();
-
-      coreRuntimeState
-      .lastHealthcheckAt =
-      Date.now();
-
-      coreRuntimeState
-      .diagnostics
-      .healthchecks++;
-
-      return Boolean(
-        healthy
-      );
-
-    },
-
-    false
-
-  );
-
-}
-
-
-
-// =====================================
-// BROWSER LIFECYCLE
-// =====================================
-
-function bindBrowserLifecycle(){
-
-  if(
-    typeof window ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    coreRuntimeState
-    .lifecycleBound
-  ){
-
-    return true;
-
-  }
-
-  try{
-
-    window.addEventListener(
-
-      "beforeunload",
-
-      () => {
-
-        shutdownCore();
-
-      }
-
+    console.info(
+      "[CoreIndex] Core systems initialized"
     );
-
-    window.addEventListener(
-
-      "unhandledrejection",
-
-      (event) => {
-
-        emitCoreWarning(
-
-          "Unhandled rejection",
-
-          event?.reason
-
-        );
-
-      }
-
-    );
-
-    window.addEventListener(
-
-      "error",
-
-      (event) => {
-
-        emitCoreWarning(
-
-          "Runtime error",
-
-          event?.error
-
-        );
-
-      }
-
-    );
-
-    coreRuntimeState
-    .lifecycleBound =
-    true;
 
     return true;
 
@@ -1043,8 +223,8 @@ function bindBrowserLifecycle(){
 
   catch(error){
 
-    emitCoreWarning(
-      "Lifecycle binding failed",
+    emitCoreIndexWarning(
+      "Initialization failed",
       error
     );
 
@@ -1057,245 +237,63 @@ function bindBrowserLifecycle(){
 
 
 // =====================================
-// SNAPSHOT
-// =====================================
-
-async function createCoreSnapshot(){
-
-  return safelyExecuteCoreOperation(
-
-    "Core snapshot",
-
-    async() => {
-
-      const runtime =
-      getCoreDependency(
-        "ApplicationRuntime"
-      );
-
-      const modules =
-      getCoreDependency(
-        "RigoModules"
-      );
-
-      const recovery =
-      getCoreDependency(
-        "AppRecovery"
-      );
-
-      const lifecycle =
-      getCoreDependency(
-        "LifecycleAPI"
-      );
-
-      return safeFreeze({
-
-        timestamp:
-        Date.now(),
-
-        coreState:{
-
-          initialized:
-          coreRuntimeState
-          .initialized,
-
-          booted:
-          coreRuntimeState
-          .booted,
-
-          booting:
-          coreRuntimeState
-          .booting,
-
-          shuttingDown:
-          coreRuntimeState
-          .shuttingDown,
-
-          recovering:
-          coreRuntimeState
-          .recovering
-
-        },
-
-        runtime:
-
-          runtime &&
-
-          isFunction(
-            runtime.snapshot
-          )
-
-          ?
-
-          runtime.snapshot()
-
-          :
-
-          null,
-
-        modules:
-
-          modules &&
-
-          isFunction(
-            modules.snapshot
-          )
-
-          ?
-
-          modules.snapshot()
-
-          :
-
-          null,
-
-        recovery:
-
-          recovery &&
-
-          isFunction(
-            recovery.snapshot
-          )
-
-          ?
-
-          recovery.snapshot()
-
-          :
-
-          null,
-
-        lifecycle:
-
-          lifecycle &&
-
-          isFunction(
-            lifecycle.snapshot
-          )
-
-          ?
-
-          await lifecycle.snapshot()
-
-          :
-
-          null,
-
-        diagnostics:{
-
-          ...coreRuntimeState
-          .diagnostics
-
-        }
-
-      });
-
-    },
-
-    null
-
-  );
-
-}
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
-const RIGOCore =
-safeFreeze({
-
-  // =============================
-  // SYSTEM ACCESS
-  // =============================
-
-  constants:
-  () => getCoreDependency(
-    "ConstantsAPI"
-  ),
-
-  state:
-  () => getCoreDependency(
-    "StateAPI"
-  ),
-
-  dependencies:
-  () => getCoreDependency(
-    "DependencySystem"
-  ),
-
-  config:
-  () => getCoreDependency(
-    "ConfigAPI"
-  ),
-
-  health:
-  () => getCoreDependency(
-    "HealthAPI"
-  ),
-
-  modules:
-  () => getCoreDependency(
-    "RigoModules"
-  ),
-
-  runtime:
-  () => getCoreDependency(
-    "ApplicationRuntime"
-  ),
-
-  lifecycle:
-  () => getCoreDependency(
-    "LifecycleAPI"
-  ),
-
-  recovery:
-  () => getCoreDependency(
-    "AppRecovery"
-  ),
-
-  application:
-  () => getCoreDependency(
-    "RIGOApplication"
-  ),
-
-  // =============================
-  // ORCHESTRATION
-  // =============================
+const CoreIndex =
+Object.freeze({
 
   initialize:
   initializeCoreSystems,
 
-  boot:
-  bootCore,
+  validate:
+  validateCoreSystems,
 
-  shutdown:
-  shutdownCore,
 
-  recover:
-  recoverCore,
 
-  ready:
-  isCoreReady,
+  // ===================================
+  // SAFE ACCESSORS
+  // ===================================
 
-  // =============================
-  // DIAGNOSTICS
-  // =============================
+  get container(){
 
-  snapshot:
-  createCoreSnapshot
+    return window.RIGOContainer;
+
+  },
+
+
+
+  get events(){
+
+    return window.RIGOEventBus;
+
+  },
+
+
+
+  get state(){
+
+    return window.RIGOStateManager;
+
+  },
+
+
+
+  get runtime(){
+
+    return window.RIGORuntime;
+
+  },
+
+
+
+  get lifecycle(){
+
+    return window.RIGOLifecycle;
+
+  }
 
 });
-
-
-
-// =====================================
-// AUTO LIFECYCLE
-// =====================================
-
-bindBrowserLifecycle();
 
 
 
@@ -1312,19 +310,53 @@ if(
 
     window,
 
-    "RIGOCore",
+    "CoreIndex",
 
     {
 
       value:
-      RIGOCore,
+      CoreIndex,
 
-      writable:false,
+      writable:
+      false,
 
-      configurable:false
+      configurable:
+      false
 
     }
 
   );
+
+}
+
+
+
+// =====================================
+// SAFE AUTO INITIALIZATION
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  queueMicrotask(async() => {
+
+    try{
+
+      await initializeCoreSystems();
+
+    }
+
+    catch(error){
+
+      emitCoreIndexWarning(
+        "Queued initialization failed",
+        error
+      );
+
+    }
+
+  });
 
 }
