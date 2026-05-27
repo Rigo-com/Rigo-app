@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY CONTEXT
 // ENTERPRISE INFINITY ULTRA FINAL
+// OPTIMIZED + STABILIZED FINAL
 // =====================================
 
 
@@ -45,7 +46,21 @@ Object.freeze({
 // =====================================
 
 const SAFE_CONVERSATION_ROLES =
-createImmutableSet([
+
+typeof createImmutableSet ===
+"function"
+
+? createImmutableSet([
+
+  "user",
+
+  "assistant",
+
+  "system"
+
+])
+
+: new Set([
 
   "user",
 
@@ -87,24 +102,6 @@ Object.freeze([
 // =====================================
 // CONTEXT HELPERS
 // =====================================
-
-function normalizeContextQuery(
-  query
-){
-
-  return String(
-
-    normalizeMemoryContent?.(
-      query
-    ) ?? ""
-
-  )
-  .toLowerCase()
-  .trim();
-
-}
-
-
 
 function clampContextLimit(
   limit
@@ -198,44 +195,20 @@ function sanitizeContextText(
     text
   )
 
-
-
-  // ===============================
-  // REMOVE CONTROL CHARS
-  // ===============================
-
   .replace(
     /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
     " "
   )
-
-
-
-  // ===============================
-  // NORMALIZE SPACES/TABS
-  // ===============================
 
   .replace(
     /[ \t]+/g,
     " "
   )
 
-
-
-  // ===============================
-  // LIMIT NEWLINES
-  // ===============================
-
   .replace(
     /\n{3,}/g,
     "\n\n"
   )
-
-
-
-  // ===============================
-  // REMOVE CONTEXT LABELS
-  // ===============================
 
   .replace(
     /\[\s*(SYSTEM|USER|ASSISTANT)\s+CONTEXT\s*\]/gi,
@@ -451,151 +424,6 @@ function isContextEligibleMemory(
   }
 
   return true;
-
-}
-
-
-
-// =====================================
-// CONTEXT SCORING
-// =====================================
-
-function calculateContextScore(
-  memory,
-  normalizedQuery = ""
-){
-
-  if(
-    !memory
-  ){
-
-    return 0;
-
-  }
-
-  let score = 0;
-
-  const searchableParts = [
-
-    memory.title,
-
-    memory.summary,
-
-    memory.content,
-
-    ...(Array.isArray(memory.tags)
-      ? memory.tags
-      : [])
-
-  ];
-
-  const searchableText =
-  searchableParts
-  .map((value) => {
-
-    return normalizeMemoryContent(
-      value
-    )
-    .slice(
-
-      0,
-
-      MEMORY_CONTEXT_CONFIG
-      .MAX_SEARCHABLE_PART_LENGTH
-
-    );
-
-  })
-  .join(" ")
-  .toLowerCase();
-
-
-
-  // ===================================
-  // RELEVANCE
-  // ===================================
-
-  if(
-
-    normalizedQuery &&
-
-    searchableText.includes(
-      normalizedQuery
-    )
-
-  ){
-
-    score +=
-
-      MEMORY_CONTEXT_CONFIG
-      .RELEVANCE_BOOST;
-
-  }
-
-
-
-  // ===================================
-  // PINNED BOOST
-  // ===================================
-
-  if(
-
-    memoryState
-    ?.tracking
-    ?.pinnedMemoryIds
-    ?.has?.(
-      memory.id
-    )
-
-  ){
-
-    score +=
-
-      MEMORY_CONTEXT_CONFIG
-      .PINNED_BOOST;
-
-  }
-
-
-
-  // ===================================
-  // RECENT BOOST
-  // ===================================
-
-  const updatedAt =
-  Number(
-    memory.updatedAt
-  );
-
-  if(
-    Number.isFinite(
-      updatedAt
-    )
-  ){
-
-    const ageInDays =
-
-      (
-        Date.now() -
-        updatedAt
-      ) /
-
-      86400000;
-
-    if(
-      ageInDays <= 7
-    ){
-
-      score +=
-
-        MEMORY_CONTEXT_CONFIG
-        .RECENT_BOOST;
-
-    }
-
-  }
-
-  return score;
 
 }
 
@@ -929,7 +757,20 @@ function buildRelevantContext(
 
   ){
 
-    return [];
+    return deduplicateContextMemories(
+
+      memoryState.memories
+      .filter((memory) => {
+
+        return isContextEligibleMemory(
+          memory,
+          options
+        );
+
+      })
+
+    )
+    .slice(0,limit);
 
   }
 
@@ -1105,6 +946,14 @@ function buildConversationContext(
 
     if(
       !message
+    ){
+
+      return;
+    }
+
+    if(
+      typeof message.content !==
+      "string"
     ){
 
       return;
@@ -1316,3 +1165,45 @@ function buildFullAIContext(
   );
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  MEMORY_CONTEXT_CONFIG,
+
+  sanitizeContextText,
+
+  sanitizeConversationRole,
+
+  safelyTruncateText,
+
+  isContextEligibleMemory,
+
+  compressMemoryContent,
+
+  formatContextSection,
+
+  buildMemoryContextBlock,
+
+  deduplicateContextMemories,
+
+  deduplicateContextSections,
+
+  buildRelevantContext,
+
+  trimContextLength,
+
+  buildMemoryContext,
+
+  buildConversationContext,
+
+  buildSystemContext,
+
+  buildFullAIContext
+
+};
