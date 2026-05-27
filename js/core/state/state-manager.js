@@ -1458,7 +1458,7 @@ if(
   "undefined"
 ){
 
-  window.StateManager =
+  window.RIGOStateManager =
   StateManager;
 
   window.STATE_EVENTS =
