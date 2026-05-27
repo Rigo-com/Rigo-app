@@ -14,11 +14,20 @@
 const SECURITY_URL_CONFIG =
 Object.freeze({
 
+  ENABLE_HTTP_PROTOCOL:
+  false,
+
+  MAX_URL_LENGTH:
+  4096,
+
   MAX_TRUSTED_ORIGINS:
   100,
 
   MAX_HOSTNAME_LENGTH:
-  255
+  255,
+
+  MAX_HOSTNAME_LABEL:
+  63
 
 });
 
@@ -83,18 +92,65 @@ Object.freeze([
 
 
 // =====================================
-// GET ALLOWED PROTOCOLS
+// URL STATE
 // =====================================
+
+const securityURLState =
+Object.seal({
+
+  trustedOrigins:
+  new Set(),
+
+  validatedURLs:0,
+
+  blockedURLs:0,
+
+  trustedMatches:0,
+
+  failedParses:0,
+
+  lastValidatedAt:null
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function normalizeURLValue(
+  value
+){
+
+  try{
+
+    return String(
+      value || ""
+    )
+    .normalize("NFKC")
+    .trim();
+
+  }
+
+  catch(error){
+
+    return "";
+
+  }
+
+}
+
+
 
 function getAllowedURLProtocols(){
 
-  const allowHTTP =
+  return (
 
-    SECURITY_CONFIG
-    .ENABLE_HTTP_PROTOCOL ===
-    true;
+    SECURITY_URL_CONFIG
+    .ENABLE_HTTP_PROTOCOL
 
-  return allowHTTP
+  )
 
   ?
 
@@ -117,7 +173,9 @@ function validateURLProtocol(
 ){
 
   const normalized =
-  safeString(protocol)
+  normalizeURLValue(
+    protocol
+  )
   .toLowerCase();
 
   return getAllowedURLProtocols()
@@ -139,11 +197,9 @@ function normalizeHostname(
 
   try{
 
-    return safeString(hostname)
-
-    .normalize("NFKC")
-
-    .trim()
+    return normalizeURLValue(
+      hostname
+    )
     .toLowerCase();
 
   }
@@ -221,12 +277,11 @@ function validateURLPort(
 
   }
 
-  const normalized =
-  safeString(port);
-
   return !BLOCKED_URL_PORTS
   .includes(
-    normalized
+    normalizeURLValue(
+      port
+    )
   );
 
 }
@@ -274,34 +329,52 @@ function validateURLHostname(
   }
 
   if(
-    normalized.startsWith("-")
+    normalized.includes("@")
   ){
 
     return false;
 
   }
+
+  const labels =
+  normalized.split(".");
 
   if(
-    normalized.endsWith("-")
+    labels.some((label) => {
+
+      return (
+
+        !label
+
+        ||
+
+        label.length >
+
+        SECURITY_URL_CONFIG
+        .MAX_HOSTNAME_LABEL
+
+        ||
+
+        label.startsWith("-")
+
+        ||
+
+        label.endsWith("-")
+
+      );
+
+    })
+
   ){
 
     return false;
 
   }
 
-  const validHostname =
-  /^[a-z0-9.-]+$/i
+  return /^[a-z0-9.-]+$/i
   .test(
     normalized
   );
-
-  if(!validHostname){
-
-    return false;
-
-  }
-
-  return true;
 
 }
 
@@ -319,7 +392,9 @@ function normalizeTrustedOrigin(
 
     const parsed =
     new URL(
-      safeString(origin)
+      normalizeURLValue(
+        origin
+      )
     );
 
     parsed.hash = "";
@@ -342,34 +417,44 @@ function normalizeTrustedOrigin(
 
 
 // =====================================
-// ADD TRUSTED ORIGIN
+// SAFE URL PARSER
 // =====================================
 
-function addTrustedOrigin(
-  origin
+function parseSafeURL(
+  url
 ){
 
-  if(
-    typeof origin !==
-    "string"
-  ){
+  securityURLState
+  .validatedURLs++;
 
-    return false;
+  securityURLState
+  .lastValidatedAt =
+  Date.now();
+
+  const normalized =
+  normalizeURLValue(
+    url
+  );
+
+  if(!normalized){
+
+    return null;
 
   }
 
   if(
 
-    securityState
-    .trustedOrigins
-    .size >=
+    normalized.length >
 
     SECURITY_URL_CONFIG
-    .MAX_TRUSTED_ORIGINS
+    .MAX_URL_LENGTH
 
   ){
 
-    return false;
+    securityURLState
+    .blockedURLs++;
+
+    return null;
 
   }
 
@@ -377,24 +462,19 @@ function addTrustedOrigin(
 
     const parsed =
     new URL(
-
-      safeString(
-        origin
-      )
-
+      normalized
     );
-
-    const protocol =
-    parsed.protocol
-    .toLowerCase();
 
     if(
       !validateURLProtocol(
-        protocol
+        parsed.protocol
       )
     ){
 
-      return false;
+      securityURLState
+      .blockedURLs++;
+
+      return null;
 
     }
 
@@ -403,7 +483,10 @@ function addTrustedOrigin(
       parsed.password
     ){
 
-      return false;
+      securityURLState
+      .blockedURLs++;
+
+      return null;
 
     }
 
@@ -413,7 +496,10 @@ function addTrustedOrigin(
       )
     ){
 
-      return false;
+      securityURLState
+      .blockedURLs++;
+
+      return null;
 
     }
 
@@ -423,7 +509,10 @@ function addTrustedOrigin(
       )
     ){
 
-      return false;
+      securityURLState
+      .blockedURLs++;
+
+      return null;
 
     }
 
@@ -433,34 +522,25 @@ function addTrustedOrigin(
       )
     ){
 
-      return false;
+      securityURLState
+      .blockedURLs++;
+
+      return null;
 
     }
 
-    const normalizedOrigin =
-    normalizeTrustedOrigin(
-      parsed.origin
-    );
+    parsed.hash = "";
 
-    if(!normalizedOrigin){
-
-      return false;
-
-    }
-
-    securityState
-    .trustedOrigins
-    .add(
-      normalizedOrigin
-    );
-
-    return true;
+    return parsed;
 
   }
 
   catch(error){
 
-    return false;
+    securityURLState
+    .failedParses++;
+
+    return null;
 
   }
 
@@ -469,16 +549,74 @@ function addTrustedOrigin(
 
 
 // =====================================
-// REMOVE TRUSTED ORIGIN
+// SAFE URL
 // =====================================
 
-function removeTrustedOrigin(
+function safeURL(
+  url
+){
+
+  const parsed =
+  parseSafeURL(
+    url
+  );
+
+  if(!parsed){
+
+    return null;
+
+  }
+
+  return parsed.href;
+
+}
+
+
+
+// =====================================
+// NORMALIZE URL
+// =====================================
+
+function normalizeURL(
+  url
+){
+
+  const parsed =
+  parseSafeURL(
+    url
+  );
+
+  if(!parsed){
+
+    return null;
+
+  }
+
+  parsed.hash = "";
+
+  return parsed.href;
+
+}
+
+
+
+// =====================================
+// ADD TRUSTED ORIGIN
+// =====================================
+
+function addTrustedOrigin(
   origin
 ){
 
   if(
-    typeof origin !==
-    "string"
+
+    securityURLState
+    .trustedOrigins
+    .size >=
+
+    SECURITY_URL_CONFIG
+    .MAX_TRUSTED_ORIGINS
+
   ){
 
     return false;
@@ -496,7 +634,49 @@ function removeTrustedOrigin(
 
   }
 
-  return securityState
+  const parsed =
+  parseSafeURL(
+    normalized
+  );
+
+  if(!parsed){
+
+    return false;
+
+  }
+
+  securityURLState
+  .trustedOrigins
+  .add(
+    normalized
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// REMOVE TRUSTED ORIGIN
+// =====================================
+
+function removeTrustedOrigin(
+  origin
+){
+
+  const normalized =
+  normalizeTrustedOrigin(
+    origin
+  );
+
+  if(!normalized){
+
+    return false;
+
+  }
+
+  return securityURLState
   .trustedOrigins
   .delete(
     normalized
@@ -514,15 +694,6 @@ function isTrustedOrigin(
   origin
 ){
 
-  if(
-    typeof origin !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
   const normalized =
   normalizeTrustedOrigin(
     origin
@@ -534,209 +705,22 @@ function isTrustedOrigin(
 
   }
 
-  return securityState
-  .trustedOrigins
-  .has(
-    normalized
-  );
+  const trusted =
 
-}
-
-
-
-// =====================================
-// SAFE URL
-// =====================================
-
-function safeURL(
-  url
-){
-
-  if(
-    typeof url !==
-    "string"
-  ){
-
-    return null;
-
-  }
-
-  const normalized =
-  safeString(
-    url,
-    {
-
-      trim:true
-
-    }
-  );
-
-  if(!normalized){
-
-    return null;
-
-  }
-
-  if(
-
-    normalized.length >
-
-    SECURITY_CONFIG
-    .MAX_URL_LENGTH
-
-  ){
-
-    if(
-      typeof securityState ===
-      "object"
-    ){
-
-      securityState
-      .blockedURLs++;
-
-    }
-
-    return null;
-
-  }
-
-  try{
-
-    if(
-      normalized.includes("@")
-    ){
-
-      if(
-        typeof securityState ===
-        "object"
-      ){
-
-        securityState
-        .blockedURLs++;
-
-      }
-
-      return null;
-
-    }
-
-    const parsed =
-    new URL(
+    securityURLState
+    .trustedOrigins
+    .has(
       normalized
     );
 
-    const protocol =
-    parsed.protocol
-    .toLowerCase();
+  if(trusted){
 
-    if(
-      !validateURLProtocol(
-        protocol
-      )
-    ){
-
-      return null;
-
-    }
-
-    if(
-      parsed.username ||
-      parsed.password
-    ){
-
-      return null;
-
-    }
-
-    if(
-      !validateURLHostname(
-        parsed.hostname
-      )
-    ){
-
-      return null;
-
-    }
-
-    if(
-      !validateURLPort(
-        parsed.port
-      )
-    ){
-
-      return null;
-
-    }
-
-    if(
-      isPrivateHostname(
-        parsed.hostname
-      )
-    ){
-
-      return null;
-
-    }
-
-    parsed.hash = "";
-
-    return parsed.href;
+    securityURLState
+    .trustedMatches++;
 
   }
 
-  catch(error){
-
-    if(
-      typeof securityState ===
-      "object"
-    ){
-
-      securityState
-      .blockedURLs++;
-
-    }
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// NORMALIZE URL
-// =====================================
-
-function normalizeURL(
-  url
-){
-
-  const safe =
-  safeURL(url);
-
-  if(!safe){
-
-    return null;
-
-  }
-
-  try{
-
-    const parsed =
-    new URL(safe);
-
-    parsed.hash = "";
-
-    return parsed.href;
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
+  return trusted;
 
 }
 
@@ -750,58 +734,32 @@ function validateTrustedURL(
   url
 ){
 
-  const safe =
-  safeURL(url);
+  const parsed =
+  parseSafeURL(
+    url
+  );
 
-  if(!safe){
+  if(!parsed){
+
+    return null;
+
+  }
+
+  const trusted =
+  isTrustedOrigin(
+    parsed.origin
+  );
+
+  if(!trusted){
+
+    securityURLState
+    .blockedURLs++;
 
     return null;
 
   }
 
-  try{
-
-    const parsed =
-    new URL(safe);
-
-    const normalizedOrigin =
-    normalizeTrustedOrigin(
-      parsed.origin
-    );
-
-    if(
-
-      !securityState
-      .trustedOrigins
-      .has(
-        normalizedOrigin
-      )
-
-    ){
-
-      if(
-        typeof securityState ===
-        "object"
-      ){
-
-        securityState
-        .blockedURLs++;
-
-      }
-
-      return null;
-
-    }
-
-    return parsed.href;
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
+  return parsed.href;
 
 }
 
@@ -815,21 +773,33 @@ function getURLSecurityDiagnostics(){
 
   return Object.freeze({
 
+    validatedURLs:
+    securityURLState
+    .validatedURLs,
+
+    blockedURLs:
+    securityURLState
+    .blockedURLs,
+
+    trustedMatches:
+    securityURLState
+    .trustedMatches,
+
+    failedParses:
+    securityURLState
+    .failedParses,
+
+    trustedOrigins:
+    securityURLState
+    .trustedOrigins
+    .size,
+
     allowedProtocols:
     getAllowedURLProtocols(),
 
-    trustedOriginsCount:
-
-      securityState
-      .trustedOrigins
-      .size,
-
-    blockedPorts:
-    BLOCKED_URL_PORTS,
-
-    blockedURLs:
-    securityState
-    .blockedURLs
+    lastValidatedAt:
+    securityURLState
+    .lastValidatedAt
 
   });
 
@@ -879,17 +849,69 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SECURITY_URL_CONFIG,
+
+  BLOCKED_URL_PORTS,
+
+  PRIVATE_NETWORK_PATTERNS,
+
+  securityURLState,
+
+  normalizeURLValue,
+
+  getAllowedURLProtocols,
+
+  validateURLProtocol,
+
+  normalizeHostname,
+
+  isPrivateHostname,
+
+  validateURLPort,
+
+  validateURLHostname,
+
+  normalizeTrustedOrigin,
+
+  parseSafeURL,
+
+  safeURL,
+
+  normalizeURL,
+
+  addTrustedOrigin,
+
+  removeTrustedOrigin,
+
+  isTrustedOrigin,
+
+  validateTrustedURL,
+
+  getURLSecurityDiagnostics,
+
+  SecurityURL
+
+};
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityURL",
 
