@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY EXPORT
-// ENTERPRISE INFINITY ULTRA FINAL
+// FINAL OPTIMIZED BUILD
 // =====================================
 
 
@@ -19,27 +19,13 @@ Object.freeze({
 
   ENABLE_COMPRESSION:true,
 
-  ENABLE_ENCRYPTION:false,
-
   ENABLE_INTEGRITY_CHECKS:true,
-
-  ENABLE_INCREMENTAL_EXPORTS:true,
-
-  ENABLE_PARTIAL_EXPORTS:true,
-
-  ENABLE_TRANSACTIONAL_IMPORTS:true,
-
-  ENABLE_ROLLBACKS:true,
 
   MAX_EXPORT_SIZE:
   1024 * 1024 * 25,
 
   MAX_IMPORT_SIZE:
   1024 * 1024 * 25,
-
-  MAX_BATCH_SIZE:500,
-
-  CHECKSUM_LENGTH:64,
 
   MAX_HISTORY_ITEMS:100,
 
@@ -101,22 +87,6 @@ Object.seal({
 // HELPERS
 // =====================================
 
-function createExportTimestamp(){
-
-  return Date.now();
-
-}
-
-
-
-function generateExportId(){
-
-  return createMemoryId();
-
-}
-
-
-
 function normalizeExportStrategy(
   strategy
 ){
@@ -140,18 +110,14 @@ function normalizeExportStrategy(
 
   ];
 
-  if(
-    allowed.includes(
-      normalized
-    )
-  ){
+  return allowed.includes(
+    normalized
+  )
 
-    return normalized;
+  ? normalized
 
-  }
-
-  return MEMORY_EXPORT_CONFIG
-  .DEFAULT_IMPORT_STRATEGY;
+  : MEMORY_EXPORT_CONFIG
+    .DEFAULT_IMPORT_STRATEGY;
 
 }
 
@@ -192,8 +158,6 @@ function pruneExportHistory(){
     .shift();
 
   }
-
-  return true;
 
 }
 
@@ -289,6 +253,7 @@ function stableStringify(
       if(
 
         currentValue &&
+
         typeof currentValue ===
         "object"
 
@@ -356,19 +321,9 @@ function filterExportMemories(
       options.memories
     )
 
-    ?
+    ? [...options.memories]
 
-    [...options.memories]
-
-    :
-
-    [...memories];
-
-
-
-  // ===================================
-  // TAG FILTER
-  // ===================================
+    : [...memories];
 
   if(
     Array.isArray(
@@ -400,12 +355,6 @@ function filterExportMemories(
 
   }
 
-
-
-  // ===================================
-  // CATEGORY FILTER
-  // ===================================
-
   if(
     options.category
   ){
@@ -421,12 +370,6 @@ function filterExportMemories(
     });
 
   }
-
-
-
-  // ===================================
-  // DATE RANGE
-  // ===================================
 
   if(
     options.after
@@ -486,7 +429,7 @@ function createExportMetadata(
   return {
 
     exportId:
-    generateExportId(),
+    createMemoryId(),
 
     version:
     MEMORY_EXPORT_CONFIG
@@ -497,31 +440,90 @@ function createExportMetadata(
     .EXPORT_SCHEMA,
 
     exportedAt:
-    createExportTimestamp(),
+    Date.now(),
 
     memoryCount:
     memories.length,
 
     corruptedSkipped:
     memoryExportState
-    .skippedCorrupted,
-
-    device:"RIGO",
-
-    platform:
-
-      typeof navigator !==
-      "undefined"
-
-      ?
-
-      navigator.userAgent
-
-      :
-
-      "unknown"
+    .skippedCorrupted
 
   };
+
+}
+
+
+
+// =====================================
+// BASE64 HELPERS
+// =====================================
+
+function uint8ArrayToBase64(
+  bytes
+){
+
+  let binary = "";
+
+  const chunkSize = 8192;
+
+  for(
+
+    let i = 0;
+
+    i < bytes.length;
+
+    i += chunkSize
+
+  ){
+
+    const chunk =
+    bytes.subarray(
+      i,
+      i + chunkSize
+    );
+
+    binary +=
+    String.fromCharCode(
+      ...chunk
+    );
+
+  }
+
+  return btoa(binary);
+
+}
+
+
+
+function base64ToUint8Array(
+  base64
+){
+
+  const binary =
+  atob(base64);
+
+  const bytes =
+  new Uint8Array(
+    binary.length
+  );
+
+  for(
+
+    let i = 0;
+
+    i < binary.length;
+
+    i++
+
+  ){
+
+    bytes[i] =
+    binary.charCodeAt(i);
+
+  }
+
+  return bytes;
 
 }
 
@@ -577,16 +579,10 @@ async function compressExportPayload(
     await response.arrayBuffer();
 
     const compressed =
-    btoa(
-
-      String.fromCharCode(
-
-        ...new Uint8Array(
-          buffer
-        )
-
+    uint8ArrayToBase64(
+      new Uint8Array(
+        buffer
       )
-
     );
 
     memoryExportState
@@ -635,9 +631,7 @@ async function decompressExportPayload(
       payload
     );
 
-    if(
-      !parsed
-    ){
+    if(!parsed){
 
       return null;
     }
@@ -658,20 +652,9 @@ async function decompressExportPayload(
       return null;
     }
 
-    const binary =
-    atob(
-      parsed.payload
-    );
-
     const bytes =
-    Uint8Array.from(
-      binary,
-      (character) => {
-
-        return character
-        .charCodeAt(0);
-
-      }
+    base64ToUint8Array(
+      parsed.payload
     );
 
     const stream =
@@ -727,9 +710,7 @@ async function createMemoryExport(
     const cleanMemories =
     filteredMemories.filter((memory) => {
 
-      if(
-        !memory
-      ){
+      if(!memory){
 
         return false;
       }
@@ -768,32 +749,7 @@ async function createMemoryExport(
       memories:
       cloneMemoryObject(
         cleanMemories
-      ),
-
-      diagnostics:
-
-        typeof getMemoryDiagnostics ===
-        "function"
-
-        ?
-
-        getMemoryDiagnostics()
-
-        :
-
-        {},
-
-      embeddings:
-      {
-
-        enabled:
-
-          MEMORY_EMBEDDINGS_CONFIG
-          ?.ENABLE_EMBEDDINGS
-
-          === true
-
-      }
+      )
 
     };
 
@@ -882,9 +838,7 @@ async function verifyMemoryExport(
 
   try{
 
-    if(
-      !exportPayload
-    ){
+    if(!exportPayload){
 
       return false;
     }
@@ -906,9 +860,7 @@ async function verifyMemoryExport(
         exportPayload
       );
 
-    if(
-      !payload
-    ){
+    if(!payload){
 
       return false;
     }
@@ -974,30 +926,10 @@ function createImportTransaction(){
     startedAt:
     Date.now(),
 
-    backup:
-    cloneMemoryObject({
-
-      memories:
-      memoryState.memories,
-
-      indexes:
-      memoryState.indexes,
-
-      metrics:
-      memoryState.metrics,
-
-      tracking:
-      memoryState.tracking,
-
-      runtime:
-      memoryState.runtime,
-
-      cache:
-      memoryState.cache
-
-    }),
-
-    completed:false
+    memories:
+    cloneMemoryObject(
+      memoryState.memories
+    )
 
   };
 
@@ -1022,47 +954,14 @@ function rollbackImportTransaction(
   transaction
 ){
 
-  if(
-    !transaction
-  ){
+  if(!transaction){
 
     return false;
   }
 
   memoryState.memories =
   cloneMemoryObject(
-    transaction.backup
-    .memories
-  );
-
-  memoryState.indexes =
-  cloneMemoryObject(
-    transaction.backup
-    .indexes
-  );
-
-  memoryState.metrics =
-  cloneMemoryObject(
-    transaction.backup
-    .metrics
-  );
-
-  memoryState.tracking =
-  cloneMemoryObject(
-    transaction.backup
-    .tracking
-  );
-
-  memoryState.runtime =
-  cloneMemoryObject(
-    transaction.backup
-    .runtime
-  );
-
-  memoryState.cache =
-  cloneMemoryObject(
-    transaction.backup
-    .cache
+    transaction.memories
   );
 
   rebuildMemoryIndexes();
@@ -1113,9 +1012,7 @@ function resolveImportMemory(
 
     case "newest-wins":
 
-      if(
-        !localMemory
-      ){
+      if(!localMemory){
 
         return importedMemory;
       }
@@ -1176,9 +1073,7 @@ function validateImportPayload(
   payload
 ){
 
-  if(
-    !payload
-  ){
+  if(!payload){
 
     return false;
   }
@@ -1199,20 +1094,14 @@ function validateImportPayload(
     return false;
   }
 
-  if(
+  return (
 
-    payload.metadata.schema !==
+    payload.metadata.schema ===
 
     MEMORY_EXPORT_CONFIG
     .EXPORT_SCHEMA
 
-  ){
-
-    return false;
-
-  }
-
-  return true;
+  );
 
 }
 
@@ -1277,10 +1166,26 @@ async function importMemoryData(
       options.strategy
     );
 
-    const imported = [];
+    const memoryMap =
+    new Map();
 
-    const importedIds =
-    new Set();
+    memoryState.memories
+    .forEach((memory) => {
+
+      if(
+        memory?.id
+      ){
+
+        memoryMap.set(
+          normalizeMemoryString(
+            memory.id
+          ),
+          memory
+        );
+
+      }
+
+    });
 
     for(
       const importedMemory
@@ -1294,24 +1199,6 @@ async function importMemoryData(
         continue;
       }
 
-      const normalizedId =
-      normalizeMemoryString(
-        importedMemory.id
-      );
-
-      if(
-        importedIds.has(
-          normalizedId
-        )
-      ){
-
-        continue;
-      }
-
-      importedIds.add(
-        normalizedId
-      );
-
       const validation =
       validateMemoryObject(
         importedMemory
@@ -1324,8 +1211,13 @@ async function importMemoryData(
         continue;
       }
 
+      const normalizedId =
+      normalizeMemoryString(
+        importedMemory.id
+      );
+
       const localMemory =
-      getMemoryById(
+      memoryMap.get(
         normalizedId
       );
 
@@ -1340,7 +1232,8 @@ async function importMemoryData(
 
       );
 
-      imported.push(
+      memoryMap.set(
+        normalizedId,
         resolved
       );
 
@@ -1348,28 +1241,23 @@ async function importMemoryData(
 
     memoryState.memories =
     deduplicateMemoryArray(
-      imported
+
+      [...memoryMap.values()]
+
     );
 
     rebuildMemoryIndexes();
 
-    rebuildMemoryEmbeddings();
-
-    rebuildDirtySummaries();
-
     clearSearchCache();
 
     updateMemoryMetrics();
-
-    transaction.completed =
-    true;
 
     memoryExportState
     .importsCompleted++;
 
     memoryExportState
     .importedMemories +=
-    imported.length;
+    payload.memories.length;
 
     memoryExportState
     .lastImportAt =
@@ -1383,7 +1271,7 @@ async function importMemoryData(
       transaction.id,
 
       imported:
-      imported.length,
+      payload.memories.length,
 
       strategy,
 
@@ -1540,5 +1428,47 @@ function getMemoryExportDiagnostics(){
     .lastRollbackAt
 
   });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryExport =
+Object.freeze({
+
+  create:
+  createMemoryExport,
+
+  verify:
+  verifyMemoryExport,
+
+  import:
+  importMemoryData,
+
+  incremental:
+  createIncrementalExport,
+
+  diagnostics:
+  getMemoryExportDiagnostics
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryExport =
+  MemoryExport;
 
 }
