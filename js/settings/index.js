@@ -8,6 +8,25 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import "./settings-types.js";
+import "./settings-defaults.js";
+import "./settings-utils.js";
+import "./settings-validation.js";
+import "./settings-security.js";
+import "./settings-state.js";
+import "./settings-events.js";
+import "./settings-storage.js";
+import "./settings-sync.js";
+import "./settings-migrations.js";
+import "./settings-debug.js";
+import "./settings-manager.js";
+
+
+
+// =====================================
 // SETTINGS CONFIG
 // =====================================
 
@@ -1056,3 +1075,67 @@ Object.freeze({
   runSettingsHealthcheck
 
 });
+
+
+
+// =====================================
+// MODULE EXPORTS
+// =====================================
+
+export {
+
+  SETTINGS_RUNTIME_CONFIG,
+
+  settingsRuntimeState,
+
+  SETTINGS_MODULES,
+
+  validateSettingsModules,
+
+  initializeSettingsRuntime,
+
+  resetSettingsRuntime,
+
+  runSettingsHealthcheck,
+
+  getSettingsRuntimeDiagnostics,
+
+  SettingsAPI
+
+};
+
+export default SettingsAPI;
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    globalThis,
+
+    "SettingsAPI",
+
+    {
+
+      value:
+      SettingsAPI,
+
+      writable:false,
+
+      configurable:false,
+
+      enumerable:false
+
+    }
+
+  );
+
+}
