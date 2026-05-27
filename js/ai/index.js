@@ -985,13 +985,13 @@ RIGOAIRuntime;
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "RIGOAIRuntime",
 
