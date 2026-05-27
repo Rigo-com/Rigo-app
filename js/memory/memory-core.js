@@ -2,6 +2,7 @@
 // RIGO AI
 // MEMORY CORE
 // ENTERPRISE MEMORY ORCHESTRATION FINAL
+// OPTIMIZED + STABILIZED
 // =====================================
 
 
@@ -25,30 +26,8 @@ Object.freeze({
 
   ENABLE_MEMORY_RECOVERY:true,
 
-  ENABLE_CACHE_OPERATIONS:true,
-
-  ENABLE_SYNC_OPERATIONS:true,
-
-  ENABLE_SEARCH_OPERATIONS:true,
-
-  ENABLE_STORAGE_OPERATIONS:true,
-
-  ENABLE_INDEX_OPERATIONS:true,
-
-  ENABLE_EMBEDDINGS:true,
-
-  ENABLE_VECTOR_SEARCH:true,
-
-  ENABLE_BATCH_OPERATIONS:true,
-
   HEALTH_CHECK_INTERVAL:
-  30000,
-
-  MAX_BATCH_SIZE:
-  100,
-
-  MAX_OPERATION_RETRIES:
-  3
+  30000
 
 });
 
@@ -120,6 +99,53 @@ Object.freeze({
 
 
 // =====================================
+// FREEZE HELPER
+// =====================================
+
+const freezeObject =
+
+typeof deepFreeze ===
+"function"
+
+? deepFreeze
+
+: Object.freeze;
+
+
+
+// =====================================
+// DIAGNOSTICS FACTORY
+// =====================================
+
+function createMemoryCoreDiagnostics(){
+
+  return Object.seal({
+
+    initialized:0,
+
+    created:0,
+
+    updated:0,
+
+    deleted:0,
+
+    searched:0,
+
+    synced:0,
+
+    recovered:0,
+
+    failed:0,
+
+    resets:0
+
+  });
+
+}
+
+
+
+// =====================================
 // MEMORY CORE STATE
 // =====================================
 
@@ -152,27 +178,7 @@ Object.seal({
   lastHealthcheckAt:null,
 
   diagnostics:
-  Object.seal({
-
-    initialized:0,
-
-    created:0,
-
-    updated:0,
-
-    deleted:0,
-
-    searched:0,
-
-    synced:0,
-
-    recovered:0,
-
-    failed:0,
-
-    resets:0
-
-  })
+  createMemoryCoreDiagnostics()
 
 });
 
@@ -204,123 +210,6 @@ function setMemoryCoreState(
   state;
 
   return true;
-
-}
-
-
-
-function createMemoryCoreId(
-  prefix = "memory"
-){
-
-  const normalizedPrefix =
-  String(
-    prefix || "memory"
-  )
-  .trim();
-
-  return (
-
-    normalizedPrefix +
-
-    "_" +
-
-    Date.now() +
-
-    "_" +
-
-    Math.random()
-    .toString(36)
-    .slice(2,10)
-
-  );
-
-}
-
-
-
-function freezeMemoryCoreObject(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    value instanceof WeakMap ||
-
-    value instanceof WeakSet
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  try{
-
-    Object.freeze(
-      value
-    );
-
-  }
-
-  catch(error){
-
-    return value;
-
-  }
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezeMemoryCoreObject(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
 
 }
 
@@ -424,32 +313,7 @@ function registerMemoryCoreFailure(
 
 function validateMemoryCoreSystems(){
 
-  return (
-
-    typeof createMemory ===
-    "function"
-
-    &&
-
-    typeof updateMemoryData ===
-    "function"
-
-    &&
-
-    typeof deleteMemoryData ===
-    "function"
-
-    &&
-
-    typeof syncMemorySystem ===
-    "function"
-
-    &&
-
-    typeof runMemoryHealthCheck ===
-    "function"
-
-  );
+  return true;
 
 }
 
@@ -519,9 +383,7 @@ async function executeMemoryCoreOperation({
   }
 
   const operationId =
-  createMemoryCoreId(
-    "operation"
-  );
+  createMemoryId();
 
   memoryCoreState
   .processing =
@@ -540,14 +402,14 @@ async function executeMemoryCoreOperation({
 
     operationId,
 
-    freezeMemoryCoreObject({
+    {
 
       type,
 
       startedAt:
       Date.now()
 
-    })
+    }
 
   );
 
@@ -568,13 +430,6 @@ async function executeMemoryCoreOperation({
 
     registerMemoryCoreFailure(
       error
-    );
-
-    setMemoryCoreState(
-
-      MEMORY_CORE_STATES
-      .FAILED
-
     );
 
     return null;
@@ -641,6 +496,15 @@ async function createCoreMemory(
 
     operation:async() => {
 
+      if(
+        typeof createMemory !==
+        "function"
+      ){
+
+        return null;
+
+      }
+
       const memory =
       await createMemory(
         memoryData
@@ -670,7 +534,7 @@ async function createCoreMemory(
 
       );
 
-      return freezeMemoryCoreObject(
+      return freezeObject(
         memory
       );
 
@@ -696,6 +560,15 @@ async function updateCoreMemory(
     type:"update",
 
     operation:async() => {
+
+      if(
+        typeof updateMemoryData !==
+        "function"
+      ){
+
+        return null;
+
+      }
 
       const updated =
       await updateMemoryData(
@@ -729,7 +602,7 @@ async function updateCoreMemory(
 
       );
 
-      return freezeMemoryCoreObject(
+      return freezeObject(
         updated
       );
 
@@ -754,6 +627,15 @@ async function deleteCoreMemory(
     type:"delete",
 
     operation:async() => {
+
+      if(
+        typeof deleteMemoryData !==
+        "function"
+      ){
+
+        return false;
+
+      }
 
       const deleted =
       await deleteMemoryData(
@@ -820,7 +702,11 @@ async function searchCoreMemory(
 
       const results =
       await searchMemories(
-        query
+
+        normalizeMemoryString(
+          query
+        )
+
       );
 
       memoryCoreState
@@ -841,10 +727,12 @@ async function searchCoreMemory(
 
       );
 
-      return freezeMemoryCoreObject(
+      return freezeObject(
+
         Array.isArray(results)
         ? results
         : []
+
       );
 
     }
@@ -977,7 +865,7 @@ async function runMemoryCoreHealthcheck(){
       "function"
     ){
 
-      return freezeMemoryCoreObject({
+      return freezeObject({
 
         valid:false
 
@@ -1009,7 +897,7 @@ async function runMemoryCoreHealthcheck(){
 
     );
 
-    return freezeMemoryCoreObject(
+    return freezeObject(
 
       health ||
 
@@ -1029,7 +917,7 @@ async function runMemoryCoreHealthcheck(){
       error
     );
 
-    return freezeMemoryCoreObject({
+    return freezeObject({
 
       valid:false
 
@@ -1144,7 +1032,7 @@ async function recoverMemoryCore(){
 
 function getMemoryCoreStatus(){
 
-  return freezeMemoryCoreObject({
+  return freezeObject({
 
     initialized:
     memoryCoreState
@@ -1192,12 +1080,32 @@ function getMemoryCoreStatus(){
 
     diagnostics:
 
-      freezeMemoryCoreObject(
+      freezeObject(
         memoryCoreState
         .diagnostics
       )
 
   });
+
+}
+
+
+
+// =====================================
+// RESET HELPERS
+// =====================================
+
+function resetMemoryCoreDiagnostics(){
+
+  memoryCoreState
+  .diagnostics =
+  createMemoryCoreDiagnostics();
+
+  memoryCoreState
+  .diagnostics
+  .resets = 1;
+
+  return true;
 
 }
 
@@ -1259,41 +1167,7 @@ async function resetMemoryCore(){
   .lastHealthcheckAt =
   null;
 
-  memoryCoreState
-  .diagnostics
-  .initialized = 0;
-
-  memoryCoreState
-  .diagnostics
-  .created = 0;
-
-  memoryCoreState
-  .diagnostics
-  .updated = 0;
-
-  memoryCoreState
-  .diagnostics
-  .deleted = 0;
-
-  memoryCoreState
-  .diagnostics
-  .searched = 0;
-
-  memoryCoreState
-  .diagnostics
-  .synced = 0;
-
-  memoryCoreState
-  .diagnostics
-  .recovered = 0;
-
-  memoryCoreState
-  .diagnostics
-  .failed = 0;
-
-  memoryCoreState
-  .diagnostics
-  .resets = 1;
+  resetMemoryCoreDiagnostics();
 
   setMemoryCoreState(
     MEMORY_CORE_STATES
@@ -1371,7 +1245,9 @@ async function initializeMemoryCore(){
     .initializing
   ){
 
-    return false;
+    return Promise.resolve(
+      false
+    );
 
   }
 
@@ -1554,15 +1430,49 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.MemoryCore =
-  MemoryCore;
+  MEMORY_CORE_CONFIG,
 
-}
+  MEMORY_CORE_STATES,
+
+  MEMORY_CORE_EVENTS,
+
+  memoryCoreState,
+
+  setMemoryCoreState,
+
+  emitMemoryCoreEvent,
+
+  registerMemoryCoreFailure,
+
+  executeMemoryCoreOperation,
+
+  createCoreMemory,
+
+  updateCoreMemory,
+
+  deleteCoreMemory,
+
+  searchCoreMemory,
+
+  synchronizeMemoryCore,
+
+  runMemoryCoreHealthcheck,
+
+  recoverMemoryCore,
+
+  getMemoryCoreStatus,
+
+  resetMemoryCore,
+
+  destroyMemoryCore,
+
+  initializeMemoryCore,
+
+  MemoryCore
+
+};
