@@ -2,8 +2,27 @@
 // RIGO AI
 // CHAT INDEX
 // ENTERPRISE CHAT PUBLIC API
-// FINAL CONNECTED EDITION
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "./chat-actions.js";
+import "./chat-elements.js";
+import "./chat-events.js";
+import "./chat-markdown-renderer.js";
+import "./chat-message-elements.js";
+import "./chat-queue.js";
+import "./chat-renderer.js";
+import "./chat-runtime.js";
+import "./chat-state.js";
+import "./chat-stream-manager.js";
+import "./chat-stream-state.js";
+import "./chat-utils.js";
 
 
 
@@ -966,72 +985,170 @@ if(
   "undefined"
 ){
 
-  window.Chat =
-  Chat;
+  Object.defineProperty(
+    window,
+    "Chat",
+    {
+      value: Chat,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.CHAT_MODULES =
-  CHAT_MODULES;
+  Object.defineProperty(
+    window,
+    "CHAT_MODULES",
+    {
+      value: CHAT_MODULES,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.ChatRuntime =
-  ChatRuntime;
+  Object.defineProperty(
+    window,
+    "ChatRuntime",
+    {
+      value: ChatRuntime,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.ChatStreamManager =
-  ChatStreamManager;
+  Object.defineProperty(
+    window,
+    "ChatStreamManager",
+    {
+      value: ChatStreamManager,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.ChatElements =
-  ChatElements;
+  Object.defineProperty(
+    window,
+    "ChatElements",
+    {
+      value: ChatElements,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.ChatMarkdownRenderer =
-  ChatMarkdownRenderer;
+  Object.defineProperty(
+    window,
+    "ChatMarkdownRenderer",
+    {
+      value: ChatMarkdownRenderer,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.initializeChatSystem =
-  initializeChatSystem;
+  Object.defineProperty(
+    window,
+    "initializeChatSystem",
+    {
+      value: initializeChatSystem,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.resetChatSystem =
-  resetChatSystem;
+  Object.defineProperty(
+    window,
+    "resetChatSystem",
+    {
+      value: resetChatSystem,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.sendChatMessage =
-  sendChatMessage;
+  Object.defineProperty(
+    window,
+    "sendChatMessage",
+    {
+      value: sendChatMessage,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.abortChatGeneration =
-  abortChatGeneration;
+  Object.defineProperty(
+    window,
+    "abortChatGeneration",
+    {
+      value: abortChatGeneration,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.processChatQueue =
-  processChatQueue;
+  Object.defineProperty(
+    window,
+    "processChatQueue",
+    {
+      value: processChatQueue,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.getChatSystemStatus =
-  getChatSystemStatus;
+  Object.defineProperty(
+    window,
+    "getChatSystemStatus",
+    {
+      value: getChatSystemStatus,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.getChatDiagnostics =
-  getChatDiagnostics;
+  Object.defineProperty(
+    window,
+    "getChatDiagnostics",
+    {
+      value: getChatDiagnostics,
+      writable: false,
+      configurable: false
+    }
+  );
 
 
 
-  window.isChatReady =
-  isChatReady;
+  Object.defineProperty(
+    window,
+    "isChatReady",
+    {
+      value: isChatReady,
+      writable: false,
+      configurable: false
+    }
+  );
 
 }
