@@ -8,6 +8,23 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import "./security-core.js";
+import "./security-freeze.js";
+import "./security-monitor.js";
+import "./security-policy.js";
+import "./security-report.js";
+import "./security-runtime.js";
+import "./security-sandbox.js";
+import "./security-sanitize.js";
+import "./security-url.js";
+import "./security-validator.js";
+
+
+
+// =====================================
 // REQUIRED MODULES
 // =====================================
 
@@ -784,6 +801,8 @@ export {
   Security
 
 };
+
+export default Security;
 
 
 
