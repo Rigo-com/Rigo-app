@@ -2,6 +2,7 @@
 // RIGO AI
 // HEALTH INDEX
 // SAFE HEALTH COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -15,6 +16,7 @@ import "./health-diagnostics.js";
 import "./health-monitor.js";
 import "./health-runtime.js";
 import "./health-system.js";
+
 
 
 // =====================================
@@ -45,7 +47,9 @@ function getHealthDependency(
     ){
 
       console.warn(
-        `[HealthAPI] Missing dependency: ${dependencyName}`
+
+        `[RIGOHealth] Missing dependency: ${dependencyName}`
+
       );
 
       return null;
@@ -59,8 +63,11 @@ function getHealthDependency(
   catch(error){
 
     console.warn(
-      `[HealthAPI] Failed resolving dependency: ${dependencyName}`,
+
+      `[RIGOHealth] Failed resolving dependency: ${dependencyName}`,
+
       error
+
     );
 
     return null;
@@ -71,10 +78,47 @@ function getHealthDependency(
 
 
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
-  return typeof value ===
-  "function";
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
+
+function isPlainObject(
+  value
+){
+
+  if(
+    !value ||
+    typeof value !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
 
 }
 
@@ -106,8 +150,11 @@ function safeFreeze(
   if(
 
     value instanceof Date ||
+
     value instanceof RegExp ||
+
     value instanceof Map ||
+
     value instanceof Set ||
 
     (
@@ -123,11 +170,28 @@ function safeFreeze(
 
   }
 
-  visited.add(value);
+  if(
 
-  Object.freeze(value);
+    !Array.isArray(value) &&
 
-  Object.values(value).forEach((nestedValue) => {
+    !isPlainObject(value)
+
+  ){
+
+    return value;
+
+  }
+
+  visited.add(
+    value
+  );
+
+  Object.freeze(
+    value
+  );
+
+  Object.values(value)
+  .forEach((nestedValue) => {
 
     if(
       nestedValue &&
@@ -159,7 +223,9 @@ async function safelyExecuteHealthOperation(
   try{
 
     if(
-      !isFunction(operation)
+      !isFunction(
+        operation
+      )
     ){
 
       return fallback;
@@ -173,8 +239,11 @@ async function safelyExecuteHealthOperation(
   catch(error){
 
     console.warn(
-      `[HealthAPI] ${label} failed`,
+
+      `[RIGOHealth] ${label} failed`,
+
       error
+
     );
 
     return fallback;
@@ -202,12 +271,16 @@ function createReadonlyHealthAccessor(
       async() => {
 
         const dependency =
-          getHealthDependency(
-            dependencyName
-          );
+        getHealthDependency(
+          dependencyName
+        );
 
-        if(!dependency){
+        if(
+          !dependency
+        ){
+
           return null;
+
         }
 
         if(
@@ -269,7 +342,7 @@ function createReadonlyHealthAccessor(
 
 
 // =====================================
-// HEALTH OPERATIONS
+// OPERATIONS
 // =====================================
 
 async function runHealthChecks(){
@@ -281,9 +354,9 @@ async function runHealthChecks(){
     async() => {
 
       const runtime =
-        getHealthDependency(
-          "HealthRuntime"
-        );
+      getHealthDependency(
+        "RIGOHealthRuntime"
+      );
 
       if(
         !runtime
@@ -324,9 +397,9 @@ async function startHealthSystem(){
     async() => {
 
       const system =
-        getHealthDependency(
-          "HealthSystem"
-        );
+      getHealthDependency(
+        "RIGOHealthSystem"
+      );
 
       if(
         !system
@@ -367,9 +440,9 @@ async function stopHealthSystem(){
     async() => {
 
       const system =
-        getHealthDependency(
-          "HealthSystem"
-        );
+      getHealthDependency(
+        "RIGOHealthSystem"
+      );
 
       if(
         !system
@@ -410,9 +483,9 @@ async function initializeHealthSystem(){
     async() => {
 
       const system =
-        getHealthDependency(
-          "HealthSystem"
-        );
+      getHealthDependency(
+        "RIGOHealthSystem"
+      );
 
       if(
         !system
@@ -453,9 +526,9 @@ async function resetHealthSystem(){
     async() => {
 
       const system =
-        getHealthDependency(
-          "HealthSystem"
-        );
+      getHealthDependency(
+        "RIGOHealthSystem"
+      );
 
       if(
         !system
@@ -488,7 +561,7 @@ async function resetHealthSystem(){
 
 
 // =====================================
-// AGGREGATED HEALTH REPORT
+// HEALTH REPORT
 // =====================================
 
 async function getUnifiedHealthReport(){
@@ -500,32 +573,33 @@ async function getUnifiedHealthReport(){
     async() => {
 
       const system =
-        await HealthAPI
-        .system();
+      await RIGOHealth
+      .system();
 
       const runtime =
-        await HealthAPI
-        .runtime();
+      await RIGOHealth
+      .runtime();
 
       const monitor =
-        await HealthAPI
-        .monitor();
+      await RIGOHealth
+      .monitor();
 
       const diagnostics =
-        await HealthAPI
-        .healthDiagnostics();
+      await RIGOHealth
+      .healthDiagnostics();
 
       let runtimeHealth =
-        null;
+      null;
 
       const runtimeDependency =
-        getHealthDependency(
-          "HealthRuntime"
-        );
+      getHealthDependency(
+        "RIGOHealthRuntime"
+      );
 
       if(
 
         runtimeDependency &&
+
         isFunction(
           runtimeDependency.run
         )
@@ -533,8 +607,8 @@ async function getUnifiedHealthReport(){
       ){
 
         runtimeHealth =
-          await runtimeDependency
-          .run();
+        await runtimeDependency
+        .run();
 
       }
 
@@ -566,7 +640,7 @@ async function getUnifiedHealthReport(){
 // HEALTH API
 // =====================================
 
-const HealthAPI =
+const RIGOHealth =
 safeFreeze({
 
 
@@ -577,28 +651,28 @@ safeFreeze({
 
   system:
   createReadonlyHealthAccessor(
-    "HealthSystem"
+    "RIGOHealthSystem"
   ),
 
 
 
   runtime:
   createReadonlyHealthAccessor(
-    "HealthRuntime"
+    "RIGOHealthRuntime"
   ),
 
 
 
   monitor:
   createReadonlyHealthAccessor(
-    "HealthMonitor"
+    "RIGOHealthMonitor"
   ),
 
 
 
   healthDiagnostics:
   createReadonlyHealthAccessor(
-    "HealthDiagnostics"
+    "RIGOHealthDiagnostics"
   ),
 
 
@@ -637,6 +711,11 @@ safeFreeze({
   // ===================================
 
   diagnostics:
+  getUnifiedHealthReport,
+
+
+
+  snapshot:
   getUnifiedHealthReport
 
 });
@@ -644,7 +723,7 @@ safeFreeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -656,12 +735,12 @@ if(
 
     window,
 
-    "HealthAPI",
+    "RIGOHealth",
 
     {
 
       value:
-      HealthAPI,
+      RIGOHealth,
 
       writable:
       false,
