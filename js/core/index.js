@@ -71,7 +71,7 @@ function emitCoreIndexWarning(
 
   console.warn(
 
-    `[CoreIndex] ${message}`,
+    `[RIGOCore] ${message}`,
 
     error || ""
 
@@ -81,11 +81,18 @@ function emitCoreIndexWarning(
 
 
 
-function isObject(value){
+function isObject(
+  value
+){
 
   return (
-    typeof value === "object" &&
-    value !== null
+
+    typeof value ===
+    "object" &&
+
+    value !==
+    null
+
   );
 
 }
@@ -112,7 +119,7 @@ function validateCoreSystems(){
     const requiredSystems = [
 
       "RIGOContainer",
-      "RIGOEventBus",
+      "RIGOEvents",
       "RIGOStateManager",
       "RIGORuntime",
       "RIGOLifecycle"
@@ -124,8 +131,13 @@ function validateCoreSystems(){
       requiredSystems.filter((systemName) => {
 
         return (
-          typeof window[systemName] ===
+
+          typeof window[
+            systemName
+          ] ===
+
           "undefined"
+
         );
 
       });
@@ -201,9 +213,12 @@ async function initializeCoreSystems(){
       window.RIGORuntime;
 
     if(
+
       runtime &&
+
       typeof runtime.initialize ===
       "function"
+
     ){
 
       await runtime.initialize();
@@ -214,7 +229,7 @@ async function initializeCoreSystems(){
       true;
 
     console.info(
-      "[CoreIndex] Core systems initialized"
+      "[RIGOCore] Core systems initialized"
     );
 
     return true;
@@ -240,11 +255,15 @@ async function initializeCoreSystems(){
 // PUBLIC API
 // =====================================
 
-const CoreIndex =
+const RIGOCore =
 Object.freeze({
+
+
 
   initialize:
   initializeCoreSystems,
+
+
 
   validate:
   validateCoreSystems,
@@ -265,7 +284,7 @@ Object.freeze({
 
   get events(){
 
-    return window.RIGOEventBus;
+    return window.RIGOEvents;
 
   },
 
@@ -291,6 +310,22 @@ Object.freeze({
 
     return window.RIGOLifecycle;
 
+  },
+
+
+
+  get health(){
+
+    return window.RIGOHealth;
+
+  },
+
+
+
+  get modules(){
+
+    return window.RIGOModules;
+
   }
 
 });
@@ -310,12 +345,12 @@ if(
 
     window,
 
-    "CoreIndex",
+    "RIGOCore",
 
     {
 
       value:
-      CoreIndex,
+      RIGOCore,
 
       writable:
       false,
@@ -351,8 +386,11 @@ if(
     catch(error){
 
       emitCoreIndexWarning(
+
         "Queued initialization failed",
+
         error
+
       );
 
     }
