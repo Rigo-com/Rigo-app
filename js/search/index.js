@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SEARCH INDEX
-// FINAL EXPORT LAYER
+// FINAL HARDENED EXPORT LAYER
 // =====================================
 
 
@@ -37,6 +37,120 @@ import {
 
 
 // =====================================
+// VALIDATION
+// =====================================
+
+function validateSearchLayer(){
+
+  return (
+
+    typeof executeMemorySearch ===
+    "function"
+
+    &&
+
+    typeof rebuildSearchIndexes ===
+    "function"
+
+    &&
+
+    typeof searchIndexedMemories ===
+    "function"
+
+  );
+
+}
+
+
+
+// =====================================
+// SAFE ACCESS
+// =====================================
+
+function getSearchDiagnostics(){
+
+  return Object.freeze({
+
+    search:
+
+      typeof searchState !==
+      "undefined"
+
+      ?
+
+      searchState
+
+      :
+
+      null,
+
+
+
+    indexes:
+
+      typeof searchIndexState !==
+      "undefined"
+
+      ?
+
+      searchIndexState
+
+      :
+
+      null,
+
+
+
+    cache:
+
+      typeof searchCache !==
+      "undefined"
+
+      ?
+
+      searchCache
+
+      :
+
+      null,
+
+
+
+    history:
+
+      typeof searchHistoryState !==
+      "undefined"
+
+      ?
+
+      searchHistoryState
+
+      :
+
+      null,
+
+
+
+    worker:
+
+      typeof searchWorkerState !==
+      "undefined"
+
+      ?
+
+      searchWorkerState
+
+      :
+
+      null
+
+  });
+
+}
+
+
+
+// =====================================
 // SEARCH API
 // =====================================
 
@@ -61,6 +175,8 @@ Object.freeze({
   rebuildIndexes:
   rebuildSearchIndexes,
 
+
+
   searchIndexed:
   searchIndexedMemories,
 
@@ -71,7 +187,17 @@ Object.freeze({
   // ===================================
 
   clearCache:
-  clearSearchCache,
+
+    typeof clearSearchCache ===
+    "function"
+
+    ?
+
+    clearSearchCache
+
+    :
+
+    null,
 
 
 
@@ -80,7 +206,17 @@ Object.freeze({
   // ===================================
 
   popular:
-  getPopularSearches,
+
+    typeof getPopularSearches ===
+    "function"
+
+    ?
+
+    getPopularSearches
+
+    :
+
+    null,
 
 
 
@@ -89,7 +225,17 @@ Object.freeze({
   // ===================================
 
   worker:
-  executeSearchWorkerTask,
+
+    typeof executeSearchWorkerTask ===
+    "function"
+
+    ?
+
+    executeSearchWorkerTask
+
+    :
+
+    null,
 
 
 
@@ -97,30 +243,53 @@ Object.freeze({
   // DIAGNOSTICS
   // ===================================
 
-  diagnostics(){
+  diagnostics:
+  getSearchDiagnostics,
 
-    return {
 
-      search:
-      searchState,
 
-      indexes:
-      searchIndexState,
+  // ===================================
+  // VALIDATION
+  // ===================================
 
-      cache:
-      searchCache,
-
-      history:
-      searchHistoryState,
-
-      worker:
-      searchWorkerState
-
-    };
-
-  }
+  validate:
+  validateSearchLayer
 
 });
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof globalThis ===
+  "object"
+){
+
+  Object.defineProperty(
+
+    globalThis,
+
+    "SearchAPI",
+
+    {
+
+      value:
+      SearchAPI,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+}
 
 
 
@@ -133,3 +302,5 @@ export {
   SearchAPI
 
 };
+
+export default SearchAPI;
