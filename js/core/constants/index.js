@@ -2,6 +2,7 @@
 // RIGO AI
 // CONSTANTS INDEX
 // SAFE CONSTANTS COMPOSITION LAYER
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -21,17 +22,17 @@ import "./system-event-types.js";
 
 
 // =====================================
-// HELPERS
+// INTERNAL HELPERS
 // =====================================
 
-function getConstant(
+function getGlobalConstant(
   constantName
 ){
 
   try{
 
     if(
-      typeof DependencySystem ===
+      typeof window ===
       "undefined"
     ){
 
@@ -39,20 +40,9 @@ function getConstant(
 
     }
 
-    if(
-      typeof DependencySystem
-      .resolve !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return DependencySystem
-    .resolve(
+    return window[
       constantName
-    );
+    ] || null;
 
   }
 
@@ -178,9 +168,11 @@ safeFreeze({
   ){
 
     return safeFreeze(
-      getConstant(
+
+      getGlobalConstant(
         constantName
       )
+
     );
 
   },
@@ -194,9 +186,11 @@ safeFreeze({
   phases(){
 
     return safeFreeze(
-      getConstant(
+
+      getGlobalConstant(
         "APP_PHASES"
       )
+
     );
 
   },
@@ -205,7 +199,7 @@ safeFreeze({
 
   validatePhase(){
 
-    return getConstant(
+    return getGlobalConstant(
       "isValidAppPhase"
     );
 
@@ -222,9 +216,11 @@ safeFreeze({
     events(){
 
       return safeFreeze(
-        getConstant(
+
+        getGlobalConstant(
           "RUNTIME_EVENTS"
         )
+
       );
 
     },
@@ -234,9 +230,11 @@ safeFreeze({
     states(){
 
       return safeFreeze(
-        getConstant(
+
+        getGlobalConstant(
           "RUNTIME_STATES"
         )
+
       );
 
     },
@@ -246,9 +244,11 @@ safeFreeze({
     config(){
 
       return safeFreeze(
-        getConstant(
+
+        getGlobalConstant(
           "RUNTIME_MANAGER_CONFIG"
         )
+
       );
 
     },
@@ -257,7 +257,7 @@ safeFreeze({
 
     validateState(){
 
-      return getConstant(
+      return getGlobalConstant(
         "isValidRuntimeState"
       );
 
@@ -276,9 +276,11 @@ safeFreeze({
     config(){
 
       return safeFreeze(
-        getConstant(
+
+        getGlobalConstant(
           "SYSTEM_EVENTS_CONFIG"
         )
+
       );
 
     },
@@ -288,9 +290,11 @@ safeFreeze({
     priorities(){
 
       return safeFreeze(
-        getConstant(
+
+        getGlobalConstant(
           "SYSTEM_EVENT_PRIORITIES"
         )
+
       );
 
     },
@@ -300,9 +304,11 @@ safeFreeze({
     types(){
 
       return safeFreeze(
-        getConstant(
+
+        getGlobalConstant(
           "SYSTEM_EVENT_TYPES"
         )
+
       );
 
     },
@@ -311,7 +317,7 @@ safeFreeze({
 
     validateType(){
 
-      return getConstant(
+      return getGlobalConstant(
         "isValidSystemEventType"
       );
 
@@ -321,7 +327,7 @@ safeFreeze({
 
     validatePriority(){
 
-      return getConstant(
+      return getGlobalConstant(
         "isValidSystemEventPriority"
       );
 
@@ -353,9 +359,11 @@ if(
       value:
       ConstantsAPI,
 
-      writable:false,
+      writable:
+      false,
 
-      configurable:false
+      configurable:
+      false
 
     }
 
