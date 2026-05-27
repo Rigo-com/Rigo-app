@@ -73,13 +73,25 @@ function persistCommunicationState(){
 
       return {
 
-        id:item.id,
+        id:
+        item?.id ||
+        createCommunicationId(
+          "message"
+        ),
 
-        content:item.content,
+        content:
+        item?.content ||
+        "",
 
-        metadata:item.metadata,
+        metadata:
+        item?.metadata ||
+        null,
 
-        createdAt:item.createdAt
+        createdAt:
+
+          item?.createdAt ||
+
+          Date.now()
 
       };
 
@@ -100,13 +112,18 @@ function persistCommunicationState(){
           {
 
             payload:
-            value?.payload,
+            safeCommunicationClone(
+              value?.payload
+            ),
 
             response:
-            value?.response,
+            safeCommunicationClone(
+              value?.response
+            ),
 
             createdAt:
-            value?.createdAt
+            value?.createdAt ||
+            Date.now()
 
           }
 
@@ -192,6 +209,33 @@ function restoreCommunicationState(){
     JSON.parse(raw);
 
     if(
+
+      Array.isArray(
+        parsed.queue
+      )
+
+      &&
+
+      parsed.queue.length >
+
+      COMMUNICATION_RUNTIME_CONFIG
+      .MAX_QUEUE_SIZE
+
+    ){
+
+      parsed.queue =
+      parsed.queue.slice(
+
+        0,
+
+        COMMUNICATION_RUNTIME_CONFIG
+        .MAX_QUEUE_SIZE
+
+      );
+
+    }
+
+    if(
       !parsed ||
       typeof parsed !==
       "object"
@@ -264,7 +308,11 @@ function restoreCommunicationState(){
     }
 
     if(
-      parsed.lastMessageAt
+
+      Number.isFinite(
+        parsed.lastMessageAt
+      )
+
     ){
 
       communicationRuntimeState
@@ -294,6 +342,8 @@ function restoreCommunicationState(){
       );
 
     }
+
+    clearCommunicationStorage();
 
     return false;
 
