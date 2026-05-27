@@ -1,18 +1,23 @@
 // =====================================
+// RIGO AI
+// MEMORY SECURITY
+// FINAL OPTIMIZED BUILD
+// =====================================
+
+
+
+// =====================================
 // SECURITY HELPERS
 // =====================================
 
-function normalizeSecurityString(
+function normalizeSecurityValue(
   value
 ){
 
   return String(
-
-    normalizeMemoryString?.(
-      value
-    ) ?? ""
-
+    value ?? ""
   )
+
   .replace(/\0/g,"")
   .trim();
 
@@ -20,7 +25,7 @@ function normalizeSecurityString(
 
 
 
-function isCryptoAvailable(){
+function cryptoSupported(){
 
   return (
 
@@ -29,8 +34,7 @@ function isCryptoAvailable(){
 
     &&
 
-    typeof crypto.subtle !==
-    "undefined"
+    crypto?.subtle
 
   );
 
@@ -38,16 +42,8 @@ function isCryptoAvailable(){
 
 
 
-function createSecurityTimestamp(){
-
-  return Date.now();
-
-}
-
-
-
 // =====================================
-// SECURE STRING COMPARE
+// CONSTANT TIME COMPARE
 // =====================================
 
 function secureCompareStrings(
@@ -70,27 +66,26 @@ function secureCompareStrings(
     );
 
     let result =
-
-      safeA.length ^
-
-      safeB.length;
+    safeA.length ^
+    safeB.length;
 
     for(
-      let i = 0;
-      i < maxLength;
-      i++
+      let index = 0;
+      index < maxLength;
+      index++
     ){
 
-      const charA =
-
-        safeA.charCodeAt(i) || 0;
-
-      const charB =
-
-        safeB.charCodeAt(i) || 0;
-
       result |=
-      charA ^ charB;
+
+        (
+          safeA.charCodeAt(index) || 0
+        )
+
+        ^
+
+        (
+          safeB.charCodeAt(index) || 0
+        );
 
     }
 
@@ -98,7 +93,7 @@ function secureCompareStrings(
 
   }
 
-  catch(error){
+  catch{
 
     return false;
 
@@ -109,40 +104,103 @@ function secureCompareStrings(
 
 
 // =====================================
-// ENCRYPTION KEY VALIDATION
+// ENCRYPTION KEY
 // =====================================
+
+let memoryEncryptionKey =
+null;
+
+
 
 function isValidEncryptionKey(
   encryptionKey
 ){
 
-  if(
-    !encryptionKey
-  ){
+  return (
+
+    typeof CryptoKey !==
+    "undefined"
+
+    &&
+
+    encryptionKey instanceof
+    CryptoKey
+
+  );
+
+}
+
+
+
+async function getOrCreateMemoryEncryptionKey(){
+
+  try{
+
+    if(
+      memoryEncryptionKey
+    ){
+
+      return memoryEncryptionKey;
+
+    }
+
+    if(
+      typeof createEncryptionKey !==
+      "function"
+    ){
+
+      return null;
+
+    }
+
+    memoryEncryptionKey =
+    await createEncryptionKey();
+
+    return memoryEncryptionKey;
+
+  }
+
+  catch(error){
+
+    storeSecurityError?.(
+      error
+    );
+
+    return null;
+
+  }
+
+}
+
+
+
+async function rotateEncryptionKey(){
+
+  try{
+
+    memoryEncryptionKey =
+    await createEncryptionKey?.();
+
+    return !!memoryEncryptionKey;
+
+  }
+
+  catch(error){
+
+    storeSecurityError?.(
+      error
+    );
 
     return false;
 
   }
-
-  if(
-    typeof CryptoKey !==
-    "undefined"
-  ){
-
-    return (
-      encryptionKey instanceof
-      CryptoKey
-    );
-  }
-
-  return false;
 
 }
 
 
 
 // =====================================
-// HASH GENERATION
+// HASHING
 // =====================================
 
 async function createMemoryHash(
@@ -152,48 +210,40 @@ async function createMemoryHash(
   try{
 
     if(
-      !isCryptoAvailable()
+      !cryptoSupported()
     ){
 
       return null;
 
     }
 
-    if(
+    const encoder =
 
-      typeof getMemoryTextEncoder !==
-      "function"
+      getMemoryTextEncoder?.();
 
-    ){
+    if(!encoder){
 
       return null;
 
     }
 
-    const normalizedValue =
-    String(value ?? "");
-
-    const encodedValue =
-    getMemoryTextEncoder()
-    .encode(
-      normalizedValue
+    const encoded =
+    encoder.encode(
+      String(value ?? "")
     );
 
     const hashBuffer =
     await crypto.subtle.digest(
       "SHA-256",
-      encodedValue
+      encoded
     );
 
-    const hashArray =
-
-      Array.from(
-        new Uint8Array(
-          hashBuffer
-        )
-      );
-
-    return hashArray
+    return Array
+    .from(
+      new Uint8Array(
+        hashBuffer
+      )
+    )
     .map((byte) => {
 
       return byte
@@ -207,16 +257,9 @@ async function createMemoryHash(
 
   catch(error){
 
-    if(
-      typeof storeSecurityError ===
-      "function"
-    ){
-
-      storeSecurityError(
-        error
-      );
-
-    }
+    storeSecurityError?.(
+      error
+    );
 
     return null;
 
@@ -227,7 +270,7 @@ async function createMemoryHash(
 
 
 // =====================================
-// VERIFY SIGNATURE
+// SIGNATURE VERIFICATION
 // =====================================
 
 async function verifyMemorySignature(
@@ -237,8 +280,7 @@ async function verifyMemorySignature(
   try{
 
     if(
-      !memory ||
-      !memory.id
+      !memory?.id
     ){
 
       return false;
@@ -265,7 +307,8 @@ async function verifyMemorySignature(
     await createMemoryHash(
       JSON.stringify({
 
-        id:memory.id,
+        id:
+        memory.id,
 
         content:
         memory.content,
@@ -287,7 +330,8 @@ async function verifyMemorySignature(
 
     }
 
-    return secureCompareStrings(
+    const valid =
+    secureCompareStrings(
 
       trustedSignature,
 
@@ -295,106 +339,35 @@ async function verifyMemorySignature(
 
     );
 
-  }
-
-  catch(error){
-
     if(
-      typeof storeSecurityError ===
-      "function"
+      !valid
     ){
 
-      storeSecurityError(
-        error
+      memorySecurityState
+      ?.tamperedMemories
+      ?.add?.(
+        memory.id
       );
 
-    }
+      memorySecurityState
+      .lastTamperDetectedAt =
+      Date.now();
 
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// TAMPER DETECTION
-// =====================================
-
-async function detectMemoryTampering(
-  memory
-){
-
-  try{
-
-    if(
-      !memory?.id
-    ){
-
-      return false;
-
-    }
-
-    const trusted =
-
-      await verifyMemorySignature(
-        memory
-      );
-
-    if(
-      trusted === true
-    ){
-
-      return false;
-
-    }
-
-    if(
-      trusted === null
-    ){
-
-      return false;
-
-    }
-
-    memorySecurityState
-    ?.tamperedMemories
-    ?.add?.(
-      memory.id
-    );
-
-    memorySecurityState
-    .lastTamperDetectedAt =
-    Date.now();
-
-    if(
-      typeof markMemoryCorrupted ===
-      "function"
-    ){
-
-      markMemoryCorrupted(
+      markMemoryCorrupted?.(
         memory.id
       );
 
     }
 
-    return true;
+    return valid;
 
   }
 
   catch(error){
 
-    if(
-      typeof storeSecurityError ===
-      "function"
-    ){
-
-      storeSecurityError(
-        error
-      );
-
-    }
+    storeSecurityError?.(
+      error
+    );
 
     return false;
 
@@ -405,82 +378,13 @@ async function detectMemoryTampering(
 
 
 // =====================================
-// ENCRYPTION KEY STORAGE
-// =====================================
-
-let memoryEncryptionKey =
-null;
-
-
-
-async function getOrCreateMemoryEncryptionKey(){
-
-  try{
-
-    if(
-      memoryEncryptionKey
-    ){
-
-      return memoryEncryptionKey;
-
-    }
-
-    if(
-      typeof createEncryptionKey !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    const generatedKey =
-    await createEncryptionKey();
-
-    if(
-      !generatedKey
-    ){
-
-      return null;
-
-    }
-
-    memoryEncryptionKey =
-    generatedKey;
-
-    return memoryEncryptionKey;
-
-  }
-
-  catch(error){
-
-    if(
-      typeof storeSecurityError ===
-      "function"
-    ){
-
-      storeSecurityError(
-        error
-      );
-
-    }
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// RANDOM IV
+// ENCRYPTION HELPERS
 // =====================================
 
 function createEncryptionIV(){
 
   if(
-    !isCryptoAvailable()
+    !cryptoSupported()
   ){
 
     return null;
@@ -495,10 +399,6 @@ function createEncryptionIV(){
 }
 
 
-
-// =====================================
-// ENCRYPT MEMORY CONTENT
-// =====================================
 
 async function encryptMemoryContent(
   content,
@@ -519,16 +419,11 @@ async function encryptMemoryContent(
 
     }
 
+    const encoder =
+    getMemoryTextEncoder?.();
+
     if(
-
-      typeof arrayBufferToBase64 !==
-      "function"
-
-      ||
-
-      typeof getMemoryTextEncoder !==
-      "function"
-
+      !encoder
     ){
 
       return null;
@@ -541,6 +436,7 @@ async function encryptMemoryContent(
 
       encryptionKey =
       await getOrCreateMemoryEncryptionKey();
+
     }
 
     if(
@@ -555,16 +451,11 @@ async function encryptMemoryContent(
 
     const normalizedContent =
 
-      typeof normalizeMemoryContent ===
-      "function"
-
-      ?
-
-      normalizeMemoryContent(
+      normalizeMemoryContent?.(
         content
       )
 
-      :
+      ||
 
       String(content ?? "");
 
@@ -590,12 +481,6 @@ async function encryptMemoryContent(
 
     }
 
-    const encodedContent =
-    getMemoryTextEncoder()
-    .encode(
-      normalizedContent
-    );
-
     const encryptedBuffer =
     await crypto.subtle.encrypt({
 
@@ -607,24 +492,26 @@ async function encryptMemoryContent(
 
     encryptionKey,
 
-    encodedContent);
+    encoder.encode(
+      normalizedContent
+    ));
+
+    memorySecurityState
+    .totalEncryptions++;
 
     memorySecurityState
     .lastEncryptionAt =
     Date.now();
 
-    memorySecurityState
-    .totalEncryptions++;
-
     return {
 
       encryptedData:
-      arrayBufferToBase64(
+      arrayBufferToBase64?.(
         encryptedBuffer
       ),
 
       iv:
-      arrayBufferToBase64(
+      arrayBufferToBase64?.(
         iv
       )
 
@@ -637,16 +524,9 @@ async function encryptMemoryContent(
     memorySecurityState
     .failedEncryptions++;
 
-    if(
-      typeof storeSecurityError ===
-      "function"
-    ){
-
-      storeSecurityError(
-        error
-      );
-
-    }
+    storeSecurityError?.(
+      error
+    );
 
     return null;
 
@@ -655,10 +535,6 @@ async function encryptMemoryContent(
 }
 
 
-
-// =====================================
-// DECRYPT MEMORY CONTENT
-// =====================================
 
 async function decryptMemoryContent(
   encryptedPayload,
@@ -676,30 +552,11 @@ async function decryptMemoryContent(
 
     }
 
-    if(
-
-      typeof base64ToUint8Array !==
-      "function"
-
-      ||
-
-      typeof getMemoryTextDecoder !==
-      "function"
-
-    ){
-
-      return null;
-
-    }
+    const decoder =
+    getMemoryTextDecoder?.();
 
     if(
-
-      !encryptedPayload
-      .encryptedData ||
-
-      !encryptedPayload
-      .iv
-
+      !decoder
     ){
 
       return null;
@@ -712,6 +569,7 @@ async function decryptMemoryContent(
 
       encryptionKey =
       await getOrCreateMemoryEncryptionKey();
+
     }
 
     if(
@@ -725,13 +583,13 @@ async function decryptMemoryContent(
     }
 
     const encryptedBytes =
-    base64ToUint8Array(
+    base64ToUint8Array?.(
       encryptedPayload
       .encryptedData
     );
 
     const iv =
-    base64ToUint8Array(
+    base64ToUint8Array?.(
       encryptedPayload.iv
     );
 
@@ -748,16 +606,12 @@ async function decryptMemoryContent(
 
     encryptedBytes);
 
-    const decryptedContent =
-    getMemoryTextDecoder()
-    .decode(
-      decryptedBuffer
-    );
-
     memorySecurityState
     .totalDecryptions++;
 
-    return decryptedContent;
+    return decoder.decode(
+      decryptedBuffer
+    );
 
   }
 
@@ -766,16 +620,9 @@ async function decryptMemoryContent(
     memorySecurityState
     .failedDecryptions++;
 
-    if(
-      typeof storeSecurityError ===
-      "function"
-    ){
-
-      storeSecurityError(
-        error
-      );
-
-    }
+    storeSecurityError?.(
+      error
+    );
 
     return null;
 
@@ -786,10 +633,10 @@ async function decryptMemoryContent(
 
 
 // =====================================
-// SANITIZE SECURE CONTENT
+// CONTENT CLEANER
 // =====================================
 
-function sanitizeSecureMemoryContent(
+function stripUnsafeContentPatterns(
   content
 ){
 
@@ -829,22 +676,7 @@ function sanitizeSecureMemoryContent(
   )
 
   .replace(
-    /onerror=/gi,
-    ""
-  )
-
-  .replace(
-    /onload=/gi,
-    ""
-  )
-
-  .replace(
-    /onclick=/gi,
-    ""
-  )
-
-  .replace(
-    /onmouseover=/gi,
+    /\bon\w+=/gi,
     ""
   )
 
@@ -873,16 +705,6 @@ function sanitizeSecureMemoryContent(
     ""
   )
 
-  .replace(
-    /ignore\s+previous\s+instructions/gi,
-    ""
-  )
-
-  .replace(
-    /system\s*prompt/gi,
-    ""
-  )
-
   .trim();
 
 }
@@ -890,7 +712,7 @@ function sanitizeSecureMemoryContent(
 
 
 // =====================================
-// MEMORY INTEGRITY CHECK
+// INTEGRITY CHECK
 // =====================================
 
 async function runMemoryIntegrityCheck(){
@@ -907,30 +729,36 @@ async function runMemoryIntegrityCheck(){
 
       : [];
 
+    const verificationResults =
+    await Promise.allSettled(
+
+      memories.map((memory) => {
+
+        return verifyMemorySignature(
+          memory
+        );
+
+      })
+
+    );
+
     let validCount = 0;
 
     let corruptedCount = 0;
 
-    for(
-      const memory
-      of memories
-    ){
+    verificationResults
+    .forEach((result) => {
 
       if(
-        !memory?.id
+        result.status !==
+        "fulfilled"
       ){
 
-        continue;
-
+        return;
       }
 
-      const valid =
-      await verifyMemorySignature(
-        memory
-      );
-
       if(
-        valid === true
+        result.value === true
       ){
 
         validCount++;
@@ -938,20 +766,14 @@ async function runMemoryIntegrityCheck(){
       }
 
       else if(
-        valid === false
+        result.value === false
       ){
 
         corruptedCount++;
 
-        memorySecurityState
-        ?.tamperedMemories
-        ?.add?.(
-          memory.id
-        );
-
       }
 
-    }
+    });
 
     memorySecurityState
     .lastIntegrityCheckAt =
@@ -975,16 +797,9 @@ async function runMemoryIntegrityCheck(){
 
   catch(error){
 
-    if(
-      typeof storeSecurityError ===
-      "function"
-    ){
-
-      storeSecurityError(
-        error
-      );
-
-    }
+    storeSecurityError?.(
+      error
+    );
 
     return {
 
@@ -1005,38 +820,29 @@ async function runMemoryIntegrityCheck(){
 
 
 // =====================================
-// SECURE MEMORY EXPORT
+// SECURITY EXPORT
 // =====================================
 
 async function createSecureMemoryExport(){
 
   try{
 
+    const memories =
+    cloneMemoryObject?.(
+
+      memoryState?.memories || []
+
+    );
+
     if(
-
-      typeof cloneMemoryObject !==
-      "function"
-
-      ||
-
-      typeof deepFreeze !==
-      "function"
-
-      ||
-
-      typeof createMemorySignature !==
-      "function"
-
+      !Array.isArray(
+        memories
+      )
     ){
 
       return null;
 
     }
-
-    const memories =
-    cloneMemoryObject(
-      memoryState?.memories || []
-    );
 
     const serialized =
     JSON.stringify(
@@ -1056,57 +862,46 @@ async function createSecureMemoryExport(){
 
     }
 
-    const frozenMemories =
-    deepFreeze(
-      cloneMemoryObject(
-        memories
-      )
-    );
+    const signatures =
+    await Promise.all(
 
-    const signatures = [];
-
-    for(
-      const memory
-      of frozenMemories
-    ){
-
-      if(
-        !memory?.id
-      ){
-
-        continue;
-
-      }
-
-      const signature =
-      await createMemorySignature(
+      memories.map(async (
         memory
-      );
+      ) => {
 
-      signatures.push({
+        if(
+          !memory?.id
+        ){
 
-        memoryId:
-        memory.id,
+          return null;
 
-        signature
+        }
 
-      });
+        return {
 
-    }
+          memoryId:
+          memory.id,
 
-    const exportChecksum =
-    await createMemoryHash(
-      serialized
+          signature:
+
+            await createMemorySignature?.(
+              memory
+            )
+
+        };
+
+      })
+
     );
 
     return {
 
       exportId:
-      createMemoryId(),
+      createMemoryId?.(),
 
       version:
       MEMORY_SECURITY_CONFIG
-      .SECURITY_VERSION,
+      ?.SECURITY_VERSION,
 
       exportedAt:
       Date.now(),
@@ -1115,9 +910,12 @@ async function createSecureMemoryExport(){
       memories.length,
 
       checksum:
-      exportChecksum,
+      await createMemoryHash(
+        serialized
+      ),
 
-      signatures,
+      signatures:
+      signatures.filter(Boolean),
 
       memories
 
@@ -1127,16 +925,9 @@ async function createSecureMemoryExport(){
 
   catch(error){
 
-    if(
-      typeof storeSecurityError ===
-      "function"
-    ){
-
-      storeSecurityError(
-        error
-      );
-
-    }
+    storeSecurityError?.(
+      error
+    );
 
     return null;
 
@@ -1147,48 +938,42 @@ async function createSecureMemoryExport(){
 
 
 // =====================================
-// SESSION SECURITY
+// SECURITY STATE HELPERS
 // =====================================
 
-function createSecureSession(){
+function clearTamperedMemories(){
 
-  const session =
-  deepFreeze({
+  memorySecurityState
+  ?.tamperedMemories
+  ?.clear?.();
 
-    sessionId:
-    createMemoryId(),
+  return true;
 
-    createdAt:
-    Date.now(),
+}
 
-    trusted:true
 
-  });
 
-  if(
-    memorySecurityState
-    ?.activeSessions instanceof Set
-  ){
+function cleanupSecurityState(){
 
-    memorySecurityState
-    .activeSessions
-    .add(session);
+  clearTamperedMemories();
 
-  }
+  memorySecurityState
+  ?.securityErrors
+  ?.splice?.(0);
 
-  return session;
+  return true;
 
 }
 
 
 
 // =====================================
-// SECURITY DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getMemorySecurityDiagnostics(){
 
-  return deepFreeze({
+  return {
 
     initialized:
     memorySecurityState
@@ -1265,6 +1050,93 @@ function getMemorySecurityDiagnostics(){
       memorySecurityState
       ?.lastEncryptionAt
 
-  });
+  };
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemorySecurity =
+Object.freeze({
+
+  createHash:
+  createMemoryHash,
+
+  verifySignature:
+  verifyMemorySignature,
+
+  encrypt:
+  encryptMemoryContent,
+
+  decrypt:
+  decryptMemoryContent,
+
+  integrityCheck:
+  runMemoryIntegrityCheck,
+
+  secureExport:
+  createSecureMemoryExport,
+
+  sanitize:
+  stripUnsafeContentPatterns,
+
+  rotateKey:
+  rotateEncryptionKey,
+
+  clearTampered:
+  clearTamperedMemories,
+
+  cleanup:
+  cleanupSecurityState,
+
+  diagnostics:
+  getMemorySecurityDiagnostics
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  normalizeSecurityValue,
+
+  secureCompareStrings,
+
+  createMemoryHash,
+
+  verifyMemorySignature,
+
+  encryptMemoryContent,
+
+  decryptMemoryContent,
+
+  stripUnsafeContentPatterns,
+
+  runMemoryIntegrityCheck,
+
+  createSecureMemoryExport,
+
+  rotateEncryptionKey,
+
+  clearTamperedMemories,
+
+  cleanupSecurityState,
+
+  getMemorySecurityDiagnostics,
+
+  MemorySecurity
+
+};
+
+
+
+export default
+MemorySecurity;
