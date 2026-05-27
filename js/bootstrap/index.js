@@ -2,7 +2,16 @@
 // RIGO AI
 // BOOTSTRAP INDEX
 // CENTRAL EXPORTS
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "./bootstrap-manager.js";
 
 
 
@@ -233,37 +242,94 @@ if(
   "undefined"
 ){
 
-  window.Bootstrap =
-  Bootstrap;
+  Object.defineProperty(
 
-  window.BootstrapManager =
-  BootstrapManager;
+    window,
 
-  window.getBootstrapManager =
-  getBootstrapManager;
+    "Bootstrap",
 
-  window.validateBootstrapLayer =
-  validateBootstrapLayer;
+    {
 
-}
+      value:
+      Bootstrap,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  Object.defineProperty(
 
-  globalThis.Bootstrap =
-  Bootstrap;
+    window,
 
-  globalThis.BootstrapManager =
-  BootstrapManager;
+    "BootstrapManager",
 
-  globalThis.getBootstrapManager =
-  getBootstrapManager;
+    {
 
-  globalThis.validateBootstrapLayer =
-  validateBootstrapLayer;
+      value:
+      BootstrapManager,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+
+
+  Object.defineProperty(
+
+    window,
+
+    "getBootstrapManager",
+
+    {
+
+      value:
+      getBootstrapManager,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+
+
+  Object.defineProperty(
+
+    window,
+
+    "validateBootstrapLayer",
+
+    {
+
+      value:
+      validateBootstrapLayer,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
