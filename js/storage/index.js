@@ -8,6 +8,54 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import "./storage-config.js";
+import "./storage-utils.js";
+import "./storage-validators.js";
+import "./storage-state.js";
+
+import {
+
+  initializeStorageRuntime,
+  destroyStorageRuntime,
+  isStorageReady,
+  getStorageDiagnostics
+
+} from "./storage-runtime.js";
+
+import {
+
+  saveChats,
+  loadChats,
+  saveCurrentChat,
+  getChatById
+
+} from "./storage-chat.js";
+
+import {
+
+  saveMemory,
+  loadMemory
+
+} from "./storage-memory.js";
+
+import {
+
+  processStorageQueue
+
+} from "./storage-queue.js";
+
+import {
+
+  getStorageStateSnapshot
+
+} from "./storage-engine.js";
+
+
+
+// =====================================
 // STORAGE RUNTIME STATE
 // =====================================
 
@@ -135,7 +183,7 @@ Object.freeze([
 
       return (
 
-        typeof initializeStorageEngine ===
+        typeof getStorageStateSnapshot ===
         "function"
 
       );
@@ -480,8 +528,7 @@ async function initializeStorageIndex(){
       try{
 
         const validated =
-        await module
-        .validate();
+        module.validate();
 
         if(!validated){
 
@@ -843,7 +890,17 @@ Object.freeze({
   resetStorageIndex,
 
   destroy:
-  destroyStorageRuntime,
+
+    typeof destroyStorageRuntime ===
+    "function"
+
+    ?
+
+    destroyStorageRuntime
+
+    :
+
+    async() => false,
 
 
 
@@ -879,9 +936,115 @@ Object.freeze({
   runStorageHealthcheck,
 
   isReady:
-  isStorageReady,
+
+    typeof isStorageReady ===
+    "function"
+
+    ?
+
+    isStorageReady
+
+    :
+
+    () => false,
+
+
 
   getState:
-  getStorageStateSnapshot
+
+    typeof getStorageStateSnapshot ===
+    "function"
+
+    ?
+
+    getStorageStateSnapshot
+
+    :
+
+    () => null
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  storageRuntimeIndexState,
+
+  initializeStorageIndex,
+
+  resetStorageIndex,
+
+  runStorageHealthcheck,
+
+  getFullStorageDiagnostics,
+
+  StorageRuntime
+
+};
+
+export default StorageRuntime;
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    window,
+
+    "StorageRuntime",
+
+    {
+
+      value:
+      StorageRuntime,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    globalThis,
+
+    "StorageRuntime",
+
+    {
+
+      value:
+      StorageRuntime,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+}
