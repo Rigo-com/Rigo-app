@@ -2,7 +2,23 @@
 // RIGO AI
 // UI INDEX
 // ENTERPRISE UI PUBLIC API
+// FINAL STABILIZED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "./ui-state.js";
+import "./ui-utils.js";
+import "./ui-elements.js";
+import "./ui-events.js";
+import "./ui-renderer.js";
+import "./ui-runtime.js";
+
+import "./sidebar/index.js";
 
 
 
@@ -85,13 +101,15 @@ function isUIReady(){
 
     &&
 
-    uiState.initialized ===
+    uiState
+    .initialized ===
     true
 
     &&
 
-    uiState.destroyed ===
-    false
+    uiState
+    .destroyed !==
+    true
 
   );
 
@@ -191,6 +209,43 @@ function getUISystemDiagnostics(){
 
       :
 
+      null,
+
+
+
+    sidebar:
+
+      typeof Sidebar !==
+      "undefined"
+
+      &&
+
+      typeof Sidebar
+      .diagnostics ===
+      "function"
+
+      ?
+
+      Sidebar
+      .diagnostics()
+
+      :
+
+      null,
+
+
+
+    state:
+
+      typeof uiState !==
+      "undefined"
+
+      ?
+
+      uiState
+
+      :
+
       null
 
   });
@@ -209,14 +264,22 @@ Object.freeze({
   initialize:
   initializeUISystem,
 
+
+
   reset:
   resetUISystem,
+
+
 
   destroy:
   destroyUISystem,
 
+
+
   isReady:
   isUIReady,
+
+
 
   diagnostics:
   getUISystemDiagnostics,
@@ -228,18 +291,137 @@ Object.freeze({
   // ===================================
 
   runtime:
-  UIRuntime,
+
+    typeof UIRuntime !==
+    "undefined"
+
+    ?
+
+    UIRuntime
+
+    :
+
+    null,
+
+
 
   renderer:
-  UIRenderer,
+
+    typeof UIRenderer !==
+    "undefined"
+
+    ?
+
+    UIRenderer
+
+    :
+
+    null,
+
+
 
   events:
-  UIEvents,
+
+    typeof UIEvents !==
+    "undefined"
+
+    ?
+
+    UIEvents
+
+    :
+
+    null,
+
+
 
   elements:
-  UIElements,
+
+    typeof UIElements !==
+    "undefined"
+
+    ?
+
+    UIElements
+
+    :
+
+    null,
+
+
+
+  sidebar:
+
+    typeof Sidebar !==
+    "undefined"
+
+    ?
+
+    Sidebar
+
+    :
+
+    null,
+
+
 
   state:
-  uiState
+
+    typeof uiState !==
+    "undefined"
+
+    ?
+
+    uiState
+
+    :
+
+    null
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  UI,
+
+  initializeUISystem,
+
+  resetUISystem,
+
+  destroyUISystem,
+
+  isUIReady,
+
+  getUISystemDiagnostics
+
+};
+
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
+export default UI;
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.UI =
+  UI;
+
+}
