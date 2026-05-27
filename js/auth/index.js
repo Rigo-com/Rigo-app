@@ -417,33 +417,6 @@ function createAuthSnapshot(){
 
 
 // =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  authIndexState,
-
-  initializeAuth,
-
-  resetAuth,
-
-  shutdownAuth,
-
-  getAuthHealth,
-
-  createAuthSnapshot,
-
-  RIGOAuthRuntime
-
-};
-
-export default
-RIGOAuthRuntime;
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
@@ -469,6 +442,33 @@ Object.freeze({
   createAuthSnapshot
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  authIndexState,
+
+  initializeAuth,
+
+  resetAuth,
+
+  shutdownAuth,
+
+  getAuthHealth,
+
+  createAuthSnapshot,
+
+  RIGOAuthRuntime
+
+};
+
+export default
+RIGOAuthRuntime;
 
 
 
