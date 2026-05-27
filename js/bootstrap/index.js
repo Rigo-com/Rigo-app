@@ -208,7 +208,7 @@ function getBootstrapDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const Bootstrap =
+const RIGOBootstrapRuntime =
 Object.freeze({
 
   manager:
@@ -234,24 +234,51 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  validateBootstrapLayer,
+
+  getBootstrapManager,
+
+  initializeBootstrap,
+
+  recoverBootstrap,
+
+  shutdownBootstrap,
+
+  getBootstrapDiagnostics,
+
+  RIGOBootstrapRuntime
+
+};
+
+export default
+RIGOBootstrapRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "Bootstrap",
+    "RIGOBootstrapRuntime",
 
     {
 
       value:
-      Bootstrap,
+      RIGOBootstrapRuntime,
 
       writable:
       false,
