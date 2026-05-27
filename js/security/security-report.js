@@ -8,6 +8,25 @@
 
 
 // =====================================
+// SECURITY REPORT STATE
+// =====================================
+
+const securityReportState =
+Object.seal({
+
+  generatedReports:0,
+
+  exportedReports:0,
+
+  printedReports:0,
+
+  lastGeneratedAt:null
+
+});
+
+
+
+// =====================================
 // SAFE SECURITY REPORT VALUE
 // =====================================
 
@@ -218,6 +237,13 @@ function generateSecurityReport(){
   const now =
   Date.now();
 
+  securityReportState
+  .generatedReports++;
+
+  securityReportState
+  .lastGeneratedAt =
+  now;
+
   const createdAt =
 
     Number.isFinite(
@@ -346,12 +372,14 @@ function generateSecurityReport(){
 
       if(
 
-        typeof SecurityRuntime ===
+        typeof globalThis
+        .SecurityRuntime ===
         "undefined"
 
         ||
 
-        typeof SecurityRuntime
+        typeof globalThis
+        .SecurityRuntime
         .diagnostics !==
         "function"
 
@@ -361,7 +389,8 @@ function generateSecurityReport(){
 
       }
 
-      return SecurityRuntime
+      return globalThis
+      .SecurityRuntime
       .diagnostics();
 
     }),
@@ -377,12 +406,14 @@ function generateSecurityReport(){
 
       if(
 
-        typeof SecurityMonitor ===
+        typeof globalThis
+        .SecurityMonitor ===
         "undefined"
 
         ||
 
-        typeof SecurityMonitor
+        typeof globalThis
+        .SecurityMonitor
         .metrics !==
         "function"
 
@@ -392,7 +423,8 @@ function generateSecurityReport(){
 
       }
 
-      return SecurityMonitor
+      return globalThis
+      .SecurityMonitor
       .metrics();
 
     }),
@@ -408,12 +440,14 @@ function generateSecurityReport(){
 
       if(
 
-        typeof SecuritySandbox ===
+        typeof globalThis
+        .SecuritySandbox ===
         "undefined"
 
         ||
 
-        typeof SecuritySandbox
+        typeof globalThis
+        .SecuritySandbox
         .diagnostics !==
         "function"
 
@@ -423,7 +457,8 @@ function generateSecurityReport(){
 
       }
 
-      return SecuritySandbox
+      return globalThis
+      .SecuritySandbox
       .diagnostics();
 
     }),
@@ -439,12 +474,14 @@ function generateSecurityReport(){
 
       if(
 
-        typeof SecurityPolicy ===
+        typeof globalThis
+        .SecurityPolicy ===
         "undefined"
 
         ||
 
-        typeof SecurityPolicy
+        typeof globalThis
+        .SecurityPolicy
         .diagnostics !==
         "function"
 
@@ -454,7 +491,8 @@ function generateSecurityReport(){
 
       }
 
-      return SecurityPolicy
+      return globalThis
+      .SecurityPolicy
       .diagnostics();
 
     })
@@ -472,7 +510,27 @@ function generateSecurityReport(){
     report
   );
 
-  return deepFreezeSecurity(
+  if(
+
+    typeof SecurityFreeze ===
+    "object"
+
+    &&
+
+    typeof SecurityFreeze
+    .deepFreeze ===
+    "function"
+
+  ){
+
+    return SecurityFreeze
+    .deepFreeze(
+      report
+    );
+
+  }
+
+  return Object.freeze(
     report
   );
 
@@ -488,15 +546,27 @@ function exportSecurityReport(){
 
   try{
 
+    securityReportState
+    .exportedReports++;
+
     const report =
     generateSecurityReport();
 
     if(
-      typeof safeJSONStringify ===
+
+      typeof SecuritySanitize ===
+      "object"
+
+      &&
+
+      typeof SecuritySanitize
+      .stringify ===
       "function"
+
     ){
 
-      return safeJSONStringify(
+      return SecuritySanitize
+      .stringify(
         report
       );
 
@@ -544,6 +614,9 @@ function exportSecurityReport(){
 function printSecurityReport(){
 
   try{
+
+    securityReportState
+    .printedReports++;
 
     const report =
     generateSecurityReport();
@@ -605,6 +678,38 @@ function printSecurityReport(){
 
 
 // =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getSecurityReportDiagnostics(){
+
+  return Object.freeze({
+
+    reportReady:true,
+
+    generatedReports:
+    securityReportState
+    .generatedReports,
+
+    exportedReports:
+    securityReportState
+    .exportedReports,
+
+    printedReports:
+    securityReportState
+    .printedReports,
+
+    lastGeneratedAt:
+    securityReportState
+    .lastGeneratedAt
+
+  });
+
+}
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
@@ -618,7 +723,10 @@ Object.freeze({
   exportSecurityReport,
 
   print:
-  printSecurityReport
+  printSecurityReport,
+
+  diagnostics:
+  getSecurityReportDiagnostics
 
 });
 
@@ -629,13 +737,13 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecurityReport",
 
@@ -655,3 +763,23 @@ if(
   );
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SecurityReport,
+
+  generateSecurityReport,
+
+  exportSecurityReport,
+
+  printSecurityReport,
+
+  getSecurityReportDiagnostics
+
+};
