@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SEARCH TYPES
-// ENTERPRISE FINAL
+// OPTIMIZED FINAL EDITION
 // =====================================
 
 
@@ -64,40 +64,112 @@ Object.freeze({
 
 
 // =====================================
-// SEARCH TARGETS
+// HELPERS
 // =====================================
 
-const SEARCH_TARGETS =
-Object.freeze({
+function normalizeSearchLimit(
+  value
+){
 
-  MEMORY:"memory",
+  return Math.max(
 
-  CHAT:"chat",
+    1,
 
-  FILE:"file",
+    Math.min(
 
-  ALL:"all"
+      Number(value) ||
 
-});
+      SEARCH_CONFIG
+      .DEFAULT_LIMIT,
+
+      SEARCH_CONFIG
+      .MAX_RESULTS
+
+    )
+
+  );
+
+}
 
 
 
-// =====================================
-// SEARCH STATE
-// =====================================
+function normalizeSearchOffset(
+  value
+){
 
-const SEARCH_STATES =
-Object.freeze({
+  return Math.max(
+    0,
+    Number(value) || 0
+  );
 
-  IDLE:"idle",
+}
 
-  SEARCHING:"searching",
 
-  READY:"ready",
 
-  FAILED:"failed"
+function normalizeSearchQuery(
+  query
+){
 
-});
+  return String(
+    query || ""
+  )
+  .trim()
+  .slice(
+
+    0,
+
+    SEARCH_CONFIG
+    .MAX_QUERY_LENGTH
+
+  );
+
+}
+
+
+
+function normalizeSearchScore(
+  score
+){
+
+  const normalized =
+  Number(score);
+
+  if(
+    !Number.isFinite(
+      normalized
+    )
+  ){
+
+    return 0;
+
+  }
+
+  return Math.max(
+    0,
+    normalized
+  );
+
+}
+
+
+
+function safeSearchObject(
+  value
+){
+
+  return (
+
+    value &&
+    typeof value ===
+    "object"
+
+  )
+
+  ? { ...value }
+
+  : {};
+
+}
 
 
 
@@ -111,21 +183,40 @@ function createSearchResult(
   metadata = {}
 ){
 
+  if(
+    !memory?.id
+  ){
+
+    return null;
+
+  }
+
   return Object.freeze({
 
     id:
-    createMemoryId(),
+
+      typeof createMemoryId ===
+      "function"
+
+      ?
+
+      createMemoryId()
+
+      :
+
+      crypto.randomUUID(),
 
     memory,
 
     score:
-    normalizeMemoryScore(
+    normalizeSearchScore(
       score
     ),
 
-    metadata:{
-      ...metadata
-    },
+    metadata:
+    safeSearchObject(
+      metadata
+    ),
 
     createdAt:
     Date.now()
@@ -148,7 +239,17 @@ function createSearchQuery(
   return Object.freeze({
 
     id:
-    createMemoryId(),
+
+      typeof createMemoryId ===
+      "function"
+
+      ?
+
+      createMemoryId()
+
+      :
+
+      crypto.randomUUID(),
 
     query:
     normalizeSearchQuery(
@@ -163,7 +264,7 @@ function createSearchQuery(
       .HYBRID,
 
     limit:
-    clampSearchLimit(
+    normalizeSearchLimit(
       options.limit
     ),
 
@@ -173,10 +274,9 @@ function createSearchQuery(
     ),
 
     filters:
-
-      safeSearchObject(
-        options.filters
-      ),
+    safeSearchObject(
+      options.filters
+    ),
 
     createdAt:
     Date.now()
@@ -184,3 +284,85 @@ function createSearchQuery(
   });
 
 }
+
+
+
+// =====================================
+// SEARCH API
+// =====================================
+
+const SearchTypesAPI =
+Object.freeze({
+
+  normalizeSearchLimit,
+
+  normalizeSearchOffset,
+
+  normalizeSearchQuery,
+
+  normalizeSearchScore,
+
+  safeSearchObject,
+
+  createSearchResult,
+
+  createSearchQuery
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(typeof globalThis === "object"){
+
+  globalThis.SEARCH_CONFIG =
+  SEARCH_CONFIG;
+
+  globalThis.SEARCH_TYPES =
+  SEARCH_TYPES;
+
+  globalThis.SearchTypesAPI =
+  SearchTypesAPI;
+
+}
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SEARCH_CONFIG,
+
+  SEARCH_TYPES,
+
+  normalizeSearchLimit,
+
+  normalizeSearchOffset,
+
+  normalizeSearchQuery,
+
+  normalizeSearchScore,
+
+  safeSearchObject,
+
+  createSearchResult,
+
+  createSearchQuery,
+
+  SearchTypesAPI
+
+};
+
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
+export default SearchTypesAPI;
