@@ -1,10 +1,31 @@
 // =====================================
 // RIGO AI
 // SEARCH HISTORY
-// ENTERPRISE FINAL
+// OPTIMIZED FINAL
 // =====================================
 
 
+
+// =====================================
+// HISTORY CONFIG
+// =====================================
+
+const SEARCH_HISTORY_CONFIG =
+Object.freeze({
+
+  MAX_HISTORY:500,
+
+  MAX_FAILED_QUERIES:100,
+
+  MAX_POPULAR_QUERIES:200
+
+});
+
+
+
+// =====================================
+// HISTORY STATE
+// =====================================
 
 const searchHistoryState =
 Object.seal({
@@ -16,11 +37,21 @@ Object.seal({
   popularQueries:
   new Map(),
 
-  maxHistory:500
+  totalSearches:0,
+
+  successfulSearches:0,
+
+  failedSearches:0,
+
+  lastSearchAt:null
 
 });
 
 
+
+// =====================================
+// STORE SEARCH HISTORY
+// =====================================
 
 function storeSearchHistory(
   query,
@@ -28,7 +59,7 @@ function storeSearchHistory(
 ){
 
   const normalizedQuery =
-  normalizeSearchQuery(
+  normalizeSearchQuery?.(
     query
   );
 
@@ -37,21 +68,56 @@ function storeSearchHistory(
   ){
 
     return false;
+
   }
 
-  searchHistoryState
-  .history
-  .push({
+  const entry = {
 
     query:
     normalizedQuery,
 
-    success,
+    success:
+    success === true,
 
     createdAt:
     Date.now()
 
-  });
+  };
+
+
+
+  // ================================
+  // HISTORY
+  // ================================
+
+  searchHistoryState
+  .history
+  .push(
+    entry
+  );
+
+  while(
+
+    searchHistoryState
+    .history
+    .length >
+
+    SEARCH_HISTORY_CONFIG
+    .MAX_HISTORY
+
+  ){
+
+    searchHistoryState
+    .history
+    .shift();
+
+  }
+
+
+
+  // ================================
+  // FAILED
+  // ================================
 
   if(
     !success
@@ -63,7 +129,30 @@ function storeSearchHistory(
       normalizedQuery
     );
 
+    while(
+
+      searchHistoryState
+      .failedQueries
+      .length >
+
+      SEARCH_HISTORY_CONFIG
+      .MAX_FAILED_QUERIES
+
+    ){
+
+      searchHistoryState
+      .failedQueries
+      .shift();
+
+    }
+
   }
+
+
+
+  // ================================
+  // POPULAR
+  // ================================
 
   const currentCount =
 
@@ -83,18 +172,65 @@ function storeSearchHistory(
 
   );
 
-  if(
+  while(
 
     searchHistoryState
-    .history.length >
+    .popularQueries
+    .size >
 
-    searchHistoryState
-    .maxHistory
+    SEARCH_HISTORY_CONFIG
+    .MAX_POPULAR_QUERIES
 
   ){
 
+    const oldestKey =
+
+      searchHistoryState
+      .popularQueries
+      .keys()
+      .next()
+      .value;
+
+    if(!oldestKey){
+
+      break;
+
+    }
+
     searchHistoryState
-    .history.shift();
+    .popularQueries
+    .delete(
+      oldestKey
+    );
+
+  }
+
+
+
+  // ================================
+  // STATS
+  // ================================
+
+  searchHistoryState
+  .totalSearches++;
+
+  searchHistoryState
+  .lastSearchAt =
+  Date.now();
+
+  if(
+    success
+  ){
+
+    searchHistoryState
+    .successfulSearches++;
+
+  }
+
+  else{
+
+    searchHistoryState
+    .failedSearches++;
 
   }
 
@@ -104,9 +240,19 @@ function storeSearchHistory(
 
 
 
+// =====================================
+// POPULAR SEARCHES
+// =====================================
+
 function getPopularSearches(
   limit = 10
 ){
+
+  const safeLimit =
+  Math.max(
+    1,
+    Number(limit) || 10
+  );
 
   return [
 
@@ -122,6 +268,130 @@ function getPopularSearches(
 
   })
 
-  .slice(0,limit);
+  .slice(0,safeLimit)
+
+  .map(([query,count]) => {
+
+    return {
+
+      query,
+      count
+
+    };
+
+  });
 
 }
+
+
+
+// =====================================
+// RECENT SEARCHES
+// =====================================
+
+function getRecentSearches(
+  limit = 10
+){
+
+  return searchHistoryState
+  .history
+  .slice(
+    -Math.max(
+      1,
+      Number(limit) || 10
+    )
+  )
+  .reverse();
+
+}
+
+
+
+// =====================================
+// CLEAR HISTORY
+// =====================================
+
+function clearSearchHistory(){
+
+  searchHistoryState
+  .history = [];
+
+  searchHistoryState
+  .failedQueries = [];
+
+  searchHistoryState
+  .popularQueries
+  .clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getSearchHistoryDiagnostics(){
+
+  return {
+
+    totalSearches:
+    searchHistoryState
+    .totalSearches,
+
+    successfulSearches:
+    searchHistoryState
+    .successfulSearches,
+
+    failedSearches:
+    searchHistoryState
+    .failedSearches,
+
+    historySize:
+    searchHistoryState
+    .history
+    .length,
+
+    failedQueries:
+    searchHistoryState
+    .failedQueries
+    .length,
+
+    popularQueries:
+    searchHistoryState
+    .popularQueries
+    .size,
+
+    lastSearchAt:
+    searchHistoryState
+    .lastSearchAt
+
+  };
+
+}
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SEARCH_HISTORY_CONFIG,
+
+  searchHistoryState,
+
+  storeSearchHistory,
+
+  getPopularSearches,
+
+  getRecentSearches,
+
+  clearSearchHistory,
+
+  getSearchHistoryDiagnostics
+
+};
