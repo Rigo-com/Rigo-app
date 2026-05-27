@@ -954,27 +954,6 @@ function validateMemoryAudit(
 
   }
 
-  Object.values(audit)
-  .forEach((value) => {
-
-    if(
-      typeof value ===
-      "string" &&
-      value.length > 500
-    ){
-
-      addValidationError(
-
-        result,
-
-        "Memory audit value exceeds limit"
-
-      );
-
-    }
-
-  });
-
   return result;
 
 }
@@ -1390,10 +1369,10 @@ function validateMemoryShallow(
 
 
 // =====================================
-// SANITIZE MEMORY CONTENT
+// CONTENT SANITIZATION
 // =====================================
 
-function sanitizeMemoryContent(
+function sanitizePotentiallyUnsafeContent(
   content
 ){
 
@@ -1462,6 +1441,22 @@ function sanitizeMemoryContent(
     0,
     MEMORY_LIMITS
     .MAX_CONTENT_LENGTH
+  );
+
+}
+
+
+
+// =====================================
+// SANITIZE MEMORY CONTENT
+// =====================================
+
+function sanitizeMemoryContent(
+  content
+){
+
+  return sanitizePotentiallyUnsafeContent(
+    content
   );
 
 }
@@ -1649,53 +1644,70 @@ function sanitizeMemoryInput(
 
 
 // =====================================
-// DUPLICATE PREP
+// PUBLIC API
 // =====================================
 
-function createMemoryContentHash(
-  content
+const MemoryValidation =
+Object.freeze({
+
+  createValidationResult,
+  mergeValidationResults,
+
+  addValidationError,
+  addValidationWarning,
+
+  validateMemoryId,
+  validateMemoryType,
+  validateMemoryCategory,
+  validateMemoryPriority,
+  validateMemoryState,
+  validateMemoryExpiration,
+
+  validateMemoryTitle,
+  validateMemoryContent,
+  validateMemoryTags,
+  validateMemoryMetadata,
+  validateMemoryRelations,
+  validateMemoryFlags,
+  validateMemoryAudit,
+  validateMemoryStats,
+  validateMemoryEmbedding,
+  validateMemoryTimestamps,
+
+  validateMemoryObject,
+  validateMemoryShallow,
+
+  sanitizePotentiallyUnsafeContent,
+  sanitizeMemoryContent,
+  sanitizeMemoryMetadata,
+  sanitizeMemoryInput
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
 ){
 
-  const normalizedContent =
-  normalizeMemoryContent(
-    content
-  );
-
-  if(
-    !normalizedContent
-  ){
-
-    return "empty_content_hash";
-
-  }
-
-  return createUtilityMemoryHash(
-    normalizedContent
-  );
+  window.MemoryValidation =
+  MemoryValidation;
 
 }
 
 
 
-// =====================================
-// DUPLICATE DETECTION
-// =====================================
-
-function isDuplicateMemoryContent(
-  contentA,
-  contentB
+if(
+  typeof globalThis !==
+  "undefined"
 ){
 
-  return (
-
-    createMemoryContentHash(
-      contentA
-    ) ===
-
-    createMemoryContentHash(
-      contentB
-    )
-
-  );
+  globalThis.MemoryValidation =
+  MemoryValidation;
 
 }
