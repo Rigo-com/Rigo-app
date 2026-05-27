@@ -378,3 +378,48 @@ async function recoverCommunicationRuntime(){
   }
 
 }
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationHealth =
+Object.freeze({
+
+  monitor:
+  monitorCommunicationHealth,
+
+  recover:
+  recoverCommunicationRuntime
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.CommunicationHealth =
+  CommunicationHealth;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis
+  .CommunicationHealth =
+  CommunicationHealth;
+
+}
