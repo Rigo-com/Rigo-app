@@ -1,109 +1,60 @@
 // =====================================
 // RIGO AI
 // MEMORY RANKING
-// ENTERPRISE INFINITY ULTRA FINAL
-// PATCHED + STABILIZED
+// OPTIMIZED FINAL
 // =====================================
 
 
 
 // =====================================
-// RANKING CONFIG
+// CONFIG
 // =====================================
 
 const MEMORY_RANKING_CONFIG =
 Object.freeze({
 
-  ENABLE_DYNAMIC_RANKING:true,
-
-  ENABLE_RECENCY_BOOST:true,
-
-  ENABLE_PINNED_BOOST:true,
-
-  ENABLE_ACCESS_BOOST:true,
-
-  ENABLE_RELEVANCE_BOOST:true,
-
-  ENABLE_DECAY:true,
-
-  ENABLE_SEMANTIC_RANKING:true,
-
-  ENABLE_BEHAVIOR_LEARNING:true,
-
-  ENABLE_HYBRID_RANKING:true,
-
-  ENABLE_CONTEXTUAL_SCORING:true,
-
-  ENABLE_WORKER_PREPARATION:true,
-
   MAX_SCORE:1000,
-
-  MIN_SCORE:0,
 
   DEFAULT_SCORE:1,
 
-  PINNED_BOOST:250,
+  MAX_RESULTS:500,
 
-  RECENT_BOOST:120,
+  MAX_HISTORY:1000,
 
-  ACCESS_BOOST:8,
+  PINNED_BOOST:200,
 
-  RELEVANCE_BOOST:150,
+  RECENT_BOOST:100,
 
-  EXACT_MATCH_BOOST:300,
+  ACCESS_BOOST:5,
 
-  TITLE_MATCH_BOOST:120,
+  TITLE_BOOST:120,
 
-  TAG_MATCH_BOOST:80,
+  TAG_BOOST:80,
 
-  CONTENT_MATCH_BOOST:40,
+  SUMMARY_BOOST:50,
 
-  SUMMARY_MATCH_BOOST:60,
+  CONTENT_BOOST:25,
 
-  SEMANTIC_MATCH_BOOST:180,
+  EXACT_MATCH_BOOST:250,
 
-  CONTEXT_MATCH_BOOST:90,
-
-  LEARNING_BOOST:70,
-
-  DECAY_PER_DAY:0.35,
-
-  MAX_ACCESS_COUNT:100000,
-
-  MAX_RANKED_RESULTS:500,
-
-  MAX_BEHAVIOR_HISTORY:5000,
-
-  MAX_WORKER_QUEUE:1000,
-
-  MAX_RANKING_HISTORY:5000
+  DECAY_PER_DAY:0.25
 
 });
 
 
 
 // =====================================
-// RANKING STATE
+// STATE
 // =====================================
 
 const memoryRankingState =
 Object.seal({
 
-  initialized:false,
-
   rankings:new Map(),
-
-  semanticScores:new Map(),
-
-  contextualScores:new Map(),
 
   accessCounts:new Map(),
 
-  behaviorScores:new Map(),
-
   rankingHistory:[],
-
-  workerQueue:[],
 
   lastRankAt:null,
 
@@ -118,16 +69,17 @@ Object.seal({
 
 
 // =====================================
-// QUERY HELPERS
+// HELPERS
 // =====================================
 
 function normalizeRankingQuery(
   query
 ){
 
-  return normalizeMemoryTextLower(
+  return normalizeMemoryContent(
     query
   )
+  .toLowerCase()
   .trim();
 
 }
@@ -138,18 +90,18 @@ function clampRankingScore(
   score
 ){
 
-  return clampMemoryNumber(
+  return Math.max(
 
-    safeMemoryNumber(
-      score,
-      0
-    ),
+    0,
 
-    MEMORY_RANKING_CONFIG
-    .MIN_SCORE,
+    Math.min(
 
-    MEMORY_RANKING_CONFIG
-    .MAX_SCORE
+      MEMORY_RANKING_CONFIG
+      .MAX_SCORE,
+
+      Number(score) || 0
+
+    )
 
   );
 
@@ -170,8 +122,6 @@ function storeRankingHistory(
   memoryRankingState
   .rankingHistory
   .push({
-
-    id:createMemoryId(),
 
     memoryId:
     normalizeMemoryString(
@@ -200,7 +150,7 @@ function storeRankingHistory(
     .length >
 
     MEMORY_RANKING_CONFIG
-    .MAX_RANKING_HISTORY
+    .MAX_HISTORY
 
   ){
 
@@ -222,7 +172,7 @@ function getMemoryAccessCount(
   memoryId
 ){
 
-  return safeMemoryNumber(
+  return Number(
 
     memoryRankingState
     .accessCounts
@@ -230,9 +180,7 @@ function getMemoryAccessCount(
       normalizeMemoryString(
         memoryId
       )
-    ),
-
-    0
+    ) || 0
 
   );
 
@@ -255,20 +203,11 @@ function incrementMemoryAccessCount(
 
   }
 
-  const currentCount =
-  getMemoryAccessCount(
-    normalizedId
-  );
-
   const nextCount =
-  Math.min(
 
-    MEMORY_RANKING_CONFIG
-    .MAX_ACCESS_COUNT,
-
-    currentCount + 1
-
-  );
+    getMemoryAccessCount(
+      normalizedId
+    ) + 1;
 
   memoryRankingState
   .accessCounts
@@ -291,24 +230,15 @@ function calculateRecencyScore(
   memory
 ){
 
-  if(
-
-    !MEMORY_RANKING_CONFIG
-    .ENABLE_RECENCY_BOOST
-
-  ){
-
-    return 0;
-
-  }
-
   const updatedAt =
-  safeMemoryNumber(
+  Number(
     memory?.updatedAt
   );
 
   if(
-    updatedAt <= 0
+    !Number.isFinite(
+      updatedAt
+    )
   ){
 
     return 0;
@@ -317,16 +247,10 @@ function calculateRecencyScore(
 
   const ageInDays =
 
-    Math.max(
-
-      0,
-
-      (
-        Date.now() -
-        updatedAt
-      ) / 86400000
-
-    );
+    (
+      Date.now() -
+      updatedAt
+    ) / 86400000;
 
   if(
     ageInDays <= 1
@@ -341,12 +265,7 @@ function calculateRecencyScore(
     ageInDays <= 7
   ){
 
-    return Math.round(
-
-      MEMORY_RANKING_CONFIG
-      .RECENT_BOOST * 0.7
-
-    );
+    return 60;
 
   }
 
@@ -354,12 +273,7 @@ function calculateRecencyScore(
     ageInDays <= 30
   ){
 
-    return Math.round(
-
-      MEMORY_RANKING_CONFIG
-      .RECENT_BOOST * 0.3
-
-    );
+    return 25;
 
   }
 
@@ -378,17 +292,6 @@ function calculatePinnedScore(
 ){
 
   if(
-
-    !MEMORY_RANKING_CONFIG
-    .ENABLE_PINNED_BOOST
-
-  ){
-
-    return 0;
-
-  }
-
-  if(
     !memory?.id
   ){
 
@@ -396,20 +299,15 @@ function calculatePinnedScore(
 
   }
 
-  if(
+  return memoryState
+  ?.tracking
+  ?.pinnedMemoryIds
+  ?.has(memory.id)
 
-    memoryState?.tracking
-    ?.pinnedMemoryIds
-    ?.has?.(memory.id)
+  ? MEMORY_RANKING_CONFIG
+    .PINNED_BOOST
 
-  ){
-
-    return MEMORY_RANKING_CONFIG
-    .PINNED_BOOST;
-
-  }
-
-  return 0;
+  : 0;
 
 }
 
@@ -423,17 +321,6 @@ function calculateAccessScore(
   memory
 ){
 
-  if(
-
-    !MEMORY_RANKING_CONFIG
-    .ENABLE_ACCESS_BOOST
-
-  ){
-
-    return 0;
-
-  }
-
   if(!memory?.id){
 
     return 0;
@@ -445,14 +332,6 @@ function calculateAccessScore(
     memory.id
   );
 
-  if(
-    accessCount <= 0
-  ){
-
-    return 0;
-
-  }
-
   return Math.min(
 
     MEMORY_RANKING_CONFIG
@@ -462,7 +341,7 @@ function calculateAccessScore(
       accessCount + 1
     ),
 
-    100
+    50
 
   );
 
@@ -471,29 +350,22 @@ function calculateAccessScore(
 
 
 // =====================================
-// DECAY PENALTY
+// DECAY
 // =====================================
 
 function calculateDecayPenalty(
   memory
 ){
 
-  if(
-    !MEMORY_RANKING_CONFIG
-    .ENABLE_DECAY
-  ){
-
-    return 0;
-
-  }
-
   const updatedAt =
-  safeMemoryNumber(
+  Number(
     memory?.updatedAt
   );
 
   if(
-    updatedAt <= 0
+    !Number.isFinite(
+      updatedAt
+    )
   ){
 
     return 0;
@@ -502,16 +374,10 @@ function calculateDecayPenalty(
 
   const ageInDays =
 
-    Math.max(
-
-      0,
-
-      (
-        Date.now() -
-        updatedAt
-      ) / 86400000
-
-    );
+    (
+      Date.now() -
+      updatedAt
+    ) / 86400000;
 
   return (
 
@@ -527,251 +393,7 @@ function calculateDecayPenalty(
 
 
 // =====================================
-// SEMANTIC TOKEN SIMILARITY
-// =====================================
-
-function calculateSemanticSimilarity(
-  memory,
-  query
-){
-
-  if(
-
-    !MEMORY_RANKING_CONFIG
-    .ENABLE_SEMANTIC_RANKING
-
-  ){
-
-    return 0;
-
-  }
-
-  const normalizedQuery =
-  normalizeRankingQuery(
-    query
-  );
-
-  if(
-    !normalizedQuery
-  ){
-
-    return 0;
-
-  }
-
-  const queryTokens =
-  tokenizeMemoryText(
-    normalizedQuery
-  );
-
-  if(
-    queryTokens.length <= 0
-  ){
-
-    return 0;
-
-  }
-
-  const memoryTokens =
-  tokenizeMemoryText(
-
-    [
-
-      memory?.title,
-
-      memory?.summary,
-
-      memory?.content,
-
-      ...safeMemoryArray(
-        memory?.tags
-      )
-
-    ]
-    .join(" ")
-
-  );
-
-  if(
-    memoryTokens.length <= 0
-  ){
-
-    return 0;
-
-  }
-
-  const memoryTokenSet =
-  new Set(memoryTokens);
-
-  let matches = 0;
-
-  queryTokens.forEach((token) => {
-
-    if(
-      memoryTokenSet.has(
-        token
-      )
-    ){
-
-      matches++;
-
-    }
-
-  });
-
-  const similarity =
-
-    matches /
-
-    queryTokens.length;
-
-  return Math.round(
-
-    similarity *
-
-    MEMORY_RANKING_CONFIG
-    .SEMANTIC_MATCH_BOOST
-
-  );
-
-}
-
-
-
-// =====================================
-// CONTEXTUAL SCORE
-// =====================================
-
-function calculateContextualScore(
-  memory,
-  context = {}
-){
-
-  if(
-
-    !MEMORY_RANKING_CONFIG
-    .ENABLE_CONTEXTUAL_SCORING
-
-  ){
-
-    return 0;
-
-  }
-
-  let score = 0;
-
-  if(
-    context.activeCategory
-  ){
-
-    if(
-
-      normalizeMemoryString(
-        memory?.category
-      )
-
-      ===
-
-      normalizeMemoryString(
-        context.activeCategory
-      )
-
-    ){
-
-      score +=
-
-        MEMORY_RANKING_CONFIG
-        .CONTEXT_MATCH_BOOST;
-
-    }
-
-  }
-
-  if(
-    context.activeType
-  ){
-
-    if(
-
-      normalizeMemoryString(
-        memory?.type
-      )
-
-      ===
-
-      normalizeMemoryString(
-        context.activeType
-      )
-
-    ){
-
-      score += 40;
-
-    }
-
-  }
-
-  return score;
-
-}
-
-
-
-// =====================================
-// LEARNING SCORE
-// =====================================
-
-function calculateBehaviorLearningScore(
-  memory
-){
-
-  if(
-
-    !MEMORY_RANKING_CONFIG
-    .ENABLE_BEHAVIOR_LEARNING
-
-  ){
-
-    return 0;
-
-  }
-
-  if(!memory?.id){
-
-    return 0;
-
-  }
-
-  const behaviorScore =
-  safeMemoryNumber(
-
-    memoryRankingState
-    .behaviorScores
-    .get(
-      normalizeMemoryString(
-        memory.id
-      )
-    ),
-
-    0
-
-  );
-
-  return Math.min(
-
-    behaviorScore,
-
-    MEMORY_RANKING_CONFIG
-    .LEARNING_BOOST
-
-  );
-
-}
-
-
-
-// =====================================
-// QUERY RELEVANCE
+// RELEVANCE
 // =====================================
 
 function calculateRankingRelevance(
@@ -784,9 +406,7 @@ function calculateRankingRelevance(
     query
   );
 
-  if(
-    !normalizedQuery
-  ){
+  if(!normalizedQuery){
 
     return 0;
 
@@ -795,32 +415,34 @@ function calculateRankingRelevance(
   let score = 0;
 
   const title =
-  normalizeMemoryTextLower(
+  normalizeMemoryContent(
     memory?.title
-  );
+  )
+  .toLowerCase();
 
   const summary =
-  normalizeMemoryTextLower(
+  normalizeMemoryContent(
     memory?.summary
-  );
+  )
+  .toLowerCase();
 
   const content =
-  normalizeMemoryTextLower(
+  normalizeMemoryContent(
     memory?.content
-  );
+  )
+  .toLowerCase();
 
   const tags =
 
-    safeMemoryArray(
+    Array.isArray(
       memory?.tags
     )
-    .map((tag) => {
 
-      return normalizeMemoryTextLower(
-        tag
-      );
+    ? memory.tags
 
-    });
+    : [];
+
+
 
   if(
     title === normalizedQuery
@@ -833,6 +455,8 @@ function calculateRankingRelevance(
 
   }
 
+
+
   if(
     title.includes(
       normalizedQuery
@@ -842,9 +466,11 @@ function calculateRankingRelevance(
     score +=
 
       MEMORY_RANKING_CONFIG
-      .TITLE_MATCH_BOOST;
+      .TITLE_BOOST;
 
   }
+
+
 
   if(
     summary.includes(
@@ -855,9 +481,11 @@ function calculateRankingRelevance(
     score +=
 
       MEMORY_RANKING_CONFIG
-      .SUMMARY_MATCH_BOOST;
+      .SUMMARY_BOOST;
 
   }
+
+
 
   if(
     content.includes(
@@ -868,14 +496,22 @@ function calculateRankingRelevance(
     score +=
 
       MEMORY_RANKING_CONFIG
-      .CONTENT_MATCH_BOOST;
+      .CONTENT_BOOST;
 
   }
 
+
+
   tags.forEach((tag) => {
 
+    const normalizedTag =
+    normalizeMemoryContent(
+      tag
+    )
+    .toLowerCase();
+
     if(
-      tag.includes(
+      normalizedTag.includes(
         normalizedQuery
       )
     ){
@@ -883,7 +519,7 @@ function calculateRankingRelevance(
       score +=
 
         MEMORY_RANKING_CONFIG
-        .TAG_MATCH_BOOST;
+        .TAG_BOOST;
 
     }
 
@@ -896,13 +532,12 @@ function calculateRankingRelevance(
 
 
 // =====================================
-// HYBRID SCORE
+// FINAL SCORE
 // =====================================
 
-function calculateHybridRankingScore(
+function calculateMemoryRankingScore(
   memory,
-  query,
-  context = {}
+  query = ""
 ){
 
   let score =
@@ -930,23 +565,6 @@ function calculateHybridRankingScore(
     query
   );
 
-  score +=
-  calculateSemanticSimilarity(
-    memory,
-    query
-  );
-
-  score +=
-  calculateContextualScore(
-    memory,
-    context
-  );
-
-  score +=
-  calculateBehaviorLearningScore(
-    memory
-  );
-
   score -=
   calculateDecayPenalty(
     memory
@@ -961,7 +579,7 @@ function calculateHybridRankingScore(
 
 
 // =====================================
-// RANK STORAGE
+// STORE RANK
 // =====================================
 
 function storeMemoryRank(
@@ -983,10 +601,13 @@ function storeMemoryRank(
   memoryRankingState
   .rankings
   .set(
+
     normalizedId,
+
     clampRankingScore(
       score
     )
+
   );
 
   return true;
@@ -999,141 +620,17 @@ function getMemoryRank(
   memoryId
 ){
 
-  const normalizedId =
-  normalizeMemoryString(
-    memoryId
-  );
-
-  if(!normalizedId){
-
-    return 0;
-
-  }
-
-  return safeMemoryNumber(
+  return Number(
 
     memoryRankingState
     .rankings
     .get(
-      normalizedId
-    ),
-
-    0
-
-  );
-
-}
-
-
-
-// =====================================
-// LEARNING ENGINE
-// =====================================
-
-function learnMemoryBehavior(
-  memoryId,
-  weight = 1
-){
-
-  const normalizedId =
-  normalizeMemoryString(
-    memoryId
-  );
-
-  if(!normalizedId){
-
-    return false;
-
-  }
-
-  const safeWeight =
-  safeMemoryNumber(
-    weight,
-    1
-  );
-
-  const current =
-  safeMemoryNumber(
-
-    memoryRankingState
-    .behaviorScores
-    .get(
-      normalizedId
-    ),
-
-    0
+      normalizeMemoryString(
+        memoryId
+      )
+    ) || 0
 
   );
-
-  memoryRankingState
-  .behaviorScores
-  .set(
-
-    normalizedId,
-
-    Math.min(
-
-      current + safeWeight,
-
-      MEMORY_RANKING_CONFIG
-      .MAX_BEHAVIOR_HISTORY
-
-    )
-
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// WORKER QUEUE
-// =====================================
-
-function enqueueRankingTask(
-  task
-){
-
-  if(
-    !task
-  ){
-
-    return false;
-
-  }
-
-  if(
-    memoryRankingState
-    .workerQueue
-    .length >=
-
-    MEMORY_RANKING_CONFIG
-    .MAX_WORKER_QUEUE
-
-  ){
-
-    memoryRankingState
-    .workerQueue
-    .shift();
-
-  }
-
-  memoryRankingState
-  .workerQueue
-  .push({
-
-    id:createMemoryId(),
-
-    createdAt:
-    Date.now(),
-
-    task
-
-  });
-
-  return true;
 
 }
 
@@ -1145,15 +642,13 @@ function enqueueRankingTask(
 
 function rankMemory(
   memory,
-  query = "",
-  context = {}
+  query = ""
 ){
 
   try{
 
     if(
-      !memory ||
-      !memory.id
+      !memory?.id
     ){
 
       return 0;
@@ -1161,11 +656,10 @@ function rankMemory(
     }
 
     const score =
-    calculateHybridRankingScore(
+    calculateMemoryRankingScore(
 
       memory,
-      query,
-      context
+      query
 
     );
 
@@ -1210,43 +704,35 @@ function rankMemory(
 
 function rankMemoryResults(
   memories = [],
-  query = "",
-  context = {}
+  query = ""
 ){
 
-  const rankedResults =
+  return memories
 
-    safeMemoryArray(
-      memories
-    )
-    .filter((memory) => {
+  .filter((memory) => {
 
-      return (
-        memory &&
-        memory.id
-      );
+    return (
+      memory &&
+      memory.id
+    );
 
-    })
-    .map((memory) => {
+  })
 
-      return {
+  .map((memory) => {
 
+    return {
+
+      memory,
+
+      score:
+      rankMemory(
         memory,
+        query
+      )
 
-        score:
-        rankMemory(
+    };
 
-          memory,
-          query,
-          context
-
-        )
-
-      };
-
-    });
-
-  return rankedResults
+  })
 
   .sort((a,b) => {
 
@@ -1262,7 +748,7 @@ function rankMemoryResults(
     0,
 
     MEMORY_RANKING_CONFIG
-    .MAX_RANKED_RESULTS
+    .MAX_RESULTS
 
   );
 
@@ -1271,7 +757,7 @@ function rankMemoryResults(
 
 
 // =====================================
-// REBUILD RANKINGS
+// REBUILD
 // =====================================
 
 function rebuildMemoryRankings(){
@@ -1282,9 +768,13 @@ function rebuildMemoryRankings(){
 
   const memories =
 
-    safeMemoryArray(
+    Array.isArray(
       memoryState?.memories
-    );
+    )
+
+    ? memoryState.memories
+
+    : [];
 
   memories.forEach((memory) => {
 
@@ -1305,7 +795,7 @@ function rebuildMemoryRankings(){
 
 
 // =====================================
-// CLEAR RANKINGS
+// CLEAR
 // =====================================
 
 function clearMemoryRankings(){
@@ -1315,26 +805,11 @@ function clearMemoryRankings(){
   .clear();
 
   memoryRankingState
-  .semanticScores
-  .clear();
-
-  memoryRankingState
-  .contextualScores
-  .clear();
-
-  memoryRankingState
   .accessCounts
   .clear();
 
   memoryRankingState
-  .behaviorScores
-  .clear();
-
-  memoryRankingState
   .rankingHistory = [];
-
-  memoryRankingState
-  .workerQueue = [];
 
   return true;
 
@@ -1350,21 +825,36 @@ function getTopRankedMemories(
   limit = 10
 ){
 
-  const ranked = [];
+  const safeLimit =
+  Math.max(
+    1,
+    Math.min(
+      100,
+      Number(limit) || 10
+    )
+  );
 
-  safeMemoryArray(
-    memoryState?.memories
+  return (
+
+    Array.isArray(
+      memoryState?.memories
+    )
+
+    ? memoryState.memories
+
+    : []
+
   )
-  .forEach((memory) => {
 
-    if(
-      !memory?.id
-    ){
+  .filter((memory) => {
 
-      return;
-    }
+    return memory?.id;
 
-    ranked.push({
+  })
+
+  .map((memory) => {
+
+    return {
 
       memory,
 
@@ -1373,11 +863,9 @@ function getTopRankedMemories(
         memory.id
       )
 
-    });
+    };
 
-  });
-
-  return ranked
+  })
 
   .sort((a,b) => {
 
@@ -1390,11 +878,7 @@ function getTopRankedMemories(
 
   .slice(
     0,
-    clampMemoryNumber(
-      limit,
-      1,
-      100
-    )
+    safeLimit
   );
 
 }
@@ -1402,16 +886,12 @@ function getTopRankedMemories(
 
 
 // =====================================
-// RANKING DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getMemoryRankingDiagnostics(){
 
   return Object.freeze({
-
-    initialized:
-    memoryRankingState
-    .initialized,
 
     totalRankings:
     memoryRankingState
@@ -1427,35 +907,11 @@ function getMemoryRankingDiagnostics(){
       .rankings
       .size,
 
-    semanticScores:
-
-      memoryRankingState
-      .semanticScores
-      .size,
-
-    contextualScores:
-
-      memoryRankingState
-      .contextualScores
-      .size,
-
     trackedAccesses:
 
       memoryRankingState
       .accessCounts
       .size,
-
-    learnedBehaviors:
-
-      memoryRankingState
-      .behaviorScores
-      .size,
-
-    queuedWorkerTasks:
-
-      memoryRankingState
-      .workerQueue
-      .length,
 
     rankingHistory:
 
@@ -1468,10 +924,60 @@ function getMemoryRankingDiagnostics(){
     .lastRankAt,
 
     lastRebuildAt:
-
-      memoryRankingState
-      .lastRebuildAt
+    memoryRankingState
+    .lastRebuildAt
 
   });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const MemoryRanking =
+Object.freeze({
+
+  rank:
+  rankMemory,
+
+  rankResults:
+  rankMemoryResults,
+
+  rebuild:
+  rebuildMemoryRankings,
+
+  clear:
+  clearMemoryRankings,
+
+  getRank:
+  getMemoryRank,
+
+  getTop:
+  getTopRankedMemories,
+
+  incrementAccess:
+  incrementMemoryAccessCount,
+
+  diagnostics:
+  getMemoryRankingDiagnostics
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.MemoryRanking =
+  MemoryRanking;
 
 }
