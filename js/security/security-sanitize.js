@@ -21,7 +21,43 @@ Object.freeze({
   1000,
 
   MAX_ARRAY_LENGTH:
-  5000
+  5000,
+
+  MAX_STRING_LENGTH:
+  50000,
+
+  MAX_TOTAL_NODES:
+  10000,
+
+  ENABLE_HTTP_PROTOCOL:
+  false
+
+});
+
+
+
+// =====================================
+// SANITIZER STATE
+// =====================================
+
+const securitySanitizeState =
+Object.seal({
+
+  sanitizedStrings:0,
+
+  sanitizedObjects:0,
+
+  sanitizedArrays:0,
+
+  sanitizedURLs:0,
+
+  sanitizedPrompts:0,
+
+  blockedURLs:0,
+
+  failedSanitizations:0,
+
+  lastSanitizedAt:null
 
 });
 
@@ -130,6 +166,13 @@ function safeString(
   options = {}
 ){
 
+  securitySanitizeState
+  .sanitizedStrings++;
+
+  securitySanitizeState
+  .lastSanitizedAt =
+  Date.now();
+
   if(
     value == null
   ){
@@ -139,15 +182,7 @@ function safeString(
   }
 
   const shouldTrim =
-
-    options.trim === true ||
-
-    (
-      options.trim !== false &&
-
-      SECURITY_CONFIG
-      .AUTO_TRIM_STRINGS
-    );
+  options.trim !== false;
 
   let normalized = "";
 
@@ -160,16 +195,8 @@ function safeString(
 
   catch(error){
 
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-        "STRING_CONVERSION_FAILED"
-      );
-
-    }
+    securitySanitizeState
+    .failedSanitizations++;
 
     return "";
 
@@ -177,17 +204,10 @@ function safeString(
 
   try{
 
-    if(
-      typeof normalized.normalize ===
-      "function"
-    ){
-
-      normalized =
-      normalized.normalize(
-        "NFKC"
-      );
-
-    }
+    normalized =
+    normalized.normalize(
+      "NFKC"
+    );
 
   }
 
@@ -224,7 +244,7 @@ function safeString(
 
     characters.length >
 
-    SECURITY_CONFIG
+    SECURITY_SANITIZE_CONFIG
     .MAX_STRING_LENGTH
 
   ){
@@ -235,7 +255,7 @@ function safeString(
 
       0,
 
-      SECURITY_CONFIG
+      SECURITY_SANITIZE_CONFIG
       .MAX_STRING_LENGTH
 
     )
@@ -278,20 +298,9 @@ function sanitizeHTML(
   input
 ){
 
-  const escaped =
-  escapeHTML(input);
-
-  if(
-    typeof securityState ===
-    "object"
-  ){
-
-    securityState
-    .sanitizedPayloads++;
-
-  }
-
-  return escaped;
+  return escapeHTML(
+    input
+  );
 
 }
 
@@ -305,39 +314,15 @@ function sanitizeURL(
   url
 ){
 
+  securitySanitizeState
+  .sanitizedURLs++;
+
   const normalized =
   safeString(
-    url,
-    {
-
-      trim:true
-
-    }
+    url
   );
 
   if(!normalized){
-
-    return "";
-  }
-
-  if(
-
-    normalized.length >
-
-    SECURITY_CONFIG
-    .MAX_URL_LENGTH
-
-  ){
-
-    if(
-      typeof securityState ===
-      "object"
-    ){
-
-      securityState
-      .blockedURLs++;
-
-    }
 
     return "";
   }
@@ -348,15 +333,6 @@ function sanitizeURL(
     new URL(
 
       normalized,
-
-      typeof window !==
-      "undefined"
-
-      ?
-
-      window.location.origin
-
-      :
 
       "https://localhost"
 
@@ -386,22 +362,15 @@ function sanitizeURL(
       )
     ){
 
-      if(
-        typeof securityState ===
-        "object"
-      ){
-
-        securityState
-        .blockedURLs++;
-
-      }
+      securitySanitizeState
+      .blockedURLs++;
 
       return "";
     }
 
     if(
 
-      SECURITY_CONFIG
+      SECURITY_SANITIZE_CONFIG
       .ENABLE_HTTP_PROTOCOL ===
       false
 
@@ -412,15 +381,8 @@ function sanitizeURL(
 
     ){
 
-      if(
-        typeof securityState ===
-        "object"
-      ){
-
-        securityState
-        .blockedURLs++;
-
-      }
+      securitySanitizeState
+      .blockedURLs++;
 
       return "";
     }
@@ -431,349 +393,12 @@ function sanitizeURL(
 
   catch(error){
 
+    securitySanitizeState
+    .failedSanitizations++;
+
     return "";
 
   }
-
-}
-
-
-
-// =====================================
-// SANITIZE ARRAY
-// =====================================
-
-function sanitizeArray(
-  values = [],
-  visited = new WeakSet(),
-  depth = 0
-){
-
-  if(
-    !Array.isArray(values)
-  ){
-
-    return [];
-  }
-
-  return values
-
-  .slice(
-
-    0,
-
-    SECURITY_CONFIG
-    .MAX_ARRAY_LENGTH
-
-  )
-
-  .map((item) => {
-
-    return sanitizeObject(
-
-      item,
-
-      visited,
-
-      depth + 1
-
-    );
-
-  });
-
-}
-
-
-
-// =====================================
-// SANITIZE OBJECT
-// =====================================
-
-function sanitizeObject(
-  object,
-  visited = new WeakSet(),
-  depth = 0
-){
-
-  if(
-    object == null
-  ){
-
-    return null;
-
-  }
-
-  if(
-
-    depth >
-
-    SECURITY_SANITIZE_CONFIG
-    .MAX_DEPTH
-
-  ){
-
-    return null;
-
-  }
-
-
-
-  // ===================================
-  // PRESERVE PRIMITIVES
-  // ===================================
-
-  if(
-    typeof object ===
-    "string"
-  ){
-
-    return safeString(
-      object
-    );
-
-  }
-
-  if(
-
-    typeof object ===
-    "number"
-
-    ||
-
-    typeof object ===
-    "boolean"
-
-    ||
-
-    typeof object ===
-    "bigint"
-
-  ){
-
-    return object;
-
-  }
-
-
-
-  // ===================================
-  // SPECIAL OBJECTS
-  // ===================================
-
-  if(
-    object instanceof Date
-  ){
-
-    return new Date(
-      object.getTime()
-    );
-
-  }
-
-  if(
-    object instanceof RegExp
-  ){
-
-    return new RegExp(
-      object.source,
-      object.flags
-    );
-
-  }
-
-  if(
-    object instanceof URL
-  ){
-
-    return sanitizeURL(
-      object.href
-    );
-
-  }
-
-  if(
-    object instanceof Error
-  ){
-
-    return {
-
-      name:
-      safeString(
-        object.name
-      ),
-
-      message:
-      safeString(
-        object.message
-      )
-
-    };
-
-  }
-
-  if(
-    object instanceof Map
-  ){
-
-    return sanitizeObject(
-
-      Object.fromEntries(
-        object.entries()
-      ),
-
-      visited,
-
-      depth + 1
-
-    );
-
-  }
-
-  if(
-    object instanceof Set
-  ){
-
-    return sanitizeArray(
-
-      [...object],
-
-      visited,
-
-      depth + 1
-
-    );
-
-  }
-
-
-
-  // ===================================
-  // CIRCULAR
-  // ===================================
-
-  if(
-    visited.has(object)
-  ){
-
-    return null;
-
-  }
-
-  visited.add(
-    object
-  );
-
-
-
-  // ===================================
-  // ARRAYS
-  // ===================================
-
-  if(
-    Array.isArray(object)
-  ){
-
-    return sanitizeArray(
-
-      object,
-
-      visited,
-
-      depth + 1
-
-    );
-
-  }
-
-
-
-  // ===================================
-  // NON-PLAIN OBJECTS
-  // ===================================
-
-  if(
-    !isPlainSanitizeObject(
-      object
-    )
-  ){
-
-    return null;
-
-  }
-
-
-
-  // ===================================
-  // CLEAN OBJECT
-  // ===================================
-
-  const keys =
-  Object.keys(object)
-  .slice(
-
-    0,
-
-    SECURITY_SANITIZE_CONFIG
-    .MAX_KEYS
-
-  );
-
-  const cleanObject =
-  Object.create(null);
-
-  keys.forEach((key) => {
-
-    const normalizedKey =
-    safeString(key);
-
-    if(
-
-      normalizedKey ===
-      "__proto__"
-
-      ||
-
-      normalizedKey ===
-      "constructor"
-
-      ||
-
-      normalizedKey ===
-      "prototype"
-
-    ){
-
-      return;
-
-    }
-
-    try{
-
-      cleanObject[
-        normalizedKey
-      ] = sanitizeObject(
-
-        object[key],
-
-        visited,
-
-        depth + 1
-
-      );
-
-    }
-
-    catch(error){
-
-      cleanObject[
-        normalizedKey
-      ] = null;
-
-    }
-
-  });
-
-  return cleanObject;
 
 }
 
@@ -786,6 +411,9 @@ function sanitizeObject(
 function sanitizePrompt(
   prompt
 ){
+
+  securitySanitizeState
+  .sanitizedPrompts++;
 
   const normalized =
   safeString(prompt);
@@ -826,26 +454,350 @@ function sanitizePrompt(
 
   });
 
-  sanitized =
-  sanitized.trim();
+  return sanitized.trim();
 
-  if(
-    sanitized !== normalized
-  ){
+}
+
+
+
+// =====================================
+// SANITIZE VALUE
+// =====================================
+
+function sanitizeValue(
+  input
+){
+
+  const stack = [
+
+    {
+      source:input,
+      parent:null,
+      key:null,
+      depth:0
+    }
+
+  ];
+
+  const visited =
+  new WeakMap();
+
+  let totalNodes = 0;
+
+  let root = null;
+
+  while(stack.length){
+
+    const current =
+    stack.pop();
+
+    totalNodes++;
 
     if(
-      typeof securityState ===
-      "object"
+
+      totalNodes >
+
+      SECURITY_SANITIZE_CONFIG
+      .MAX_TOTAL_NODES
+
     ){
 
-      securityState
-      .blockedPrompts++;
+      break;
 
     }
 
+    if(
+
+      current.depth >
+
+      SECURITY_SANITIZE_CONFIG
+      .MAX_DEPTH
+
+    ){
+
+      continue;
+
+    }
+
+    const value =
+    current.source;
+
+    let sanitized =
+    null;
+
+
+
+    // ================================
+    // PRIMITIVES
+    // ================================
+
+    if(
+      value == null
+    ){
+
+      sanitized = null;
+
+    }
+
+    else if(
+      typeof value ===
+      "string"
+    ){
+
+      sanitized =
+      safeString(value);
+
+    }
+
+    else if(
+
+      typeof value ===
+      "number"
+
+      ||
+
+      typeof value ===
+      "boolean"
+
+      ||
+
+      typeof value ===
+      "bigint"
+
+    ){
+
+      sanitized = value;
+
+    }
+
+
+
+    // ================================
+    // SPECIAL OBJECTS
+    // ================================
+
+    else if(
+      value instanceof Date
+    ){
+
+      sanitized =
+      new Date(
+        value.getTime()
+      );
+
+    }
+
+    else if(
+      value instanceof URL
+    ){
+
+      sanitized =
+      sanitizeURL(
+        value.href
+      );
+
+    }
+
+    else if(
+      value instanceof Error
+    ){
+
+      sanitized = {
+
+        name:
+        safeString(
+          value.name
+        ),
+
+        message:
+        safeString(
+          value.message
+        )
+
+      };
+
+    }
+
+
+
+    // ================================
+    // ARRAYS
+    // ================================
+
+    else if(
+      Array.isArray(value)
+    ){
+
+      securitySanitizeState
+      .sanitizedArrays++;
+
+      sanitized = [];
+
+      visited.set(
+        value,
+        sanitized
+      );
+
+      value
+      .slice(
+
+        0,
+
+        SECURITY_SANITIZE_CONFIG
+        .MAX_ARRAY_LENGTH
+
+      )
+      .forEach((item,index) => {
+
+        stack.push({
+
+          source:item,
+
+          parent:sanitized,
+
+          key:index,
+
+          depth:
+          current.depth + 1
+
+        });
+
+      });
+
+    }
+
+
+
+    // ================================
+    // OBJECTS
+    // ================================
+
+    else if(
+      isPlainSanitizeObject(
+        value
+      )
+    ){
+
+      securitySanitizeState
+      .sanitizedObjects++;
+
+      if(
+        visited.has(value)
+      ){
+
+        sanitized =
+        visited.get(value);
+
+      }
+
+      else{
+
+        sanitized =
+        Object.create(null);
+
+        visited.set(
+          value,
+          sanitized
+        );
+
+        Object.keys(value)
+        .slice(
+
+          0,
+
+          SECURITY_SANITIZE_CONFIG
+          .MAX_KEYS
+
+        )
+        .forEach((key) => {
+
+          const normalizedKey =
+          safeString(key);
+
+          if(
+
+            normalizedKey ===
+            "__proto__"
+
+            ||
+
+            normalizedKey ===
+            "prototype"
+
+            ||
+
+            normalizedKey ===
+            "constructor"
+
+          ){
+
+            return;
+
+          }
+
+          stack.push({
+
+            source:
+            value[key],
+
+            parent:
+            sanitized,
+
+            key:
+            normalizedKey,
+
+            depth:
+            current.depth + 1
+
+          });
+
+        });
+
+      }
+
+    }
+
+
+
+    // ================================
+    // INVALID TYPES
+    // ================================
+
+    else{
+
+      sanitized = null;
+
+    }
+
+
+
+    // ================================
+    // ROOT
+    // ================================
+
+    if(
+      current.parent === null
+    ){
+
+      root = sanitized;
+
+      continue;
+
+    }
+
+
+
+    // ================================
+    // ASSIGN
+    // ================================
+
+    current.parent[
+      current.key
+    ] = sanitized;
+
   }
 
-  return sanitized;
+  return root;
 
 }
 
@@ -862,7 +814,7 @@ function safeJSONStringify(
   try{
 
     const sanitized =
-    sanitizeObject(
+    sanitizeValue(
       value
     );
 
@@ -893,29 +845,59 @@ function safeJSONStringify(
 
   catch(error){
 
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-
-        "JSON_STRINGIFY_FAILED",
-
-        {
-
-          error:
-          String(error)
-
-        }
-
-      );
-
-    }
+    securitySanitizeState
+    .failedSanitizations++;
 
     return "{}";
 
   }
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getSecuritySanitizeDiagnostics(){
+
+  return Object.freeze({
+
+    sanitizedStrings:
+    securitySanitizeState
+    .sanitizedStrings,
+
+    sanitizedObjects:
+    securitySanitizeState
+    .sanitizedObjects,
+
+    sanitizedArrays:
+    securitySanitizeState
+    .sanitizedArrays,
+
+    sanitizedURLs:
+    securitySanitizeState
+    .sanitizedURLs,
+
+    sanitizedPrompts:
+    securitySanitizeState
+    .sanitizedPrompts,
+
+    blockedURLs:
+    securitySanitizeState
+    .blockedURLs,
+
+    failedSanitizations:
+
+      securitySanitizeState
+      .failedSanitizations,
+
+    lastSanitizedAt:
+    securitySanitizeState
+    .lastSanitizedAt
+
+  });
 
 }
 
@@ -939,19 +921,55 @@ safeFreezeSanitized({
   url:
   sanitizeURL,
 
-  object:
-  sanitizeObject,
-
-  array:
-  sanitizeArray,
+  value:
+  sanitizeValue,
 
   prompt:
   sanitizePrompt,
 
   stringify:
-  safeJSONStringify
+  safeJSONStringify,
+
+  diagnostics:
+  getSecuritySanitizeDiagnostics
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SECURITY_SANITIZE_CONFIG,
+
+  securitySanitizeState,
+
+  isPlainSanitizeObject,
+
+  safeFreezeSanitized,
+
+  safeString,
+
+  escapeHTML,
+
+  sanitizeHTML,
+
+  sanitizeURL,
+
+  sanitizePrompt,
+
+  sanitizeValue,
+
+  safeJSONStringify,
+
+  getSecuritySanitizeDiagnostics,
+
+  SecuritySanitize
+
+};
 
 
 
@@ -960,13 +978,13 @@ safeFreezeSanitized({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "SecuritySanitize",
 
