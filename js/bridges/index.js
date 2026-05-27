@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
-// BRIDGE INDEX
-// CENTRAL EXPORTS
+// BRIDGES INDEX
 // =====================================
 
 
@@ -39,12 +38,6 @@ function validateBridgeLayer(){
 
     typeof AIRuntimeBridge
     .diagnostics ===
-    "function"
-
-    &&
-
-    typeof AIRuntimeBridge
-    .reset ===
     "function"
 
   );
@@ -90,5 +83,17 @@ if(
 
   window.validateBridgeLayer =
   validateBridgeLayer;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.AIRuntimeBridge =
+  AIRuntimeBridge;
 
 }
