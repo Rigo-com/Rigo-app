@@ -96,25 +96,6 @@ Object.freeze([
   {
 
     name:
-    "core",
-
-    required:
-    true,
-
-    resolver(){
-
-      return globalThis
-      .SecurityCore;
-
-    }
-
-  },
-
-
-
-  {
-
-    name:
     "policy",
 
     required:
@@ -634,30 +615,50 @@ async function executeRuntimeTimeout(
   timeout
 ){
 
-  return Promise.race([
+  let timeoutId =
+  null;
 
-    Promise.resolve()
-    .then(callback),
+  try{
 
-    new Promise((_,reject) => {
+    return await Promise.race([
 
-      setTimeout(() => {
+      Promise.resolve()
+      .then(callback),
 
-        reject(
+      new Promise((_,reject) => {
 
-          new Error(
-            "SECURITY_RUNTIME_TIMEOUT"
-          )
+        timeoutId =
+        setTimeout(() => {
 
-        );
+          reject(
 
-      },
+            new Error(
+              "SECURITY_RUNTIME_TIMEOUT"
+            )
 
-      timeout);
+          );
 
-    })
+        },
 
-  ]);
+        timeout);
+
+      })
+
+    ]);
+
+  }
+
+  finally{
+
+    if(timeoutId){
+
+      clearTimeout(
+        timeoutId
+      );
+
+    }
+
+  }
 
 }
 
@@ -942,6 +943,10 @@ async function shutdownSecurityRuntime(){
         .startupPromise =
         null;
 
+        securityRuntimeState
+        .lastError =
+        null;
+
       },
 
       SECURITY_RUNTIME_CONFIG
@@ -1024,7 +1029,7 @@ async function resetSecurityRuntime(){
 
 function getSecurityRuntimeDiagnostics(){
 
-  return Object.freeze({
+  const diagnostics = {
 
     initialized:
     securityRuntimeState
@@ -1109,7 +1114,31 @@ function getSecurityRuntimeDiagnostics(){
 
       null
 
-  });
+  };
+
+  if(
+
+    typeof SecurityFreeze ===
+    "object"
+
+    &&
+
+    typeof SecurityFreeze
+    .deepFreeze ===
+    "function"
+
+  ){
+
+    return SecurityFreeze
+    .deepFreeze(
+      diagnostics
+    );
+
+  }
+
+  return Object.freeze(
+    diagnostics
+  );
 
 }
 
