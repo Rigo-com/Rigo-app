@@ -1,10 +1,14 @@
 // =====================================
 // RIGO AI
 // SEARCH SNIPPETS
-// ENTERPRISE FINAL
+// OPTIMIZED FINAL
 // =====================================
 
 
+
+// =====================================
+// CREATE SEARCH SNIPPET
+// =====================================
 
 function createSearchSnippet(
   content,
@@ -13,62 +17,206 @@ function createSearchSnippet(
 ){
 
   const normalizedContent =
-  normalizeMemoryContent(
+  normalizeMemoryContent?.(
     content
   );
 
   const normalizedQuery =
-  normalizeSearchQuery(
+  normalizeSearchQuery?.(
     query
   );
 
-  const index =
-  normalizedContent
-  .toLowerCase()
-  .indexOf(
+  if(
+    !normalizedContent
+  ){
 
-    normalizedQuery
-    .toLowerCase()
+    return "";
 
+  }
+
+  const snippetRadius =
+  Math.max(
+    40,
+    Number(radius) || 120
   );
+
+
+
+  // ================================
+  // EMPTY QUERY
+  // ================================
+
+  if(
+    !normalizedQuery
+  ){
+
+    return truncateMemoryText?.(
+
+      normalizedContent,
+
+      snippetRadius
+
+    )
+
+    ||
+
+    normalizedContent.slice(
+      0,
+      snippetRadius
+    );
+
+  }
+
+
+
+  // ================================
+  // FIND MATCH
+  // ================================
+
+  const lowerContent =
+  normalizedContent
+  .toLowerCase();
+
+  const lowerQuery =
+  normalizedQuery
+  .toLowerCase();
+
+  const index =
+  lowerContent.indexOf(
+    lowerQuery
+  );
+
+
+
+  // ================================
+  // NO MATCH
+  // ================================
 
   if(
     index < 0
   ){
 
-    return truncateMemoryText(
+    return truncateMemoryText?.(
+
       normalizedContent,
-      radius
+
+      snippetRadius
+
+    )
+
+    ||
+
+    normalizedContent.slice(
+      0,
+      snippetRadius
     );
 
   }
 
-  const start =
-  Math.max(
-    0,
-    index - radius / 2
+
+
+  // ================================
+  // RANGE
+  // ================================
+
+  const halfRadius =
+  Math.floor(
+    snippetRadius / 2
   );
 
-  const end =
+  let start =
+  Math.max(
+    0,
+    index - halfRadius
+  );
+
+  let end =
   Math.min(
 
     normalizedContent.length,
 
-    index + radius / 2
+    index +
+
+    lowerQuery.length +
+
+    halfRadius
 
   );
 
-  return (
 
-    "..." +
 
-    normalizedContent.slice(
-      start,
-      end
-    )
+  // ================================
+  // WORD BOUNDARIES
+  // ================================
 
-    + "..."
+  while(
 
-  );
+    start > 0
+
+    &&
+
+    normalizedContent[start] !==
+    " "
+
+  ){
+
+    start--;
+
+  }
+
+  while(
+
+    end <
+    normalizedContent.length
+
+    &&
+
+    normalizedContent[end] !==
+    " "
+
+  ){
+
+    end++;
+
+  }
+
+
+
+  // ================================
+  // BUILD
+  // ================================
+
+  const snippet =
+  normalizedContent
+  .slice(start,end)
+  .trim();
+
+  return [
+
+    start > 0
+    ? "..."
+    : "",
+
+    snippet,
+
+    end <
+    normalizedContent.length
+    ? "..."
+    : ""
+
+  ]
+  .join("");
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  createSearchSnippet
+
+};
