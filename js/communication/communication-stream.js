@@ -14,7 +14,15 @@ async function startCommunicationStream(
 ){
 
   if(
-    !streamId
+
+    typeof streamId !==
+    "string"
+
+    ||
+
+    streamId.trim()
+    .length === 0
+
   ){
 
     return false;
@@ -45,8 +53,14 @@ async function startCommunicationStream(
 
     freezeCommunicationObject({
 
+      id:
+      String(streamId),
+
       startedAt:
-      Date.now()
+      Date.now(),
+
+      status:
+      "active"
 
     })
 
@@ -70,7 +84,8 @@ async function startCommunicationStream(
 
     {
 
-      streamId
+      streamId:
+      String(streamId)
 
     }
 
@@ -91,7 +106,15 @@ async function stopCommunicationStream(
 ){
 
   if(
-    !streamId
+
+    typeof streamId !==
+    "string"
+
+    ||
+
+    streamId.trim()
+    .length === 0
+
   ){
 
     return false;
@@ -164,7 +187,8 @@ async function stopCommunicationStream(
 
     {
 
-      streamId
+      streamId:
+      String(streamId)
 
     }
 
