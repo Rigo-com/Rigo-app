@@ -197,3 +197,49 @@ async function stopCommunicationStream(
   return true;
 
 }
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const CommunicationStream =
+Object.freeze({
+
+  start:
+  startCommunicationStream,
+
+  stop:
+  stopCommunicationStream
+
+});
+
+
+
+// =====================================
+// GLOBAL EXPORTS
+// =====================================
+
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window
+  .CommunicationStream =
+  CommunicationStream;
+
+}
+
+
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis
+  .CommunicationStream =
+  CommunicationStream;
+
+}
