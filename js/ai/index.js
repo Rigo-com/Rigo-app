@@ -918,7 +918,7 @@ function createAILayerSnapshot(){
 // PUBLIC SURFACE
 // =====================================
 
-const RIGOAI =
+const RIGOAIRuntime =
 Object.freeze({
 
   kernel:
@@ -968,12 +968,12 @@ if(
 
     window,
 
-    "RIGOAI",
+    "RIGOAIRuntime",
 
     {
 
       value:
-      RIGOAI,
+      RIGOAIRuntime,
 
       writable:false,
 
