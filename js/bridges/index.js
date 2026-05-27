@@ -1,7 +1,16 @@
 // =====================================
 // RIGO AI
 // BRIDGES INDEX
+// FINAL HARDENED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import "./ai-runtime-bridge.js";
 
 
 
@@ -67,6 +76,26 @@ function getAIRuntimeBridge(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const Bridges =
+Object.freeze({
+
+  runtime:
+  AIRuntimeBridge,
+
+  getBridge:
+  getAIRuntimeBridge,
+
+  validate:
+  validateBridgeLayer
+
+});
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
@@ -75,25 +104,94 @@ if(
   "undefined"
 ){
 
-  window.AIRuntimeBridge =
-  AIRuntimeBridge;
+  Object.defineProperty(
 
-  window.getAIRuntimeBridge =
-  getAIRuntimeBridge;
+    window,
 
-  window.validateBridgeLayer =
-  validateBridgeLayer;
+    "Bridges",
 
-}
+    {
+
+      value:
+      Bridges,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  Object.defineProperty(
 
-  globalThis.AIRuntimeBridge =
-  AIRuntimeBridge;
+    window,
+
+    "AIRuntimeBridge",
+
+    {
+
+      value:
+      AIRuntimeBridge,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+
+
+  Object.defineProperty(
+
+    window,
+
+    "getAIRuntimeBridge",
+
+    {
+
+      value:
+      getAIRuntimeBridge,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
+
+
+
+  Object.defineProperty(
+
+    window,
+
+    "validateBridgeLayer",
+
+    {
+
+      value:
+      validateBridgeLayer,
+
+      writable:
+      false,
+
+      configurable:
+      false
+
+    }
+
+  );
 
 }
