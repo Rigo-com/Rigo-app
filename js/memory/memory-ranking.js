@@ -981,3 +981,24 @@ if(
   MemoryRanking;
 
 }
+export default MemoryRanking;
+
+export {
+
+  rankMemory,
+
+  rankMemoryResults,
+
+  rebuildMemoryRankings,
+
+  clearMemoryRankings,
+
+  getMemoryRank,
+
+  getTopRankedMemories,
+
+  incrementMemoryAccessCount,
+
+  getMemoryRankingDiagnostics
+
+};
