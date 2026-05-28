@@ -2,7 +2,7 @@
 // RIGO AI
 // STORAGE INDEX
 // ENTERPRISE STORAGE ORCHESTRATOR
-// FINAL STABLE EDITION
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -62,15 +62,23 @@ import {
 const storageRuntimeIndexState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  initializing:false,
+  initializing:
+  false,
 
-  crashed:false,
+  crashed:
+  false,
 
-  initializedAt:null,
+  initializedAt:
+  null,
 
-  lastError:null,
+  startupPromise:
+  null,
+
+  lastError:
+  null,
 
   loadedModules:
   new Set(),
@@ -79,6 +87,46 @@ Object.seal({
   new Set()
 
 });
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function normalizeStorageError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN_STORAGE_ERROR"
+  );
+
+}
+
+
+
+function isFunction(
+  value
+){
+
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
 
 
 
@@ -308,7 +356,7 @@ function logStorageIndexInfo(
 
       logInfo(
 
-        "[STORAGE]",
+        "[RIGOStorageRuntime]",
 
         {
 
@@ -326,7 +374,7 @@ function logStorageIndexInfo(
 
     console.info(
 
-      "[STORAGE]",
+      "[RIGOStorageRuntime]",
 
       message,
 
@@ -360,7 +408,7 @@ function logStorageIndexError(
 
       logError(
 
-        "[STORAGE]",
+        "[RIGOStorageRuntime]",
 
         {
 
@@ -378,7 +426,7 @@ function logStorageIndexError(
 
     console.error(
 
-      "[STORAGE]",
+      "[RIGOStorageRuntime]",
 
       message,
 
@@ -399,7 +447,7 @@ function logStorageIndexError(
 
 
 // =====================================
-// REGISTER LOADED MODULE
+// MODULE REGISTRATION
 // =====================================
 
 function registerLoadedStorageModule(
@@ -424,10 +472,6 @@ function registerLoadedStorageModule(
 
 
 
-// =====================================
-// REGISTER FAILED MODULE
-// =====================================
-
 function registerFailedStorageModule(
   moduleName
 ){
@@ -445,7 +489,7 @@ function registerFailedStorageModule(
 
 
 // =====================================
-// VALIDATE STORAGE MODULES
+// VALIDATION
 // =====================================
 
 function validateStorageModules(){
@@ -481,7 +525,7 @@ function validateStorageModules(){
 
 
 // =====================================
-// INITIALIZE STORAGE INDEX
+// INITIALIZATION
 // =====================================
 
 async function initializeStorageIndex(){
@@ -497,48 +541,97 @@ async function initializeStorageIndex(){
 
   if(
     storageRuntimeIndexState
-    .initializing
+    .startupPromise
   ){
 
-    return false;
+    return storageRuntimeIndexState
+    .startupPromise;
 
   }
 
   storageRuntimeIndexState
-  .initializing = true;
+  .startupPromise =
 
-  try{
+  (async() => {
 
-    const valid =
-    validateStorageModules();
+    if(
+      storageRuntimeIndexState
+      .initializing
+    ){
 
-    if(!valid){
-
-      throw new Error(
-        "INVALID_STORAGE_MODULES"
-      );
+      return false;
 
     }
 
-    for(
-      const module
-      of STORAGE_RUNTIME_MODULES
-    ){
+    storageRuntimeIndexState
+    .initializing =
+    true;
 
-      try{
+    try{
 
-        const validated =
-        module.validate();
+      const valid =
+      validateStorageModules();
 
-        if(!validated){
+      if(!valid){
 
-          registerFailedStorageModule(
+        throw new Error(
+          "INVALID_STORAGE_MODULES"
+        );
+
+      }
+
+      for(
+        const module
+        of STORAGE_RUNTIME_MODULES
+      ){
+
+        try{
+
+          const validated =
+          module.validate();
+
+          if(!validated){
+
+            registerFailedStorageModule(
+              module.name
+            );
+
+            logStorageIndexError(
+
+              "STORAGE_MODULE_FAILED",
+
+              {
+
+                module:
+                module.name
+
+              }
+
+            );
+
+            if(
+              module.required
+            ){
+
+              throw new Error(
+
+                "REQUIRED_STORAGE_MODULE_FAILED"
+
+              );
+
+            }
+
+            continue;
+
+          }
+
+          registerLoadedStorageModule(
             module.name
           );
 
-          logStorageIndexError(
+          logStorageIndexInfo(
 
-            "STORAGE MODULE FAILED",
+            "STORAGE_MODULE_READY",
 
             {
 
@@ -549,134 +642,145 @@ async function initializeStorageIndex(){
 
           );
 
+        }
+
+        catch(error){
+
+          registerFailedStorageModule(
+            module.name
+          );
+
+          logStorageIndexError(
+
+            "STORAGE_MODULE_CRASHED",
+
+            {
+
+              module:
+              module.name,
+
+              error:
+              normalizeStorageError(
+                error
+              )
+
+            }
+
+          );
+
           if(
             module.required
           ){
 
-            throw new Error(
-
-              "REQUIRED_STORAGE_MODULE_FAILED"
-
-            );
+            throw error;
 
           }
-
-          continue;
-
-        }
-
-        registerLoadedStorageModule(
-          module.name
-        );
-
-        logStorageIndexInfo(
-
-          "STORAGE MODULE READY",
-
-          {
-
-            module:
-            module.name
-
-          }
-
-        );
-
-      }
-
-      catch(error){
-
-        registerFailedStorageModule(
-          module.name
-        );
-
-        logStorageIndexError(
-
-          "STORAGE MODULE CRASHED",
-
-          {
-
-            module:
-            module.name,
-
-            error:
-            String(error)
-
-          }
-
-        );
-
-        if(
-          module.required
-        ){
-
-          throw error;
 
         }
 
       }
 
-    }
+      const runtimeInitialized =
+      await initializeStorageRuntime();
 
-    const runtimeInitialized =
-    await initializeStorageRuntime();
+      if(!runtimeInitialized){
 
-    if(!runtimeInitialized){
+        throw new Error(
+          "STORAGE_RUNTIME_INIT_FAILED"
+        );
 
-      throw new Error(
-        "STORAGE_RUNTIME_INIT_FAILED"
+      }
+
+      storageRuntimeIndexState
+      .initialized =
+      true;
+
+      storageRuntimeIndexState
+      .initializedAt =
+      Date.now();
+
+      storageRuntimeIndexState
+      .crashed =
+      false;
+
+      storageRuntimeIndexState
+      .lastError =
+      null;
+
+      logStorageIndexInfo(
+        "STORAGE_INDEX_READY"
       );
 
+      return true;
+
     }
 
-    storageRuntimeIndexState
-    .initialized =
-    true;
+    catch(error){
 
-    storageRuntimeIndexState
-    .initializedAt =
-    Date.now();
+      storageRuntimeIndexState
+      .crashed =
+      true;
 
-    logStorageIndexInfo(
-      "STORAGE INDEX READY"
-    );
+      storageRuntimeIndexState
+      .lastError =
+      normalizeStorageError(
+        error
+      );
 
-    return true;
+      logStorageIndexError(
 
-  }
+        "STORAGE_INDEX_FAILED",
 
-  catch(error){
+        {
 
-    storageRuntimeIndexState
-    .crashed =
-    true;
+          error:
+          normalizeStorageError(
+            error
+          )
 
-    storageRuntimeIndexState
-    .lastError =
-    error;
+        }
 
-    logStorageIndexError(
+      );
 
-      "STORAGE INDEX FAILED",
+      return false;
 
-      {
+    }
 
-        error:
-        String(error)
+    finally{
 
-      }
+      storageRuntimeIndexState
+      .initializing =
+      false;
 
-    );
+    }
 
-    return false;
+  })();
+
+  const currentPromise =
+  storageRuntimeIndexState
+  .startupPromise;
+
+  try{
+
+    return await currentPromise;
 
   }
 
   finally{
 
-    storageRuntimeIndexState
-    .initializing =
-    false;
+    if(
+
+      storageRuntimeIndexState
+      .startupPromise ===
+      currentPromise
+
+    ){
+
+      storageRuntimeIndexState
+      .startupPromise =
+      null;
+
+    }
 
   }
 
@@ -685,7 +789,7 @@ async function initializeStorageIndex(){
 
 
 // =====================================
-// RESET STORAGE INDEX
+// RESET
 // =====================================
 
 async function resetStorageIndex(){
@@ -710,11 +814,16 @@ async function resetStorageIndex(){
   .lastError =
   null;
 
+  storageRuntimeIndexState
+  .initializedAt =
+  null;
+
   try{
 
     if(
-      typeof destroyStorageRuntime ===
-      "function"
+      isFunction(
+        destroyStorageRuntime
+      )
     ){
 
       await destroyStorageRuntime();
@@ -727,12 +836,14 @@ async function resetStorageIndex(){
 
     logStorageIndexError(
 
-      "STORAGE DESTROY FAILED",
+      "STORAGE_DESTROY_FAILED",
 
       {
 
         error:
-        String(error)
+        normalizeStorageError(
+          error
+        )
 
       }
 
@@ -747,7 +858,7 @@ async function resetStorageIndex(){
 
 
 // =====================================
-// STORAGE HEALTHCHECK
+// HEALTHCHECK
 // =====================================
 
 function runStorageHealthcheck(){
@@ -774,8 +885,9 @@ function runStorageHealthcheck(){
   }
 
   if(
-    typeof isStorageReady ===
-    "function"
+    isFunction(
+      isStorageReady
+    )
   ){
 
     return isStorageReady();
@@ -789,7 +901,7 @@ function runStorageHealthcheck(){
 
 
 // =====================================
-// STORAGE DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getFullStorageDiagnostics(){
@@ -843,8 +955,9 @@ function getFullStorageDiagnostics(){
 
     runtime:
 
-      typeof getStorageDiagnostics ===
-      "function"
+      isFunction(
+        getStorageDiagnostics
+      )
 
       ?
 
@@ -855,20 +968,8 @@ function getFullStorageDiagnostics(){
       null,
 
     lastError:
-
-      storageRuntimeIndexState
-      .lastError
-
-      ?
-
-      String(
-        storageRuntimeIndexState
-        .lastError
-      )
-
-      :
-
-      null
+    storageRuntimeIndexState
+    .lastError
 
   });
 
@@ -877,7 +978,7 @@ function getFullStorageDiagnostics(){
 
 
 // =====================================
-// STORAGE PUBLIC API
+// PUBLIC API
 // =====================================
 
 const RIGOStorageRuntime =
@@ -886,13 +987,18 @@ Object.freeze({
   initialize:
   initializeStorageIndex,
 
+
+
   reset:
   resetStorageIndex,
 
+
+
   destroy:
 
-    typeof destroyStorageRuntime ===
-    "function"
+    isFunction(
+      destroyStorageRuntime
+    )
 
     ?
 
@@ -932,13 +1038,23 @@ Object.freeze({
   diagnostics:
   getFullStorageDiagnostics,
 
+
+
+  snapshot:
+  getFullStorageDiagnostics,
+
+
+
   healthcheck:
   runStorageHealthcheck,
 
+
+
   isReady:
 
-    typeof isStorageReady ===
-    "function"
+    isFunction(
+      isStorageReady
+    )
 
     ?
 
@@ -952,8 +1068,9 @@ Object.freeze({
 
   getState:
 
-    typeof getStorageStateSnapshot ===
-    "function"
+    isFunction(
+      getStorageStateSnapshot
+    )
 
     ?
 
@@ -973,7 +1090,11 @@ Object.freeze({
 
 export {
 
+  STORAGE_RUNTIME_MODULES,
+
   storageRuntimeIndexState,
+
+  validateStorageModules,
 
   initializeStorageIndex,
 
@@ -987,41 +1108,14 @@ export {
 
 };
 
-export default RIGOStorageRuntime;
+export default
+RIGOStorageRuntime;
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    window,
-
-    "RIGOStorageRuntime",
-
-    {
-
-      value:
-      RIGOStorageRuntime,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
-
-
 
 if(
   typeof globalThis !==
