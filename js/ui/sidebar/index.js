@@ -1,8 +1,8 @@
 // =====================================
 // RIGO AI
 // SIDEBAR INDEX
-// ENTERPRISE SIDEBAR PUBLIC API
-// FINAL STABILIZED EDITION
+// ENTERPRISE SIDEBAR RUNTIME
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -21,13 +21,70 @@ import "./sidebar-runtime.js";
 
 
 // =====================================
-// INITIALIZE SIDEBAR SYSTEM
+// INTERNAL HELPERS
 // =====================================
 
-function initializeSidebarSystem(){
+function isFunction(
+  value
+){
+
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
+
+function normalizeSidebarError(
+  error
+){
 
   if(
-    typeof SidebarRuntime ===
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN_SIDEBAR_ERROR"
+  );
+
+}
+
+
+
+function emitSidebarWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+
+    `[RIGOSidebarRuntime] ${message}`,
+
+    error || ""
+
+  );
+
+}
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function validateSidebarLayer(){
+
+  if(
+    typeof globalThis ===
     "undefined"
   ){
 
@@ -35,8 +92,98 @@ function initializeSidebarSystem(){
 
   }
 
-  return SidebarRuntime
-  .initialize();
+  const requiredSystems = [
+
+    "SidebarRuntime",
+    "SidebarRenderer",
+    "SidebarActions",
+    "SidebarEvents"
+
+  ];
+
+  const missingSystems =
+
+    requiredSystems.filter((systemName) => {
+
+      return (
+
+        typeof globalThis[
+          systemName
+        ] ===
+
+        "undefined"
+
+      );
+
+    });
+
+  if(
+    missingSystems.length > 0
+  ){
+
+    emitSidebarWarning(
+
+      `Missing systems: ${missingSystems.join(", ")}`
+
+    );
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE SIDEBAR SYSTEM
+// =====================================
+
+async function initializeSidebarSystem(){
+
+  try{
+
+    if(
+      !validateSidebarLayer()
+    ){
+
+      return false;
+
+    }
+
+    if(
+      !isFunction(
+        SidebarRuntime
+        .initialize
+      )
+    ){
+
+      return false;
+
+    }
+
+    return await SidebarRuntime
+    .initialize();
+
+  }
+
+  catch(error){
+
+    emitSidebarWarning(
+
+      "Initialization failed",
+
+      normalizeSidebarError(
+        error
+      )
+
+    );
+
+    return false;
+
+  }
 
 }
 
@@ -46,19 +193,48 @@ function initializeSidebarSystem(){
 // RESET SIDEBAR SYSTEM
 // =====================================
 
-function resetSidebarSystem(){
+async function resetSidebarSystem(){
 
-  if(
-    typeof SidebarRuntime ===
-    "undefined"
-  ){
+  try{
+
+    if(
+
+      typeof SidebarRuntime ===
+      "undefined"
+
+      ||
+
+      !isFunction(
+        SidebarRuntime
+        .reset
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    return await SidebarRuntime
+    .reset();
+
+  }
+
+  catch(error){
+
+    emitSidebarWarning(
+
+      "Reset failed",
+
+      normalizeSidebarError(
+        error
+      )
+
+    );
 
     return false;
 
   }
-
-  return SidebarRuntime
-  .reset();
 
 }
 
@@ -68,19 +244,48 @@ function resetSidebarSystem(){
 // DESTROY SIDEBAR SYSTEM
 // =====================================
 
-function destroySidebarSystem(){
+async function destroySidebarSystem(){
 
-  if(
-    typeof SidebarRuntime ===
-    "undefined"
-  ){
+  try{
+
+    if(
+
+      typeof SidebarRuntime ===
+      "undefined"
+
+      ||
+
+      !isFunction(
+        SidebarRuntime
+        .destroy
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    return await SidebarRuntime
+    .destroy();
+
+  }
+
+  catch(error){
+
+    emitSidebarWarning(
+
+      "Destroy failed",
+
+      normalizeSidebarError(
+        error
+      )
+
+    );
 
     return false;
 
   }
-
-  return SidebarRuntime
-  .destroy();
 
 }
 
@@ -119,19 +324,48 @@ function isSidebarReady(){
 // REFRESH SIDEBAR
 // =====================================
 
-function refreshSidebarSystem(){
+async function refreshSidebarSystem(){
 
-  if(
-    typeof SidebarActions ===
-    "undefined"
-  ){
+  try{
+
+    if(
+
+      typeof SidebarActions ===
+      "undefined"
+
+      ||
+
+      !isFunction(
+        SidebarActions
+        .refresh
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    return await SidebarActions
+    .refresh();
+
+  }
+
+  catch(error){
+
+    emitSidebarWarning(
+
+      "Refresh failed",
+
+      normalizeSidebarError(
+        error
+      )
+
+    );
 
     return false;
 
   }
-
-  return SidebarActions
-  .refresh();
 
 }
 
@@ -152,9 +386,10 @@ function getSidebarSystemDiagnostics(){
 
       &&
 
-      typeof SidebarRuntime
-      .diagnostics ===
-      "function"
+      isFunction(
+        SidebarRuntime
+        .diagnostics
+      )
 
       ?
 
@@ -174,9 +409,10 @@ function getSidebarSystemDiagnostics(){
 
       &&
 
-      typeof SidebarRenderer
-      .diagnostics ===
-      "function"
+      isFunction(
+        SidebarRenderer
+        .diagnostics
+      )
 
       ?
 
@@ -196,9 +432,10 @@ function getSidebarSystemDiagnostics(){
 
       &&
 
-      typeof SidebarEvents
-      .diagnostics ===
-      "function"
+      isFunction(
+        SidebarEvents
+        .diagnostics
+      )
 
       ?
 
@@ -218,9 +455,10 @@ function getSidebarSystemDiagnostics(){
 
       &&
 
-      typeof SidebarActions
-      .diagnostics ===
-      "function"
+      isFunction(
+        SidebarActions
+        .diagnostics
+      )
 
       ?
 
@@ -240,9 +478,10 @@ function getSidebarSystemDiagnostics(){
 
       &&
 
-      typeof SidebarElements
-      .diagnostics ===
-      "function"
+      isFunction(
+        SidebarElements
+        .diagnostics
+      )
 
       ?
 
@@ -266,7 +505,17 @@ function getSidebarSystemDiagnostics(){
 
       :
 
-      null
+      null,
+
+
+
+    healthy:
+    validateSidebarLayer(),
+
+
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -278,26 +527,46 @@ function getSidebarSystemDiagnostics(){
 // SIDEBAR PUBLIC API
 // =====================================
 
-const Sidebar =
+const RIGOSidebarRuntime =
 Object.freeze({
 
   initialize:
   initializeSidebarSystem,
 
+
+
   reset:
   resetSidebarSystem,
+
+
 
   destroy:
   destroySidebarSystem,
 
+
+
   refresh:
   refreshSidebarSystem,
+
+
 
   isReady:
   isSidebarReady,
 
+
+
   diagnostics:
   getSidebarSystemDiagnostics,
+
+
+
+  snapshot:
+  getSidebarSystemDiagnostics,
+
+
+
+  validate:
+  validateSidebarLayer,
 
 
 
@@ -305,93 +574,129 @@ Object.freeze({
   // MODULES
   // ===================================
 
-  runtime:
+  get runtime(){
 
-    typeof SidebarRuntime !==
-    "undefined"
+    return (
 
-    ?
+      typeof SidebarRuntime !==
+      "undefined"
 
-    SidebarRuntime
+      ?
 
-    :
+      SidebarRuntime
 
-    null,
+      :
 
+      null
 
+    );
 
-  renderer:
-
-    typeof SidebarRenderer !==
-    "undefined"
-
-    ?
-
-    SidebarRenderer
-
-    :
-
-    null,
+  },
 
 
 
-  events:
+  get renderer(){
 
-    typeof SidebarEvents !==
-    "undefined"
+    return (
 
-    ?
+      typeof SidebarRenderer !==
+      "undefined"
 
-    SidebarEvents
+      ?
 
-    :
+      SidebarRenderer
 
-    null,
+      :
 
+      null
 
+    );
 
-  actions:
-
-    typeof SidebarActions !==
-    "undefined"
-
-    ?
-
-    SidebarActions
-
-    :
-
-    null,
+  },
 
 
 
-  elements:
+  get events(){
 
-    typeof SidebarElements !==
-    "undefined"
+    return (
 
-    ?
+      typeof SidebarEvents !==
+      "undefined"
 
-    SidebarElements
+      ?
 
-    :
+      SidebarEvents
 
-    null,
+      :
+
+      null
+
+    );
+
+  },
 
 
 
-  state:
+  get actions(){
 
-    typeof sidebarRuntimeState !==
-    "undefined"
+    return (
 
-    ?
+      typeof SidebarActions !==
+      "undefined"
 
-    sidebarRuntimeState
+      ?
 
-    :
+      SidebarActions
 
-    null
+      :
+
+      null
+
+    );
+
+  },
+
+
+
+  get elements(){
+
+    return (
+
+      typeof SidebarElements !==
+      "undefined"
+
+      ?
+
+      SidebarElements
+
+      :
+
+      null
+
+    );
+
+  },
+
+
+
+  get state(){
+
+    return (
+
+      typeof sidebarRuntimeState !==
+      "undefined"
+
+      ?
+
+      sidebarRuntimeState
+
+      :
+
+      null
+
+    );
+
+  }
 
 });
 
@@ -403,7 +708,7 @@ Object.freeze({
 
 export {
 
-  Sidebar,
+  RIGOSidebarRuntime,
 
   initializeSidebarSystem,
 
@@ -425,12 +730,13 @@ export {
 // DEFAULT EXPORT
 // =====================================
 
-export default Sidebar;
+export default
+RIGOSidebarRuntime;
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -438,7 +744,23 @@ if(
   "undefined"
 ){
 
-  globalThis.Sidebar =
-  Sidebar;
+  Object.defineProperty(
+
+    globalThis,
+
+    "RIGOSidebarRuntime",
+
+    {
+
+      value:
+      RIGOSidebarRuntime,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
