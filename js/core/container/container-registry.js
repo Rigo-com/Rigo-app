@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // CONTAINER REGISTRY
+// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -44,6 +45,10 @@ function createContainerError(
   .diagnostics
   .failed++;
 
+  console.warn(
+    `[RIGOContainer] ${message}`
+  );
+
   return false;
 
 }
@@ -65,7 +70,9 @@ function registerService(
     serviceName
   );
 
-  if(!normalizedName){
+  if(
+    !normalizedName
+  ){
 
     return createContainerError(
       "INVALID SERVICE NAME"
@@ -121,7 +128,7 @@ function registerService(
   const lifecycle =
 
     Object.values(
-      SERVICE_LIFECYCLE
+      CONTAINER_LIFECYCLE
     )
     .includes(
       options.lifecycle
@@ -133,7 +140,7 @@ function registerService(
 
     :
 
-    SERVICE_LIFECYCLE
+    CONTAINER_LIFECYCLE
     .SINGLETON;
 
   const serviceDefinition =
@@ -186,7 +193,9 @@ function removeService(
     serviceName
   );
 
-  if(!normalizedName){
+  if(
+    !normalizedName
+  ){
 
     return false;
 
@@ -200,7 +209,9 @@ function removeService(
       normalizedName
     );
 
-  if(!exists){
+  if(
+    !exists
+  ){
 
     return false;
 
@@ -251,7 +262,9 @@ function getRegisteredService(
     serviceName
   );
 
-  if(!normalizedName){
+  if(
+    !normalizedName
+  ){
 
     return null;
 
@@ -319,30 +332,21 @@ function hasRegisteredService(
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.normalizeServiceName =
-  normalizeServiceName;
+  normalizeServiceName,
 
-  window.registerService =
-  registerService;
+  registerService,
 
-  window.removeService =
-  removeService;
+  removeService,
 
-  window.getRegisteredService =
-  getRegisteredService;
+  getRegisteredService,
 
-  window.getRegisteredServices =
-  getRegisteredServices;
+  getRegisteredServices,
 
-  window.hasRegisteredService =
-  hasRegisteredService;
+  hasRegisteredService
 
-}
+};
