@@ -30,7 +30,7 @@ function getHealthDependency(
   try{
 
     if(
-      typeof window ===
+      typeof globalThis ===
       "undefined"
     ){
 
@@ -39,7 +39,9 @@ function getHealthDependency(
     }
 
     const dependency =
-      window[dependencyName];
+    globalThis[
+      dependencyName
+    ];
 
     if(
       typeof dependency ===
@@ -573,19 +575,19 @@ async function getUnifiedHealthReport(){
     async() => {
 
       const system =
-      await RIGOHealth
+      await RIGOHealthIndex
       .system();
 
       const runtime =
-      await RIGOHealth
+      await RIGOHealthIndex
       .runtime();
 
       const monitor =
-      await RIGOHealth
+      await RIGOHealthIndex
       .monitor();
 
       const diagnostics =
-      await RIGOHealth
+      await RIGOHealthIndex
       .healthDiagnostics();
 
       let runtimeHealth =
@@ -640,7 +642,7 @@ async function getUnifiedHealthReport(){
 // HEALTH API
 // =====================================
 
-const RIGOHealth =
+const RIGOHealthIndex =
 safeFreeze({
 
 
@@ -723,30 +725,61 @@ safeFreeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  getHealthDependency,
+
+  safelyExecuteHealthOperation,
+
+  createReadonlyHealthAccessor,
+
+  runHealthChecks,
+
+  startHealthSystem,
+
+  stopHealthSystem,
+
+  initializeHealthSystem,
+
+  resetHealthSystem,
+
+  getUnifiedHealthReport,
+
+  RIGOHealthIndex
+
+};
+
+export default
+RIGOHealthIndex;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGOHealth",
+    "RIGOHealthIndex",
 
     {
 
       value:
-      RIGOHealth,
+      RIGOHealthIndex,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
