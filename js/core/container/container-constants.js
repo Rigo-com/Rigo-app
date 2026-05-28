@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // CONTAINER CONSTANTS
+// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -9,7 +10,7 @@
 // CONTAINER CONFIG
 // =====================================
 
-const DEPENDENCY_CONTAINER_CONFIG =
+const CONTAINER_CONFIG =
 Object.freeze({
 
   ENABLE_SINGLETONS:true,
@@ -35,10 +36,10 @@ Object.freeze({
 
 
 // =====================================
-// SERVICE LIFECYCLE
+// CONTAINER LIFECYCLE
 // =====================================
 
-const SERVICE_LIFECYCLE =
+const CONTAINER_LIFECYCLE =
 Object.freeze({
 
   SINGLETON:
@@ -84,21 +85,15 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.DEPENDENCY_CONTAINER_CONFIG =
-  DEPENDENCY_CONTAINER_CONFIG;
+  CONTAINER_CONFIG,
 
-  window.SERVICE_LIFECYCLE =
-  SERVICE_LIFECYCLE;
+  CONTAINER_LIFECYCLE,
 
-  window.CONTAINER_EVENTS =
-  CONTAINER_EVENTS;
+  CONTAINER_EVENTS
 
-}
+};
