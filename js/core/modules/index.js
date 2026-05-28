@@ -314,7 +314,7 @@ async function emitModulesIndexEvent(
 function validateModulesLayer(){
 
   if(
-    typeof window ===
+    typeof globalThis ===
     "undefined"
   ){
 
@@ -340,7 +340,7 @@ function validateModulesLayer(){
 
       return (
 
-        typeof window[
+        typeof globalThis[
           systemName
         ] ===
 
@@ -422,7 +422,7 @@ async function initializeModulesLayer(){
     }
 
     const kernel =
-      window.RIGOModuleKernel;
+      globalThis.RIGOModuleKernel;
 
     if(
 
@@ -459,7 +459,7 @@ async function initializeModulesLayer(){
     .lastInitializedAt =
     Date.now();
 
-    window.__RIGO_MODULES_READY__ =
+    globalThis.__RIGO_MODULES_READY__ =
     true;
 
     await emitModulesIndexEvent(
@@ -566,7 +566,7 @@ async function bootModulesLayer(){
     }
 
     const kernel =
-      window.RIGOModuleKernel;
+      globalThis.RIGOModuleKernel;
 
     if(
 
@@ -660,7 +660,7 @@ async function getModulesLayerHealth(){
   try{
 
     const kernel =
-      window.RIGOModuleKernel;
+      globalThis.RIGOModuleKernel;
 
     const health =
 
@@ -814,14 +814,14 @@ function createModulesLayerSnapshot(){
 // PUBLIC API
 // =====================================
 
-const RIGOModules =
+const RIGOModulesRuntime =
 Object.freeze({
 
 
 
   get constants(){
 
-    return window.RIGOModuleConstants;
+    return globalThis.RIGOModuleConstants;
 
   },
 
@@ -829,7 +829,7 @@ Object.freeze({
 
   get registry(){
 
-    return window.RIGOModuleRegistry;
+    return globalThis.RIGOModuleRegistry;
 
   },
 
@@ -837,7 +837,7 @@ Object.freeze({
 
   get runtime(){
 
-    return window.RIGOModuleRuntime;
+    return globalThis.RIGOModuleRuntime;
 
   },
 
@@ -845,7 +845,7 @@ Object.freeze({
 
   get health(){
 
-    return window.RIGOModuleHealth;
+    return globalThis.RIGOModuleHealth;
 
   },
 
@@ -853,7 +853,7 @@ Object.freeze({
 
   get loader(){
 
-    return window.RIGOModuleLoader;
+    return globalThis.RIGOModuleLoader;
 
   },
 
@@ -861,7 +861,7 @@ Object.freeze({
 
   get kernel(){
 
-    return window.RIGOModuleKernel;
+    return globalThis.RIGOModuleKernel;
 
   },
 
@@ -869,7 +869,7 @@ Object.freeze({
 
   get activation(){
 
-    return window.RIGOModuleActivation;
+    return globalThis.RIGOModuleActivation;
 
   },
 
@@ -898,30 +898,55 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  modulesIndexState,
+
+  validateModulesLayer,
+
+  initializeModulesLayer,
+
+  bootModulesLayer,
+
+  getModulesLayerHealth,
+
+  createModulesLayerSnapshot,
+
+  RIGOModulesRuntime
+
+};
+
+export default
+RIGOModulesRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGOModules",
+    "RIGOModulesRuntime",
 
     {
 
       value:
-      RIGOModules,
+      RIGOModulesRuntime,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
@@ -936,7 +961,7 @@ if(
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
