@@ -32,7 +32,7 @@ function resolveLifecycleDependency(
   try{
 
     if(
-      typeof RIGODependencySystem ===
+      typeof globalThis ===
       "undefined"
     ){
 
@@ -40,9 +40,20 @@ function resolveLifecycleDependency(
 
     }
 
+    const container =
+    globalThis
+    .RIGOContainer;
+
     if(
-      typeof RIGODependencySystem
-      .resolve !==
+      !container
+    ){
+
+      return null;
+
+    }
+
+    if(
+      typeof container.resolve !==
       "function"
     ){
 
@@ -51,8 +62,7 @@ function resolveLifecycleDependency(
     }
 
     const dependency =
-    RIGODependencySystem
-    .resolve(
+    container.resolve(
       dependencyName
     );
 
@@ -62,7 +72,9 @@ function resolveLifecycleDependency(
     ){
 
       console.warn(
+
         `[RIGOLifecycle] Missing dependency: ${dependencyName}`
+
       );
 
       return null;
@@ -611,47 +623,47 @@ async function getLifecycleDiagnostics(){
     async() => {
 
       const lifecycle =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .lifecycle();
 
       const startup =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .startup();
 
       const bootstrap =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .bootstrap();
 
       const shutdown =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .shutdown();
 
       const environment =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .environment();
 
       const messages =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .messages();
 
       const diagnostics =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .appDiagnostics();
 
       const health =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .health();
 
       const runtime =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .runtime();
 
       const config =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .config();
 
       const dependencies =
-      await RIGOLifecycle
+      await RIGOLifecycleRuntime
       .dependencies();
 
       return safeFreeze({
@@ -687,7 +699,7 @@ async function getLifecycleDiagnostics(){
 // LIFECYCLE API
 // =====================================
 
-const RIGOLifecycle =
+const RIGOLifecycleRuntime =
 safeFreeze({
 
 
@@ -747,7 +759,7 @@ safeFreeze({
 
   health:
   createReadonlyAccessor(
-    "HealthAPI"
+    "RIGOHealthIndex"
   ),
 
 
@@ -761,14 +773,14 @@ safeFreeze({
 
   config:
   createReadonlyAccessor(
-    "ConfigAPI"
+    "RIGOConfigRuntime"
   ),
 
 
 
   dependencies:
   createReadonlyAccessor(
-    "RIGODependencySystem"
+    "RIGOContainerRuntime"
   ),
 
 
@@ -839,30 +851,63 @@ safeFreeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  resolveLifecycleDependency,
+
+  safelyExecuteLifecycleOperation,
+
+  createReadonlyAccessor,
+
+  lifecycleStart,
+
+  lifecycleShutdown,
+
+  lifecycleBootstrap,
+
+  lifecycleCleanup,
+
+  lifecycleRecover,
+
+  lifecycleStatus,
+
+  getLifecycleDiagnostics,
+
+  RIGOLifecycleRuntime
+
+};
+
+export default
+RIGOLifecycleRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGOLifecycle",
+    "RIGOLifecycleRuntime",
 
     {
 
       value:
-      RIGOLifecycle,
+      RIGOLifecycleRuntime,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
