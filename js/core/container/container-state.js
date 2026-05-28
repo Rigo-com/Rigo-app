@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // CONTAINER STATE
+// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -9,7 +10,7 @@
 // CONTAINER STATE
 // =====================================
 
-const dependencyContainerState =
+const containerState =
 Object.seal({
 
   initialized:false,
@@ -120,44 +121,44 @@ function createContainerStateSnapshot(){
 
     initialized:
 
-      dependencyContainerState
+      containerState
       .initialized,
 
     services:
 
-      dependencyContainerState
+      containerState
       .services
       .size,
 
     singletons:
 
-      dependencyContainerState
+      containerState
       .singletons
       .size,
 
     scopes:
 
-      dependencyContainerState
+      containerState
       .scopes
       .size,
 
     resolutionStack:[
 
-      ...dependencyContainerState
+      ...containerState
       .resolutionStack
 
     ],
 
     diagnostics:{
 
-      ...dependencyContainerState
+      ...containerState
       .diagnostics
 
     },
 
     lastResolvedAt:
 
-      dependencyContainerState
+      containerState
       .lastResolvedAt
 
   });
@@ -172,47 +173,47 @@ function createContainerStateSnapshot(){
 
 function resetContainerState(){
 
-  dependencyContainerState
+  containerState
   .initialized =
   false;
 
-  dependencyContainerState
+  containerState
   .services
   .clear();
 
-  dependencyContainerState
+  containerState
   .singletons
   .clear();
 
-  dependencyContainerState
+  containerState
   .scopes
   .clear();
 
-  dependencyContainerState
+  containerState
   .resolutionStack
   .length = 0;
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .registered = 0;
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .resolved = 0;
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .failed = 0;
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .removed = 0;
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .scopes = 0;
 
-  dependencyContainerState
+  containerState
   .lastResolvedAt =
   null;
 
@@ -223,24 +224,17 @@ function resetContainerState(){
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.dependencyContainerState =
-  dependencyContainerState;
+  containerState,
 
-  window.freezeContainerObject =
-  freezeContainerObject;
+  freezeContainerObject,
 
-  window.createContainerStateSnapshot =
-  createContainerStateSnapshot;
+  createContainerStateSnapshot,
 
-  window.resetContainerState =
-  resetContainerState;
+  resetContainerState
 
-}
+};
