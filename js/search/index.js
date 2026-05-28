@@ -154,7 +154,7 @@ function getSearchDiagnostics(){
 // SEARCH API
 // =====================================
 
-const SearchAPI =
+const RIGOSearch =
 Object.freeze({
 
 
@@ -272,18 +272,16 @@ if(
 
     globalThis,
 
-    "SearchAPI",
+    "RIGOSearch",
 
     {
 
       value:
-      SearchAPI,
+      RIGOSearch,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
@@ -299,8 +297,9 @@ if(
 
 export {
 
-  SearchAPI
+  RIGOSearch
 
 };
 
-export default SearchAPI;
+export default
+RIGOSearch;
