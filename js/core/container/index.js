@@ -51,7 +51,7 @@ function validateContainerLayer(){
   try{
 
     if(
-      typeof window ===
+      typeof globalThis ===
       "undefined"
     ){
 
@@ -70,8 +70,13 @@ function validateContainerLayer(){
       requiredSystems.filter((systemName) => {
 
         return (
-          typeof window[systemName] ===
+
+          typeof globalThis[
+            systemName
+          ] ===
+
           "undefined"
+
         );
 
       });
@@ -110,78 +115,20 @@ function validateContainerLayer(){
 
 
 // =====================================
-// CONTAINER API
-// =====================================
-
-const RIGOContainerRuntime =
-Object.freeze({
-
-
-
-  validate:
-  validateContainerLayer,
-
-
-
-  // ===================================
-  // SAFE ACCESSOR
-  // ===================================
-
-  get container(){
-
-    return window.RIGOContainer;
-
-  }
-
-});
-
-
-
-// =====================================
 // EXPORTS
 // =====================================
 
 export {
 
-  validateContainerLayer,
-
-  RIGOContainerRuntime
+  validateContainerLayer
 
 };
 
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
 export default
-RIGOContainerRuntime;
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOContainerRuntime",
-
-    {
-
-      value:
-      RIGOContainerRuntime,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-}
+validateContainerLayer;
