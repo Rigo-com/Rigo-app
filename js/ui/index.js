@@ -1,8 +1,8 @@
 // =====================================
 // RIGO AI
 // UI INDEX
-// ENTERPRISE UI PUBLIC API
-// FINAL STABILIZED EDITION
+// ENTERPRISE UI RUNTIME
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -23,13 +23,70 @@ import "./sidebar/index.js";
 
 
 // =====================================
-// INITIALIZE UI SYSTEM
+// INTERNAL HELPERS
 // =====================================
 
-function initializeUISystem(){
+function isFunction(
+  value
+){
+
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
+
+function normalizeUIError(
+  error
+){
 
   if(
-    typeof UIRuntime ===
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN_UI_ERROR"
+  );
+
+}
+
+
+
+function emitUIWarning(
+  message,
+  error = null
+){
+
+  console.warn(
+
+    `[RIGOUIRuntime] ${message}`,
+
+    error || ""
+
+  );
+
+}
+
+
+
+// =====================================
+// VALIDATION
+// =====================================
+
+function validateUILayer(){
+
+  if(
+    typeof globalThis ===
     "undefined"
   ){
 
@@ -37,8 +94,106 @@ function initializeUISystem(){
 
   }
 
-  return UIRuntime
-  .initialize();
+  const requiredSystems = [
+
+    "UIRuntime",
+    "UIRenderer",
+    "UIEvents",
+    "UIElements",
+    "RIGOSidebarRuntime"
+
+  ];
+
+  const missingSystems =
+
+    requiredSystems.filter((systemName) => {
+
+      return (
+
+        typeof globalThis[
+          systemName
+        ] ===
+
+        "undefined"
+
+      );
+
+    });
+
+  if(
+    missingSystems.length > 0
+  ){
+
+    emitUIWarning(
+
+      `Missing systems: ${missingSystems.join(", ")}`
+
+    );
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE UI SYSTEM
+// =====================================
+
+async function initializeUISystem(){
+
+  try{
+
+    if(
+      !validateUILayer()
+    ){
+
+      return false;
+
+    }
+
+    if(
+
+      typeof UIRuntime ===
+      "undefined"
+
+      ||
+
+      !isFunction(
+        UIRuntime
+        .initialize
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    return await UIRuntime
+    .initialize();
+
+  }
+
+  catch(error){
+
+    emitUIWarning(
+
+      "Initialization failed",
+
+      normalizeUIError(
+        error
+      )
+
+    );
+
+    return false;
+
+  }
 
 }
 
@@ -48,19 +203,48 @@ function initializeUISystem(){
 // RESET UI SYSTEM
 // =====================================
 
-function resetUISystem(){
+async function resetUISystem(){
 
-  if(
-    typeof UIRuntime ===
-    "undefined"
-  ){
+  try{
+
+    if(
+
+      typeof UIRuntime ===
+      "undefined"
+
+      ||
+
+      !isFunction(
+        UIRuntime
+        .reset
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    return await UIRuntime
+    .reset();
+
+  }
+
+  catch(error){
+
+    emitUIWarning(
+
+      "Reset failed",
+
+      normalizeUIError(
+        error
+      )
+
+    );
 
     return false;
 
   }
-
-  return UIRuntime
-  .reset();
 
 }
 
@@ -70,19 +254,48 @@ function resetUISystem(){
 // DESTROY UI SYSTEM
 // =====================================
 
-function destroyUISystem(){
+async function destroyUISystem(){
 
-  if(
-    typeof UIRuntime ===
-    "undefined"
-  ){
+  try{
+
+    if(
+
+      typeof UIRuntime ===
+      "undefined"
+
+      ||
+
+      !isFunction(
+        UIRuntime
+        .destroy
+      )
+
+    ){
+
+      return false;
+
+    }
+
+    return await UIRuntime
+    .destroy();
+
+  }
+
+  catch(error){
+
+    emitUIWarning(
+
+      "Destroy failed",
+
+      normalizeUIError(
+        error
+      )
+
+    );
 
     return false;
 
   }
-
-  return UIRuntime
-  .destroy();
 
 }
 
@@ -132,9 +345,10 @@ function getUISystemDiagnostics(){
 
       &&
 
-      typeof UIRuntime
-      .diagnostics ===
-      "function"
+      isFunction(
+        UIRuntime
+        .diagnostics
+      )
 
       ?
 
@@ -154,9 +368,10 @@ function getUISystemDiagnostics(){
 
       &&
 
-      typeof UIRenderer
-      .diagnostics ===
-      "function"
+      isFunction(
+        UIRenderer
+        .diagnostics
+      )
 
       ?
 
@@ -176,9 +391,10 @@ function getUISystemDiagnostics(){
 
       &&
 
-      typeof UIEvents
-      .diagnostics ===
-      "function"
+      isFunction(
+        UIEvents
+        .diagnostics
+      )
 
       ?
 
@@ -198,9 +414,10 @@ function getUISystemDiagnostics(){
 
       &&
 
-      typeof UIElements
-      .diagnostics ===
-      "function"
+      isFunction(
+        UIElements
+        .diagnostics
+      )
 
       ?
 
@@ -215,18 +432,19 @@ function getUISystemDiagnostics(){
 
     sidebar:
 
-      typeof Sidebar !==
+      typeof RIGOSidebarRuntime !==
       "undefined"
 
       &&
 
-      typeof Sidebar
-      .diagnostics ===
-      "function"
+      isFunction(
+        RIGOSidebarRuntime
+        .diagnostics
+      )
 
       ?
 
-      Sidebar
+      RIGOSidebarRuntime
       .diagnostics()
 
       :
@@ -246,7 +464,17 @@ function getUISystemDiagnostics(){
 
       :
 
-      null
+      null,
+
+
+
+    healthy:
+    validateUILayer(),
+
+
+
+    timestamp:
+    Date.now()
 
   });
 
@@ -258,7 +486,7 @@ function getUISystemDiagnostics(){
 // UI PUBLIC API
 // =====================================
 
-const UI =
+const RIGOUIRuntime =
 Object.freeze({
 
   initialize:
@@ -286,97 +514,143 @@ Object.freeze({
 
 
 
+  snapshot:
+  getUISystemDiagnostics,
+
+
+
+  validate:
+  validateUILayer,
+
+
+
   // ===================================
   // MODULES
   // ===================================
 
-  runtime:
+  get runtime(){
 
-    typeof UIRuntime !==
-    "undefined"
+    return (
 
-    ?
+      typeof UIRuntime !==
+      "undefined"
 
-    UIRuntime
+      ?
 
-    :
+      UIRuntime
 
-    null,
+      :
 
+      null
 
+    );
 
-  renderer:
-
-    typeof UIRenderer !==
-    "undefined"
-
-    ?
-
-    UIRenderer
-
-    :
-
-    null,
+  },
 
 
 
-  events:
+  get renderer(){
 
-    typeof UIEvents !==
-    "undefined"
+    return (
 
-    ?
+      typeof UIRenderer !==
+      "undefined"
 
-    UIEvents
+      ?
 
-    :
+      UIRenderer
 
-    null,
+      :
 
+      null
 
+    );
 
-  elements:
-
-    typeof UIElements !==
-    "undefined"
-
-    ?
-
-    UIElements
-
-    :
-
-    null,
+  },
 
 
 
-  sidebar:
+  get events(){
 
-    typeof Sidebar !==
-    "undefined"
+    return (
 
-    ?
+      typeof UIEvents !==
+      "undefined"
 
-    Sidebar
+      ?
 
-    :
+      UIEvents
 
-    null,
+      :
+
+      null
+
+    );
+
+  },
 
 
 
-  state:
+  get elements(){
 
-    typeof uiState !==
-    "undefined"
+    return (
 
-    ?
+      typeof UIElements !==
+      "undefined"
 
-    uiState
+      ?
 
-    :
+      UIElements
 
-    null
+      :
+
+      null
+
+    );
+
+  },
+
+
+
+  get sidebar(){
+
+    return (
+
+      typeof RIGOSidebarRuntime !==
+      "undefined"
+
+      ?
+
+      RIGOSidebarRuntime
+
+      :
+
+      null
+
+    );
+
+  },
+
+
+
+  get state(){
+
+    return (
+
+      typeof uiState !==
+      "undefined"
+
+      ?
+
+      uiState
+
+      :
+
+      null
+
+    );
+
+  }
 
 });
 
@@ -388,7 +662,7 @@ Object.freeze({
 
 export {
 
-  UI,
+  RIGOUIRuntime,
 
   initializeUISystem,
 
@@ -408,12 +682,13 @@ export {
 // DEFAULT EXPORT
 // =====================================
 
-export default UI;
+export default
+RIGOUIRuntime;
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -421,7 +696,23 @@ if(
   "undefined"
 ){
 
-  globalThis.UI =
-  UI;
+  Object.defineProperty(
+
+    globalThis,
+
+    "RIGOUIRuntime",
+
+    {
+
+      value:
+      RIGOUIRuntime,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
