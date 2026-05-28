@@ -154,7 +154,7 @@ function safeFreeze(
 // CONSTANTS API
 // =====================================
 
-const ConstantsAPI =
+const RIGOConstantsRuntime =
 safeFreeze({
 
 
@@ -340,24 +340,43 @@ safeFreeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  getGlobalConstant,
+
+  safeFreeze,
+
+  RIGOConstantsRuntime
+
+};
+
+export default
+RIGOConstantsRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "ConstantsAPI",
+    "RIGOConstantsRuntime",
 
     {
 
       value:
-      ConstantsAPI,
+      RIGOConstantsRuntime,
 
       writable:
       false,
