@@ -24,7 +24,7 @@ function getContainer(){
   try{
 
     if(
-      typeof window ===
+      typeof globalThis ===
       "undefined"
     ){
 
@@ -33,7 +33,7 @@ function getContainer(){
     }
 
     return (
-      window.RIGOContainer ||
+      globalThis.RIGOContainer ||
       null
     );
 
@@ -57,7 +57,9 @@ function getContainer(){
 
 
 
-function isFunction(value){
+function isFunction(
+  value
+){
 
   return (
     typeof value ===
@@ -72,7 +74,7 @@ function isFunction(value){
 // LEGACY ADAPTER API
 // =====================================
 
-const DependencySystem =
+const RIGODependencyRuntime =
 Object.freeze({
 
 
@@ -93,10 +95,12 @@ Object.freeze({
   // RESOLUTION
   // ===================================
 
-  resolve(key){
+  resolve(
+    key
+  ){
 
     const container =
-      getContainer();
+    getContainer();
 
     if(
       !container
@@ -128,10 +132,12 @@ Object.freeze({
   // REGISTRATION
   // ===================================
 
-  register(...args){
+  register(
+    ...args
+  ){
 
     const container =
-      getContainer();
+    getContainer();
 
     if(
       !container
@@ -166,7 +172,7 @@ Object.freeze({
   diagnostics(){
 
     const container =
-      getContainer();
+    getContainer();
 
     if(
       !container
@@ -186,7 +192,8 @@ Object.freeze({
 
     }
 
-    return container.diagnostics();
+    return container
+    .diagnostics();
 
   }
 
@@ -195,30 +202,70 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
+// =====================================
+
+export {
+
+  getContainer,
+
+  RIGODependencyRuntime
+
+};
+
+export default
+RIGODependencyRuntime;
+
+
+
+// =====================================
+// GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
+
+    "RIGODependencyRuntime",
+
+    {
+
+      value:
+      RIGODependencyRuntime,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
+
+
+
+  // ===================================
+  // LEGACY ALIAS
+  // ===================================
+
+  Object.defineProperty(
+
+    globalThis,
 
     "DependencySystem",
 
     {
 
       value:
-      DependencySystem,
+      RIGODependencyRuntime,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
