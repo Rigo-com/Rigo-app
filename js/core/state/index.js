@@ -20,7 +20,7 @@ import "./state-manager.js";
 // INTERNAL STATE
 // =====================================
 
-const stateIndexRuntime =
+const stateIndexState =
 Object.seal({
 
   initialized:false,
@@ -46,7 +46,7 @@ function getContainerService(
   try{
 
     if(
-      typeof window ===
+      typeof globalThis ===
       "undefined"
     ){
 
@@ -55,7 +55,7 @@ function getContainerService(
     }
 
     const container =
-      window.RIGOContainer;
+      globalThis.RIGOContainer;
 
     if(
       !container
@@ -329,7 +329,7 @@ function emitStateWarning(
 function validateStateLayer(){
 
   if(
-    typeof window ===
+    typeof globalThis ===
     "undefined"
   ){
 
@@ -350,7 +350,7 @@ function validateStateLayer(){
 
       return (
 
-        typeof window[
+        typeof globalThis[
           systemName
         ] ===
 
@@ -387,7 +387,7 @@ function validateStateLayer(){
 async function initializeStateLayer(){
 
   if(
-    stateIndexRuntime
+    stateIndexState
     .initialized
   ){
 
@@ -396,7 +396,7 @@ async function initializeStateLayer(){
   }
 
   if(
-    stateIndexRuntime
+    stateIndexState
     .initializing
   ){
 
@@ -404,11 +404,11 @@ async function initializeStateLayer(){
 
   }
 
-  stateIndexRuntime
+  stateIndexState
   .initializing =
   true;
 
-  stateIndexRuntime
+  stateIndexState
   .lastError =
   null;
 
@@ -424,15 +424,15 @@ async function initializeStateLayer(){
 
     }
 
-    stateIndexRuntime
+    stateIndexState
     .initialized =
     true;
 
-    stateIndexRuntime
+    stateIndexState
     .lastInitializedAt =
     Date.now();
 
-    window.__RIGO_STATE_READY__ =
+    globalThis.__RIGO_STATE_READY__ =
     true;
 
     console.info(
@@ -445,7 +445,7 @@ async function initializeStateLayer(){
 
   catch(error){
 
-    stateIndexRuntime
+    stateIndexState
     .lastError =
     normalizeStateError(
       error
@@ -465,7 +465,7 @@ async function initializeStateLayer(){
 
   finally{
 
-    stateIndexRuntime
+    stateIndexState
     .initializing =
     false;
 
@@ -635,19 +635,19 @@ function createStateSnapshot(){
   return safeFreeze({
 
     initialized:
-    stateIndexRuntime
+    stateIndexState
     .initialized,
 
     initializing:
-    stateIndexRuntime
+    stateIndexState
     .initializing,
 
     lastInitializedAt:
-    stateIndexRuntime
+    stateIndexState
     .lastInitializedAt,
 
     lastError:
-    stateIndexRuntime
+    stateIndexState
     .lastError,
 
     timestamp:
@@ -663,7 +663,7 @@ function createStateSnapshot(){
 // STATE API
 // =====================================
 
-const StateAPI =
+const RIGOStateRuntime =
 safeFreeze({
 
 
@@ -693,7 +693,7 @@ safeFreeze({
 
   get appState(){
 
-    return window.RIGOAppState;
+    return globalThis.RIGOAppState;
 
   },
 
@@ -701,7 +701,7 @@ safeFreeze({
 
   get stateManager(){
 
-    return window.RIGOStateManager;
+    return globalThis.RIGOStateManager;
 
   },
 
@@ -1078,30 +1078,51 @@ safeFreeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  stateIndexState,
+
+  validateStateLayer,
+
+  initializeStateLayer,
+
+  createStateSnapshot,
+
+  RIGOStateRuntime
+
+};
+
+export default
+RIGOStateRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "StateAPI",
+    "RIGOStateRuntime",
 
     {
 
       value:
-      StateAPI,
+      RIGOStateRuntime,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
@@ -1116,7 +1137,7 @@ if(
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
