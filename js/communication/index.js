@@ -77,7 +77,7 @@ function validateCommunicationLayer(){
 // PUBLIC API
 // =====================================
 
-const Communication =
+const RIGOCommunicationRuntime =
 Object.freeze({
 
   core:
@@ -122,9 +122,28 @@ function getCommunicationLayer(){
 
   }
 
-  return Communication;
+  return RIGOCommunicationRuntime;
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  validateCommunicationLayer,
+
+  getCommunicationLayer,
+
+  RIGOCommunicationRuntime
+
+};
+
+export default
+RIGOCommunicationRuntime;
 
 
 
@@ -133,20 +152,20 @@ function getCommunicationLayer(){
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "Communication",
+    "RIGOCommunicationRuntime",
 
     {
 
       value:
-      Communication,
+      RIGOCommunicationRuntime,
 
       writable:
       false,
@@ -157,51 +176,4 @@ if(
     }
 
   );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "getCommunicationLayer",
-
-    {
-
-      value:
-      getCommunicationLayer,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "validateCommunicationLayer",
-
-    {
-
-      value:
-      validateCommunicationLayer,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
 }
