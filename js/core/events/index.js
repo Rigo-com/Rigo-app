@@ -146,7 +146,7 @@ function validateEventsLayer(){
 // EVENTS API
 // =====================================
 
-const EventsAPI =
+const RIGOEventsRuntime =
 Object.freeze({
 
 
@@ -213,24 +213,45 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  emitEventsWarning,
+
+  getGlobalEvent,
+
+  validateEventsLayer,
+
+  RIGOEventsRuntime
+
+};
+
+export default
+RIGOEventsRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "EventsAPI",
+    "RIGOEventsRuntime",
 
     {
 
       value:
-      EventsAPI,
+      RIGOEventsRuntime,
 
       writable:
       false,
@@ -246,14 +267,14 @@ if(
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGOEvents",
+    "RIGOEventsRuntime",
 
     {
 
       value:
-      EventsAPI,
+      RIGOEventsRuntime,
 
       writable:
       false,
