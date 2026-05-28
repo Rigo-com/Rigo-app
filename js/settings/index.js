@@ -2,7 +2,7 @@
 // RIGO AI
 // SETTINGS INDEX
 // ENTERPRISE SETTINGS RUNTIME
-// FINAL STABILIZED EDITION
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -33,9 +33,11 @@ import "./settings-manager.js";
 const SETTINGS_RUNTIME_CONFIG =
 Object.freeze({
 
-  ENABLE_LOGGING:true,
+  ENABLE_LOGGING:
+  true,
 
-  ENABLE_EVENTS:true,
+  ENABLE_EVENTS:
+  true,
 
   INIT_TIMEOUT:
   10000
@@ -51,15 +53,20 @@ Object.freeze({
 const settingsRuntimeState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  initializing:false,
+  initializing:
+  false,
 
-  crashed:false,
+  crashed:
+  false,
 
-  initializedAt:null,
+  initializedAt:
+  null,
 
-  startupPromise:null,
+  startupPromise:
+  null,
 
   loadedModules:
   new Set(),
@@ -67,9 +74,50 @@ Object.seal({
   failedModules:
   new Set(),
 
-  lastError:null
+  lastError:
+  null
 
 });
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isFunction(
+  value
+){
+
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
+
+function normalizeSettingsError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN_ERROR"
+  );
+
+}
 
 
 
@@ -82,9 +130,11 @@ Object.freeze([
 
   {
 
-    name:"types",
+    name:
+    "types",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
@@ -101,9 +151,11 @@ Object.freeze([
 
   {
 
-    name:"defaults",
+    name:
+    "defaults",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
@@ -120,9 +172,11 @@ Object.freeze([
 
   {
 
-    name:"utils",
+    name:
+    "utils",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
@@ -130,6 +184,7 @@ Object.freeze([
         typeof normalizeSettingKey ===
         "function"
       );
+
     }
 
   },
@@ -138,9 +193,11 @@ Object.freeze([
 
   {
 
-    name:"validation",
+    name:
+    "validation",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
@@ -157,9 +214,11 @@ Object.freeze([
 
   {
 
-    name:"security",
+    name:
+    "security",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
@@ -176,9 +235,11 @@ Object.freeze([
 
   {
 
-    name:"state",
+    name:
+    "state",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
@@ -195,13 +256,16 @@ Object.freeze([
 
   {
 
-    name:"events",
+    name:
+    "events",
 
-    required:false,
+    required:
+    false,
 
     validate(){
 
       return (
+
         typeof emitSettingsEvent ===
         "function"
 
@@ -209,6 +273,7 @@ Object.freeze([
 
         typeof SETTINGS_EVENTS !==
         "undefined"
+
       );
 
     }
@@ -219,13 +284,16 @@ Object.freeze([
 
   {
 
-    name:"storage",
+    name:
+    "storage",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
       return (
+
         typeof loadSettingsStorage ===
         "function"
 
@@ -233,6 +301,7 @@ Object.freeze([
 
         typeof saveSettingsStorage ===
         "function"
+
       );
 
     }
@@ -243,9 +312,11 @@ Object.freeze([
 
   {
 
-    name:"sync",
+    name:
+    "sync",
 
-    required:false,
+    required:
+    false,
 
     validate(){
 
@@ -262,9 +333,11 @@ Object.freeze([
 
   {
 
-    name:"migrations",
+    name:
+    "migrations",
 
-    required:false,
+    required:
+    false,
 
     validate(){
 
@@ -281,9 +354,11 @@ Object.freeze([
 
   {
 
-    name:"debug",
+    name:
+    "debug",
 
-    required:false,
+    required:
+    false,
 
     validate(){
 
@@ -300,9 +375,11 @@ Object.freeze([
 
   {
 
-    name:"manager",
+    name:
+    "manager",
 
-    required:true,
+    required:
+    true,
 
     validate(){
 
@@ -343,7 +420,8 @@ function logSettingsInfo(
   if(
 
     SETTINGS_RUNTIME_CONFIG
-    .ENABLE_LOGGING !== true
+    .ENABLE_LOGGING !==
+    true
 
   ){
 
@@ -360,7 +438,7 @@ function logSettingsInfo(
 
       logInfo(
 
-        "[SETTINGS]",
+        "[RIGOSettingsRuntime]",
 
         {
 
@@ -378,7 +456,7 @@ function logSettingsInfo(
 
     console.info(
 
-      "[SETTINGS]",
+      "[RIGOSettingsRuntime]",
 
       message,
 
@@ -414,7 +492,7 @@ function logSettingsError(
 
       logError(
 
-        "[SETTINGS]",
+        "[RIGOSettingsRuntime]",
 
         {
 
@@ -432,7 +510,7 @@ function logSettingsError(
 
     console.error(
 
-      "[SETTINGS]",
+      "[RIGOSettingsRuntime]",
 
       message,
 
@@ -465,8 +543,9 @@ async function emitSettingsRuntimeEvent(
 
   if(
 
-    !SETTINGS_RUNTIME_CONFIG
-    .ENABLE_EVENTS
+    SETTINGS_RUNTIME_CONFIG
+    .ENABLE_EVENTS !==
+    true
 
   ){
 
@@ -477,13 +556,26 @@ async function emitSettingsRuntimeEvent(
   try{
 
     if(
-      typeof emitRuntimeEvent ===
+      typeof emitSystemEvent ===
       "function"
     ){
 
-      await emitRuntimeEvent(
+      await emitSystemEvent(
+
         eventName,
-        payload
+
+        {
+
+          source:
+          "settings-runtime",
+
+          timestamp:
+          Date.now(),
+
+          ...payload
+
+        }
+
       );
 
     }
@@ -498,9 +590,13 @@ async function emitSettingsRuntimeEvent(
 
       {
 
-        event:eventName,
+        event:
+        eventName,
 
-        error:String(error)
+        error:
+        normalizeSettingsError(
+          error
+        )
 
       }
 
@@ -557,7 +653,7 @@ function registerFailedSettingsModule(
 
 
 // =====================================
-// VALIDATE SETTINGS MODULES
+// VALIDATION
 // =====================================
 
 function validateSettingsModules(){
@@ -581,8 +677,9 @@ function validateSettingsModules(){
 
       &&
 
-      typeof module.validate ===
-      "function"
+      isFunction(
+        module.validate
+      )
 
     );
 
@@ -593,7 +690,7 @@ function validateSettingsModules(){
 
 
 // =====================================
-// INITIALIZE SETTINGS RUNTIME
+// INITIALIZATION
 // =====================================
 
 async function initializeSettingsRuntime(){
@@ -619,10 +716,12 @@ async function initializeSettingsRuntime(){
 
   settingsRuntimeState
   .startupPromise =
+
   (async() => {
 
     settingsRuntimeState
-    .initializing = true;
+    .initializing =
+    true;
 
     try{
 
@@ -717,7 +816,9 @@ async function initializeSettingsRuntime(){
               module.name,
 
               error:
-              String(error)
+              normalizeSettingsError(
+                error
+              )
 
             }
 
@@ -775,7 +876,8 @@ async function initializeSettingsRuntime(){
       }
 
       settingsRuntimeState
-      .initialized = true;
+      .initialized =
+      true;
 
       settingsRuntimeState
       .initializedAt =
@@ -796,10 +898,14 @@ async function initializeSettingsRuntime(){
     catch(error){
 
       settingsRuntimeState
-      .crashed = true;
+      .crashed =
+      true;
 
       settingsRuntimeState
-      .lastError = error;
+      .lastError =
+      normalizeSettingsError(
+        error
+      );
 
       await emitSettingsRuntimeEvent(
 
@@ -808,7 +914,9 @@ async function initializeSettingsRuntime(){
         {
 
           error:
-          String(error)
+          normalizeSettingsError(
+            error
+          )
 
         }
 
@@ -821,7 +929,9 @@ async function initializeSettingsRuntime(){
         {
 
           error:
-          String(error)
+          normalizeSettingsError(
+            error
+          )
 
         }
 
@@ -834,23 +944,38 @@ async function initializeSettingsRuntime(){
     finally{
 
       settingsRuntimeState
-      .initializing = false;
+      .initializing =
+      false;
 
     }
 
   })();
 
+  const currentPromise =
+  settingsRuntimeState
+  .startupPromise;
+
   try{
 
-    return await settingsRuntimeState
-    .startupPromise;
+    return await currentPromise;
 
   }
 
   finally{
 
-    settingsRuntimeState
-    .startupPromise = null;
+    if(
+
+      settingsRuntimeState
+      .startupPromise ===
+      currentPromise
+
+    ){
+
+      settingsRuntimeState
+      .startupPromise =
+      null;
+
+    }
 
   }
 
@@ -859,7 +984,7 @@ async function initializeSettingsRuntime(){
 
 
 // =====================================
-// RESET SETTINGS
+// RESET
 // =====================================
 
 async function resetSettingsRuntime(){
@@ -873,13 +998,16 @@ async function resetSettingsRuntime(){
   .clear();
 
   settingsRuntimeState
-  .initialized = false;
+  .initialized =
+  false;
 
   settingsRuntimeState
-  .crashed = false;
+  .crashed =
+  false;
 
   settingsRuntimeState
-  .lastError = null;
+  .lastError =
+  null;
 
   if(
 
@@ -903,7 +1031,9 @@ async function resetSettingsRuntime(){
         {
 
           error:
-          String(error)
+          normalizeSettingsError(
+            error
+          )
 
         }
 
@@ -920,7 +1050,7 @@ async function resetSettingsRuntime(){
 
 
 // =====================================
-// SETTINGS HEALTHCHECK
+// HEALTHCHECK
 // =====================================
 
 function runSettingsHealthcheck(){
@@ -948,6 +1078,7 @@ function runSettingsHealthcheck(){
   .filter((module) => {
 
     return module.required;
+
   });
 
   return requiredModules
@@ -966,7 +1097,7 @@ function runSettingsHealthcheck(){
 
 
 // =====================================
-// SETTINGS DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getSettingsRuntimeDiagnostics(){
@@ -1023,17 +1154,6 @@ function getSettingsRuntimeDiagnostics(){
       settingsRuntimeState
       .lastError
 
-      ?
-
-      String(
-        settingsRuntimeState
-        .lastError
-      )
-
-      :
-
-      null
-
   });
 
 }
@@ -1050,26 +1170,97 @@ Object.freeze({
   initialize:
   initializeSettingsRuntime,
 
+
+
   get:
-  getSetting,
+
+    typeof getSetting ===
+    "function"
+
+    ?
+
+    getSetting
+
+    :
+
+    null,
+
+
 
   update:
-  updateSetting,
+
+    typeof updateSetting ===
+    "function"
+
+    ?
+
+    updateSetting
+
+    :
+
+    null,
+
+
 
   reset:
   resetSettingsRuntime,
 
+
+
   sync:
-  syncSettingsSystem,
+
+    typeof syncSettingsSystem ===
+    "function"
+
+    ?
+
+    syncSettingsSystem
+
+    :
+
+    null,
+
+
 
   backup:
-  createSettingsBackup,
+
+    typeof createSettingsBackup ===
+    "function"
+
+    ?
+
+    createSettingsBackup
+
+    :
+
+    null,
+
+
 
   restore:
-  restoreSettingsBackup,
+
+    typeof restoreSettingsBackup ===
+    "function"
+
+    ?
+
+    restoreSettingsBackup
+
+    :
+
+    null,
+
+
 
   diagnostics:
   getSettingsRuntimeDiagnostics,
+
+
+
+  snapshot:
+  getSettingsRuntimeDiagnostics,
+
+
 
   healthcheck:
   runSettingsHealthcheck
@@ -1079,7 +1270,7 @@ Object.freeze({
 
 
 // =====================================
-// MODULE EXPORTS
+// EXPORTS
 // =====================================
 
 export {
@@ -1104,12 +1295,13 @@ export {
 
 };
 
-export default RIGOSettingsRuntime;
+export default
+RIGOSettingsRuntime;
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -1128,11 +1320,14 @@ if(
       value:
       RIGOSettingsRuntime,
 
-      writable:false,
+      writable:
+      false,
 
-      configurable:false,
+      configurable:
+      false,
 
-      enumerable:false
+      enumerable:
+      false
 
     }
 
