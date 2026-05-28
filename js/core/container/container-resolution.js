@@ -1,31 +1,32 @@
 // =====================================
 // RIGO AI
 // CONTAINER RESOLUTION
+// FINAL STABILIZED EDITION
 // =====================================
 
 
 
 // =====================================
-// RESOLVE DEPENDENCIES
+// RESOLVE SERVICES
 // =====================================
 
-async function resolveDependencies(
-  dependencies = [],
+async function resolveServices(
+  services = [],
   scope = "global"
 ){
 
   const resolved = {};
 
   for(
-    const dependency
-    of dependencies
+    const service
+    of services
   ){
 
     resolved[
-      dependency
+      service
     ] = await resolveService(
 
-      dependency,
+      service,
 
       scope
 
@@ -40,7 +41,7 @@ async function resolveDependencies(
 
 
 // =====================================
-// CREATE INSTANCE
+// CREATE SERVICE INSTANCE
 // =====================================
 
 async function createServiceInstance(
@@ -48,8 +49,8 @@ async function createServiceInstance(
   scope = "global"
 ){
 
-  const dependencies =
-  await resolveDependencies(
+  const services =
+  await resolveServices(
 
     serviceDefinition
     .dependencies,
@@ -62,9 +63,9 @@ async function createServiceInstance(
   .factory({
 
     container:
-    DependencyContainer,
+    RIGOContainer,
 
-    dependencies,
+    services,
 
     scope
 
@@ -137,11 +138,11 @@ async function finalizeResolution(
   instance
 ){
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .resolved++;
 
-  dependencyContainerState
+  containerState
   .lastResolvedAt =
   Date.now();
 
@@ -176,7 +177,9 @@ async function resolveService(
     serviceName
   );
 
-  if(!normalizedName){
+  if(
+    !normalizedName
+  ){
 
     return createContainerError(
       "INVALID RESOLVE NAME"
@@ -186,11 +189,11 @@ async function resolveService(
 
   if(
 
-    dependencyContainerState
+    containerState
     .resolutionStack
     .length >
 
-    DEPENDENCY_CONTAINER_CONFIG
+    CONTAINER_CONFIG
     .MAX_RESOLUTION_DEPTH
 
   ){
@@ -230,7 +233,9 @@ async function resolveService(
       normalizedName
     );
 
-  if(!serviceDefinition){
+  if(
+    !serviceDefinition
+  ){
 
     return createContainerError(
 
@@ -247,7 +252,7 @@ async function resolveService(
 
   }
 
-  dependencyContainerState
+  containerState
   .resolutionStack
   .push(
     normalizedName
@@ -266,14 +271,14 @@ async function resolveService(
       serviceDefinition
       .lifecycle ===
 
-      SERVICE_LIFECYCLE
+      CONTAINER_LIFECYCLE
       .SINGLETON
 
     ){
 
       if(
 
-        dependencyContainerState
+        containerState
         .singletons
         .has(
           normalizedName
@@ -281,7 +286,7 @@ async function resolveService(
 
       ){
 
-        return dependencyContainerState
+        return containerState
         .singletons
         .get(
           normalizedName
@@ -298,7 +303,7 @@ async function resolveService(
 
       );
 
-      dependencyContainerState
+      containerState
       .singletons
       .set(
 
@@ -333,7 +338,7 @@ async function resolveService(
       serviceDefinition
       .lifecycle ===
 
-      SERVICE_LIFECYCLE
+      CONTAINER_LIFECYCLE
       .SCOPED
 
     ){
@@ -343,7 +348,9 @@ async function resolveService(
         scope
       );
 
-      if(!scopeContainer){
+      if(
+        !scopeContainer
+      ){
 
         return createContainerError(
           "INVALID SCOPE"
@@ -426,7 +433,7 @@ async function resolveService(
 
   catch(error){
 
-    dependencyContainerState
+    containerState
     .diagnostics
     .failed++;
 
@@ -452,7 +459,7 @@ async function resolveService(
 
   finally{
 
-    dependencyContainerState
+    containerState
     .resolutionStack
     .pop();
 
@@ -463,21 +470,15 @@ async function resolveService(
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.resolveDependencies =
-  resolveDependencies;
+  resolveServices,
 
-  window.createServiceInstance =
-  createServiceInstance;
+  createServiceInstance,
 
-  window.resolveService =
-  resolveService;
+  resolveService
 
-}
+};
