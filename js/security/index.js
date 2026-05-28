@@ -31,23 +31,25 @@ import "./security-validator.js";
 const REQUIRED_SECURITY_MODULES =
 Object.freeze([
 
-  "Core",
+  "core",
 
-  "Freeze",
+  "freeze",
 
-  "Monitor",
+  "monitor",
 
-  "Policy",
+  "policy",
 
-  "Runtime",
+  "report",
 
-  "Sandbox",
+  "runtime",
 
-  "Sanitize",
+  "sandbox",
 
-  "URL",
+  "sanitize",
 
-  "Validator"
+  "url",
+
+  "validator"
 
 ]);
 
@@ -88,82 +90,82 @@ function getSecurityModules(){
 
   return Object.freeze({
 
-    Core:
+    core:
     resolveSecurityModule(
       globalThis
-      .SecurityCore
+      .RIGOSecurityCore
     ),
 
 
 
-    Freeze:
+    freeze:
     resolveSecurityModule(
       globalThis
-      .SecurityFreeze
+      .RIGOSecurityFreeze
     ),
 
 
 
-    Monitor:
+    monitor:
     resolveSecurityModule(
       globalThis
-      .SecurityMonitor
+      .RIGOSecurityMonitor
     ),
 
 
 
-    Policy:
+    policy:
     resolveSecurityModule(
       globalThis
-      .SecurityPolicy
+      .RIGOSecurityPolicy
     ),
 
 
 
-    Report:
+    report:
     resolveSecurityModule(
       globalThis
-      .SecurityReport
+      .RIGOSecurityReport
     ),
 
 
 
-    Runtime:
+    runtime:
     resolveSecurityModule(
       globalThis
-      .SecurityRuntime
+      .RIGOSecurityRuntime
     ),
 
 
 
-    Sandbox:
+    sandbox:
     resolveSecurityModule(
       globalThis
-      .SecuritySandbox
+      .RIGOSecuritySandbox
     ),
 
 
 
-    Sanitize:
+    sanitize:
     resolveSecurityModule(
       globalThis
-      .SecuritySanitize
+      .RIGOSecuritySanitize
     ),
 
 
 
-    URL:
+    url:
     resolveSecurityModule(
       globalThis
-      .SecurityURL
+      .RIGOSecurityURL
     ),
 
 
 
-    Validator:
+    validator:
     resolveSecurityModule(
       globalThis
-      .SecurityValidator
+      .RIGOSecurityValidator
     )
 
   });
@@ -179,14 +181,11 @@ function getSecurityModules(){
 const securityIndexState =
 Object.seal({
 
-  initialized:
-  false,
+  initialized:false,
 
-  initializing:
-  false,
+  initializing:false,
 
-  initializedAt:
-  null,
+  initializedAt:null,
 
   failedModules:
   new Set(),
@@ -194,11 +193,9 @@ Object.seal({
   loadedModules:
   new Set(),
 
-  lastHealthcheckAt:
-  null,
+  lastHealthcheckAt:null,
 
-  startupPromise:
-  null
+  startupPromise:null
 
 });
 
@@ -226,6 +223,7 @@ function logSecurityIndexEvent(
       );
 
       return;
+
     }
 
     if(
@@ -400,12 +398,12 @@ async function initializeSecurityIndex(){
       if(
 
         modules
-        .Runtime
+        .runtime
 
         &&
 
         typeof modules
-        .Runtime
+        .runtime
         .initialize ===
         "function"
 
@@ -413,7 +411,7 @@ async function initializeSecurityIndex(){
 
         const initialized =
         await modules
-        .Runtime
+        .runtime
         .initialize();
 
         if(!initialized){
@@ -502,19 +500,19 @@ function runSecurityIndexHealthcheck(){
   const runtimeHealthy =
 
     modules
-    .Runtime
+    .runtime
 
     &&
 
     typeof modules
-    .Runtime
+    .runtime
     .healthcheck ===
     "function"
 
     ?
 
     modules
-    .Runtime
+    .runtime
     .healthcheck()
 
     :
@@ -568,7 +566,8 @@ function getSecurityModule(
   String(
     moduleName || ""
   )
-  .trim();
+  .trim()
+  .toLowerCase();
 
   if(!normalized){
 
@@ -683,7 +682,7 @@ Object.freeze({
   get core(){
 
     return getSecurityModules()
-    .Core;
+    .core;
 
   },
 
@@ -692,7 +691,7 @@ Object.freeze({
   get freeze(){
 
     return getSecurityModules()
-    .Freeze;
+    .freeze;
 
   },
 
@@ -701,7 +700,7 @@ Object.freeze({
   get monitor(){
 
     return getSecurityModules()
-    .Monitor;
+    .monitor;
 
   },
 
@@ -710,7 +709,7 @@ Object.freeze({
   get policy(){
 
     return getSecurityModules()
-    .Policy;
+    .policy;
 
   },
 
@@ -719,7 +718,7 @@ Object.freeze({
   get report(){
 
     return getSecurityModules()
-    .Report;
+    .report;
 
   },
 
@@ -728,7 +727,7 @@ Object.freeze({
   get runtime(){
 
     return getSecurityModules()
-    .Runtime;
+    .runtime;
 
   },
 
@@ -737,7 +736,7 @@ Object.freeze({
   get sandbox(){
 
     return getSecurityModules()
-    .Sandbox;
+    .sandbox;
 
   },
 
@@ -746,7 +745,7 @@ Object.freeze({
   get sanitize(){
 
     return getSecurityModules()
-    .Sanitize;
+    .sanitize;
 
   },
 
@@ -755,7 +754,7 @@ Object.freeze({
   get url(){
 
     return getSecurityModules()
-    .URL;
+    .url;
 
   },
 
@@ -764,7 +763,7 @@ Object.freeze({
   get validator(){
 
     return getSecurityModules()
-    .Validator;
+    .validator;
 
   }
 
@@ -802,7 +801,8 @@ export {
 
 };
 
-export default RIGOSecurityRuntime;
+export default
+RIGOSecurityRuntime;
 
 
 
@@ -826,11 +826,9 @@ if(
       value:
       RIGOSecurityRuntime,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
