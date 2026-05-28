@@ -198,7 +198,7 @@ async function initializeAppLayer(){
 // PUBLIC API
 // =====================================
 
-const AppIndex =
+const RIGOAppRuntime =
 Object.freeze({
 
   initialize:
@@ -248,24 +248,43 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  validateAppLayer,
+
+  initializeAppLayer,
+
+  RIGOAppRuntime
+
+};
+
+export default
+RIGOAppRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "AppIndex",
+    "RIGOAppRuntime",
 
     {
 
       value:
-      AppIndex,
+      RIGOAppRuntime,
 
       writable:
       false,
