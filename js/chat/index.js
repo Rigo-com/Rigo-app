@@ -857,7 +857,7 @@ function getChatDiagnostics(){
 // CHAT PUBLIC API
 // =====================================
 
-const Chat =
+const RIGOChatRuntime =
 Object.freeze({
 
   initialize:
@@ -977,178 +977,54 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  CHAT_MODULES,
+
+  initializeChatSystem,
+
+  resetChatSystem,
+
+  sendChatMessage,
+
+  abortChatGeneration,
+
+  processChatQueue,
+
+  getChatSystemStatus,
+
+  isChatReady,
+
+  getChatDiagnostics,
+
+  RIGOChatRuntime
+
+};
+
+export default
+RIGOChatRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
-    window,
-    "Chat",
+    globalThis,
+    "RIGOChatRuntime",
     {
-      value: Chat,
+      value: RIGOChatRuntime,
       writable: false,
       configurable: false
     }
   );
-
-
-
-  Object.defineProperty(
-    window,
-    "CHAT_MODULES",
-    {
-      value: CHAT_MODULES,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "ChatRuntime",
-    {
-      value: ChatRuntime,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "ChatStreamManager",
-    {
-      value: ChatStreamManager,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "ChatElements",
-    {
-      value: ChatElements,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "ChatMarkdownRenderer",
-    {
-      value: ChatMarkdownRenderer,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "initializeChatSystem",
-    {
-      value: initializeChatSystem,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "resetChatSystem",
-    {
-      value: resetChatSystem,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "sendChatMessage",
-    {
-      value: sendChatMessage,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "abortChatGeneration",
-    {
-      value: abortChatGeneration,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "processChatQueue",
-    {
-      value: processChatQueue,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "getChatSystemStatus",
-    {
-      value: getChatSystemStatus,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "getChatDiagnostics",
-    {
-      value: getChatDiagnostics,
-      writable: false,
-      configurable: false
-    }
-  );
-
-
-
-  Object.defineProperty(
-    window,
-    "isChatReady",
-    {
-      value: isChatReady,
-      writable: false,
-      configurable: false
-    }
-  );
-
 }
