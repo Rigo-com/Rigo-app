@@ -179,8 +179,20 @@ export * from "./memory-subsystem.js";
 // MEMORY API
 // =====================================
 
-import MemoryAPI
+import RIGOMemory
 from "./memory-subsystem.js";
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  RIGOMemory
+
+};
 
 
 
@@ -197,18 +209,16 @@ if(
 
     globalThis,
 
-    "MemoryAPI",
+    "RIGOMemory",
 
     {
 
       value:
-      MemoryAPI,
+      RIGOMemory,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
@@ -222,4 +232,5 @@ if(
 // DEFAULT EXPORT
 // =====================================
 
-export default MemoryAPI;
+export default
+RIGOMemory;
