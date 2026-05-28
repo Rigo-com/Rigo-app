@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // CORE CONTAINER
+// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -9,7 +10,7 @@
 // PUBLIC API
 // =====================================
 
-const Container =
+const RIGOContainer =
 Object.freeze({
 
 
@@ -19,15 +20,21 @@ Object.freeze({
   // ===================================
 
   initialize:
-  initializeDependencyContainer,
+  initializeContainer,
+
+
 
   reset:
-  resetDependencyContainer,
+  resetContainer,
+
+
 
   diagnostics:
   getContainerDiagnostics,
 
-  health:
+
+
+  healthcheck:
   getContainerHealthReport,
 
 
@@ -39,14 +46,22 @@ Object.freeze({
   register:
   registerService,
 
+
+
   remove:
   removeService,
+
+
 
   has:
   hasRegisteredService,
 
+
+
   get:
   getRegisteredService,
+
+
 
   services:
   getRegisteredServices,
@@ -60,8 +75,10 @@ Object.freeze({
   resolve:
   resolveService,
 
-  resolveDependencies:
-  resolveDependencies,
+
+
+  resolveServices:
+  resolveServices,
 
 
 
@@ -72,8 +89,12 @@ Object.freeze({
   getScope:
   getScopeContainer,
 
+
+
   removeScope:
   removeScopeContainer,
+
+
 
   clearScopes:
   clearScopeContainers,
@@ -85,9 +106,26 @@ Object.freeze({
   // ===================================
 
   lifecycles:
-  SERVICE_LIFECYCLE
+  CONTAINER_LIFECYCLE
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  RIGOContainer
+
+};
+
+
+
+export default
+RIGOContainer;
 
 
 
@@ -96,11 +134,29 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
-  window.Container =
-  Container;
+  Object.defineProperty(
+
+    globalThis,
+
+    "RIGOContainer",
+
+    {
+
+      value:
+      RIGOContainer,
+
+      writable:false,
+
+      configurable:false,
+
+      enumerable:false
+
+    }
+
+  );
 
 }
