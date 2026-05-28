@@ -1,7 +1,19 @@
 // =====================================
 // RIGO AI
 // RUNTIME STATE
+// FINAL STABILIZED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import {
+  RUNTIME_STATES
+}
+from "./runtime-constants.js";
 
 
 
@@ -33,7 +45,7 @@ function createDefaultDiagnostics(){
 // INTERNAL STATE
 // =====================================
 
-const runtimeManagerState =
+const runtimeState =
 Object.seal({
 
   initialized:false,
@@ -44,7 +56,7 @@ Object.seal({
 
   recovering:false,
 
-  runtimeState:
+  runtimeStatus:
   RUNTIME_STATES
   .IDLE,
 
@@ -76,57 +88,57 @@ function createRuntimeStateSnapshot(){
   return Object.freeze({
 
     initialized:
-    runtimeManagerState
+    runtimeState
     .initialized,
 
     booting:
-    runtimeManagerState
+    runtimeState
     .booting,
 
     shuttingDown:
-    runtimeManagerState
+    runtimeState
     .shuttingDown,
 
     recovering:
-    runtimeManagerState
+    runtimeState
     .recovering,
 
-    runtimeState:
-    runtimeManagerState
-    .runtimeState,
+    runtimeStatus:
+    runtimeState
+    .runtimeStatus,
 
     runtimeErrors:[
 
-      ...runtimeManagerState
+      ...runtimeState
       .runtimeErrors
 
     ],
 
     bootRetries:
-    runtimeManagerState
+    runtimeState
     .bootRetries,
 
     diagnostics:{
 
-      ...runtimeManagerState
+      ...runtimeState
       .diagnostics
 
     },
 
     startedAt:
-    runtimeManagerState
+    runtimeState
     .startedAt,
 
     bootCompletedAt:
-    runtimeManagerState
+    runtimeState
     .bootCompletedAt,
 
     lastRecoveryAt:
-    runtimeManagerState
+    runtimeState
     .lastRecoveryAt,
 
     lastShutdownAt:
-    runtimeManagerState
+    runtimeState
     .lastShutdownAt,
 
     timestamp:
@@ -150,14 +162,14 @@ function updateRuntimeState(
 ){
 
   if(
-    !(key in runtimeManagerState)
+    !(key in runtimeState)
   ){
 
     return false;
 
   }
 
-  runtimeManagerState[key] =
+  runtimeState[key] =
   value;
 
   return true;
@@ -178,19 +190,19 @@ function pushRuntimeError(
 
   if(
 
-    runtimeManagerState
+    runtimeState
     .runtimeErrors
     .length >= 50
 
   ){
 
-    runtimeManagerState
+    runtimeState
     .runtimeErrors
     .shift();
 
   }
 
-  runtimeManagerState
+  runtimeState
   .runtimeErrors
   .push(
     String(error)
@@ -208,7 +220,7 @@ function incrementRuntimeMetric(
 
   if(
 
-    typeof runtimeManagerState
+    typeof runtimeState
     .diagnostics[metric] !==
     "number"
 
@@ -218,7 +230,7 @@ function incrementRuntimeMetric(
 
   }
 
-  runtimeManagerState
+  runtimeState
   .diagnostics[metric]++;
 
   return true;
@@ -233,52 +245,52 @@ function incrementRuntimeMetric(
 
 function resetRuntimeState(){
 
-  runtimeManagerState
+  runtimeState
   .initialized =
   false;
 
-  runtimeManagerState
+  runtimeState
   .booting =
   false;
 
-  runtimeManagerState
+  runtimeState
   .shuttingDown =
   false;
 
-  runtimeManagerState
+  runtimeState
   .recovering =
   false;
 
-  runtimeManagerState
-  .runtimeState =
+  runtimeState
+  .runtimeStatus =
   RUNTIME_STATES
   .IDLE;
 
-  runtimeManagerState
+  runtimeState
   .runtimeErrors =
   [];
 
-  runtimeManagerState
+  runtimeState
   .bootRetries =
   0;
 
-  runtimeManagerState
+  runtimeState
   .diagnostics =
   createDefaultDiagnostics();
 
-  runtimeManagerState
+  runtimeState
   .startedAt =
   null;
 
-  runtimeManagerState
+  runtimeState
   .bootCompletedAt =
   null;
 
-  runtimeManagerState
+  runtimeState
   .lastRecoveryAt =
   null;
 
-  runtimeManagerState
+  runtimeState
   .lastShutdownAt =
   null;
 
@@ -315,15 +327,28 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.RuntimeState =
-  RuntimeState;
+  runtimeState,
 
-}
+  createRuntimeStateSnapshot,
+
+  updateRuntimeState,
+
+  pushRuntimeError,
+
+  incrementRuntimeMetric,
+
+  resetRuntimeState,
+
+  RuntimeState
+
+};
+
+
+
+export default
+RuntimeState;
