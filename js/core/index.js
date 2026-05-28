@@ -108,7 +108,7 @@ function validateCoreSystems(){
   try{
 
     if(
-      typeof window ===
+      typeof globalThis ===
       "undefined"
     ){
 
@@ -118,11 +118,11 @@ function validateCoreSystems(){
 
     const requiredSystems = [
 
-      "RIGOContainer",
-      "RIGOEvents",
-      "RIGOStateManager",
-      "RIGORuntime",
-      "RIGOLifecycle"
+      "RIGOContainerRuntime",
+      "RIGOEventsRuntime",
+      "RIGOStateRuntime",
+      "RIGORuntimeRuntime",
+      "RIGOLifecycleRuntime"
 
     ];
 
@@ -132,7 +132,7 @@ function validateCoreSystems(){
 
         return (
 
-          typeof window[
+          typeof globalThis[
             systemName
           ] ===
 
@@ -184,7 +184,7 @@ async function initializeCoreSystems(){
   try{
 
     if(
-      typeof window ===
+      typeof globalThis ===
       "undefined"
     ){
 
@@ -193,7 +193,7 @@ async function initializeCoreSystems(){
     }
 
     if(
-      window.__RIGO_CORE_READY__ ===
+      globalThis.__RIGO_CORE_READY__ ===
       true
     ){
 
@@ -210,7 +210,7 @@ async function initializeCoreSystems(){
     }
 
     const runtime =
-      window.RIGORuntime;
+      globalThis.RIGORuntimeRuntime;
 
     if(
 
@@ -225,7 +225,7 @@ async function initializeCoreSystems(){
 
     }
 
-    window.__RIGO_CORE_READY__ =
+    globalThis.__RIGO_CORE_READY__ =
       true;
 
     console.info(
@@ -255,7 +255,7 @@ async function initializeCoreSystems(){
 // PUBLIC API
 // =====================================
 
-const RIGOCore =
+const RIGOCoreRuntime =
 Object.freeze({
 
 
@@ -276,7 +276,7 @@ Object.freeze({
 
   get container(){
 
-    return window.RIGOContainer;
+    return globalThis.RIGOContainerRuntime;
 
   },
 
@@ -284,7 +284,7 @@ Object.freeze({
 
   get events(){
 
-    return window.RIGOEvents;
+    return globalThis.RIGOEventsRuntime;
 
   },
 
@@ -292,7 +292,7 @@ Object.freeze({
 
   get state(){
 
-    return window.RIGOStateManager;
+    return globalThis.RIGOStateRuntime;
 
   },
 
@@ -300,7 +300,7 @@ Object.freeze({
 
   get runtime(){
 
-    return window.RIGORuntime;
+    return globalThis.RIGORuntimeRuntime;
 
   },
 
@@ -308,7 +308,7 @@ Object.freeze({
 
   get lifecycle(){
 
-    return window.RIGOLifecycle;
+    return globalThis.RIGOLifecycleRuntime;
 
   },
 
@@ -316,7 +316,7 @@ Object.freeze({
 
   get health(){
 
-    return window.RIGOHealth;
+    return globalThis.RIGOHealthRuntime;
 
   },
 
@@ -324,7 +324,23 @@ Object.freeze({
 
   get modules(){
 
-    return window.RIGOModules;
+    return globalThis.RIGOModulesRuntime;
+
+  },
+
+
+
+  get config(){
+
+    return globalThis.RIGOConfigRuntime;
+
+  },
+
+
+
+  get constants(){
+
+    return globalThis.RIGOConstantsRuntime;
 
   }
 
@@ -333,30 +349,47 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  validateCoreSystems,
+
+  initializeCoreSystems,
+
+  RIGOCoreRuntime
+
+};
+
+export default
+RIGOCoreRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGOCore",
+    "RIGOCoreRuntime",
 
     {
 
       value:
-      RIGOCore,
+      RIGOCoreRuntime,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
@@ -371,7 +404,7 @@ if(
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
