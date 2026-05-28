@@ -2,7 +2,7 @@
 // RIGO AI
 // SHARED INDEX
 // ENTERPRISE SHARED RUNTIME
-// FINAL STABLE EDITION
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -44,7 +44,10 @@ Object.seal({
   new Set(),
 
   failedModules:
-  new Set()
+  new Set(),
+
+  startupPromise:
+  null
 
 });
 
@@ -61,6 +64,29 @@ function isFunction(
   return (
     typeof value ===
     "function"
+  );
+
+}
+
+
+
+function normalizeSharedError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN_ERROR"
   );
 
 }
@@ -93,10 +119,21 @@ function safeFreeze(
   if(
 
     value instanceof Date ||
+
     value instanceof RegExp ||
+
     value instanceof Map ||
+
     value instanceof Set ||
-    value instanceof HTMLElement
+
+    (
+      typeof HTMLElement !==
+      "undefined"
+
+      &&
+
+      value instanceof HTMLElement
+    )
 
   ){
 
@@ -104,11 +141,16 @@ function safeFreeze(
 
   }
 
-  visited.add(value);
+  visited.add(
+    value
+  );
 
-  Object.freeze(value);
+  Object.freeze(
+    value
+  );
 
-  Object.values(value).forEach((nestedValue) => {
+  Object.values(value)
+  .forEach((nestedValue) => {
 
     if(
       nestedValue &&
@@ -117,8 +159,10 @@ function safeFreeze(
     ){
 
       safeFreeze(
+
         nestedValue,
         visited
+
       );
 
     }
@@ -140,7 +184,9 @@ async function safelyExecuteSharedOperation(
   try{
 
     if(
-      !isFunction(operation)
+      !isFunction(
+        operation
+      )
     ){
 
       return fallback;
@@ -159,7 +205,9 @@ async function safelyExecuteSharedOperation(
 
     sharedRuntimeState
     .lastError =
-    error;
+    normalizeSharedError(
+      error
+    );
 
     logSharedError(
 
@@ -168,7 +216,9 @@ async function safelyExecuteSharedOperation(
       {
 
         error:
-        String(error)
+        normalizeSharedError(
+          error
+        )
 
       }
 
@@ -232,7 +282,7 @@ function logSharedInfo(
 
       logInfo(
 
-        "[SHARED]",
+        "[RIGOSharedRuntime]",
 
         {
 
@@ -250,7 +300,7 @@ function logSharedInfo(
 
     console.info(
 
-      "[SHARED]",
+      "[RIGOSharedRuntime]",
 
       message,
 
@@ -284,7 +334,7 @@ function logSharedError(
 
       logError(
 
-        "[SHARED]",
+        "[RIGOSharedRuntime]",
 
         {
 
@@ -302,7 +352,7 @@ function logSharedError(
 
     console.error(
 
-      "[SHARED]",
+      "[RIGOSharedRuntime]",
 
       message,
 
@@ -353,7 +403,7 @@ safeFreeze({
 
 
 // =====================================
-// REGISTER MODULE
+// MODULE REGISTRATION
 // =====================================
 
 function registerSharedModule(
@@ -378,10 +428,6 @@ function registerSharedModule(
 
 
 
-// =====================================
-// REGISTER FAILED MODULE
-// =====================================
-
 function registerFailedSharedModule(
   moduleName
 ){
@@ -399,7 +445,7 @@ function registerFailedSharedModule(
 
 
 // =====================================
-// VALIDATE MODULES
+// VALIDATION
 // =====================================
 
 function validateSharedModules(){
@@ -423,9 +469,9 @@ function validateSharedModules(){
 
       &&
 
-      typeof module
-      .initialize ===
-      "function"
+      isFunction(
+        module.initialize
+      )
 
     );
 
@@ -436,25 +482,38 @@ function validateSharedModules(){
 
 
 // =====================================
-// INITIALIZE SHARED RUNTIME
+// INITIALIZATION
 // =====================================
 
 async function initializeSharedRuntime(){
 
-  return safelyExecuteSharedOperation(
+  if(
+    sharedRuntimeState
+    .initialized
+  ){
 
-    "SHARED INITIALIZATION",
+    return true;
+
+  }
+
+  if(
+    sharedRuntimeState
+    .startupPromise
+  ){
+
+    return sharedRuntimeState
+    .startupPromise;
+
+  }
+
+  sharedRuntimeState
+  .startupPromise =
+
+  safelyExecuteSharedOperation(
+
+    "SHARED_INITIALIZATION",
 
     async() => {
-
-      if(
-        sharedRuntimeState
-        .initialized
-      ){
-
-        return true;
-
-      }
 
       if(
         sharedRuntimeState
@@ -502,7 +561,7 @@ async function initializeSharedRuntime(){
 
             logSharedError(
 
-              "MODULE INIT FAILED",
+              "MODULE_INIT_FAILED",
 
               {
 
@@ -535,7 +594,7 @@ async function initializeSharedRuntime(){
 
           logSharedInfo(
 
-            "MODULE READY",
+            "MODULE_READY",
 
             {
 
@@ -556,7 +615,7 @@ async function initializeSharedRuntime(){
 
           logSharedError(
 
-            "MODULE CRASHED",
+            "MODULE_CRASHED",
 
             {
 
@@ -564,7 +623,9 @@ async function initializeSharedRuntime(){
               module.name,
 
               error:
-              String(error)
+              normalizeSharedError(
+                error
+              )
 
             }
 
@@ -599,7 +660,7 @@ async function initializeSharedRuntime(){
         startedAt;
 
       logSharedInfo(
-        "SHARED RUNTIME READY"
+        "SHARED_RUNTIME_READY"
       );
 
       return true;
@@ -608,29 +669,53 @@ async function initializeSharedRuntime(){
 
     false
 
-  )
+  );
 
-  .finally(() => {
+  const currentPromise =
+  sharedRuntimeState
+  .startupPromise;
+
+  try{
+
+    return await currentPromise;
+
+  }
+
+  finally{
 
     sharedRuntimeState
     .initializing =
     false;
 
-  });
+    if(
+
+      sharedRuntimeState
+      .startupPromise ===
+      currentPromise
+
+    ){
+
+      sharedRuntimeState
+      .startupPromise =
+      null;
+
+    }
+
+  }
 
 }
 
 
 
 // =====================================
-// RESET SHARED RUNTIME
+// RESET
 // =====================================
 
 async function resetSharedRuntime(){
 
   return safelyExecuteSharedOperation(
 
-    "SHARED RESET",
+    "SHARED_RESET",
 
     async() => {
 
@@ -676,7 +761,7 @@ async function resetSharedRuntime(){
 
 
 // =====================================
-// SHARED HEALTHCHECK
+// HEALTHCHECK
 // =====================================
 
 function runSharedHealthcheck(){
@@ -704,7 +789,7 @@ function runSharedHealthcheck(){
 
 
 // =====================================
-// GET SHARED MODULE
+// MODULE ACCESS
 // =====================================
 
 function getSharedModule(
@@ -731,8 +816,9 @@ function getSharedModule(
   ];
 
   if(
-    typeof resolver !==
-    "function"
+    !isFunction(
+      resolver
+    )
   ){
 
     return null;
@@ -746,7 +832,7 @@ function getSharedModule(
 
 
 // =====================================
-// SHARED SNAPSHOT
+// SNAPSHOT
 // =====================================
 
 function createSharedSnapshot(){
@@ -805,18 +891,7 @@ function createSharedSnapshot(){
     lastError:
 
       sharedRuntimeState
-      .lastError
-
-      ?
-
-      String(
-        sharedRuntimeState
-        .lastError
-      )
-
-      :
-
-      null,
+      .lastError,
 
     timestamp:
     Date.now()
@@ -837,17 +912,27 @@ safeFreeze({
   initialize:
   initializeSharedRuntime,
 
+
+
   reset:
   resetSharedRuntime,
+
+
 
   healthcheck:
   runSharedHealthcheck,
 
+
+
   get:
   getSharedModule,
 
+
+
   diagnostics:
   createSharedSnapshot,
+
+
 
   snapshot:
   createSharedSnapshot
@@ -857,17 +942,48 @@ safeFreeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
+// =====================================
+
+export {
+
+  SHARED_RUNTIME_MODULES,
+
+  sharedRuntimeState,
+
+  validateSharedModules,
+
+  initializeSharedRuntime,
+
+  resetSharedRuntime,
+
+  runSharedHealthcheck,
+
+  getSharedModule,
+
+  createSharedSnapshot,
+
+  RIGOSharedRuntime
+
+};
+
+export default
+RIGOSharedRuntime;
+
+
+
+// =====================================
+// GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "RIGOSharedRuntime",
 
@@ -887,17 +1003,3 @@ if(
   );
 
 }
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  RIGOSharedRuntime
-
-};
-
-export default
-RIGOSharedRuntime;
