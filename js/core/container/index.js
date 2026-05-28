@@ -113,7 +113,7 @@ function validateContainerLayer(){
 // CONTAINER API
 // =====================================
 
-const ContainerAPI =
+const RIGOContainerRuntime =
 Object.freeze({
 
 
@@ -138,24 +138,41 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  validateContainerLayer,
+
+  RIGOContainerRuntime
+
+};
+
+export default
+RIGOContainerRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "ContainerAPI",
+    "RIGOContainerRuntime",
 
     {
 
       value:
-      ContainerAPI,
+      RIGOContainerRuntime,
 
       writable:
       false,
