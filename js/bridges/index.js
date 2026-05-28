@@ -79,7 +79,7 @@ function getAIRuntimeBridge(){
 // PUBLIC API
 // =====================================
 
-const Bridges =
+const RIGOBridgesRuntime =
 Object.freeze({
 
   runtime:
@@ -96,24 +96,43 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  validateBridgeLayer,
+
+  getAIRuntimeBridge,
+
+  RIGOBridgesRuntime
+
+};
+
+export default
+RIGOBridgesRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORTS
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "Bridges",
+    "RIGOBridgesRuntime",
 
     {
 
       value:
-      Bridges,
+      RIGOBridgesRuntime,
 
       writable:
       false,
@@ -124,74 +143,5 @@ if(
     }
 
   );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "AIRuntimeBridge",
-
-    {
-
-      value:
-      AIRuntimeBridge,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "getAIRuntimeBridge",
-
-    {
-
-      value:
-      getAIRuntimeBridge,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-
-
-  Object.defineProperty(
-
-    window,
-
-    "validateBridgeLayer",
-
-    {
-
-      value:
-      validateBridgeLayer,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
 }
+
