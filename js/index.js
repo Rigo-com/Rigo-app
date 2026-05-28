@@ -2,7 +2,7 @@
 // RIGO AI
 // ROOT SYSTEM INDEX
 // ENTERPRISE APPLICATION ORCHESTRATOR
-// FINAL STABILIZED EDITION
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -69,31 +69,63 @@ import "./bootstrap/index.js";
 const rootSystemState =
 Object.seal({
 
-  initialized:
-  false,
+  initialized:false,
 
-  initializing:
-  false,
+  initializing:false,
 
-  shuttingDown:
-  false,
+  shuttingDown:false,
 
-  crashed:
-  false,
+  crashed:false,
 
-  initializedAt:
-  null,
+  initializedAt:null,
 
-  shutdownAt:
-  null,
+  shutdownAt:null,
 
-  startupPromise:
-  null,
+  startupPromise:null,
 
-  lastError:
-  null
+  lastError:null
 
 });
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isFunction(
+  value
+){
+
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
+
+function normalizeRootError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
+
+  }
+
+  return String(
+    error || "UNKNOWN_ROOT_ERROR"
+  );
+
+}
 
 
 
@@ -206,6 +238,74 @@ function logRootSystemError(
 
 
 // =====================================
+// VALIDATION
+// =====================================
+
+function validateRootSystems(){
+
+  if(
+    typeof globalThis ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  const requiredSystems = [
+
+    "RIGOSharedRuntime",
+    "RIGOSecurityRuntime",
+    "RIGOStorageRuntime",
+    "RIGOSettingsRuntime",
+    "RIGOServicesRuntime",
+    "RIGOUIRuntime"
+
+  ];
+
+  const missingSystems =
+
+    requiredSystems.filter((systemName) => {
+
+      return (
+
+        typeof globalThis[
+          systemName
+        ] ===
+
+        "undefined"
+
+      );
+
+    });
+
+  if(
+    missingSystems.length > 0
+  ){
+
+    logRootSystemError(
+
+      "ROOT VALIDATION FAILED",
+
+      {
+
+        missingSystems
+
+      }
+
+    );
+
+    return false;
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
 // INITIALIZE SYSTEM
 // =====================================
 
@@ -241,16 +341,37 @@ async function initializeSystem(){
 
     try{
 
+      if(
+        !validateRootSystems()
+      ){
+
+        throw new Error(
+          "ROOT_SYSTEM_VALIDATION_FAILED"
+        );
+
+      }
+
+
+
       // ===============================
       // SHARED
       // ===============================
 
       if(
-        typeof SharedRuntime !==
+
+        typeof RIGOSharedRuntime !==
         "undefined"
+
+        &&
+
+        isFunction(
+          RIGOSharedRuntime
+          .initialize
+        )
+
       ){
 
-        await SharedRuntime
+        await RIGOSharedRuntime
         .initialize();
 
       }
@@ -262,18 +383,20 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof Security !==
+
+        typeof RIGOSecurityRuntime !==
         "undefined"
 
         &&
 
-        typeof Security
-        .initialize ===
-        "function"
+        isFunction(
+          RIGOSecurityRuntime
+          .initialize
+        )
 
       ){
 
-        await Security
+        await RIGOSecurityRuntime
         .initialize();
 
       }
@@ -285,18 +408,20 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof StorageRuntime !==
+
+        typeof RIGOStorageRuntime !==
         "undefined"
 
         &&
 
-        typeof StorageRuntime
-        .initialize ===
-        "function"
+        isFunction(
+          RIGOStorageRuntime
+          .initialize
+        )
 
       ){
 
-        await StorageRuntime
+        await RIGOStorageRuntime
         .initialize();
 
       }
@@ -308,18 +433,20 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof SettingsAPI !==
+
+        typeof RIGOSettingsRuntime !==
         "undefined"
 
         &&
 
-        typeof SettingsAPI
-        .initialize ===
-        "function"
+        isFunction(
+          RIGOSettingsRuntime
+          .initialize
+        )
 
       ){
 
-        await SettingsAPI
+        await RIGOSettingsRuntime
         .initialize();
 
       }
@@ -331,11 +458,20 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof ServicesRuntime !==
+
+        typeof RIGOServicesRuntime !==
         "undefined"
+
+        &&
+
+        isFunction(
+          RIGOServicesRuntime
+          .initialize
+        )
+
       ){
 
-        await ServicesRuntime
+        await RIGOServicesRuntime
         .initialize();
 
       }
@@ -347,11 +483,11 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof Communication !==
-        "undefined"
+        typeof getCommunicationLayer ===
+        "function"
       ){
 
-        getCommunicationLayer?.();
+        getCommunicationLayer();
 
       }
 
@@ -362,21 +498,23 @@ async function initializeSystem(){
       // ===============================
 
       if(
-  typeof AIRuntimeBridge !==
-  "undefined"
 
-  &&
+        typeof AIRuntimeBridge !==
+        "undefined"
 
-  typeof AIRuntimeBridge
-  .initialize ===
-  "function"
+        &&
 
-){
+        isFunction(
+          AIRuntimeBridge
+          .initialize
+        )
 
-  await AIRuntimeBridge
-  .initialize();
+      ){
 
-}
+        await AIRuntimeBridge
+        .initialize();
+
+      }
 
 
 
@@ -385,14 +523,16 @@ async function initializeSystem(){
       // ===============================
 
       if(
+
         typeof MemoryAPI !==
         "undefined"
 
         &&
 
-        typeof MemoryAPI
-        .initialize ===
-        "function"
+        isFunction(
+          MemoryAPI
+          .initialize
+        )
 
       ){
 
@@ -408,14 +548,16 @@ async function initializeSystem(){
       // ===============================
 
       if(
+
         typeof SearchAPI !==
         "undefined"
 
         &&
 
-        typeof SearchAPI
-        .rebuildIndexes ===
-        "function"
+        isFunction(
+          SearchAPI
+          .rebuildIndexes
+        )
 
       ){
 
@@ -431,18 +573,20 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof Chat !==
+
+        typeof RIGOChatRuntime !==
         "undefined"
 
         &&
 
-        typeof Chat
-        .initialize ===
-        "function"
+        isFunction(
+          RIGOChatRuntime
+          .initialize
+        )
 
       ){
 
-        await Chat
+        await RIGOChatRuntime
         .initialize();
 
       }
@@ -454,18 +598,45 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof UI !==
+
+        typeof RIGOUIRuntime !==
         "undefined"
 
         &&
 
-        typeof UI
-        .initialize ===
-        "function"
+        isFunction(
+          RIGOUIRuntime
+          .initialize
+        )
 
       ){
 
-        await UI
+        await RIGOUIRuntime
+        .initialize();
+
+      }
+
+
+
+      // ===============================
+      // VOICE
+      // ===============================
+
+      if(
+
+        typeof RIGOVoiceRuntime !==
+        "undefined"
+
+        &&
+
+        isFunction(
+          RIGOVoiceRuntime
+          .initialize
+        )
+
+      ){
+
+        await RIGOVoiceRuntime
         .initialize();
 
       }
@@ -477,18 +648,20 @@ async function initializeSystem(){
       // ===============================
 
       if(
-        typeof Bootstrap !==
+
+        typeof RIGOBootstrapRuntime !==
         "undefined"
 
         &&
 
-        typeof Bootstrap
-        .initialize ===
-        "function"
+        isFunction(
+          RIGOBootstrapRuntime
+          .initialize
+        )
 
       ){
 
-        await Bootstrap
+        await RIGOBootstrapRuntime
         .initialize();
 
       }
@@ -521,7 +694,9 @@ async function initializeSystem(){
 
       rootSystemState
       .lastError =
-      error;
+      normalizeRootError(
+        error
+      );
 
       logRootSystemError(
 
@@ -530,7 +705,9 @@ async function initializeSystem(){
         {
 
           error:
-          String(error)
+          normalizeRootError(
+            error
+          )
 
         }
 
@@ -583,11 +760,20 @@ async function shutdownSystem(){
   try{
 
     if(
-      typeof ServicesRuntime !==
+
+      typeof RIGOServicesRuntime !==
       "undefined"
+
+      &&
+
+      isFunction(
+        RIGOServicesRuntime
+        .shutdown
+      )
+
     ){
 
-      await ServicesRuntime
+      await RIGOServicesRuntime
       .shutdown();
 
     }
@@ -612,7 +798,9 @@ async function shutdownSystem(){
 
     rootSystemState
     .lastError =
-    error;
+    normalizeRootError(
+      error
+    );
 
     logRootSystemError(
 
@@ -621,7 +809,9 @@ async function shutdownSystem(){
       {
 
         error:
-        String(error)
+        normalizeRootError(
+          error
+        )
 
       }
 
@@ -725,20 +915,11 @@ function getSystemDiagnostics(){
     runSystemHealthcheck(),
 
     lastError:
+    rootSystemState
+    .lastError,
 
-      rootSystemState
-      .lastError
-
-      ?
-
-      String(
-        rootSystemState
-        .lastError
-      )
-
-      :
-
-      null
+    timestamp:
+    Date.now()
 
   });
 
@@ -750,23 +931,41 @@ function getSystemDiagnostics(){
 // ROOT API
 // =====================================
 
-const RIGO =
+const RIGORuntime =
 Object.freeze({
 
   initialize:
   initializeSystem,
 
+
+
   shutdown:
   shutdownSystem,
+
+
 
   reset:
   resetSystem,
 
+
+
   diagnostics:
   getSystemDiagnostics,
 
+
+
+  snapshot:
+  getSystemDiagnostics,
+
+
+
   healthcheck:
   runSystemHealthcheck,
+
+
+
+  validate:
+  validateRootSystems,
 
 
 
@@ -774,41 +973,111 @@ Object.freeze({
   // SYSTEMS
   // ===================================
 
-  shared:
-  globalThis.SharedRuntime || null,
+  get shared(){
 
-  security:
-  globalThis.Security || null,
+    return globalThis
+    .RIGOSharedRuntime || null;
 
-  storage:
-  globalThis.StorageRuntime || null,
+  },
 
-  settings:
-  globalThis.SettingsAPI || null,
 
-  services:
-  globalThis.ServicesRuntime || null,
 
-  communication:
-  globalThis.Communication || null,
+  get security(){
 
-  memory:
-  globalThis.MemoryAPI || null,
+    return globalThis
+    .RIGOSecurityRuntime || null;
 
-  search:
-  globalThis.SearchAPI || null,
+  },
 
-  chat:
-  globalThis.Chat || null,
 
-  ui:
-  globalThis.UI || null,
 
-  voice:
-  globalThis.Voice || null,
+  get storage(){
 
-  bootstrap:
-  globalThis.Bootstrap || null
+    return globalThis
+    .RIGOStorageRuntime || null;
+
+  },
+
+
+
+  get settings(){
+
+    return globalThis
+    .RIGOSettingsRuntime || null;
+
+  },
+
+
+
+  get services(){
+
+    return globalThis
+    .RIGOServicesRuntime || null;
+
+  },
+
+
+
+  get communication(){
+
+    return globalThis
+    .RIGOCommunicationRuntime || null;
+
+  },
+
+
+
+  get memory(){
+
+    return globalThis
+    .MemoryAPI || null;
+
+  },
+
+
+
+  get search(){
+
+    return globalThis
+    .SearchAPI || null;
+
+  },
+
+
+
+  get chat(){
+
+    return globalThis
+    .RIGOChatRuntime || null;
+
+  },
+
+
+
+  get ui(){
+
+    return globalThis
+    .RIGOUIRuntime || null;
+
+  },
+
+
+
+  get voice(){
+
+    return globalThis
+    .RIGOVoiceRuntime || null;
+
+  },
+
+
+
+  get bootstrap(){
+
+    return globalThis
+    .RIGOBootstrapRuntime || null;
+
+  }
 
 });
 
@@ -820,7 +1089,7 @@ Object.freeze({
 
 export {
 
-  RIGO,
+  RIGORuntime,
 
   initializeSystem,
 
@@ -840,12 +1109,13 @@ export {
 // DEFAULT EXPORT
 // =====================================
 
-export default RIGO;
+export default
+RIGORuntime;
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// GLOBAL EXPORT
 // =====================================
 
 if(
@@ -853,7 +1123,23 @@ if(
   "undefined"
 ){
 
-  globalThis.RIGO =
-  RIGO;
+  Object.defineProperty(
+
+    globalThis,
+
+    "RIGORuntime",
+
+    {
+
+      value:
+      RIGORuntime,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
