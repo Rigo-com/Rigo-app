@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // CONTAINER SCOPES
+// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -33,7 +34,7 @@ function detectCircularDependency(
 
   if(
 
-    !DEPENDENCY_CONTAINER_CONFIG
+    !CONTAINER_CONFIG
     .ENABLE_CIRCULAR_PROTECTION
 
   ){
@@ -55,7 +56,7 @@ function detectCircularDependency(
 
   return (
 
-    dependencyContainerState
+    containerState
     .resolutionStack
     .includes(
       normalizedService
@@ -68,7 +69,7 @@ function detectCircularDependency(
 
 
 // =====================================
-// SCOPES
+// GET SCOPE
 // =====================================
 
 function getScopeContainer(
@@ -90,7 +91,7 @@ function getScopeContainer(
 
   if(
 
-    !dependencyContainerState
+    !containerState
     .scopes
     .has(
       normalizedScope
@@ -98,7 +99,7 @@ function getScopeContainer(
 
   ){
 
-    dependencyContainerState
+    containerState
     .scopes
     .set(
 
@@ -108,13 +109,13 @@ function getScopeContainer(
 
     );
 
-    dependencyContainerState
+    containerState
     .diagnostics
     .scopes++;
 
   }
 
-  return dependencyContainerState
+  return containerState
   .scopes
   .get(
     normalizedScope
@@ -143,7 +144,7 @@ function removeScopeContainer(
 
   }
 
-  return dependencyContainerState
+  return containerState
   .scopes
   .delete(
     normalizedScope
@@ -159,11 +160,11 @@ function removeScopeContainer(
 
 function clearScopeContainers(){
 
-  dependencyContainerState
+  containerState
   .scopes
   .clear();
 
-  dependencyContainerState
+  containerState
   .diagnostics
   .scopes = 0;
 
@@ -174,27 +175,19 @@ function clearScopeContainers(){
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.normalizeContainerScope =
-  normalizeContainerScope;
+  normalizeContainerScope,
 
-  window.detectCircularDependency =
-  detectCircularDependency;
+  detectCircularDependency,
 
-  window.getScopeContainer =
-  getScopeContainer;
+  getScopeContainer,
 
-  window.removeScopeContainer =
-  removeScopeContainer;
+  removeScopeContainer,
 
-  window.clearScopeContainers =
-  clearScopeContainers;
+  clearScopeContainers
 
-}
+};
