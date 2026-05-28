@@ -314,7 +314,7 @@ async function emitRuntimeIndexEvent(
 function validateRuntimeLayer(){
 
   if(
-    typeof window ===
+    typeof globalThis ===
     "undefined"
   ){
 
@@ -340,7 +340,7 @@ function validateRuntimeLayer(){
 
       return (
 
-        typeof window[
+        typeof globalThis[
           systemName
         ] ===
 
@@ -429,7 +429,7 @@ async function initializeRuntimeLayer(){
     .lastInitializedAt =
     Date.now();
 
-    window.__RIGO_RUNTIME_READY__ =
+    globalThis.__RIGO_RUNTIME_READY__ =
     true;
 
     await emitRuntimeIndexEvent(
@@ -536,7 +536,7 @@ async function bootRuntimeLayer(){
     }
 
     const runtimeManager =
-      window.RIGORuntimeManager;
+      globalThis.RIGORuntimeManager;
 
     if(
 
@@ -630,7 +630,7 @@ async function getRuntimeLayerHealth(){
   try{
 
     const runtimeManager =
-      window.RIGORuntimeManager;
+      globalThis.RIGORuntimeManager;
 
     const health =
 
@@ -784,14 +784,14 @@ function createRuntimeLayerSnapshot(){
 // PUBLIC API
 // =====================================
 
-const RIGORuntime =
+const RIGORuntimeLayer =
 Object.freeze({
 
 
 
   get Manager(){
 
-    return window.RIGORuntimeManager;
+    return globalThis.RIGORuntimeManager;
 
   },
 
@@ -799,7 +799,7 @@ Object.freeze({
 
   get State(){
 
-    return window.RIGORuntimeState;
+    return globalThis.RIGORuntimeState;
 
   },
 
@@ -807,7 +807,7 @@ Object.freeze({
 
   get Helpers(){
 
-    return window.RIGORuntimeHelpers;
+    return globalThis.RIGORuntimeHelpers;
 
   },
 
@@ -815,7 +815,7 @@ Object.freeze({
 
   get BootSequence(){
 
-    return window.RIGORuntimeBootSequence;
+    return globalThis.RIGORuntimeBootSequence;
 
   },
 
@@ -823,7 +823,7 @@ Object.freeze({
 
   get Language(){
 
-    return window.RIGOLanguageRuntime;
+    return globalThis.RIGOLanguageRuntime;
 
   },
 
@@ -831,7 +831,7 @@ Object.freeze({
 
   get Files(){
 
-    return window.RIGOFilesRuntime;
+    return globalThis.RIGOFilesRuntime;
 
   },
 
@@ -839,7 +839,7 @@ Object.freeze({
 
   get Analytics(){
 
-    return window.RIGOAnalyticsRuntime;
+    return globalThis.RIGOAnalyticsRuntime;
 
   },
 
@@ -868,30 +868,55 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  runtimeIndexState,
+
+  validateRuntimeLayer,
+
+  initializeRuntimeLayer,
+
+  bootRuntimeLayer,
+
+  getRuntimeLayerHealth,
+
+  createRuntimeLayerSnapshot,
+
+  RIGORuntimeLayer
+
+};
+
+export default
+RIGORuntimeLayer;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "RIGORuntime",
+    "RIGORuntimeLayer",
 
     {
 
       value:
-      RIGORuntime,
+      RIGORuntimeLayer,
 
-      writable:
-      false,
+      writable:false,
 
-      configurable:
-      false
+      configurable:false
 
     }
 
@@ -906,7 +931,7 @@ if(
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
