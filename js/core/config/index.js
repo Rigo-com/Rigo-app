@@ -63,7 +63,7 @@ function getGlobalConfig(
 // CONFIG API
 // =====================================
 
-const Config =
+const RIGOConfigRuntime =
 Object.freeze({
 
 
@@ -145,24 +145,41 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  getGlobalConfig,
+
+  RIGOConfigRuntime
+
+};
+
+export default
+RIGOConfigRuntime;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
-    "Config",
+    "RIGOConfigRuntime",
 
     {
 
       value:
-      Config,
+      RIGOConfigRuntime,
 
       writable:
       false,
