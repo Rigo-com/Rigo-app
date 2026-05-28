@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // CONTAINER HEALTH
+// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -9,7 +10,7 @@
 // RESET CONTAINER
 // =====================================
 
-async function resetDependencyContainer(){
+async function resetContainer(){
 
   resetContainerState();
 
@@ -19,7 +20,8 @@ async function resetDependencyContainer(){
   ){
 
     await emitSystemEvent(
-      CONTAINER_EVENTS.RESET
+      CONTAINER_EVENTS
+      .RESET
     );
 
   }
@@ -40,55 +42,55 @@ function getContainerHealthReport(){
 
     healthy:
 
-      dependencyContainerState
+      containerState
       .initialized &&
 
-      dependencyContainerState
+      containerState
       .resolutionStack
       .length === 0 &&
 
-      dependencyContainerState
+      containerState
       .diagnostics
       .failed === 0,
 
     initialized:
 
-      dependencyContainerState
+      containerState
       .initialized,
 
     services:
 
-      dependencyContainerState
+      containerState
       .services
       .size,
 
     singletons:
 
-      dependencyContainerState
+      containerState
       .singletons
       .size,
 
     scopes:
 
-      dependencyContainerState
+      containerState
       .scopes
       .size,
 
     activeResolutions:
 
-      dependencyContainerState
+      containerState
       .resolutionStack
       .length,
 
     failedResolutions:
 
-      dependencyContainerState
+      containerState
       .diagnostics
       .failed,
 
     lastResolvedAt:
 
-      dependencyContainerState
+      containerState
       .lastResolvedAt
 
   });
@@ -106,43 +108,43 @@ function getContainerDiagnostics(){
   return freezeContainerObject({
 
     initialized:
-    dependencyContainerState
+    containerState
     .initialized,
 
     services:
 
-      dependencyContainerState
+      containerState
       .services
       .size,
 
     singletons:
 
-      dependencyContainerState
+      containerState
       .singletons
       .size,
 
     scopes:
 
-      dependencyContainerState
+      containerState
       .scopes
       .size,
 
     activeResolutions:
 
-      dependencyContainerState
+      containerState
       .resolutionStack
       .length,
 
     diagnostics:{
 
-      ...dependencyContainerState
+      ...containerState
       .diagnostics
 
     },
 
     lastResolvedAt:
 
-      dependencyContainerState
+      containerState
       .lastResolvedAt
 
   });
@@ -155,10 +157,10 @@ function getContainerDiagnostics(){
 // INITIALIZE
 // =====================================
 
-async function initializeDependencyContainer(){
+async function initializeContainer(){
 
   if(
-    dependencyContainerState
+    containerState
     .initialized
   ){
 
@@ -166,7 +168,7 @@ async function initializeDependencyContainer(){
 
   }
 
-  dependencyContainerState
+  containerState
   .initialized =
   true;
 
@@ -191,24 +193,17 @@ async function initializeDependencyContainer(){
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.resetDependencyContainer =
-  resetDependencyContainer;
+  resetContainer,
 
-  window.getContainerHealthReport =
-  getContainerHealthReport;
+  getContainerHealthReport,
 
-  window.getContainerDiagnostics =
-  getContainerDiagnostics;
+  getContainerDiagnostics,
 
-  window.initializeDependencyContainer =
-  initializeDependencyContainer;
+  initializeContainer
 
-}
+};
