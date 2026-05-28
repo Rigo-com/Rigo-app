@@ -2,7 +2,7 @@
 // RIGO AI
 // SERVICES INDEX
 // ENTERPRISE SERVICE RUNTIME
-// FINAL STABILIZED EDITION
+// FINAL HARDENED EDITION
 // =====================================
 
 
@@ -33,8 +33,85 @@ Object.freeze([
 
 
 // =====================================
-// VALIDATE SERVICES AVAILABILITY
+// SERVICES CONFIG
 // =====================================
+
+const SERVICES_RUNTIME_CONFIG =
+Object.freeze({
+
+  INIT_TIMEOUT:
+  15000,
+
+  ENABLE_LOGGING:
+  true,
+
+  ENABLE_EVENTS:
+  true,
+
+  ENABLE_HEALTHCHECK:
+  true
+
+});
+
+
+
+// =====================================
+// SERVICES STATE
+// =====================================
+
+const servicesRuntimeState =
+Object.seal({
+
+  initialized:
+  false,
+
+  initializing:
+  false,
+
+  shuttingDown:
+  false,
+
+  crashed:
+  false,
+
+  initializedAt:
+  null,
+
+  shutdownAt:
+  null,
+
+  startupPromise:
+  null,
+
+  lastError:
+  null,
+
+  loadedServices:
+  new Set(),
+
+  failedServices:
+  new Set()
+
+});
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isFunction(
+  value
+){
+
+  return (
+    typeof value ===
+    "function"
+  );
+
+}
+
+
 
 function validateServicesAvailability(){
 
@@ -50,9 +127,14 @@ function validateServicesAvailability(){
   return REQUIRED_SERVICES
   .every((serviceName) => {
 
-    return typeof globalThis[
-      serviceName
-    ] !== "undefined";
+    return (
+
+      typeof globalThis[
+        serviceName
+      ] !==
+      "undefined"
+
+    );
 
   });
 
@@ -60,232 +142,28 @@ function validateServicesAvailability(){
 
 
 
-// =====================================
-// SERVICES CONFIG
-// =====================================
-
-const SERVICES_RUNTIME_CONFIG =
-Object.freeze({
-
-  INIT_TIMEOUT:
-  15000,
-
-  ENABLE_LOGGING:true,
-
-  ENABLE_EVENTS:true,
-
-  ENABLE_HEALTHCHECK:true
-
-});
-
-
-
-// =====================================
-// SERVICES STATE
-// =====================================
-
-const servicesRuntimeState =
-Object.seal({
-
-  initialized:false,
-
-  initializing:false,
-
-  shuttingDown:false,
-
-  crashed:false,
-
-  initializedAt:null,
-
-  shutdownAt:null,
-
-  startupPromise:null,
-
-  lastError:null,
-
-  loadedServices:
-  new Set(),
-
-  failedServices:
-  new Set()
-
-});
-
-
-
-// =====================================
-// SERVICE DEFINITIONS
-// =====================================
-
-const SERVICES_RUNTIME =
-Object.freeze([
-
-  {
-
-    name:"registry",
-
-    required:true,
-
-    dependencies:[],
-
-    async initialize(){
-
-      return (
-
-        typeof ServiceRegistry !==
-        "undefined"
-
-        &&
-
-        typeof ServiceRegistry
-        .initialize ===
-        "function"
-
-        &&
-
-        await ServiceRegistry
-        .initialize()
-
-      );
-
-    },
-
-    async shutdown(){
-
-      return true;
-
-    }
-
-  },
-
-
-
-  {
-
-    name:"api",
-
-    required:true,
-
-    dependencies:[
-      "registry"
-    ],
-
-    async initialize(){
-
-      return (
-
-        typeof APIService !==
-        "undefined"
-
-        &&
-
-        typeof APIService
-        .initialize ===
-        "function"
-
-        &&
-
-        await APIService
-        .initialize()
-
-      );
-
-    },
-
-    async shutdown(){
-
-      if(
-
-        typeof APIService !==
-        "undefined"
-
-        &&
-
-        typeof APIService
-        .cancelAll ===
-        "function"
-
-      ){
-
-        APIService
-        .cancelAll();
-
-      }
-
-      return true;
-
-    }
-
-  },
-
-
-
-  {
-
-    name:"ai",
-
-    required:true,
-
-    dependencies:[
-      "registry",
-      "api"
-    ],
-
-    async initialize(){
-
-      return (
-
-        typeof AIService !==
-        "undefined"
-
-        &&
-
-        typeof AIService
-        .initialize ===
-        "function"
-
-        &&
-
-        await AIService
-        .initialize()
-
-      );
-
-    },
-
-    async shutdown(){
-
-      if(
-
-        typeof AIService !==
-        "undefined"
-
-        &&
-
-        typeof AIService
-        .abort ===
-        "function"
-
-      ){
-
-        AIService
-        .abort();
-
-      }
-
-      return true;
-
-    }
+function normalizeServiceError(
+  error
+){
+
+  if(
+    typeof getSafeErrorMessage ===
+    "function"
+  ){
+
+    return getSafeErrorMessage(
+      error
+    );
 
   }
 
-]);
+  return String(
+    error || "UNKNOWN_ERROR"
+  );
+
+}
 
 
-
-// =====================================
-// LOG HELPERS
-// =====================================
 
 function logServicesInfo(
   message,
@@ -295,7 +173,8 @@ function logServicesInfo(
   if(
 
     SERVICES_RUNTIME_CONFIG
-    .ENABLE_LOGGING !== true
+    .ENABLE_LOGGING !==
+    true
 
   ){
 
@@ -312,7 +191,7 @@ function logServicesInfo(
 
       logInfo(
 
-        "[SERVICES]",
+        "[RIGOServicesRuntime]",
 
         {
 
@@ -330,7 +209,7 @@ function logServicesInfo(
 
     console.info(
 
-      "[SERVICES]",
+      "[RIGOServicesRuntime]",
 
       message,
 
@@ -366,7 +245,7 @@ function logServicesError(
 
       logError(
 
-        "[SERVICES]",
+        "[RIGOServicesRuntime]",
 
         {
 
@@ -384,7 +263,7 @@ function logServicesError(
 
     console.error(
 
-      "[SERVICES]",
+      "[RIGOServicesRuntime]",
 
       message,
 
@@ -417,8 +296,9 @@ async function emitServicesEvent(
 
   if(
 
-    !SERVICES_RUNTIME_CONFIG
-    .ENABLE_EVENTS
+    SERVICES_RUNTIME_CONFIG
+    .ENABLE_EVENTS !==
+    true
 
   ){
 
@@ -429,13 +309,26 @@ async function emitServicesEvent(
   try{
 
     if(
-      typeof emitRuntimeEvent ===
+      typeof emitSystemEvent ===
       "function"
     ){
 
-      await emitRuntimeEvent(
+      await emitSystemEvent(
+
         eventName,
-        payload
+
+        {
+
+          source:
+          "services-runtime",
+
+          timestamp:
+          Date.now(),
+
+          ...payload
+
+        }
+
       );
 
     }
@@ -450,9 +343,13 @@ async function emitServicesEvent(
 
       {
 
-        event:eventName,
+        event:
+        eventName,
 
-        error:String(error)
+        error:
+        normalizeServiceError(
+          error
+        )
 
       }
 
@@ -507,7 +404,189 @@ async function executeServiceWithTimeout(
 
 
 // =====================================
-// VALIDATE RUNTIME
+// SERVICE DEFINITIONS
+// =====================================
+
+const SERVICES_RUNTIME =
+Object.freeze([
+
+  {
+
+    name:
+    "registry",
+
+    required:
+    true,
+
+    dependencies:
+    [],
+
+    async initialize(){
+
+      return (
+
+        typeof ServiceRegistry !==
+        "undefined"
+
+        &&
+
+        isFunction(
+          ServiceRegistry
+          .initialize
+        )
+
+        &&
+
+        await ServiceRegistry
+        .initialize()
+
+      );
+
+    },
+
+    async shutdown(){
+
+      return true;
+
+    }
+
+  },
+
+
+
+  {
+
+    name:
+    "api",
+
+    required:
+    true,
+
+    dependencies:[
+      "registry"
+    ],
+
+    async initialize(){
+
+      return (
+
+        typeof APIService !==
+        "undefined"
+
+        &&
+
+        isFunction(
+          APIService
+          .initialize
+        )
+
+        &&
+
+        await APIService
+        .initialize()
+
+      );
+
+    },
+
+    async shutdown(){
+
+      if(
+
+        typeof APIService !==
+        "undefined"
+
+        &&
+
+        isFunction(
+          APIService
+          .cancelAll
+        )
+
+      ){
+
+        APIService
+        .cancelAll();
+
+      }
+
+      return true;
+
+    }
+
+  },
+
+
+
+  {
+
+    name:
+    "ai",
+
+    required:
+    true,
+
+    dependencies:[
+      "registry",
+      "api"
+    ],
+
+    async initialize(){
+
+      return (
+
+        typeof AIService !==
+        "undefined"
+
+        &&
+
+        isFunction(
+          AIService
+          .initialize
+        )
+
+        &&
+
+        await AIService
+        .initialize()
+
+      );
+
+    },
+
+    async shutdown(){
+
+      if(
+
+        typeof AIService !==
+        "undefined"
+
+        &&
+
+        isFunction(
+          AIService
+          .abort
+        )
+
+      ){
+
+        AIService
+        .abort();
+
+      }
+
+      return true;
+
+    }
+
+  }
+
+]);
+
+
+
+// =====================================
+// VALIDATION
 // =====================================
 
 function validateServicesRuntime(){
@@ -539,9 +618,9 @@ function validateServicesRuntime(){
 
       &&
 
-      typeof service
-      .initialize ===
-      "function"
+      isFunction(
+        service.initialize
+      )
 
     );
 
@@ -550,10 +629,6 @@ function validateServicesRuntime(){
 }
 
 
-
-// =====================================
-// VALIDATE DEPENDENCIES
-// =====================================
 
 function validateServiceDependencies(
   service
@@ -589,7 +664,7 @@ function validateServiceDependencies(
 
 
 // =====================================
-// REGISTER LOADED SERVICE
+// SERVICE REGISTRATION
 // =====================================
 
 function registerLoadedService(
@@ -617,10 +692,6 @@ function registerLoadedService(
 
 
 
-// =====================================
-// REGISTER FAILED SERVICE
-// =====================================
-
 function registerFailedService(
   serviceName
 ){
@@ -638,7 +709,7 @@ function registerFailedService(
 
 
 // =====================================
-// INITIALIZE SERVICES
+// INITIALIZATION
 // =====================================
 
 async function initializeServicesRuntime(){
@@ -653,10 +724,8 @@ async function initializeServicesRuntime(){
   }
 
   if(
-
     servicesRuntimeState
     .startupPromise
-
   ){
 
     return servicesRuntimeState
@@ -666,10 +735,12 @@ async function initializeServicesRuntime(){
 
   servicesRuntimeState
   .startupPromise =
+
   (async() => {
 
     servicesRuntimeState
-    .initializing = true;
+    .initializing =
+    true;
 
     try{
 
@@ -801,7 +872,9 @@ async function initializeServicesRuntime(){
               service.name,
 
               error:
-              String(error)
+              normalizeServiceError(
+                error
+              )
 
             }
 
@@ -817,7 +890,9 @@ async function initializeServicesRuntime(){
               service.name,
 
               error:
-              String(error)
+              normalizeServiceError(
+                error
+              )
 
             }
 
@@ -836,10 +911,12 @@ async function initializeServicesRuntime(){
       }
 
       servicesRuntimeState
-      .crashed = false;
+      .crashed =
+      false;
 
       servicesRuntimeState
-      .initialized = true;
+      .initialized =
+      true;
 
       servicesRuntimeState
       .initializedAt =
@@ -860,10 +937,14 @@ async function initializeServicesRuntime(){
     catch(error){
 
       servicesRuntimeState
-      .crashed = true;
+      .crashed =
+      true;
 
       servicesRuntimeState
-      .lastError = error;
+      .lastError =
+      normalizeServiceError(
+        error
+      );
 
       await emitServicesEvent(
 
@@ -872,7 +953,9 @@ async function initializeServicesRuntime(){
         {
 
           error:
-          String(error)
+          normalizeServiceError(
+            error
+          )
 
         }
 
@@ -885,7 +968,9 @@ async function initializeServicesRuntime(){
         {
 
           error:
-          String(error)
+          normalizeServiceError(
+            error
+          )
 
         }
 
@@ -898,7 +983,8 @@ async function initializeServicesRuntime(){
     finally{
 
       servicesRuntimeState
-      .initializing = false;
+      .initializing =
+      false;
 
     }
 
@@ -925,7 +1011,8 @@ async function initializeServicesRuntime(){
     ){
 
       servicesRuntimeState
-      .startupPromise = null;
+      .startupPromise =
+      null;
 
     }
 
@@ -936,7 +1023,7 @@ async function initializeServicesRuntime(){
 
 
 // =====================================
-// SHUTDOWN SERVICES
+// SHUTDOWN
 // =====================================
 
 async function shutdownServicesRuntime(){
@@ -951,7 +1038,8 @@ async function shutdownServicesRuntime(){
   }
 
   servicesRuntimeState
-  .shuttingDown = true;
+  .shuttingDown =
+  true;
 
   try{
 
@@ -971,9 +1059,9 @@ async function shutdownServicesRuntime(){
 
         if(
 
-          typeof service
-          .shutdown ===
-          "function"
+          isFunction(
+            service.shutdown
+          )
 
         ){
 
@@ -996,7 +1084,9 @@ async function shutdownServicesRuntime(){
             service.name,
 
             error:
-            String(error)
+            normalizeServiceError(
+              error
+            )
 
           }
 
@@ -1015,10 +1105,12 @@ async function shutdownServicesRuntime(){
     .clear();
 
     servicesRuntimeState
-    .initialized = false;
+    .initialized =
+    false;
 
     servicesRuntimeState
-    .lastError = null;
+    .lastError =
+    null;
 
     servicesRuntimeState
     .shutdownAt =
@@ -1039,7 +1131,8 @@ async function shutdownServicesRuntime(){
   finally{
 
     servicesRuntimeState
-    .shuttingDown = false;
+    .shuttingDown =
+    false;
 
   }
 
@@ -1048,7 +1141,7 @@ async function shutdownServicesRuntime(){
 
 
 // =====================================
-// RESET SERVICES RUNTIME
+// RESET
 // =====================================
 
 async function resetServicesRuntime(){
@@ -1056,10 +1149,12 @@ async function resetServicesRuntime(){
   await shutdownServicesRuntime();
 
   servicesRuntimeState
-  .crashed = false;
+  .crashed =
+  false;
 
   servicesRuntimeState
-  .lastError = null;
+  .lastError =
+  null;
 
   return initializeServicesRuntime();
 
@@ -1068,28 +1163,20 @@ async function resetServicesRuntime(){
 
 
 // =====================================
-// SERVICES HEALTHCHECK
+// HEALTHCHECK
 // =====================================
 
 function runServicesHealthcheck(){
 
   if(
 
-    !SERVICES_RUNTIME_CONFIG
-    .ENABLE_HEALTHCHECK
+    SERVICES_RUNTIME_CONFIG
+    .ENABLE_HEALTHCHECK !==
+    true
 
   ){
 
     return true;
-
-  }
-
-  if(
-    typeof ServiceRegistry ===
-    "undefined"
-  ){
-
-    return false;
 
   }
 
@@ -1116,6 +1203,7 @@ function runServicesHealthcheck(){
   .filter((service) => {
 
     return service.required;
+
   });
 
   return requiredServices
@@ -1134,7 +1222,7 @@ function runServicesHealthcheck(){
 
 
 // =====================================
-// GET SERVICE INSTANCE
+// SERVICE ACCESS
 // =====================================
 
 function getRegisteredService(
@@ -1152,8 +1240,9 @@ function getRegisteredService(
 
   if(
 
-    typeof ServiceRegistry.get !==
-    "function"
+    !isFunction(
+      ServiceRegistry.get
+    )
 
   ){
 
@@ -1171,7 +1260,7 @@ function getRegisteredService(
 
 
 // =====================================
-// SERVICES DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getServicesDiagnostics(){
@@ -1232,20 +1321,8 @@ function getServicesDiagnostics(){
     runServicesHealthcheck(),
 
     lastError:
-
-      servicesRuntimeState
-      .lastError
-
-      ?
-
-      String(
-        servicesRuntimeState
-        .lastError
-      )
-
-      :
-
-      null
+    servicesRuntimeState
+    .lastError
 
   });
 
@@ -1257,7 +1334,7 @@ function getServicesDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const ServicesRuntime =
+const RIGOServicesRuntime =
 Object.freeze({
 
   initialize:
@@ -1286,7 +1363,7 @@ Object.freeze({
 
 
 // =====================================
-// MODULE EXPORTS
+// EXPORTS
 // =====================================
 
 export {
@@ -1321,11 +1398,12 @@ export {
 
   getServicesDiagnostics,
 
-  ServicesRuntime
+  RIGOServicesRuntime
 
 };
 
-export default ServicesRuntime;
+export default
+RIGOServicesRuntime;
 
 
 
@@ -1342,18 +1420,21 @@ if(
 
     globalThis,
 
-    "ServicesRuntime",
+    "RIGOServicesRuntime",
 
     {
 
       value:
-      ServicesRuntime,
+      RIGOServicesRuntime,
 
-      writable:false,
+      writable:
+      false,
 
-      configurable:false,
+      configurable:
+      false,
 
-      enumerable:false
+      enumerable:
+      false
 
     }
 
