@@ -7,6 +7,30 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import {
+
+  CONTAINER_CONFIG,
+
+  CONTAINER_LIFECYCLE
+
+}
+from "./container-constants.js";
+
+import {
+
+  containerState,
+
+  freezeContainerObject
+
+}
+from "./container-state.js";
+
+
+
+// =====================================
 // HELPERS
 // =====================================
 
