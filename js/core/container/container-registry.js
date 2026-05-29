@@ -96,6 +96,22 @@ function registerService(
 
     containerState
     .services
+    .has(
+      normalizedName
+    )
+
+  ){
+
+    return createContainerError(
+      "SERVICE ALREADY REGISTERED"
+    );
+
+  }
+
+  if(
+
+    containerState
+    .services
     .size >=
 
     CONTAINER_CONFIG
@@ -197,7 +213,9 @@ function removeService(
     !normalizedName
   ){
 
-    return false;
+    return createContainerError(
+      "INVALID SERVICE NAME"
+    );
 
   }
 
@@ -213,7 +231,9 @@ function removeService(
     !exists
   ){
 
-    return false;
+    return createContainerError(
+      "SERVICE NOT FOUND"
+    );
 
   }
 
@@ -332,6 +352,32 @@ function hasRegisteredService(
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const RIGOContainerRegistry =
+Object.freeze({
+
+  register:
+  registerService,
+
+  remove:
+  removeService,
+
+  get:
+  getRegisteredService,
+
+  getAll:
+  getRegisteredServices,
+
+  has:
+  hasRegisteredService
+
+});
+
+
+
+// =====================================
 // EXPORTS
 // =====================================
 
@@ -347,6 +393,11 @@ export {
 
   getRegisteredServices,
 
-  hasRegisteredService
+  hasRegisteredService,
+
+  RIGOContainerRegistry
 
 };
+
+export default
+RIGOContainerRegistry;
