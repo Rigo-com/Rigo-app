@@ -224,6 +224,23 @@ function resetContainerState(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const RIGOContainerState =
+Object.freeze({
+
+  snapshot:
+  createContainerStateSnapshot,
+
+  reset:
+  resetContainerState
+
+});
+
+
+
+// =====================================
 // EXPORTS
 // =====================================
 
@@ -235,6 +252,11 @@ export {
 
   createContainerStateSnapshot,
 
-  resetContainerState
+  resetContainerState,
+
+  RIGOContainerState
 
 };
+
+export default
+RIGOContainerState;
