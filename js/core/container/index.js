@@ -12,9 +12,9 @@
 // =====================================
 
 import "./container-constants.js";
-import "./container-scopes.js";
 import "./container-state.js";
 import "./container-registry.js";
+import "./container-scopes.js";
 import "./container-resolution.js";
 import "./container-health.js";
 import "./container.js";
