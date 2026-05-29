@@ -193,6 +193,29 @@ async function initializeContainer(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const RIGOContainerHealth =
+Object.freeze({
+
+  initialize:
+  initializeContainer,
+
+  reset:
+  resetContainer,
+
+  diagnostics:
+  getContainerDiagnostics,
+
+  report:
+  getContainerHealthReport
+
+});
+
+
+
+// =====================================
 // EXPORTS
 // =====================================
 
@@ -204,6 +227,11 @@ export {
 
   getContainerDiagnostics,
 
-  initializeContainer
+  initializeContainer,
+
+  RIGOContainerHealth
 
 };
+
+export default
+RIGOContainerHealth;
