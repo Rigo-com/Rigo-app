@@ -1,45 +1,12 @@
 // =====================================
 // RIGO AI
-// CONTAINER CONSTANTS
-// FINAL STABILIZED EDITION
+// CONTAINER TYPES
 // =====================================
 
 
 
 // =====================================
-// CONTAINER CONFIG
-// =====================================
-
-const CONTAINER_CONFIG =
-Object.freeze({
-
-  ENABLE_SINGLETONS:true,
-
-  ENABLE_LAZY_LOADING:true,
-
-  ENABLE_SCOPES:true,
-
-  ENABLE_DIAGNOSTICS:true,
-
-  ENABLE_CIRCULAR_PROTECTION:true,
-
-  ENABLE_LIFECYCLE_EVENTS:true,
-
-  MAX_SERVICES:
-  500,
-
-  MAX_SCOPES:
-  100,
-  
-  MAX_RESOLUTION_DEPTH:
-  50
-
-});
-
-
-
-// =====================================
-// CONTAINER LIFECYCLE
+// SERVICE LIFECYCLES
 // =====================================
 
 const CONTAINER_LIFECYCLE =
@@ -59,29 +26,20 @@ Object.freeze({
 
 
 // =====================================
-// CONTAINER EVENTS
+// SERVICE DEFINITIONS
 // =====================================
 
-const CONTAINER_EVENTS =
+const CONTAINER_SERVICE_TYPES =
 Object.freeze({
 
-  INITIALIZED:
-  "container.initialized",
+  SERVICE:
+  "service",
 
-  REGISTERED:
-  "container.registered",
+  FACTORY:
+  "factory",
 
-  RESOLVED:
-  "container.resolved",
-
-  REMOVED:
-  "container.removed",
-
-  RESET:
-  "container.reset",
-
-  ERROR:
-  "container.error"
+  VALUE:
+  "value"
 
 });
 
@@ -93,10 +51,8 @@ Object.freeze({
 
 export {
 
-  CONTAINER_CONFIG,
-
   CONTAINER_LIFECYCLE,
 
-  CONTAINER_EVENTS
+  CONTAINER_SERVICE_TYPES
 
 };
