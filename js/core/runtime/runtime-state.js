@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // RUNTIME STATE
-// FINAL STABILIZED EDITION
+// FINAL UNIFIED EDITION
 // =====================================
 
 
@@ -13,7 +13,7 @@
 import {
   RUNTIME_STATES
 }
-from "./runtime-constants.js";
+from "../constants/runtime-states.js";
 
 
 
@@ -56,7 +56,7 @@ Object.seal({
 
   recovering:false,
 
-  runtimeStatus:
+  runtimeState:
   RUNTIME_STATES
   .IDLE,
 
@@ -103,9 +103,9 @@ function createRuntimeStateSnapshot(){
     runtimeState
     .recovering,
 
-    runtimeStatus:
+    runtimeState:
     runtimeState
-    .runtimeStatus,
+    .runtimeState,
 
     runtimeErrors:[
 
@@ -262,7 +262,7 @@ function resetRuntimeState(){
   false;
 
   runtimeState
-  .runtimeStatus =
+  .runtimeState =
   RUNTIME_STATES
   .IDLE;
 
@@ -304,7 +304,7 @@ function resetRuntimeState(){
 // PUBLIC API
 // =====================================
 
-const RuntimeState =
+const RIGORuntimeState =
 Object.freeze({
 
   get:
@@ -344,11 +344,9 @@ export {
 
   resetRuntimeState,
 
-  RuntimeState
+  RIGORuntimeState
 
 };
 
-
-
 export default
-RuntimeState;
+RIGORuntimeState;
