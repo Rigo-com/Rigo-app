@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // RUNTIME BOOT SEQUENCE
+// FINAL UNIFIED EDITION
 // =====================================
 
 
@@ -167,7 +168,7 @@ function createRuntimeBootSequence(){
 
     createBootStep({
 
-      name:"config-runtime",
+      name:"runtime-config",
 
       critical:false,
 
@@ -273,7 +274,7 @@ function getBootStepByName(
 // PUBLIC API
 // =====================================
 
-const RuntimeBootSequence =
+const RIGORuntimeBootSequence =
 Object.freeze({
 
   create:
@@ -294,11 +295,25 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
-  "undefined"
+  typeof globalThis !==
+  "undefined" &&
+
+  !globalThis
+  .RIGORuntimeBootSequence
 ){
 
-  window.RuntimeBootSequence =
-  RuntimeBootSequence;
+  globalThis
+  .RIGORuntimeBootSequence =
+
+  RIGORuntimeBootSequence;
 
 }
+
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
+export default
+RIGORuntimeBootSequence;
