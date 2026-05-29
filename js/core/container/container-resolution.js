@@ -5,6 +5,32 @@
 // =====================================
 
 
+import {
+  CONTAINER_CONFIG,
+  CONTAINER_EVENTS,
+  CONTAINER_LIFECYCLE
+}
+from "./container-constants.js";
+
+import {
+  containerState
+}
+from "./container-state.js";
+
+import {
+  normalizeServiceName,
+  createContainerError,
+  getRegisteredService
+}
+from "./container-registry.js";
+
+import {
+  detectCircularDependency,
+  getScopeContainer
+}
+from "./container-scopes.js";
+
+
 
 // =====================================
 // RESOLVE SERVICES
@@ -60,17 +86,17 @@ async function createServiceInstance(
   );
 
   return await serviceDefinition
-  .factory({
+.factory({
 
-    container:
-    RIGOContainer,
+  container:
+  globalThis
+  .RIGOContainer,
 
-    services,
+  services,
 
-    scope
+  scope
 
-  });
-
+});
 }
 
 
