@@ -26,8 +26,11 @@ Object.freeze({
   ENABLE_LIFECYCLE_EVENTS:true,
 
   MAX_SERVICES:
-  1000,
+  500,
 
+  MAX_SCOPES:
+  100,
+  
   MAX_RESOLUTION_DEPTH:
   50
 
