@@ -7,6 +7,24 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import {
+  CONTAINER_EVENTS
+}
+from "./container-constants.js";
+
+import {
+  containerState,
+  freezeContainerObject,
+  resetContainerState
+}
+from "./container-state.js";
+
+
+
+// =====================================
 // RESET CONTAINER
 // =====================================
 
