@@ -364,7 +364,7 @@ async function emitConfigRuntimeEvent(
       {
 
         source:
-        "config-runtime",
+        "runtime-config",
 
         ...payload
 
@@ -905,6 +905,7 @@ if(
   RIGORuntimeConfig;
 
 }
+
 
 
 // =====================================
