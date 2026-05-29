@@ -327,26 +327,29 @@ Object.freeze({
 
 
 // =====================================
-// EXPORTS
+// GLOBAL EXPORTS
 // =====================================
 
-export {
+if(
+  typeof globalThis !==
+  "undefined" &&
 
-  runtimeState,
+  !globalThis
+  .RIGORuntimeState
+){
 
-  createRuntimeStateSnapshot,
+  globalThis
+  .RIGORuntimeState =
 
-  updateRuntimeState,
+  RIGORuntimeState;
 
-  pushRuntimeError,
+}
 
-  incrementRuntimeMetric,
 
-  resetRuntimeState,
 
-  RIGORuntimeState
-
-};
+// =====================================
+// DEFAULT EXPORT
+// =====================================
 
 export default
 RIGORuntimeState;
