@@ -1,47 +1,80 @@
 // =====================================
 // RIGO AI
 // CONTAINER RESOLUTION
-// FINAL STABILIZED EDITION
 // =====================================
 
-
 import {
-  CONTAINER_CONFIG,
-  CONTAINER_EVENTS,
   CONTAINER_LIFECYCLE
 }
-from "./container-constants.js";
-
-import {
-  containerState
-}
-from "./container-state.js";
+from "./container-types.js";
 
 import {
   normalizeServiceName,
-  createContainerError,
-  getRegisteredService
+  getService
 }
 from "./container-registry.js";
 
-import {
-  detectCircularDependency,
-  getScopeContainer
+
+
+// =====================================
+// CREATE INSTANCE
+// =====================================
+
+async function createServiceInstance(
+  container,
+  definition,
+  scope
+){
+
+  const dependencies =
+  {};
+
+  for(
+    const dependency
+    of definition.dependencies
+  ){
+
+    dependencies[
+      dependency
+    ] = await resolveService(
+
+      container,
+
+      dependency,
+
+      scope
+
+    );
+
+  }
+
+  return definition.factory({
+
+    container,
+
+    services:
+    dependencies,
+
+    scope
+
+  });
+
 }
-from "./container-scopes.js";
 
 
 
 // =====================================
-// RESOLVE SERVICES
+// RESOLVE MANY
 // =====================================
 
 async function resolveServices(
+  container,
   services = [],
   scope = "global"
 ){
 
-  const resolved = {};
+  const resolved =
+  {};
 
   for(
     const service
@@ -51,6 +84,8 @@ async function resolveServices(
     resolved[
       service
     ] = await resolveService(
+
+      container,
 
       service,
 
@@ -67,133 +102,11 @@ async function resolveServices(
 
 
 // =====================================
-// CREATE SERVICE INSTANCE
-// =====================================
-
-async function createServiceInstance(
-  serviceDefinition,
-  scope = "global"
-){
-
-  const services =
-  await resolveServices(
-
-    serviceDefinition
-    .dependencies,
-
-    scope
-
-  );
-
-  return await serviceDefinition
-.factory({
-
-  container:
-  globalThis
-  .RIGOContainer,
-
-  services,
-
-  scope
-
-});
-}
-
-
-
-// =====================================
-// RESOLUTION EVENT
-// =====================================
-
-async function emitResolutionEvent(
-  service,
-  lifecycle,
-  scope
-){
-
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    await emitSystemEvent(
-
-      CONTAINER_EVENTS
-      .RESOLVED,
-
-      {
-
-        service,
-
-        lifecycle,
-
-        scope
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// RESOLUTION SUCCESS
-// =====================================
-
-async function finalizeResolution(
-  serviceDefinition,
-  serviceName,
-  scope,
-  instance
-){
-
-  containerState
-  .diagnostics
-  .resolved++;
-
-  containerState
-  .lastResolvedAt =
-  Date.now();
-
-  await emitResolutionEvent(
-
-    serviceName,
-
-    serviceDefinition
-    .lifecycle,
-
-    scope
-
-  );
-
-  return instance;
-
-}
-
-
-
-// =====================================
-// RESOLVE SERVICE
+// RESOLVE
 // =====================================
 
 async function resolveService(
+  container,
   serviceName,
   scope = "global"
 ){
@@ -207,283 +120,174 @@ async function resolveService(
     !normalizedName
   ){
 
-    return createContainerError(
-      "INVALID RESOLVE NAME"
+    throw new Error(
+      "INVALID_SERVICE_NAME"
     );
 
   }
 
-  if(
+  const definition =
+  getService(
 
-    containerState
-    .resolutionStack
-    .length >
+    container.state,
 
-    CONTAINER_CONFIG
-    .MAX_RESOLUTION_DEPTH
-
-  ){
-
-    return createContainerError(
-      "MAX RESOLUTION DEPTH"
-    );
-
-  }
-
-  if(
-
-    detectCircularDependency(
-      normalizedName
-    )
-
-  ){
-
-    return createContainerError(
-
-      `CIRCULAR DEPENDENCY: ${normalizedName}`
-
-    );
-
-  }
-
-  const serviceDefinition =
-
-    getRegisteredService(
-      normalizedName
-    );
-
-  if(
-    !serviceDefinition
-  ){
-
-    return createContainerError(
-
-      `SERVICE NOT FOUND: ${normalizedName}`
-
-    );
-
-  }
-
-  containerState
-  .resolutionStack
-  .push(
     normalizedName
+
   );
 
-  try{
+  if(
+    !definition
+  ){
+
+    throw new Error(
+      `SERVICE_NOT_FOUND:${normalizedName}`
+    );
+
+  }
 
 
 
-    // ================================
-    // SINGLETON
-    // ================================
+  // ===============================
+  // SINGLETON
+  // ===============================
+
+  if(
+
+    definition.lifecycle ===
+    CONTAINER_LIFECYCLE.SINGLETON
+
+  ){
 
     if(
 
-      serviceDefinition
-      .lifecycle ===
-
-      CONTAINER_LIFECYCLE
-      .SINGLETON
-
-    ){
-
-      if(
-
-        containerState
-        .singletons
-        .has(
-          normalizedName
-        )
-
-      ){
-
-        return containerState
-        .singletons
-        .get(
-          normalizedName
-        );
-
-      }
-
-      const singleton =
-      await createServiceInstance(
-
-        serviceDefinition,
-
-        scope
-
-      );
-
-      containerState
+      container.state
       .singletons
-      .set(
-
-        normalizedName,
-
-        singleton
-
-      );
-
-      return finalizeResolution(
-
-        serviceDefinition,
-
-        normalizedName,
-
-        scope,
-
-        singleton
-
-      );
-
-    }
-
-
-
-    // ================================
-    // SCOPED
-    // ================================
-
-    if(
-
-      serviceDefinition
-      .lifecycle ===
-
-      CONTAINER_LIFECYCLE
-      .SCOPED
+      .has(
+        normalizedName
+      )
 
     ){
 
-      const scopeContainer =
-      getScopeContainer(
-        scope
-      );
-
-      if(
-        !scopeContainer
-      ){
-
-        return createContainerError(
-          "INVALID SCOPE"
-        );
-
-      }
-
-      if(
-        scopeContainer.has(
-          normalizedName
-        )
-      ){
-
-        return scopeContainer
-        .get(
-          normalizedName
-        );
-
-      }
-
-      const scopedInstance =
-      await createServiceInstance(
-
-        serviceDefinition,
-
-        scope
-
-      );
-
-      scopeContainer.set(
-
-        normalizedName,
-
-        scopedInstance
-
-      );
-
-      return finalizeResolution(
-
-        serviceDefinition,
-
-        normalizedName,
-
-        scope,
-
-        scopedInstance
-
+      return container.state
+      .singletons
+      .get(
+        normalizedName
       );
 
     }
 
-
-
-    // ================================
-    // TRANSIENT
-    // ================================
-
-    const transientInstance =
+    const instance =
     await createServiceInstance(
 
-      serviceDefinition,
-
+      container,
+      definition,
       scope
 
     );
 
-    return finalizeResolution(
-
-      serviceDefinition,
+    container.state
+    .singletons
+    .set(
 
       normalizedName,
 
-      scope,
-
-      transientInstance
+      instance
 
     );
 
+    return instance;
+
   }
 
-  catch(error){
 
-    createContainerError(
 
-      `SERVICE RESOLUTION FAILED: ${normalizedName}`
+  // ===============================
+  // SCOPED
+  // ===============================
+
+  if(
+
+    definition.lifecycle ===
+    CONTAINER_LIFECYCLE.SCOPED
+
+  ){
+
+    if(
+
+      !container.state
+      .scopes
+      .has(scope)
+
+    ){
+
+      container.state
+      .scopes
+      .set(
+
+        scope,
+
+        new Map()
+
+      );
+
+    }
+
+    const scopeStore =
+    container.state
+    .scopes
+    .get(
+      scope
+    );
+
+    if(
+      scopeStore.has(
+        normalizedName
+      )
+    ){
+
+      return scopeStore
+      .get(
+        normalizedName
+      );
+
+    }
+
+    const instance =
+    await createServiceInstance(
+
+      container,
+      definition,
+      scope
 
     );
 
-    return null;
+    scopeStore.set(
+
+      normalizedName,
+
+      instance
+
+    );
+
+    return instance;
 
   }
 
-  finally{
 
-    containerState
-    .resolutionStack
-    .pop();
 
-  }
+  // ===============================
+  // TRANSIENT
+  // ===============================
+
+  return createServiceInstance(
+
+    container,
+    definition,
+    scope
+
+  );
 
 }
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const RIGOContainerResolution =
-Object.freeze({
-
-  resolve:
-  resolveService,
-
-  resolveMany:
-  resolveServices,
-
-  create:
-  createServiceInstance
-
-});
 
 
 
@@ -493,15 +297,10 @@ Object.freeze({
 
 export {
 
-  resolveServices,
-
   createServiceInstance,
 
-  resolveService,
+  resolveServices,
 
-  RIGOContainerResolution
+  resolveService
 
 };
-
-export default
-RIGOContainerResolution;
