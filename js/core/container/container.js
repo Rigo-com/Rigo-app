@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
 // CORE CONTAINER
-// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -13,15 +12,15 @@
 import {
   CONTAINER_LIFECYCLE
 }
-from "./container-constants.js";
+from "./container-types.js";
 
 import {
 
   registerService,
   removeService,
-  hasRegisteredService,
-  getRegisteredService,
-  getRegisteredServices
+  hasService,
+  getService,
+  getServices
 
 }
 from "./container-registry.js";
@@ -34,24 +33,205 @@ import {
 }
 from "./container-resolution.js";
 
-import {
 
-  getScopeContainer,
-  removeScopeContainer,
-  clearScopeContainers
+
+// =====================================
+// CONTAINER STATE
+// =====================================
+
+const containerState =
+Object.seal({
+
+  services:
+  new Map(),
+
+  singletons:
+  new Map(),
+
+  scopes:
+  new Map()
+
+});
+
+
+
+// =====================================
+// CONTAINER API
+// =====================================
+
+async function register(
+  definition
+){
+
+  if(
+    !definition
+  ){
+
+    throw new Error(
+      "INVALID_SERVICE_DEFINITION"
+    );
+
+  }
+
+  const serviceDefinition =
+  Object.freeze({
+
+    name:
+    definition.name,
+
+    factory:
+    definition.factory,
+
+    dependencies:
+
+    Array.isArray(
+      definition.dependencies
+    )
+
+    ?
+
+    definition.dependencies
+
+    :
+
+    [],
+
+    lifecycle:
+
+    definition.lifecycle ||
+
+    CONTAINER_LIFECYCLE
+    .SINGLETON
+
+  });
+
+  return registerService(
+
+    containerState,
+
+    definition.name,
+
+    serviceDefinition
+
+  );
 
 }
-from "./container-scopes.js";
 
-import {
 
-  initializeContainer,
-  resetContainer,
-  getContainerDiagnostics,
-  getContainerHealthReport
+
+function remove(
+  serviceName
+){
+
+  return removeService(
+
+    containerState,
+
+    serviceName
+
+  );
 
 }
-from "./container-health.js";
+
+
+
+function has(
+  serviceName
+){
+
+  return hasService(
+
+    containerState,
+
+    serviceName
+
+  );
+
+}
+
+
+
+function get(
+  serviceName
+){
+
+  return getService(
+
+    containerState,
+
+    serviceName
+
+  );
+
+}
+
+
+
+function services(){
+
+  return getServices(
+    containerState
+  );
+
+}
+
+
+
+async function resolve(
+  serviceName,
+  scope = "global"
+){
+
+  return resolveService(
+
+    RIGOContainer,
+
+    serviceName,
+
+    scope
+
+  );
+
+}
+
+
+
+async function resolveMany(
+  serviceNames,
+  scope = "global"
+){
+
+  return resolveServices(
+
+    RIGOContainer,
+
+    serviceNames,
+
+    scope
+
+  );
+
+}
+
+
+
+function clear(){
+
+  containerState
+  .services
+  .clear();
+
+  containerState
+  .singletons
+  .clear();
+
+  containerState
+  .scopes
+  .clear();
+
+  return true;
+
+}
 
 
 
@@ -62,97 +242,42 @@ from "./container-health.js";
 const RIGOContainer =
 Object.freeze({
 
-
-
-  // ===================================
-  // CORE
-  // ===================================
-
-  initialize:
-  initializeContainer,
+  state:
+  containerState,
 
 
 
-  reset:
-  resetContainer,
+  register,
 
 
 
-  diagnostics:
-  getContainerDiagnostics,
+  remove,
 
 
 
-  healthcheck:
-  getContainerHealthReport,
+  has,
 
 
 
-  // ===================================
-  // REGISTRY
-  // ===================================
-
-  register:
-  registerService,
+  get,
 
 
 
-  remove:
-  removeService,
+  services,
 
 
 
-  has:
-  hasRegisteredService,
+  resolve,
 
 
 
-  get:
-  getRegisteredService,
+  resolveMany,
 
 
 
-  services:
-  getRegisteredServices,
+  clear,
 
 
-
-  // ===================================
-  // RESOLUTION
-  // ===================================
-
-  resolve:
-  resolveService,
-
-
-
-  resolveServices:
-  resolveServices,
-
-
-
-  // ===================================
-  // SCOPES
-  // ===================================
-
-  getScope:
-  getScopeContainer,
-
-
-
-  removeScope:
-  removeScopeContainer,
-
-
-
-  clearScopes:
-  clearScopeContainers,
-
-
-
-  // ===================================
-  // LIFECYCLES
-  // ===================================
 
   lifecycles:
   CONTAINER_LIFECYCLE
@@ -167,45 +292,11 @@ Object.freeze({
 
 export {
 
-  RIGOContainer
+  RIGOContainer,
+
+  containerState
 
 };
 
-
-
 export default
 RIGOContainer;
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOContainer",
-
-    {
-
-      value:
-      RIGOContainer,
-
-      writable:false,
-
-      configurable:false,
-
-      enumerable:false
-
-    }
-
-  );
-
-}
