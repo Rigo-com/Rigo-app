@@ -1,32 +1,7 @@
 // =====================================
 // RIGO AI
 // CONTAINER REGISTRY
-// FINAL STABILIZED EDITION
 // =====================================
-
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
-import {
-
-  CONTAINER_CONFIG,
-
-  CONTAINER_LIFECYCLE
-
-}
-from "./container-constants.js";
-
-import {
-
-  containerState,
-
-  freezeContainerObject
-
-}
-from "./container-state.js";
 
 
 
@@ -48,45 +23,14 @@ function normalizeServiceName(
 
 
 
-function isValidFactory(
-  factory
-){
-
-  return (
-    typeof factory ===
-    "function"
-  );
-
-}
-
-
-
-function createContainerError(
-  message
-){
-
-  containerState
-  .diagnostics
-  .failed++;
-
-  console.warn(
-    `[RIGOContainer] ${message}`
-  );
-
-  return false;
-
-}
-
-
-
 // =====================================
-// REGISTER SERVICE
+// REGISTRY API
 // =====================================
 
 function registerService(
+  state,
   serviceName,
-  factory,
-  options = {}
+  definition
 ){
 
   const normalizedName =
@@ -98,133 +42,47 @@ function registerService(
     !normalizedName
   ){
 
-    return createContainerError(
-      "INVALID SERVICE NAME"
+    throw new Error(
+      "INVALID_SERVICE_NAME"
     );
 
   }
 
   if(
-    !isValidFactory(
-      factory
-    )
+    !definition
   ){
 
-    return createContainerError(
-      "INVALID SERVICE FACTORY"
+    throw new Error(
+      "INVALID_SERVICE_DEFINITION"
     );
 
   }
 
   if(
-
-    containerState
-    .services
-    .has(
+    state.services.has(
       normalizedName
     )
-
   ){
 
-    return createContainerError(
-      "SERVICE ALREADY REGISTERED"
+    throw new Error(
+      "SERVICE_ALREADY_REGISTERED"
     );
 
   }
 
-  if(
-
-    containerState
-    .services
-    .size >=
-
-    CONTAINER_CONFIG
-    .MAX_SERVICES
-
-  ){
-
-    return createContainerError(
-      "MAX SERVICES REACHED"
-    );
-
-  }
-
-  const dependencies =
-
-    Array.isArray(
-      options.dependencies
-    )
-
-    ?
-
-    options.dependencies
-    .map(normalizeServiceName)
-    .filter(Boolean)
-
-    :
-
-    [];
-
-  const lifecycle =
-
-    Object.values(
-      CONTAINER_LIFECYCLE
-    )
-    .includes(
-      options.lifecycle
-    )
-
-    ?
-
-    options.lifecycle
-
-    :
-
-    CONTAINER_LIFECYCLE
-    .SINGLETON;
-
-  const serviceDefinition =
-  freezeContainerObject({
-
-    name:
+  state.services.set(
     normalizedName,
-
-    factory,
-
-    dependencies,
-
-    lifecycle,
-
-    lazy:
-    options.lazy !== false,
-
-    createdAt:
-    Date.now()
-
-  });
-
-  containerState
-  .services
-  .set(
-    normalizedName,
-    serviceDefinition
+    definition
   );
 
-  containerState
-  .diagnostics
-  .registered++;
-
-  return true;
+  return definition;
 
 }
 
 
 
-// =====================================
-// REMOVE SERVICE
-// =====================================
-
 function removeService(
+  state,
   serviceName
 ){
 
@@ -237,67 +95,20 @@ function removeService(
     !normalizedName
   ){
 
-    return createContainerError(
-      "INVALID SERVICE NAME"
-    );
+    return false;
 
   }
 
-  const exists =
-
-    containerState
-    .services
-    .has(
-      normalizedName
-    );
-
-  if(
-    !exists
-  ){
-
-    return createContainerError(
-      "SERVICE NOT FOUND"
-    );
-
-  }
-
-  containerState
-  .services
-  .delete(
+  return state.services.delete(
     normalizedName
   );
-
-  containerState
-  .singletons
-  .delete(
-    normalizedName
-  );
-
-  containerState
-  .scopes
-  .forEach((scopeContainer) => {
-
-    scopeContainer.delete(
-      normalizedName
-    );
-
-  });
-
-  containerState
-  .diagnostics
-  .removed++;
-
-  return true;
 
 }
 
 
 
-// =====================================
-// GET SERVICE
-// =====================================
-
-function getRegisteredService(
+function getService(
+  state,
   serviceName
 ){
 
@@ -315,46 +126,31 @@ function getRegisteredService(
   }
 
   return (
-
-    containerState
-    .services
-    .get(
+    state.services.get(
       normalizedName
-    )
-
-    ||
-
-    null
-
+    ) || null
   );
 
 }
 
 
 
-// =====================================
-// GET REGISTERED SERVICES
-// =====================================
+function getServices(
+  state
+){
 
-function getRegisteredServices(){
+  return [
 
-  return freezeContainerObject([
+    ...state.services.keys()
 
-    ...containerState
-    .services
-    .keys()
-
-  ]);
+  ];
 
 }
 
 
 
-// =====================================
-// SERVICE EXISTS
-// =====================================
-
-function hasRegisteredService(
+function hasService(
+  state,
   serviceName
 ){
 
@@ -363,41 +159,19 @@ function hasRegisteredService(
     serviceName
   );
 
-  return (
-    containerState
-    .services
-    .has(
-      normalizedName
-    )
+  if(
+    !normalizedName
+  ){
+
+    return false;
+
+  }
+
+  return state.services.has(
+    normalizedName
   );
 
 }
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const RIGOContainerRegistry =
-Object.freeze({
-
-  register:
-  registerService,
-
-  remove:
-  removeService,
-
-  get:
-  getRegisteredService,
-
-  getAll:
-  getRegisteredServices,
-
-  has:
-  hasRegisteredService
-
-});
 
 
 
@@ -409,21 +183,14 @@ export {
 
   normalizeServiceName,
 
-  createContainerError,
-  
   registerService,
 
   removeService,
 
-  getRegisteredService,
+  getService,
 
-  getRegisteredServices,
+  getServices,
 
-  hasRegisteredService,
-
-  RIGOContainerRegistry
+  hasService
 
 };
-
-export default
-RIGOContainerRegistry;
