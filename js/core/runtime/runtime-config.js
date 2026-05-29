@@ -856,7 +856,7 @@ function getConfigRuntimeDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const ConfigRuntime =
+const RIGORuntimeConfig =
 Object.freeze({
 
   initialize:
@@ -892,11 +892,24 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
-  "undefined"
+  typeof globalThis !==
+  "undefined" &&
+
+  !globalThis
+  .RIGORuntimeConfig
 ){
 
-  window.ConfigRuntime =
-  ConfigRuntime;
+  globalThis
+  .RIGORuntimeConfig =
+
+  RIGORuntimeConfig;
 
 }
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
+export default
+RIGORuntimeConfig;
