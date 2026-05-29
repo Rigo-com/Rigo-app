@@ -409,6 +409,8 @@ export {
 
   normalizeServiceName,
 
+  createContainerError,
+  
   registerService,
 
   removeService,
