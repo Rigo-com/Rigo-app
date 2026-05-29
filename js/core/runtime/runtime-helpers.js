@@ -1,7 +1,22 @@
 // =====================================
 // RIGO AI
 // RUNTIME HELPERS
+// FINAL UNIFIED EDITION
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import {
+  RUNTIME_STATES
+}
+from "../constants/runtime-states.js";
+
+import RIGORuntimeState
+from "./runtime-state.js";
 
 
 
@@ -111,7 +126,7 @@ function setRuntimeState(
 
   }
 
-  return RuntimeState
+  return RIGORuntimeState
   ?.update?.(
 
     "runtimeState",
@@ -137,12 +152,12 @@ function addRuntimeError(
 
   }
 
-  RuntimeState
+  RIGORuntimeState
   ?.pushError?.(
     error
   );
 
-  RuntimeState
+  RIGORuntimeState
   ?.incrementMetric?.(
     "failures"
   );
@@ -159,7 +174,7 @@ function addRuntimeError(
 
 function clearRuntimeErrors(){
 
-  return RuntimeState
+  return RIGORuntimeState
   ?.update?.(
 
     "runtimeErrors",
@@ -178,7 +193,7 @@ function clearRuntimeErrors(){
 function getRuntimeDiagnostics(){
 
   const snapshot =
-  RuntimeState
+  RIGORuntimeState
   ?.get?.();
 
   return freezeRuntimeObject({
@@ -228,7 +243,7 @@ function getRuntimeDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const RuntimeHelpers =
+const RIGORuntimeHelpers =
 Object.freeze({
 
   freeze:
@@ -258,11 +273,25 @@ Object.freeze({
 // =====================================
 
 if(
-  typeof window !==
-  "undefined"
+  typeof globalThis !==
+  "undefined" &&
+
+  !globalThis
+  .RIGORuntimeHelpers
 ){
 
-  window.RuntimeHelpers =
-  RuntimeHelpers;
+  globalThis
+  .RIGORuntimeHelpers =
+
+  RIGORuntimeHelpers;
 
 }
+
+
+
+// =====================================
+// DEFAULT EXPORT
+// =====================================
+
+export default
+RIGORuntimeHelpers;
