@@ -99,6 +99,21 @@ function getScopeContainer(
 
   ){
 
+    if(
+
+      containerState
+      .scopes
+      .size >=
+
+      CONTAINER_CONFIG
+      .MAX_SCOPES
+
+    ){
+
+      return null;
+
+    }
+
     containerState
     .scopes
     .set(
@@ -175,6 +190,32 @@ function clearScopeContainers(){
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const RIGOContainerScopes =
+Object.freeze({
+
+  normalize:
+  normalizeContainerScope,
+
+  detectCircular:
+  detectCircularDependency,
+
+  get:
+  getScopeContainer,
+
+  remove:
+  removeScopeContainer,
+
+  clear:
+  clearScopeContainers
+
+});
+
+
+
+// =====================================
 // EXPORTS
 // =====================================
 
@@ -188,6 +229,11 @@ export {
 
   removeScopeContainer,
 
-  clearScopeContainers
+  clearScopeContainers,
+
+  RIGOContainerScopes
 
 };
+
+export default
+RIGOContainerScopes;
