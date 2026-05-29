@@ -214,14 +214,7 @@ async function resolveService(
 
     return createContainerError(
 
-      "CIRCULAR DEPENDENCY",
-
-      {
-
-        service:
-        normalizedName
-
-      }
+      `CIRCULAR DEPENDENCY: ${normalizedName}`
 
     );
 
@@ -239,14 +232,7 @@ async function resolveService(
 
     return createContainerError(
 
-      "SERVICE NOT FOUND",
-
-      {
-
-        service:
-        normalizedName
-
-      }
+      `SERVICE NOT FOUND: ${normalizedName}`
 
     );
 
@@ -433,23 +419,9 @@ async function resolveService(
 
   catch(error){
 
-    containerState
-    .diagnostics
-    .failed++;
-
     createContainerError(
 
-      "SERVICE RESOLUTION FAILED",
-
-      {
-
-        service:
-        normalizedName,
-
-        error:
-        String(error)
-
-      }
+      `SERVICE RESOLUTION FAILED: ${normalizedName}`
 
     );
 
@@ -470,6 +442,26 @@ async function resolveService(
 
 
 // =====================================
+// PUBLIC API
+// =====================================
+
+const RIGOContainerResolution =
+Object.freeze({
+
+  resolve:
+  resolveService,
+
+  resolveMany:
+  resolveServices,
+
+  create:
+  createServiceInstance
+
+});
+
+
+
+// =====================================
 // EXPORTS
 // =====================================
 
@@ -479,6 +471,11 @@ export {
 
   createServiceInstance,
 
-  resolveService
+  resolveService,
+
+  RIGOContainerResolution
 
 };
+
+export default
+RIGOContainerResolution;
