@@ -7,6 +7,55 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import {
+  CONTAINER_LIFECYCLE
+}
+from "./container-constants.js";
+
+import {
+
+  registerService,
+  removeService,
+  hasRegisteredService,
+  getRegisteredService,
+  getRegisteredServices
+
+}
+from "./container-registry.js";
+
+import {
+
+  resolveService,
+  resolveServices
+
+}
+from "./container-resolution.js";
+
+import {
+
+  getScopeContainer,
+  removeScopeContainer,
+  clearScopeContainers
+
+}
+from "./container-scopes.js";
+
+import {
+
+  initializeContainer,
+  resetContainer,
+  getContainerDiagnostics,
+  getContainerHealthReport
+
+}
+from "./container-health.js";
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
