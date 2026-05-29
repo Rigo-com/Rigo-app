@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
 // CONTAINER SCOPES
-// FINAL STABILIZED EDITION
 // =====================================
 
 
@@ -11,24 +10,14 @@
 // =====================================
 
 import {
-  CONTAINER_CONFIG
+  CONTAINER_LIFECYCLE
 }
-from "./container-constants.js";
-
-import {
-  containerState
-}
-from "./container-state.js";
-
-import {
-  normalizeServiceName
-}
-from "./container-registry.js";
+from "./container-types.js";
 
 
 
 // =====================================
-// NORMALIZE
+// HELPERS
 // =====================================
 
 function normalizeContainerScope(
@@ -45,55 +34,7 @@ function normalizeContainerScope(
 
 
 
-// =====================================
-// CIRCULAR CHECK
-// =====================================
-
-function detectCircularDependency(
-  serviceName
-){
-
-  if(
-
-    !CONTAINER_CONFIG
-    .ENABLE_CIRCULAR_PROTECTION
-
-  ){
-
-    return false;
-
-  }
-
-  const normalizedService =
-  normalizeServiceName(
-    serviceName
-  );
-
-  if(!normalizedService){
-
-    return false;
-
-  }
-
-  return (
-
-    containerState
-    .resolutionStack
-    .includes(
-      normalizedService
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// GET SCOPE
-// =====================================
-
-function getScopeContainer(
+function isValidContainerScope(
   scope
 ){
 
@@ -102,58 +43,10 @@ function getScopeContainer(
     scope
   );
 
-  if(
-    !normalizedScope
-  ){
-
-    return null;
-
-  }
-
-  if(
-
-    !containerState
-    .scopes
-    .has(
-      normalizedScope
-    )
-
-  ){
-
-    if(
-
-      containerState
-      .scopes
-      .size >=
-
-      CONTAINER_CONFIG
-      .MAX_SCOPES
-
-    ){
-
-      return null;
-
-    }
-
-    containerState
-    .scopes
-    .set(
-
-      normalizedScope,
-
-      new Map()
-
-    );
-
-    containerState
-    .diagnostics
-    .scopes++;
-
-  }
-
-  return containerState
-  .scopes
-  .get(
+  return Object.values(
+    CONTAINER_LIFECYCLE
+  )
+  .includes(
     normalizedScope
   );
 
@@ -161,50 +54,10 @@ function getScopeContainer(
 
 
 
-// =====================================
-// REMOVE SCOPE
-// =====================================
+function getDefaultContainerScope(){
 
-function removeScopeContainer(
-  scope
-){
-
-  const normalizedScope =
-  normalizeContainerScope(
-    scope
-  );
-
-  if(!normalizedScope){
-
-    return false;
-
-  }
-
-  return containerState
-  .scopes
-  .delete(
-    normalizedScope
-  );
-
-}
-
-
-
-// =====================================
-// CLEAR SCOPES
-// =====================================
-
-function clearScopeContainers(){
-
-  containerState
-  .scopes
-  .clear();
-
-  containerState
-  .diagnostics
-  .scopes = 0;
-
-  return true;
+  return CONTAINER_LIFECYCLE
+  .SINGLETON;
 
 }
 
@@ -220,17 +73,11 @@ Object.freeze({
   normalize:
   normalizeContainerScope,
 
-  detectCircular:
-  detectCircularDependency,
+  validate:
+  isValidContainerScope,
 
-  get:
-  getScopeContainer,
-
-  remove:
-  removeScopeContainer,
-
-  clear:
-  clearScopeContainers
+  getDefault:
+  getDefaultContainerScope
 
 });
 
@@ -244,13 +91,9 @@ export {
 
   normalizeContainerScope,
 
-  detectCircularDependency,
+  isValidContainerScope,
 
-  getScopeContainer,
-
-  removeScopeContainer,
-
-  clearScopeContainers,
+  getDefaultContainerScope,
 
   RIGOContainerScopes
 
