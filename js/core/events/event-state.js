@@ -48,27 +48,28 @@ Object.seal({
   eventQueue:
   [],
 
-  diagnostics:{
+  diagnostics:
+Object.seal({
 
-    emitted:
-    0,
+  emitted:
+  0,
 
-    completed:
-    0,
+  completed:
+  0,
 
-    failed:
-    0,
+  failed:
+  0,
 
-    retries:
-    0,
+  retries:
+  0,
 
-    cancelled:
-    0,
+  cancelled:
+  0,
 
-    queueProcessed:
-    0
+  queueProcessed:
+  0
 
-  },
+}),
 
   lastEventAt:
   null
