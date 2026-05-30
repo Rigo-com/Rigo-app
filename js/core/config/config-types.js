@@ -1,6 +1,6 @@
 // =====================================
 // RIGO AI
-// APP CONFIG
+// CONFIG TYPES
 // =====================================
 
 
@@ -160,10 +160,10 @@ Object.freeze({
 
 
 // =====================================
-// APP CORE CONFIG
+// CONFIG DEFAULTS
 // =====================================
 
-const APP_CORE_CONFIG =
+const CONFIG_DEFAULTS =
 Object.freeze({
 
   RUNTIME_NAME:
@@ -188,33 +188,23 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.APP_INFO =
-  APP_INFO;
+  APP_INFO,
 
-  window.APP_ENVIRONMENTS =
-  APP_ENVIRONMENTS;
+  APP_ENVIRONMENTS,
 
-  window.CURRENT_ENVIRONMENT =
-  CURRENT_ENVIRONMENT;
+  CURRENT_ENVIRONMENT,
 
-  window.DEBUG_MODE =
-  DEBUG_MODE;
+  DEBUG_MODE,
 
-  window.FEATURE_FLAGS =
-  FEATURE_FLAGS;
+  FEATURE_FLAGS,
 
-  window.PLATFORM_CAPABILITIES =
-  PLATFORM_CAPABILITIES;
+  PLATFORM_CAPABILITIES,
 
-  window.APP_CORE_CONFIG =
-  APP_CORE_CONFIG;
+  CONFIG_DEFAULTS
 
-}
+};
