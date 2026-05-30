@@ -194,14 +194,40 @@ function onceSystemEvent(
 
   return () => {
 
-    systemEventsState
-    .onceListeners
-    .get(
-      normalizedEvent
-    )
-    ?.delete(
+    const listeners =
+
+      systemEventsState
+      .onceListeners
+      .get(
+        normalizedEvent
+      );
+
+    if(
+      !listeners
+    ){
+
+      return false;
+
+    }
+
+    const removed =
+    listeners.delete(
       listener
     );
+
+    if(
+      listeners.size <= 0
+    ){
+
+      systemEventsState
+      .onceListeners
+      .delete(
+        normalizedEvent
+      );
+
+    }
+
+    return removed;
 
   };
 
@@ -285,7 +311,9 @@ function offSystemEvent(
       normalizedEvent
     );
 
-  if(!listeners){
+  if(
+    !listeners
+  ){
 
     return false;
 
