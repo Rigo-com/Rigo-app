@@ -64,27 +64,16 @@ async function runStateTransaction(
   try{
 
     const {
-      emitSystemEvent,
-      STATE_EVENTS,
+
       getStateValue,
+
       updateState,
+
       removeStateValue
+
     } = dependencies;
 
-    if(
-      typeof emitSystemEvent ===
-      "function"
-    ){
-
-      await emitSystemEvent(
-        STATE_EVENTS
-        .TRANSACTION_START
-      );
-
-    }
-
-    const result =
-    await callback({
+    return await callback({
 
       get:
       getStateValue,
@@ -96,20 +85,6 @@ async function runStateTransaction(
       removeStateValue
 
     });
-
-    if(
-      typeof emitSystemEvent ===
-      "function"
-    ){
-
-      await emitSystemEvent(
-        STATE_EVENTS
-        .TRANSACTION_END
-      );
-
-    }
-
-    return result;
 
   }
 
