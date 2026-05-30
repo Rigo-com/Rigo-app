@@ -10,8 +10,7 @@
 // =====================================
 
 const RUNTIME_MANAGER_CONFIG =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
 
 
@@ -70,77 +69,13 @@ Object.seal({
   HEALTH_TIMEOUT:
   10000
 
-}));
+});
 
 
 
 // =====================================
-// VALIDATION
+// EXPORTS
 // =====================================
 
-function isValidRuntimeManagerConfigKey(
-  key
-){
-
-  return Object.prototype
-  .hasOwnProperty
-  .call(
-
-    RUNTIME_MANAGER_CONFIG,
-
-    String(key)
-
-  );
-
-}
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    window,
-
-    "RUNTIME_MANAGER_CONFIG",
-
-    {
-
-      value:
-      RUNTIME_MANAGER_CONFIG,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "isValidRuntimeManagerConfigKey",
-
-    {
-
-      value:
-      isValidRuntimeManagerConfigKey,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+export default
+RUNTIME_MANAGER_CONFIG;
