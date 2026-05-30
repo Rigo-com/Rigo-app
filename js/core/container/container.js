@@ -52,7 +52,7 @@ Object.seal({
   new Map(),
 
   resolutionStack:
-new Set()
+  new Set()
   
 });
 
