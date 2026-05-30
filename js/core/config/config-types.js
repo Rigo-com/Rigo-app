@@ -45,41 +45,6 @@ Object.freeze({
 
 
 
-const CURRENT_ENVIRONMENT =
-
-  typeof window !==
-  "undefined"
-
-  &&
-
-  window.location.hostname !==
-  "localhost"
-
-    ?
-
-    APP_ENVIRONMENTS
-    .PRODUCTION
-
-    :
-
-    APP_ENVIRONMENTS
-    .DEVELOPMENT;
-
-
-
-// =====================================
-// DEBUG
-// =====================================
-
-const DEBUG_MODE =
-
-  CURRENT_ENVIRONMENT ===
-
-  APP_ENVIRONMENTS
-  .DEVELOPMENT;
-
-
-
 // =====================================
 // FEATURE FLAGS
 // =====================================
@@ -118,48 +83,6 @@ Object.freeze({
 
 
 // =====================================
-// PLATFORM CAPABILITIES
-// =====================================
-
-const PLATFORM_CAPABILITIES =
-Object.freeze({
-
-  SUPPORTS_LOCAL_STORAGE:
-
-    typeof localStorage !==
-    "undefined",
-
-  SUPPORTS_INDEXED_DB:
-
-    typeof indexedDB !==
-    "undefined",
-
-  SUPPORTS_NOTIFICATIONS:
-
-    typeof Notification !==
-    "undefined",
-
-  SUPPORTS_SERVICE_WORKER:
-
-    typeof navigator !==
-    "undefined" &&
-
-    "serviceWorker"
-    in navigator,
-
-  SUPPORTS_BACKGROUND_SYNC:
-
-    typeof window !==
-    "undefined" &&
-
-    "SyncManager"
-    in window
-
-});
-
-
-
-// =====================================
 // CONFIG DEFAULTS
 // =====================================
 
@@ -188,23 +111,27 @@ Object.freeze({
 
 
 // =====================================
-// EXPORTS
+// CONFIG TYPES
 // =====================================
 
-export {
+const ConfigTypes =
+Object.freeze({
 
   APP_INFO,
 
   APP_ENVIRONMENTS,
 
-  CURRENT_ENVIRONMENT,
-
-  DEBUG_MODE,
-
   FEATURE_FLAGS,
-
-  PLATFORM_CAPABILITIES,
 
   CONFIG_DEFAULTS
 
-};
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export default
+ConfigTypes;
