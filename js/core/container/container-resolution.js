@@ -126,134 +126,186 @@ async function resolveService(
 
   }
 
-  const definition =
-  getService(
-
-    container.state,
-
-    normalizedName
-
-  );
-
   if(
-    !definition
+
+    container.state
+    .resolutionStack
+    .has(
+      normalizedName
+    )
+
   ){
 
     throw new Error(
-      `SERVICE_NOT_FOUND:${normalizedName}`
+
+      `CIRCULAR_DEPENDENCY:${normalizedName}`
+
     );
 
   }
 
+  container.state
+  .resolutionStack
+  .add(
+    normalizedName
+  );
 
+  try{
 
-  // ===============================
-  // SINGLETON
-  // ===============================
+    const definition =
+    getService(
 
-  if(
+      container.state,
 
-    definition.lifecycle ===
-    CONTAINER_LIFECYCLE.SINGLETON
+      normalizedName
 
-  ){
+    );
 
     if(
-
-      container.state
-      .singletons
-      .has(
-        normalizedName
-      )
-
+      !definition
     ){
 
-      return container.state
-      .singletons
-      .get(
-        normalizedName
+      throw new Error(
+        `SERVICE_NOT_FOUND:${normalizedName}`
       );
 
     }
 
-    const instance =
-    await createServiceInstance(
-
-      container,
-      definition,
-      scope
-
-    );
-
-    container.state
-    .singletons
-    .set(
-
-      normalizedName,
-
-      instance
-
-    );
-
-    return instance;
-
-  }
 
 
-
-  // ===============================
-  // SCOPED
-  // ===============================
-
-  if(
-
-    definition.lifecycle ===
-    CONTAINER_LIFECYCLE.SCOPED
-
-  ){
+    // ===============================
+    // SINGLETON
+    // ===============================
 
     if(
 
-      !container.state
-      .scopes
-      .has(scope)
+      definition.lifecycle ===
+      CONTAINER_LIFECYCLE.SINGLETON
 
     ){
 
+      if(
+
+        container.state
+        .singletons
+        .has(
+          normalizedName
+        )
+
+      ){
+
+        return container.state
+        .singletons
+        .get(
+          normalizedName
+        );
+
+      }
+
+      const instance =
+      await createServiceInstance(
+
+        container,
+        definition,
+        scope
+
+      );
+
       container.state
-      .scopes
+      .singletons
       .set(
 
-        scope,
+        normalizedName,
 
-        new Map()
+        instance
 
       );
 
+      return instance;
+
     }
 
-    const scopeStore =
-    container.state
-    .scopes
-    .get(
-      scope
-    );
+
+
+    // ===============================
+    // SCOPED
+    // ===============================
 
     if(
-      scopeStore.has(
-        normalizedName
-      )
+
+      definition.lifecycle ===
+      CONTAINER_LIFECYCLE.SCOPED
+
     ){
 
-      return scopeStore
+      if(
+
+        !container.state
+        .scopes
+        .has(scope)
+
+      ){
+
+        container.state
+        .scopes
+        .set(
+
+          scope,
+
+          new Map()
+
+        );
+
+      }
+
+      const scopeStore =
+      container.state
+      .scopes
       .get(
-        normalizedName
+        scope
       );
+
+      if(
+        scopeStore.has(
+          normalizedName
+        )
+      ){
+
+        return scopeStore
+        .get(
+          normalizedName
+        );
+
+      }
+
+      const instance =
+      await createServiceInstance(
+
+        container,
+        definition,
+        scope
+
+      );
+
+      scopeStore.set(
+
+        normalizedName,
+
+        instance
+
+      );
+
+      return instance;
 
     }
 
-    const instance =
-    await createServiceInstance(
+
+
+    // ===============================
+    // TRANSIENT
+    // ===============================
+
+    return createServiceInstance(
 
       container,
       definition,
@@ -261,31 +313,17 @@ async function resolveService(
 
     );
 
-    scopeStore.set(
-
-      normalizedName,
-
-      instance
-
-    );
-
-    return instance;
-
   }
 
+  finally{
 
+    container.state
+    .resolutionStack
+    .delete(
+      normalizedName
+    );
 
-  // ===============================
-  // TRANSIENT
-  // ===============================
-
-  return createServiceInstance(
-
-    container,
-    definition,
-    scope
-
-  );
+  }
 
 }
 
