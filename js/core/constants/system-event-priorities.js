@@ -10,8 +10,7 @@
 // =====================================
 
 const SYSTEM_EVENT_PRIORITIES =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   BACKGROUND:
   0,
@@ -28,74 +27,13 @@ Object.seal({
   CRITICAL:
   1000
 
-}));
+});
 
 
 
 // =====================================
-// VALIDATION
+// EXPORTS
 // =====================================
 
-function isValidSystemEventPriority(
-  priority
-){
-
-  return Object.values(
-    SYSTEM_EVENT_PRIORITIES
-  )
-  .includes(
-    Number(priority)
-  );
-
-}
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    window,
-
-    "SYSTEM_EVENT_PRIORITIES",
-
-    {
-
-      value:
-      SYSTEM_EVENT_PRIORITIES,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "isValidSystemEventPriority",
-
-    {
-
-      value:
-      isValidSystemEventPriority,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+export default
+SYSTEM_EVENT_PRIORITIES;
