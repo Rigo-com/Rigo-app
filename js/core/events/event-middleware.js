@@ -114,6 +114,10 @@ async function executeEventMiddleware(
       systemEventsState
       .failedEvents++;
 
+      systemEventsState
+      .diagnostics
+      .failed++;
+
       console.warn(
         "[SystemEvents] Middleware failed",
         error
