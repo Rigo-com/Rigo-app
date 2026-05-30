@@ -10,8 +10,7 @@
 // =====================================
 
 const RUNTIME_EVENTS =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
 
 
@@ -67,36 +66,13 @@ Object.seal({
   SHUTDOWN_FAILED:
   "runtime.shutdown.failed"
 
-}));
+});
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    window,
-
-    "RUNTIME_EVENTS",
-
-    {
-
-      value:
-      RUNTIME_EVENTS,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+export default
+RUNTIME_EVENTS;
