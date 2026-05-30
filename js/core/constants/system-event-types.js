@@ -10,8 +10,7 @@
 // =====================================
 
 const SYSTEM_EVENT_TYPES =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
 
 
@@ -112,74 +111,13 @@ Object.seal({
   NETWORK_CHANGED:
   "network.changed"
 
-}));
+});
 
 
 
 // =====================================
-// VALIDATION
+// EXPORTS
 // =====================================
 
-function isValidSystemEventType(
-  eventType
-){
-
-  return Object.values(
-    SYSTEM_EVENT_TYPES
-  )
-  .includes(
-    String(eventType)
-  );
-
-}
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    window,
-
-    "SYSTEM_EVENT_TYPES",
-
-    {
-
-      value:
-      SYSTEM_EVENT_TYPES,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "isValidSystemEventType",
-
-    {
-
-      value:
-      isValidSystemEventType,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+export default
+SYSTEM_EVENT_TYPES;
