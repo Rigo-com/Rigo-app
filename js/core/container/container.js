@@ -49,10 +49,10 @@ Object.seal({
   new Map(),
 
   scopes:
-  new Map()
+  new Map(),
 
   resolutionStack:
-new Set(),
+new Set()
   
 });
 
