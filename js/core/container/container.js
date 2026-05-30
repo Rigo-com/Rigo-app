@@ -53,7 +53,7 @@ Object.seal({
 
   resolutionStack:
   new Set()
-  
+
 });
 
 
@@ -273,6 +273,74 @@ async function resolveMany(
 
 
 
+function createScope(
+  scopeName
+){
+
+  if(
+    !scopeName
+  ){
+
+    throw new Error(
+      "INVALID_SCOPE_NAME"
+    );
+
+  }
+
+  if(
+
+    !containerState
+    .scopes
+    .has(
+      scopeName
+    )
+
+  ){
+
+    containerState
+    .scopes
+    .set(
+
+      scopeName,
+
+      new Map()
+
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+function removeScope(
+  scopeName
+){
+
+  return containerState
+  .scopes
+  .delete(
+    scopeName
+  );
+
+}
+
+
+
+function clearScopes(){
+
+  containerState
+  .scopes
+  .clear();
+
+  return true;
+
+}
+
+
+
 function clear(){
 
   containerState
@@ -285,6 +353,10 @@ function clear(){
 
   containerState
   .scopes
+  .clear();
+
+  containerState
+  .resolutionStack
   .clear();
 
   return true;
@@ -330,6 +402,18 @@ Object.freeze({
 
 
   resolveMany,
+
+
+
+  createScope,
+
+
+
+  removeScope,
+
+
+
+  clearScopes,
 
 
 
