@@ -309,7 +309,10 @@ function createModuleContext(
     dependencies:
     moduleDefinition
     .metadata
-    .dependencies
+    .dependencies,
+
+    createdAt:
+    Date.now()
 
   };
 
@@ -1165,5 +1168,83 @@ async function unloadModule(
   );
 
   return true;
+
+}
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ModuleActivation =
+Object.freeze({
+
+  load:
+  loadModule,
+
+  unload:
+  unloadModule,
+
+  activate:
+  activateModule
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  loadModule,
+
+  unloadModule,
+
+  activateModule,
+
+  loadModuleDependencies,
+
+  createModuleContext,
+
+  moduleActivationRuntime,
+
+  ModuleActivation
+
+};
+
+export default
+ModuleActivation;
+
+
+
+// =====================================
+// GLOBAL EXPORT
+// =====================================
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  Object.defineProperty(
+
+    globalThis,
+
+    "ModuleActivation",
+
+    {
+
+      value:
+      ModuleActivation,
+
+      writable:false,
+
+      configurable:false
+
+    }
+
+  );
 
 }
