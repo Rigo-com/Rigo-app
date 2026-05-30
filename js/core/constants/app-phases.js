@@ -41,32 +41,8 @@ Object.freeze({
 
 
 // =====================================
-// VALIDATION
-// =====================================
-
-function isValidAppPhase(
-  phase
-){
-
-  return Object.values(
-    APP_PHASES
-  )
-  .includes(
-    String(phase)
-  );
-
-}
-
-
-
-// =====================================
 // EXPORTS
 // =====================================
 
-export {
-
-  APP_PHASES,
-
-  isValidAppPhase
-
-};
+export default
+APP_PHASES;
