@@ -64,7 +64,12 @@ async function register(
 ){
 
   if(
-    !definition
+
+    !definition ||
+
+    typeof definition !==
+    "object"
+
   ){
 
     throw new Error(
@@ -73,16 +78,60 @@ async function register(
 
   }
 
-  const serviceDefinition =
-  Object.freeze({
+  const serviceName =
+  String(
+    definition.name || ""
+  )
+  .trim();
 
-    name:
-    definition.name,
+  if(
+    !serviceName
+  ){
 
-    factory:
-    definition.factory,
+    throw new Error(
+      "INVALID_SERVICE_NAME"
+    );
 
-    dependencies:
+  }
+
+  if(
+
+    typeof definition.factory !==
+    "function"
+
+  ){
+
+    throw new Error(
+      "INVALID_SERVICE_FACTORY"
+    );
+
+  }
+
+  const lifecycle =
+
+    definition.lifecycle ||
+
+    CONTAINER_LIFECYCLE
+    .SINGLETON;
+
+  if(
+
+    !Object.values(
+      CONTAINER_LIFECYCLE
+    )
+    .includes(
+      lifecycle
+    )
+
+  ){
+
+    throw new Error(
+      "INVALID_SERVICE_LIFECYCLE"
+    );
+
+  }
+
+  const dependencies =
 
     Array.isArray(
       definition.dependencies
@@ -94,14 +143,20 @@ async function register(
 
     :
 
-    [],
+    [];
 
-    lifecycle:
+  const serviceDefinition =
+  Object.freeze({
 
-    definition.lifecycle ||
+    name:
+    serviceName,
 
-    CONTAINER_LIFECYCLE
-    .SINGLETON
+    factory:
+    definition.factory,
+
+    dependencies,
+
+    lifecycle
 
   });
 
@@ -109,7 +164,7 @@ async function register(
 
     containerState,
 
-    definition.name,
+    serviceName,
 
     serviceDefinition
 
