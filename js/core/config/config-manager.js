@@ -9,10 +9,14 @@
 // IMPORTS
 // =====================================
 
-import {
-  CONFIG_DEFAULTS
-}
+import ConfigTypes
 from "./config-types.js";
+
+
+
+const {
+  CONFIG_DEFAULTS
+} = ConfigTypes;
 
 
 
@@ -199,12 +203,6 @@ Object.freeze({
 // =====================================
 // EXPORTS
 // =====================================
-
-export {
-
-  RIGOConfig
-
-};
 
 export default
 RIGOConfig;
