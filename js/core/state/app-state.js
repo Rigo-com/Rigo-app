@@ -1,95 +1,26 @@
 // =====================================
 // RIGO AI
 // APP STATE
-// CENTRAL APPLICATION STATE
 // =====================================
 
 
 
 // =====================================
-// IMMUTABLE
+// IMPORTS
 // =====================================
 
-function freezeAppStateValue(
-  value,
-  visited = new WeakSet()
-){
+import APP_PHASES
+from "../constants/app-phases.js";
 
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Date ||
-
-    value instanceof RegExp ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    (
-      typeof HTMLElement !==
-      "undefined" &&
-
-      value instanceof HTMLElement
-    )
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    if(
-      nestedValue &&
-      typeof nestedValue ===
-      "object"
-    ){
-
-      freezeAppStateValue(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
-
+import {
+  createImmutableState
 }
+from "./state-utils.js";
 
 
 
 // =====================================
-// APP STATE
+// STATE
 // =====================================
 
 const appState =
@@ -164,7 +95,7 @@ Object.seal({
 
 function createAppStateSnapshot(){
 
-  return freezeAppStateValue({
+  return createImmutableState({
 
     initialized:
     appState.initialized,
@@ -206,13 +137,8 @@ function createAppStateSnapshot(){
     appState.shutdownAt,
 
     lastError:
-
-      appState.lastError
-
-      ? String(
-          appState.lastError
-        )
-
+    appState.lastError
+      ? String(appState.lastError)
       : null,
 
     recoveryAttempts:
@@ -231,44 +157,26 @@ function createAppStateSnapshot(){
     appState.lastHealthcheckAt,
 
     observers:
-
-      appState
-      .observers
-      .size,
+    appState.observers.size,
 
     activeModules:[
-
-      ...appState
-      .activeModules
-
+      ...appState.activeModules
     ],
 
     failedModules:[
-
-      ...appState
-      .failedModules
-
+      ...appState.failedModules
     ],
 
     activeServices:[
-
-      ...appState
-      .activeServices
-
+      ...appState.activeServices
     ],
 
     pendingTasks:[
-
-      ...appState
-      .pendingTasks
-
+      ...appState.pendingTasks
     ],
 
     runtimeLocks:[
-
-      ...appState
-      .runtimeLocks
-
+      ...appState.runtimeLocks
     ]
 
   });
@@ -278,7 +186,7 @@ function createAppStateSnapshot(){
 
 
 // =====================================
-// NOTIFY
+// OBSERVERS
 // =====================================
 
 function notifyAppStateObservers(){
@@ -286,23 +194,20 @@ function notifyAppStateObservers(){
   const snapshot =
   createAppStateSnapshot();
 
-  [
-    ...appState
-    .observers
-  ]
-  .forEach((listener) => {
+  for(
+    const listener
+    of [...appState.observers]
+  ){
 
     try{
 
-      listener(
-        snapshot
-      );
+      listener(snapshot);
 
     }
 
     catch(error){}
 
-  });
+  }
 
   return true;
 
@@ -311,7 +216,7 @@ function notifyAppStateObservers(){
 
 
 // =====================================
-// UPDATE
+// CORE
 // =====================================
 
 function updateAppState(
@@ -329,9 +234,7 @@ function updateAppState(
 
   try{
 
-    updater(
-      appState
-    );
+    updater(appState);
 
     notifyAppStateObservers();
 
@@ -349,10 +252,6 @@ function updateAppState(
 
 
 
-// =====================================
-// GET
-// =====================================
-
 function getAppState(){
 
   return createAppStateSnapshot();
@@ -362,7 +261,7 @@ function getAppState(){
 
 
 // =====================================
-// OBSERVERS
+// SUBSCRIPTIONS
 // =====================================
 
 function subscribeAppState(
@@ -378,9 +277,7 @@ function subscribeAppState(
 
   }
 
-  appState
-  .observers
-  .add(
+  appState.observers.add(
     listener
   );
 
@@ -394,9 +291,7 @@ function unsubscribeAppState(
   listener
 ){
 
-  return appState
-  .observers
-  .delete(
+  return appState.observers.delete(
     listener
   );
 
@@ -429,46 +324,31 @@ function updateAppPhase(
 
       state.starting = (
 
-        phase ===
-        APP_PHASES.PREINIT ||
-
-        phase ===
-        APP_PHASES.BOOTING ||
-
-        phase ===
-        APP_PHASES.INITIALIZING
+        phase === APP_PHASES.PREINIT ||
+        phase === APP_PHASES.INITIALIZING ||
+        phase === APP_PHASES.BOOTING
 
       );
 
-      state.booting = (
+      state.booting =
+      phase ===
+      APP_PHASES.BOOTING;
 
-        phase ===
-        APP_PHASES.BOOTING
-      );
+      state.ready =
+      phase ===
+      APP_PHASES.READY;
 
-      state.ready = (
+      state.shuttingDown =
+      phase ===
+      APP_PHASES.SHUTTING_DOWN;
 
-        phase ===
-        APP_PHASES.READY
-      );
+      state.recovering =
+      phase ===
+      APP_PHASES.RECOVERING;
 
-      state.shuttingDown = (
-
-        phase ===
-        APP_PHASES.SHUTTING_DOWN
-      );
-
-      state.recovering = (
-
-        phase ===
-        APP_PHASES.RECOVERING
-      );
-
-      state.started = (
-
-        phase ===
-        APP_PHASES.READY
-      );
+      state.started =
+      phase ===
+      APP_PHASES.READY;
 
     }
   );
@@ -478,7 +358,7 @@ function updateAppPhase(
 
 
 // =====================================
-// ERROR
+// HELPERS
 // =====================================
 
 function setAppError(
@@ -501,10 +381,6 @@ function setAppError(
 
 
 
-// =====================================
-// HEALTHCHECK
-// =====================================
-
 function updateHealthcheckTimestamp(){
 
   return updateAppState(
@@ -520,17 +396,11 @@ function updateHealthcheckTimestamp(){
 
 
 
-// =====================================
-// MODULES
-// =====================================
-
 function addActiveModule(
   moduleName
 ){
 
-  if(
-    !moduleName
-  ){
+  if(!moduleName){
 
     return false;
 
@@ -539,9 +409,7 @@ function addActiveModule(
   return updateAppState(
     (state) => {
 
-      state
-      .activeModules
-      .add(
+      state.activeModules.add(
         String(moduleName)
       );
 
@@ -556,9 +424,7 @@ function removeActiveModule(
   moduleName
 ){
 
-  if(
-    !moduleName
-  ){
+  if(!moduleName){
 
     return false;
 
@@ -567,9 +433,7 @@ function removeActiveModule(
   return updateAppState(
     (state) => {
 
-      state
-      .activeModules
-      .delete(
+      state.activeModules.delete(
         String(moduleName)
       );
 
@@ -586,111 +450,43 @@ function removeActiveModule(
 
 function resetAppState(){
 
-  return updateAppState(
-    (state) => {
+  appState.initialized = false;
+  appState.started = false;
+  appState.starting = false;
+  appState.booting = false;
+  appState.ready = false;
+  appState.shuttingDown = false;
+  appState.recovering = false;
+  appState.crashed = false;
 
-      state.initialized =
-      false;
+  appState.phase =
+  APP_PHASES.IDLE;
 
-      state.started =
-      false;
+  appState.initializedAt = null;
+  appState.startupStartedAt = null;
+  appState.startupCompletedAt = null;
+  appState.shutdownAt = null;
+  appState.lastError = null;
+  appState.recoveryAttempts = 0;
+  appState.failedStarts = 0;
+  appState.crashCount = 0;
+  appState.startupDuration = 0;
+  appState.lastHealthcheckAt = null;
 
-      state.starting =
-      false;
+  appState.activeModules.clear();
+  appState.failedModules.clear();
+  appState.activeServices.clear();
+  appState.pendingTasks.clear();
+  appState.runtimeLocks.clear();
 
-      state.booting =
-      false;
-
-      state.ready =
-      false;
-
-      state.shuttingDown =
-      false;
-
-      state.recovering =
-      false;
-
-      state.crashed =
-      false;
-
-      state.phase =
-      APP_PHASES.IDLE;
-
-      state.initializedAt =
-      null;
-
-      state.startupStartedAt =
-      null;
-
-      state.startupCompletedAt =
-      null;
-
-      state.shutdownAt =
-      null;
-
-      state.lastError =
-      null;
-
-      state.recoveryAttempts =
-      0;
-
-      state.failedStarts =
-      0;
-
-      state.crashCount =
-      0;
-
-      state.startupDuration =
-      0;
-
-      state.lastHealthcheckAt =
-      null;
-
-      state
-      .activeModules
-      .clear();
-
-      state
-      .failedModules
-      .clear();
-
-      state
-      .activeServices
-      .clear();
-
-      state
-      .pendingTasks
-      .clear();
-
-      state
-      .runtimeLocks
-      .clear();
-
-      if(
-        state
-        .healthcheckTimer
-      ){
-
-        clearInterval(
-          state
-          .healthcheckTimer
-        );
-
-        state
-        .healthcheckTimer =
-        null;
-
-      }
-
-    }
-  );
+  return notifyAppStateObservers();
 
 }
 
 
 
 // =====================================
-// PUBLIC API
+// API
 // =====================================
 
 const AppState =
@@ -731,21 +527,8 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
-
-  window.RIGOAppState =
-  AppState;
-
-  window.updateAppPhase =
-  updateAppPhase;
-
-  window.resetAppState =
-  resetAppState;
-
-}
+export default
+AppState;
