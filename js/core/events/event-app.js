@@ -7,31 +7,16 @@
 
 
 // =====================================
-// APP EVENT TYPES
+// IMPORTS
 // =====================================
 
-const APP_EVENTS =
-Object.freeze({
+import {
+  APP_EVENTS
+}
+from "./event-types.js";
 
-  INITIALIZED:
-  "app.initialized",
-
-  BOOT_STARTED:
-  "app.boot.started",
-
-  BOOT_COMPLETED:
-  "app.boot.completed",
-
-  BOOT_FAILED:
-  "app.boot.failed",
-
-  READY:
-  "app.ready",
-
-  SHUTDOWN:
-  "app.shutdown"
-
-});
+import SystemEvents
+from "./event-manager.js";
 
 
 
@@ -94,33 +79,12 @@ function validateAppEventName(
 
 function getSafeAppSnapshot(){
 
-  try{
+  return {
 
-    if(
-      typeof appState ===
-      "undefined"
-    ){
+    phase:
+    null
 
-      return null;
-
-    }
-
-    return {
-
-      phase:
-      appState?.phase ||
-
-      null
-
-    };
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
+  };
 
 }
 
@@ -135,7 +99,7 @@ function createAppEventPayload(
 ){
 
   const appSnapshot =
-    getSafeAppSnapshot();
+  getSafeAppSnapshot();
 
   return {
 
@@ -169,9 +133,9 @@ async function emitAppEvent(
 ){
 
   const validEvent =
-    validateAppEventName(
-      eventName
-    );
+  validateAppEventName(
+    eventName
+  );
 
   if(
     !validEvent
@@ -183,42 +147,33 @@ async function emitAppEvent(
 
   }
 
-  if(
-
-    typeof emitSystemEvent !==
-    "function"
-
-  ){
-
-    appEventsState.failed++;
-
-    return false;
-
-  }
-
   try{
 
     const result =
-      await emitSystemEvent(
+    await SystemEvents.emit(
 
-        eventName,
+      eventName,
 
-        createAppEventPayload(
-          payload
-        )
+      createAppEventPayload(
+        payload
+      )
 
-      );
+    );
 
-    if(result){
+    if(
+      result
+    ){
 
       appEventsState.emitted++;
 
       appEventsState.lastEventAt =
-        Date.now();
+      Date.now();
 
     }
 
-    return Boolean(result);
+    return Boolean(
+      result
+    );
 
   }
 
@@ -267,26 +222,6 @@ function onAppEvent(
 
   }
 
-  if(
-
-    typeof SystemEvents ===
-    "undefined"
-
-  ){
-
-    return null;
-
-  }
-
-  if(
-    typeof SystemEvents.on !==
-    "function"
-  ){
-
-    return null;
-
-  }
-
   return SystemEvents.on(
     eventName,
     listener
@@ -311,26 +246,6 @@ function onceAppEvent(
 
   }
 
-  if(
-
-    typeof SystemEvents ===
-    "undefined"
-
-  ){
-
-    return null;
-
-  }
-
-  if(
-    typeof SystemEvents.once !==
-    "function"
-  ){
-
-    return null;
-
-  }
-
   return SystemEvents.once(
     eventName,
     listener
@@ -349,26 +264,6 @@ function offAppEvent(
     !validateAppEventName(
       eventName
     )
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    typeof SystemEvents ===
-    "undefined"
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof SystemEvents.off !==
-    "function"
   ){
 
     return false;
@@ -443,75 +338,24 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  emitAppEvent,
 
-    window,
+  onAppEvent,
 
-    "APP_EVENTS",
+  onceAppEvent,
 
-    {
+  offAppEvent,
 
-      value:
-      APP_EVENTS,
+  getAppEventDiagnostics,
 
-      writable:
-      false,
+  AppEvents
 
-      configurable:
-      false
+};
 
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "AppEvents",
-
-    {
-
-      value:
-      AppEvents,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "emitAppEvent",
-
-    {
-
-      value:
-      emitAppEvent,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-}
+export default
+AppEvents;
