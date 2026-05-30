@@ -7,6 +7,23 @@
 
 
 // =====================================
+// IMPORTS
+// =====================================
+
+import ModuleConstants, {
+
+  MODULE_LIFECYCLES,
+
+  MODULE_PRIORITIES,
+
+  MODULE_STATES
+
+}
+from "./module-constants.js";
+
+
+
+// =====================================
 // INTERNAL STATE (PRIVATE)
 // =====================================
 
@@ -206,9 +223,13 @@ function freezeModuleObject(
 
   }
 
-  visited.add(value);
+  visited.add(
+    value
+  );
 
-  Object.freeze(value);
+  Object.freeze(
+    value
+  );
 
   Object.values(value)
   .forEach((nestedValue) => {
@@ -814,16 +835,25 @@ function removeLoadingModule(
 
   }
 
-  moduleLoaderState.loadingStack =
+  const index =
+  moduleLoaderState
+  .loadingStack
+  .indexOf(
+    normalizedName
+  );
+
+  if(
+    index >= 0
+  ){
 
     moduleLoaderState
     .loadingStack
-    .filter((module) => {
+    .splice(
+      index,
+      1
+    );
 
-      return module !==
-      normalizedName;
-
-    });
+  }
 
   return true;
 
@@ -890,10 +920,6 @@ function getRegisteredModules(){
 }
 
 
-
-// =====================================
-// INSTANCE ACCESS
-// =====================================
 
 function getModuleInstance(
   moduleName
@@ -1134,17 +1160,70 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  moduleLoaderState,
+
+  normalizeModuleName,
+
+  registerModuleDefinition,
+
+  unregisterModuleDefinition,
+
+  setModuleInstance,
+
+  removeModuleInstance,
+
+  markModuleActive,
+
+  clearActiveModule,
+
+  markModuleFailed,
+
+  clearFailedModule,
+
+  pushLoadingModule,
+
+  removeLoadingModule,
+
+  getRegisteredModule,
+
+  hasRegisteredModule,
+
+  getRegisteredModules,
+
+  getModuleInstance,
+
+  getModuleRuntimeState,
+
+  getModuleRegistryDiagnostics,
+
+  createModuleRegistrySnapshot,
+
+  ModuleRegistry
+
+};
+
+export default
+ModuleRegistry;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "ModuleRegistry",
 
