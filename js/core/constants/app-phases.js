@@ -10,8 +10,7 @@
 // =====================================
 
 const APP_PHASES =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   IDLE:
   "idle",
@@ -37,7 +36,7 @@ Object.seal({
   ERROR:
   "error"
 
-}));
+});
 
 
 
@@ -61,50 +60,13 @@ function isValidAppPhase(
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  APP_PHASES,
 
-    window,
+  isValidAppPhase
 
-    "APP_PHASES",
-
-    {
-
-      value:
-      APP_PHASES,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "isValidAppPhase",
-
-    {
-
-      value:
-      isValidAppPhase,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+};
