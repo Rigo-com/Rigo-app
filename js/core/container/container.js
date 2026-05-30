@@ -181,13 +181,48 @@ function remove(
   serviceName
 ){
 
-  return removeService(
+  const removed =
+  removeService(
 
     containerState,
 
     serviceName
 
   );
+
+  if(
+    !removed
+  ){
+
+    return false;
+
+  }
+
+  const normalizedName =
+  String(
+    serviceName || ""
+  )
+  .trim()
+  .toLowerCase();
+
+  containerState
+  .singletons
+  .delete(
+    normalizedName
+  );
+
+  containerState
+  .scopes
+  .forEach((scopeStore) => {
+
+    scopeStore
+    .delete(
+      normalizedName
+    );
+
+  });
+
+  return true;
 
 }
 
