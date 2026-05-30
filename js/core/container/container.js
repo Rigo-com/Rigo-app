@@ -51,6 +51,9 @@ Object.seal({
   scopes:
   new Map()
 
+  resolutionStack:
+new Set(),
+  
 });
 
 
