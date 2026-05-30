@@ -10,8 +10,7 @@
 // =====================================
 
 const SYSTEM_EVENTS_CONFIG =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
 
 
@@ -91,77 +90,13 @@ Object.seal({
   THROTTLE_CLEANUP_INTERVAL:
   60000
 
-}));
+});
 
 
 
 // =====================================
-// VALIDATION
+// EXPORTS
 // =====================================
 
-function isValidSystemEventsConfigKey(
-  key
-){
-
-  return Object.prototype
-  .hasOwnProperty
-  .call(
-
-    SYSTEM_EVENTS_CONFIG,
-
-    String(key)
-
-  );
-
-}
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    window,
-
-    "SYSTEM_EVENTS_CONFIG",
-
-    {
-
-      value:
-      SYSTEM_EVENTS_CONFIG,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "isValidSystemEventsConfigKey",
-
-    {
-
-      value:
-      isValidSystemEventsConfigKey,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+export default
+SYSTEM_EVENTS_CONFIG;
