@@ -480,19 +480,28 @@ function scheduleQueueProcessing(){
   ){
 
     return;
+
   }
 
   systemEventsState
   .scheduledQueue =
   true;
 
-  queueMicrotask(async() => {
+  queueMicrotask(() => {
 
     systemEventsState
     .scheduledQueue =
     false;
 
-    await processSystemEventQueue();
+    processSystemEventQueue()
+    .catch((error) => {
+
+      console.warn(
+        "[SystemEvents] Queue processing failed",
+        error
+      );
+
+    });
 
   });
 
