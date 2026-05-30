@@ -368,6 +368,8 @@ function initializeSystemEvents(){
 
   }
 
+  cleanupThrottledEvents();
+
   systemEventsState
   .initialized =
   true;
