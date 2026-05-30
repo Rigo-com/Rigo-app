@@ -6,32 +6,71 @@
 
 
 // =====================================
-// CONFIG
+// IMPORTS
 // =====================================
 
-const STATE_MANAGER_CONFIG =
-Object.freeze({
+import STATE_MANAGER_CONFIG
+from "./state-config.js";
 
-  MAX_HISTORY:
-  500,
+import {
 
-  MAX_SNAPSHOTS:
-  100,
+  cloneStateValue,
 
-  MAX_SUBSCRIBERS:
-  500,
+  createImmutableState,
 
-  ENABLE_HISTORY:true,
+  normalizeStatePath
 
-  ENABLE_SNAPSHOTS:true,
+}
+from "./state-utils.js";
 
-  ENABLE_MIDDLEWARE:true,
+import {
 
-  ENABLE_TRANSACTIONS:true,
+  storeStateHistory,
 
-  ENABLE_ROLLBACKS:true
+  getStateHistory,
 
-});
+  clearStateHistory
+
+}
+from "./state-history.js";
+
+import {
+
+  createStateSnapshot,
+
+  getStateSnapshots,
+
+  clearStateSnapshots
+
+}
+from "./state-snapshots.js";
+
+import {
+
+  subscribeToState,
+
+  unsubscribeFromState,
+
+  notifyStateSubscribers
+
+}
+from "./state-subscribers.js";
+
+import {
+
+  useStateMiddleware,
+
+  executeStateMiddleware
+
+}
+from "./state-middleware.js";
+
+import {
+
+  runStateTransaction
+
+}
+from "./state-transactions.js";
 
 
 
@@ -58,13 +97,7 @@ Object.freeze({
   "state.rollback",
 
   SNAPSHOT:
-  "state.snapshot",
-
-  TRANSACTION_START:
-  "state.transaction.start",
-
-  TRANSACTION_END:
-  "state.transaction.end"
+  "state.snapshot"
 
 });
 
@@ -118,216 +151,6 @@ Object.seal({
 
 
 // =====================================
-// CLONE
-// =====================================
-
-function cloneStateValue(
-  value,
-  visited = new WeakMap()
-){
-
-  if(
-
-    value === null ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return visited.get(
-      value
-    );
-
-  }
-
-  if(
-    value instanceof Date
-  ){
-
-    return new Date(
-      value.getTime()
-    );
-
-  }
-
-  if(
-    value instanceof RegExp
-  ){
-
-    return new RegExp(
-      value
-    );
-
-  }
-
-  if(
-    value instanceof Set
-  ){
-
-    return new Set(
-      [...value]
-    );
-
-  }
-
-  if(
-    value instanceof Map
-  ){
-
-    return new Map(
-      [...value]
-    );
-
-  }
-
-  const clone =
-
-    Array.isArray(value)
-
-    ? []
-
-    : {};
-
-  visited.set(
-    value,
-    clone
-  );
-
-  Object.keys(value)
-  .forEach((key) => {
-
-    clone[key] =
-    cloneStateValue(
-      value[key],
-      visited
-    );
-
-  });
-
-  return clone;
-
-}
-
-
-
-// =====================================
-// FREEZE
-// =====================================
-
-function freezeStateObject(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Promise ||
-
-    value instanceof Date ||
-
-    value instanceof RegExp ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    (
-      typeof HTMLElement !==
-      "undefined" &&
-
-      value instanceof HTMLElement
-    )
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    freezeStateObject(
-      nestedValue,
-      visited
-    );
-
-  });
-
-  return value;
-
-}
-
-
-
-function createImmutableState(
-  value
-){
-
-  return freezeStateObject(
-    cloneStateValue(value)
-  );
-
-}
-
-
-
-// =====================================
-// PATH
-// =====================================
-
-function normalizeStatePath(
-  path
-){
-
-  return String(
-    path || ""
-  )
-  .trim();
-
-}
-
-
-
-// =====================================
 // GET
 // =====================================
 
@@ -345,9 +168,8 @@ function getStateValue(
   }
 
   const segments =
-
-    normalizeStatePath(path)
-    .split(".");
+  normalizeStatePath(path)
+  .split(".");
 
   let currentValue =
   stateManagerState
@@ -359,12 +181,9 @@ function getStateValue(
   ){
 
     if(
-
       !currentValue ||
-
       typeof currentValue !==
       "object"
-
     ){
 
       return undefined;
@@ -408,7 +227,7 @@ function hasStateValue(
 
 
 // =====================================
-// SET NESTED
+// INTERNAL
 // =====================================
 
 function setNestedStateValue(
@@ -428,26 +247,19 @@ function setNestedStateValue(
   stateCopy;
 
   for(
-
     let i = 0;
-
     i < segments.length - 1;
-
     i++
-
   ){
 
     const segment =
     segments[i];
 
     if(
-
       !current[segment] ||
-
       typeof current[
         segment
       ] !== "object"
-
     ){
 
       current[segment] =
@@ -472,334 +284,20 @@ function setNestedStateValue(
 
 
 
-// =====================================
-// HISTORY
-// =====================================
-
-function storeStateHistory(
-  stateSnapshot
-){
-
-  if(
-
-    !STATE_MANAGER_CONFIG
-    .ENABLE_HISTORY
-
-  ){
-
-    return false;
-
-  }
-
-  stateManagerState
-  .history
-  .push({
-
-    version:
-    stateManagerState
-    .version,
-
-    state:
-    createImmutableState(
-      stateSnapshot
-    ),
-
-    timestamp:
-    Date.now()
-
-  });
-
-  if(
-
-    stateManagerState
-    .history
-    .length >
-
-    STATE_MANAGER_CONFIG
-    .MAX_HISTORY
-
-  ){
-
-    stateManagerState
-    .history
-    .shift();
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
-
-function createStateSnapshot(){
-
-  const snapshot =
-  createImmutableState({
-
-    version:
-    stateManagerState
-    .version,
-
-    state:
-    stateManagerState
-    .currentState,
-
-    timestamp:
-    Date.now()
-
-  });
-
-  stateManagerState
-  .snapshots
-  .push(snapshot);
-
-  if(
-
-    stateManagerState
-    .snapshots
-    .length >
-
-    STATE_MANAGER_CONFIG
-    .MAX_SNAPSHOTS
-
-  ){
-
-    stateManagerState
-    .snapshots
-    .shift();
-
-  }
-
-  stateManagerState
-  .diagnostics
-  .snapshots++;
-
-  return snapshot;
-
-}
-
-
-
-// =====================================
-// MIDDLEWARE
-// =====================================
-
-function useStateMiddleware(
-  middleware
-){
-
-  if(
-    typeof middleware !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  stateManagerState
-  .middleware
-  .add(middleware);
-
-  return true;
-
-}
-
-
-
-async function executeStateMiddleware(
-  context
-){
-
-  if(
-
-    !STATE_MANAGER_CONFIG
-    .ENABLE_MIDDLEWARE
-
-  ){
-
-    return true;
-
-  }
-
-  const immutableContext =
-  createImmutableState(
-    context
-  );
-
-  for(
-
-    const middleware
-
-    of
-
-    stateManagerState
-    .middleware
-
-  ){
-
-    try{
-
-      const result =
-      await middleware(
-        immutableContext
-      );
-
-      if(
-        result === false
-      ){
-
-        return false;
-
-      }
-
-    }
-
-    catch(error){}
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SUBSCRIBERS
-// =====================================
-
-function subscribeToState(
-  subscriber
-){
-
-  if(
-    typeof subscriber !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    stateManagerState
-    .subscribers
-    .size >=
-
-    STATE_MANAGER_CONFIG
-    .MAX_SUBSCRIBERS
-
-  ){
-
-    return false;
-
-  }
-
-  stateManagerState
-  .subscribers
-  .add(subscriber);
-
-  stateManagerState
-  .diagnostics
-  .subscribers =
-
-    stateManagerState
-    .subscribers
-    .size;
-
-  return true;
-
-}
-
-
-
-function unsubscribeFromState(
-  subscriber
-){
-
-  const removed =
-
-    stateManagerState
-    .subscribers
-    .delete(subscriber);
-
-  stateManagerState
-  .diagnostics
-  .subscribers =
-
-    stateManagerState
-    .subscribers
-    .size;
-
-  return removed;
-
-}
-
-
-
-async function notifyStateSubscribers(
-  context
-){
-
-  const immutableContext =
-  createImmutableState(
-    context
-  );
-
-  for(
-
-    const subscriber
-
-    of
-
-    [
-      ...stateManagerState
-      .subscribers
-    ]
-
-  ){
-
-    try{
-
-      await subscriber(
-        immutableContext
-      );
-
-    }
-
-    catch(error){}
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INTERNAL UPDATE
-// =====================================
-
 async function applyStateUpdate(
   nextState,
-  context,
-  eventName
+  context
 ){
 
   const middlewareSuccess =
   await executeStateMiddleware(
+    stateManagerState,
     context
   );
 
-  if(!middlewareSuccess){
+  if(
+    !middlewareSuccess
+  ){
 
     return false;
 
@@ -807,7 +305,6 @@ async function applyStateUpdate(
 
   storeStateHistory(
     stateManagerState
-    .currentState
   );
 
   stateManagerState
@@ -821,34 +318,17 @@ async function applyStateUpdate(
   .lastUpdatedAt =
   Date.now();
 
-  if(
-
-    STATE_MANAGER_CONFIG
-    .ENABLE_SNAPSHOTS
-
-  ){
-
-    createStateSnapshot();
-
-  }
-
-  await notifyStateSubscribers(
-    context
+  createStateSnapshot(
+    stateManagerState
   );
 
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
+  await notifyStateSubscribers(
 
-    await emitSystemEvent(
-      eventName,
-      createImmutableState(
-        context
-      )
-    );
+    stateManagerState,
 
-  }
+    context
+
+  );
 
   return true;
 
@@ -887,32 +367,24 @@ async function updateState(
 
   );
 
-  const context = {
-
-    path:
-    normalizedPath,
-
-    value:
-    createImmutableState(
-      value
-    ),
-
-    metadata:
-    createImmutableState(
-      metadata
-    ),
-
-    timestamp:
-    Date.now()
-
-  };
-
   const updated =
   await applyStateUpdate(
 
     nextState,
-    context,
-    STATE_EVENTS.UPDATED
+
+    {
+
+      path:
+      normalizedPath,
+
+      value,
+
+      metadata,
+
+      timestamp:
+      Date.now()
+
+    }
 
   );
 
@@ -963,13 +435,9 @@ async function removeStateValue(
   stateCopy;
 
   for(
-
     let i = 0;
-
     i < segments.length - 1;
-
     i++
-
   ){
 
     current =
@@ -977,9 +445,7 @@ async function removeStateValue(
       segments[i]
     ];
 
-    if(
-      !current
-    ){
+    if(!current){
 
       return false;
 
@@ -993,32 +459,21 @@ async function removeStateValue(
     ]
   ];
 
-  const removed =
-  await applyStateUpdate(
+  return applyStateUpdate(
 
     stateCopy,
 
     {
+
       path:
       normalizedPath,
 
       timestamp:
       Date.now()
-    },
 
-    STATE_EVENTS.REMOVED
+    }
 
   );
-
-  if(removed){
-
-    stateManagerState
-    .diagnostics
-    .removals++;
-
-  }
-
-  return removed;
 
 }
 
@@ -1030,321 +485,24 @@ async function removeStateValue(
 
 async function resetStateManager(){
 
-  const reset =
-  await applyStateUpdate(
+  stateManagerState
+  .currentState = {};
 
-    {},
+  stateManagerState
+  .version = 1;
 
-    {
-      timestamp:
-      Date.now()
-    },
+  stateManagerState
+  .lastUpdatedAt = null;
 
-    STATE_EVENTS.RESET
-
+  clearStateHistory(
+    stateManagerState
   );
 
-  if(!reset){
-
-    return false;
-
-  }
-
-  stateManagerState
-  .history =
-  [];
-
-  stateManagerState
-  .snapshots =
-  [];
-
-  stateManagerState
-  .version =
-  1;
-
-  stateManagerState
-  .lastUpdatedAt =
-  null;
-
-  stateManagerState
-  .diagnostics = {
-
-    updates:0,
-
-    removals:0,
-
-    rollbacks:0,
-
-    snapshots:0,
-
-    transactions:0,
-
-    subscribers:
-
-      stateManagerState
-      .subscribers
-      .size
-
-  };
+  clearStateSnapshots(
+    stateManagerState
+  );
 
   return true;
-
-}
-
-
-
-// =====================================
-// ROLLBACK
-// =====================================
-
-async function rollbackState(
-  version = null
-){
-
-  if(
-
-    !STATE_MANAGER_CONFIG
-    .ENABLE_ROLLBACKS
-
-  ){
-
-    return false;
-
-  }
-
-  const history =
-  stateManagerState
-  .history;
-
-  if(
-    history.length <= 0
-  ){
-
-    return false;
-
-  }
-
-  const rollbackTarget =
-
-    version == null
-
-    ?
-
-    history[
-      history.length - 1
-    ]
-
-    :
-
-    history.find((entry) => {
-
-      return (
-        entry.version ===
-        version
-      );
-
-    });
-
-  if(!rollbackTarget){
-
-    return false;
-
-  }
-
-  const rollbacked =
-  await applyStateUpdate(
-
-    cloneStateValue(
-      rollbackTarget.state
-    ),
-
-    {
-
-      rollbackVersion:
-      rollbackTarget
-      .version,
-
-      timestamp:
-      Date.now()
-
-    },
-
-    STATE_EVENTS.ROLLBACK
-
-  );
-
-  if(rollbacked){
-
-    stateManagerState
-    .diagnostics
-    .rollbacks++;
-
-  }
-
-  return rollbacked;
-
-}
-
-
-
-// =====================================
-// TRANSACTION
-// =====================================
-
-async function runStateTransaction(
-  callback
-){
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    !STATE_MANAGER_CONFIG
-    .ENABLE_TRANSACTIONS
-
-  ){
-
-    return callback();
-
-  }
-
-  if(
-    stateManagerState
-    .activeTransaction
-  ){
-
-    return false;
-
-  }
-
-  stateManagerState
-  .activeTransaction =
-  true;
-
-  stateManagerState
-  .diagnostics
-  .transactions++;
-
-  try{
-
-    if(
-      typeof emitSystemEvent ===
-      "function"
-    ){
-
-      await emitSystemEvent(
-        STATE_EVENTS
-        .TRANSACTION_START
-      );
-
-    }
-
-    const result =
-    await callback({
-
-      get:
-      getStateValue,
-
-      set:
-      updateState,
-
-      remove:
-      removeStateValue
-
-    });
-
-    if(
-      typeof emitSystemEvent ===
-      "function"
-    ){
-
-      await emitSystemEvent(
-        STATE_EVENTS
-        .TRANSACTION_END
-      );
-
-    }
-
-    return result;
-
-  }
-
-  finally{
-
-    stateManagerState
-    .activeTransaction =
-    false;
-
-  }
-
-}
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
-
-function getStateDiagnostics(){
-
-  return createImmutableState({
-
-    initialized:
-    stateManagerState
-    .initialized,
-
-    version:
-    stateManagerState
-    .version,
-
-    subscribers:
-
-      stateManagerState
-      .subscribers
-      .size,
-
-    middleware:
-
-      stateManagerState
-      .middleware
-      .size,
-
-    history:
-
-      stateManagerState
-      .history
-      .length,
-
-    snapshots:
-
-      stateManagerState
-      .snapshots
-      .length,
-
-    activeTransaction:
-
-      stateManagerState
-      .activeTransaction,
-
-    diagnostics:{
-
-      ...stateManagerState
-      .diagnostics
-    },
-
-    lastUpdatedAt:
-
-      stateManagerState
-      .lastUpdatedAt
-
-  });
 
 }
 
@@ -1369,19 +527,61 @@ async function initializeStateManager(){
   .initialized =
   true;
 
-  if(
-    typeof emitSystemEvent ===
-    "function"
-  ){
-
-    await emitSystemEvent(
-      STATE_EVENTS
-      .INITIALIZED
-    );
-
-  }
-
   return true;
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getStateDiagnostics(){
+
+  return createImmutableState({
+
+    initialized:
+    stateManagerState
+    .initialized,
+
+    version:
+    stateManagerState
+    .version,
+
+    subscribers:
+    stateManagerState
+    .subscribers
+    .size,
+
+    middleware:
+    stateManagerState
+    .middleware
+    .size,
+
+    history:
+    stateManagerState
+    .history
+    .length,
+
+    snapshots:
+    stateManagerState
+    .snapshots
+    .length,
+
+    activeTransaction:
+    stateManagerState
+    .activeTransaction,
+
+    diagnostics:
+    stateManagerState
+    .diagnostics,
+
+    lastUpdatedAt:
+    stateManagerState
+    .lastUpdatedAt
+
+  });
 
 }
 
@@ -1415,32 +615,89 @@ Object.freeze({
   reset:
   resetStateManager,
 
-  rollback:
-  rollbackState,
+  snapshot(){
 
-  snapshot:
-  createStateSnapshot,
-
-  history(){
-
-    return createImmutableState(
+    return createStateSnapshot(
       stateManagerState
-      .history
     );
 
   },
 
-  transaction:
-  runStateTransaction,
+  history(){
 
-  subscribe:
-  subscribeToState,
+    return getStateHistory(
+      stateManagerState
+    );
 
-  unsubscribe:
-  unsubscribeFromState,
+  },
 
-  use:
-  useStateMiddleware,
+  snapshots(){
+
+    return getStateSnapshots(
+      stateManagerState
+    );
+
+  },
+
+  transaction(
+    callback
+  ){
+
+    return runStateTransaction(
+
+      stateManagerState,
+
+      callback,
+
+      {
+
+        get:
+        getStateValue,
+
+        set:
+        updateState,
+
+        remove:
+        removeStateValue
+
+      }
+
+    );
+
+  },
+
+  subscribe(
+    subscriber
+  ){
+
+    return subscribeToState(
+      stateManagerState,
+      subscriber
+    );
+
+  },
+
+  unsubscribe(
+    subscriber
+  ){
+
+    return unsubscribeFromState(
+      stateManagerState,
+      subscriber
+    );
+
+  },
+
+  use(
+    middleware
+  ){
+
+    return useStateMiddleware(
+      stateManagerState,
+      middleware
+    );
+
+  },
 
   diagnostics:
   getStateDiagnostics
@@ -1450,21 +707,8 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
-
-  window.RIGOStateManager =
-  StateManager;
-
-  window.STATE_EVENTS =
-  STATE_EVENTS;
-
-  window.STATE_MANAGER_CONFIG =
-  STATE_MANAGER_CONFIG;
-
-}
+export default
+StateManager;
