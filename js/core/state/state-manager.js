@@ -75,35 +75,6 @@ from "./state-transactions.js";
 
 
 // =====================================
-// EVENTS
-// =====================================
-
-const STATE_EVENTS =
-Object.freeze({
-
-  INITIALIZED:
-  "state.initialized",
-
-  UPDATED:
-  "state.updated",
-
-  RESET:
-  "state.reset",
-
-  REMOVED:
-  "state.removed",
-
-  ROLLBACK:
-  "state.rollback",
-
-  SNAPSHOT:
-  "state.snapshot"
-
-});
-
-
-
-// =====================================
 // STATE
 // =====================================
 
@@ -304,7 +275,12 @@ async function applyStateUpdate(
   }
 
   storeStateHistory(
+
+    stateManagerState,
+
     stateManagerState
+    .currentState
+
   );
 
   stateManagerState
@@ -318,9 +294,18 @@ async function applyStateUpdate(
   .lastUpdatedAt =
   Date.now();
 
-  createStateSnapshot(
-    stateManagerState
-  );
+  if(
+
+    STATE_MANAGER_CONFIG
+    .ENABLE_SNAPSHOTS
+
+  ){
+
+    createStateSnapshot(
+      stateManagerState
+    );
+
+  }
 
   await notifyStateSubscribers(
 
@@ -651,13 +636,10 @@ Object.freeze({
 
       {
 
-        get:
         getStateValue,
 
-        set:
         updateState,
 
-        remove:
         removeStateValue
 
       }
