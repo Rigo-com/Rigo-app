@@ -300,6 +300,16 @@ function createSystemEvent(
   options = {}
 ){
 
+  const priority =
+  Number(
+    options.priority
+  );
+
+  const retries =
+  Number(
+    options.retries
+  );
+
   return safeFreeze({
 
     id:
@@ -317,11 +327,15 @@ function createSystemEvent(
 
     priority:
 
-      Number(
-        options.priority
+      Number.isFinite(
+        priority
       )
 
-      ||
+      ?
+
+      priority
+
+      :
 
       SYSTEM_EVENT_PRIORITIES
       .NORMAL,
@@ -331,11 +345,15 @@ function createSystemEvent(
 
     retries:
 
-      Number(
-        options.retries
+      Number.isFinite(
+        retries
       )
 
-      ||
+      ?
+
+      retries
+
+      :
 
       0,
 
