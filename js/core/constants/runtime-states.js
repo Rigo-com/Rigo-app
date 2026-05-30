@@ -10,8 +10,7 @@
 // =====================================
 
 const RUNTIME_STATES =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   IDLE:
   "idle",
@@ -31,7 +30,7 @@ Object.seal({
   FAILED:
   "failed"
 
-}));
+});
 
 
 
@@ -55,50 +54,13 @@ function isValidRuntimeState(
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  RUNTIME_STATES,
 
-    window,
+  isValidRuntimeState
 
-    "RUNTIME_STATES",
-
-    {
-
-      value:
-      RUNTIME_STATES,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-  Object.defineProperty(
-
-    window,
-
-    "isValidRuntimeState",
-
-    {
-
-      value:
-      isValidRuntimeState,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+};
