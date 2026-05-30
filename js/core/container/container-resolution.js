@@ -26,12 +26,39 @@ async function createServiceInstance(
   scope
 ){
 
+  if(
+    !definition
+  ){
+
+    throw new Error(
+      "INVALID_SERVICE_DEFINITION"
+    );
+
+  }
+
+  if(
+    typeof definition.factory !==
+    "function"
+  ){
+
+    throw new Error(
+      "INVALID_SERVICE_FACTORY"
+    );
+
+  }
+
   const dependencies =
   {};
 
+  const dependencyList =
+
+    definition.dependencies ||
+
+    [];
+
   for(
     const dependency
-    of definition.dependencies
+    of dependencyList
   ){
 
     dependencies[
@@ -48,7 +75,7 @@ async function createServiceInstance(
 
   }
 
-  return definition.factory({
+  return await definition.factory({
 
     container,
 
