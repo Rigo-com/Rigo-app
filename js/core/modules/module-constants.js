@@ -19,8 +19,7 @@ const MODULE_SYSTEM_VERSION =
 // =====================================
 
 const MODULE_LOADER_CONFIG =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   ENABLE_LAZY_LOADING:
   true,
@@ -94,7 +93,7 @@ Object.seal({
   BOOTSTRAP_TIMEOUT:
   30000
 
-}));
+});
 
 
 
@@ -103,8 +102,7 @@ Object.seal({
 // =====================================
 
 const MODULE_STATES =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   REGISTERED:
   "registered",
@@ -139,7 +137,7 @@ Object.seal({
   DESTROYED:
   "destroyed"
 
-}));
+});
 
 
 
@@ -148,8 +146,7 @@ Object.seal({
 // =====================================
 
 const MODULE_EVENTS =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   REGISTERED:
   "module.registered",
@@ -196,7 +193,7 @@ Object.seal({
   DEPENDENCIES_RESOLVED:
   "module.dependencies.resolved"
 
-}));
+});
 
 
 
@@ -205,8 +202,7 @@ Object.seal({
 // =====================================
 
 const MODULE_LIFECYCLES =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   SINGLETON:
   "singleton",
@@ -217,7 +213,7 @@ Object.seal({
   RUNTIME:
   "runtime"
 
-}));
+});
 
 
 
@@ -226,8 +222,7 @@ Object.seal({
 // =====================================
 
 const MODULE_PRIORITIES =
-Object.freeze(
-Object.seal({
+Object.freeze({
 
   LOW:
   10,
@@ -241,7 +236,7 @@ Object.seal({
   CRITICAL:
   1000
 
-}));
+});
 
 
 
@@ -351,17 +346,52 @@ Object.freeze({
 
 
 // =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  MODULE_SYSTEM_VERSION,
+
+  MODULE_LOADER_CONFIG,
+
+  MODULE_STATES,
+
+  MODULE_EVENTS,
+
+  MODULE_LIFECYCLES,
+
+  MODULE_PRIORITIES,
+
+  isValidModuleState,
+
+  isValidModuleEvent,
+
+  isValidModuleLifecycle,
+
+  isValidModulePriority,
+
+  ModuleConstants
+
+};
+
+export default
+ModuleConstants;
+
+
+
+// =====================================
 // GLOBAL EXPORT
 // =====================================
 
 if(
-  typeof window !==
+  typeof globalThis !==
   "undefined"
 ){
 
   Object.defineProperty(
 
-    window,
+    globalThis,
 
     "ModuleConstants",
 
