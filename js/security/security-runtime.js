@@ -214,18 +214,7 @@ function securePayload(
         payload
       );
 
-    recordSecurityEvent(
-
-      SECURITY_EVENTS
-      .SANITIZATION_FAILED,
-
-      {
-
-        success:true
-
-      }
-
-    );
+    
 
     return sanitized;
 
