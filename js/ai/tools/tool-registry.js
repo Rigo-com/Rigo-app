@@ -5,12 +5,12 @@
 // =====================================
 
 import {
-  TOOL_EXECUTOR_CONFIG,
-  TOOL_PRIORITIES
+  TOOL_EXECUTOR_CONFIG
 }
 from "./tool-config.js";
 
 import {
+  TOOL_PRIORITIES,
   TOOL_EVENTS
 }
 from "./tool-constants.js";
