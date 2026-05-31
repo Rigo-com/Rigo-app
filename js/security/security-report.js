@@ -70,6 +70,9 @@ function createSecurityReport(){
 
   return Object.freeze({
 
+    generatedAt:
+    Date.now(),
+
     summary:
     createSecuritySummary(),
 
@@ -89,6 +92,17 @@ function createSecurityReport(){
 function createFilteredReport(
   severity
 ){
+
+  if(
+    typeof severity !==
+    "string"
+  ){
+
+    throw new TypeError(
+      "Invalid severity"
+    );
+
+  }
 
   const events =
 
@@ -119,7 +133,7 @@ function createFilteredReport(
 
 
 // =====================================
-// CLEAR REPORT
+// EMPTY REPORT
 // =====================================
 
 function createEmptyReport(){
@@ -140,7 +154,8 @@ function createEmptyReport(){
 
     }),
 
-    events:[]
+    events:
+    Object.freeze([])
 
   });
 
