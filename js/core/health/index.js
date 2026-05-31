@@ -1,724 +1,135 @@
 // =====================================
 // RIGO AI
 // HEALTH INDEX
-// SAFE HEALTH COMPOSITION LAYER
-// FINAL HARDENED EDITION
+// ENTRY POINT
 // =====================================
 
 
 
 // =====================================
-// HEALTH FILES
+// IMPORTS
 // =====================================
 
-import "./diagnostics-runtime.js";
-import "./health-diagnostics.js";
-import "./health-monitor.js";
-import "./health-runtime.js";
-import "./health-system.js";
+import HealthConfig
+from "./health-config.js";
+
+import HealthState
+from "./health-state.js";
+
+import HealthMonitor
+from "./health-monitor.js";
+
+import HealthManager
+from "./health-manager.js";
 
 
 
 // =====================================
-// HELPERS
+// SHORTCUTS
 // =====================================
 
-function getHealthDependency(
-  dependencyName
-){
+async function initializeHealth(){
 
-  try{
-
-    if(
-      typeof globalThis ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    const dependency =
-    globalThis[
-      dependencyName
-    ];
-
-    if(
-      typeof dependency ===
-      "undefined"
-    ){
-
-      console.warn(
-
-        `[RIGOHealth] Missing dependency: ${dependencyName}`
-
-      );
-
-      return null;
-
-    }
-
-    return dependency;
-
-  }
-
-  catch(error){
-
-    console.warn(
-
-      `[RIGOHealth] Failed resolving dependency: ${dependencyName}`,
-
-      error
-
-    );
-
-    return null;
-
-  }
+  return HealthManager
+  .initialize();
 
 }
 
 
 
-function isFunction(
-  value
-){
+async function startHealthMonitoring(){
 
-  return (
-    typeof value ===
-    "function"
-  );
+  return HealthManager
+  .start();
 
 }
 
 
 
-function isPlainObject(
-  value
-){
+async function stopHealthMonitoring(){
 
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  const prototype =
-  Object.getPrototypeOf(
-    value
-  );
-
-  return (
-
-    prototype ===
-    Object.prototype ||
-
-    prototype ===
-    null
-
-  );
+  return HealthManager
+  .stop();
 
 }
 
 
 
-function safeFreeze(
-  value,
-  visited = new WeakSet()
-){
+async function checkHealth(){
 
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
+  return HealthManager
+  .check();
 
-    return value;
+}
 
-  }
 
-  if(
-    visited.has(value)
-  ){
 
-    return value;
+async function resetHealth(){
 
-  }
+  return HealthManager
+  .reset();
 
-  if(
+}
 
-    value instanceof Date ||
 
-    value instanceof RegExp ||
 
-    value instanceof Map ||
+// =====================================
+// SNAPSHOT
+// =====================================
 
-    value instanceof Set ||
+function createHealthSystemSnapshot(){
 
-    (
-      typeof HTMLElement !==
-      "undefined" &&
+  return Object.freeze({
 
-      value instanceof HTMLElement
-    )
+    health:
+    HealthManager
+    .snapshot(),
 
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    !Array.isArray(value) &&
-
-    !isPlainObject(value)
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    if(
-      nestedValue &&
-      typeof nestedValue ===
-      "object"
-    ){
-
-      safeFreeze(
-        nestedValue,
-        visited
-      );
-
-    }
+    timestamp:
+    Date.now()
 
   });
 
-  return value;
-
-}
-
-
-
-async function safelyExecuteHealthOperation(
-  label,
-  operation,
-  fallback = null
-){
-
-  try{
-
-    if(
-      !isFunction(
-        operation
-      )
-    ){
-
-      return fallback;
-
-    }
-
-    return await operation();
-
-  }
-
-  catch(error){
-
-    console.warn(
-
-      `[RIGOHealth] ${label} failed`,
-
-      error
-
-    );
-
-    return fallback;
-
-  }
-
 }
 
 
 
 // =====================================
-// READONLY ACCESS
+// PUBLIC API
 // =====================================
 
-function createReadonlyHealthAccessor(
-  dependencyName
-){
+const Health =
+Object.freeze({
 
-  return async() => {
+  config:
+  HealthConfig,
 
-    return safelyExecuteHealthOperation(
-
-      `Readonly access: ${dependencyName}`,
-
-      async() => {
-
-        const dependency =
-        getHealthDependency(
-          dependencyName
-        );
-
-        if(
-          !dependency
-        ){
-
-          return null;
-
-        }
-
-        if(
-          isFunction(
-            dependency.snapshot
-          )
-        ){
-
-          return safeFreeze(
-            await dependency.snapshot()
-          );
-
-        }
-
-        if(
-          isFunction(
-            dependency.getSnapshot
-          )
-        ){
-
-          return safeFreeze(
-            await dependency.getSnapshot()
-          );
-
-        }
-
-        if(
-          isFunction(
-            dependency.diagnostics
-          )
-        ){
-
-          return safeFreeze({
-
-            diagnostics:
-            await dependency
-            .diagnostics()
-
-          });
-
-        }
-
-        return safeFreeze({
-
-          ...dependency
-
-        });
-
-      },
-
-      null
-
-    );
-
-  };
-
-}
-
-
-
-// =====================================
-// OPERATIONS
-// =====================================
-
-async function runHealthChecks(){
-
-  return safelyExecuteHealthOperation(
-
-    "Run health checks",
-
-    async() => {
-
-      const runtime =
-      getHealthDependency(
-        "RIGOHealthRuntime"
-      );
-
-      if(
-        !runtime
-      ){
-
-        return false;
-
-      }
-
-      if(
-        isFunction(
-          runtime.run
-        )
-      ){
-
-        return await runtime.run();
-
-      }
-
-      return false;
-
-    },
-
-    false
-
-  );
-
-}
-
-
-
-async function startHealthSystem(){
-
-  return safelyExecuteHealthOperation(
-
-    "Start health system",
-
-    async() => {
-
-      const system =
-      getHealthDependency(
-        "RIGOHealthSystem"
-      );
-
-      if(
-        !system
-      ){
-
-        return false;
-
-      }
-
-      if(
-        isFunction(
-          system.start
-        )
-      ){
-
-        return await system.start();
-
-      }
-
-      return false;
-
-    },
-
-    false
-
-  );
-
-}
-
-
-
-async function stopHealthSystem(){
-
-  return safelyExecuteHealthOperation(
-
-    "Stop health system",
-
-    async() => {
-
-      const system =
-      getHealthDependency(
-        "RIGOHealthSystem"
-      );
-
-      if(
-        !system
-      ){
-
-        return false;
-
-      }
-
-      if(
-        isFunction(
-          system.stop
-        )
-      ){
-
-        return await system.stop();
-
-      }
-
-      return false;
-
-    },
-
-    false
-
-  );
-
-}
-
-
-
-async function initializeHealthSystem(){
-
-  return safelyExecuteHealthOperation(
-
-    "Initialize health system",
-
-    async() => {
-
-      const system =
-      getHealthDependency(
-        "RIGOHealthSystem"
-      );
-
-      if(
-        !system
-      ){
-
-        return false;
-
-      }
-
-      if(
-        isFunction(
-          system.initialize
-        )
-      ){
-
-        return await system.initialize();
-
-      }
-
-      return false;
-
-    },
-
-    false
-
-  );
-
-}
-
-
-
-async function resetHealthSystem(){
-
-  return safelyExecuteHealthOperation(
-
-    "Reset health system",
-
-    async() => {
-
-      const system =
-      getHealthDependency(
-        "RIGOHealthSystem"
-      );
-
-      if(
-        !system
-      ){
-
-        return false;
-
-      }
-
-      if(
-        isFunction(
-          system.reset
-        )
-      ){
-
-        return await system.reset();
-
-      }
-
-      return false;
-
-    },
-
-    false
-
-  );
-
-}
-
-
-
-// =====================================
-// HEALTH REPORT
-// =====================================
-
-async function getUnifiedHealthReport(){
-
-  return safelyExecuteHealthOperation(
-
-    "Unified health report",
-
-    async() => {
-
-      const system =
-      await RIGOHealthIndex
-      .system();
-
-      const runtime =
-      await RIGOHealthIndex
-      .runtime();
-
-      const monitor =
-      await RIGOHealthIndex
-      .monitor();
-
-      const diagnostics =
-      await RIGOHealthIndex
-      .healthDiagnostics();
-
-      let runtimeHealth =
-      null;
-
-      const runtimeDependency =
-      getHealthDependency(
-        "RIGOHealthRuntime"
-      );
-
-      if(
-
-        runtimeDependency &&
-
-        isFunction(
-          runtimeDependency.run
-        )
-
-      ){
-
-        runtimeHealth =
-        await runtimeDependency
-        .run();
-
-      }
-
-      return safeFreeze({
-
-        system,
-        runtime,
-        monitor,
-        diagnostics,
-
-        runtimeHealth,
-
-        timestamp:
-        Date.now()
-
-      });
-
-    },
-
-    null
-
-  );
-
-}
-
-
-
-// =====================================
-// HEALTH API
-// =====================================
-
-const RIGOHealthIndex =
-safeFreeze({
-
-
-
-  // ===================================
-  // SUBSYSTEMS
-  // ===================================
-
-  system:
-  createReadonlyHealthAccessor(
-    "RIGOHealthSystem"
-  ),
-
-
-
-  runtime:
-  createReadonlyHealthAccessor(
-    "RIGOHealthRuntime"
-  ),
-
-
+  state:
+  HealthState,
 
   monitor:
-  createReadonlyHealthAccessor(
-    "RIGOHealthMonitor"
-  ),
+  HealthMonitor,
 
-
-
-  healthDiagnostics:
-  createReadonlyHealthAccessor(
-    "RIGOHealthDiagnostics"
-  ),
-
-
-
-  // ===================================
-  // OPERATIONS
-  // ===================================
-
-  run:
-  runHealthChecks,
-
-
-
-  start:
-  startHealthSystem,
-
-
-
-  stop:
-  stopHealthSystem,
-
-
+  manager:
+  HealthManager,
 
   initialize:
-  initializeHealthSystem,
+  initializeHealth,
 
+  start:
+  startHealthMonitoring,
 
+  stop:
+  stopHealthMonitoring,
+
+  check:
+  checkHealth,
 
   reset:
-  resetHealthSystem,
-
-
-
-  // ===================================
-  // DIAGNOSTICS
-  // ===================================
-
-  diagnostics:
-  getUnifiedHealthReport,
-
-
+  resetHealth,
 
   snapshot:
-  getUnifiedHealthReport
+  createHealthSystemSnapshot
 
 });
 
@@ -730,59 +141,29 @@ safeFreeze({
 
 export {
 
-  getHealthDependency,
+  HealthConfig,
 
-  safelyExecuteHealthOperation,
+  HealthState,
 
-  createReadonlyHealthAccessor,
+  HealthMonitor,
 
-  runHealthChecks,
+  HealthManager,
 
-  startHealthSystem,
+  initializeHealth,
 
-  stopHealthSystem,
+  startHealthMonitoring,
 
-  initializeHealthSystem,
+  stopHealthMonitoring,
 
-  resetHealthSystem,
+  checkHealth,
 
-  getUnifiedHealthReport,
+  resetHealth,
 
-  RIGOHealthIndex
+  createHealthSystemSnapshot,
+
+  Health
 
 };
 
 export default
-RIGOHealthIndex;
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOHealthIndex",
-
-    {
-
-      value:
-      RIGOHealthIndex,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+Health;
