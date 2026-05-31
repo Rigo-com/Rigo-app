@@ -3,24 +3,12 @@
 // API STATE
 // =====================================
 
-const apiRuntimeState =
+const apiState =
 Object.seal({
 
   initialized:false,
 
-  initializing:false,
-
-  shuttingDown:false,
-
-  startupPromise:null,
-
-  status:"idle",
-
   pendingRequests:0,
-
-  lastError:null,
-
-  lastRequestAt:null,
 
   activeRequests:
   new Map(),
@@ -31,9 +19,9 @@ Object.seal({
   uploads:
   new Map(),
 
-  requestQueue:[],
+  lastRequestAt:null,
 
-  processingQueue:false,
+  lastError:null,
 
   diagnostics:{
 
@@ -47,9 +35,7 @@ Object.seal({
 
     uploads:0,
 
-    retries:0,
-
-    queued:0
+    retries:0
 
   }
 
@@ -57,6 +43,6 @@ Object.seal({
 
 export {
 
-  apiRuntimeState
+  apiState
 
 };
