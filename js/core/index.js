@@ -48,20 +48,8 @@ from "./app/index.js";
 
 async function initializeCore(){
 
-  const results =
-  await Promise.all([
-
-    Runtime.initialize?.(),
-
-    Modules.initialize?.(),
-
-    App.initialize?.()
-
-  ]);
-
-  return results.every(
-    Boolean
-  );
+  return App
+  .initialize();
 
 }
 
@@ -73,27 +61,8 @@ async function initializeCore(){
 
 async function bootCore(){
 
-  const initialized =
-  await initializeCore();
-
-  if(
-    !initialized
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof App.start ===
-    "function"
-  ){
-
-    return App.start();
-
-  }
-
-  return true;
+  return App
+  .start();
 
 }
 
