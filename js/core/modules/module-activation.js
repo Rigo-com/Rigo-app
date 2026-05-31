@@ -7,30 +7,26 @@
 
 
 // =====================================
-// INTERNAL RUNTIME METRICS
+// IMPORTS
 // =====================================
 
-const moduleActivationRuntime =
-Object.seal({
+import {
 
-  diagnostics:
-  Object.seal({
+  MODULE_EVENTS,
 
-    loaded:0,
+  MODULE_STATES,
 
-    failed:0,
+  MODULE_LOADER_CONFIG
 
-    unloaded:0
+}
+from "./module-constants.js";
 
-  }),
+import ModuleRegistry, {
 
-  lastLoadedAt:null,
+  normalizeModuleName
 
-  lastFailedAt:null,
-
-  lastUnloadedAt:null
-
-});
+}
+from "./module-registry.js";
 
 
 
@@ -49,247 +45,11 @@ function isFunction(
 
 
 
-function normalizeActivationError(
-  error
-){
-
-  if(
-    typeof getSafeErrorMessage ===
-    "function"
-  ){
-
-    return getSafeErrorMessage(
-      error
-    );
-
-  }
-
-  return String(
-    error || "UNKNOWN ERROR"
-  );
-
-}
-
-
-
-function getModuleRuntime(
-  moduleName
-){
-
-  if(
-
-    typeof ModuleRegistry ===
-    "undefined" ||
-
-    !isFunction(
-      ModuleRegistry
-      .getModuleRuntimeState
-    )
-
-  ){
-
-    return null;
-
-  }
-
-  return ModuleRegistry
-  .getModuleRuntimeState(
-    moduleName
-  );
-
-}
-
-
-
-function updateModuleRuntime(
-  moduleName,
-  updates = {}
-){
-
-  const runtime =
-  getModuleRuntime(
-    moduleName
-  );
-
-  if(
-    !runtime
-  ){
-
-    return false;
-
-  }
-
-  Object.assign(
-    runtime,
-    updates
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CIRCUIT SAFETY
-// =====================================
-
-function detectModuleCircularDependency(
-  moduleName
-){
-
-  const snapshot =
-
-    ModuleRegistry
-    ?.snapshot?.();
-
-  const loadingStack =
-    snapshot
-    ?.loadingStack || [];
-
-  return loadingStack
-  .includes(
-    normalizeModuleName(
-      moduleName
-    )
-  );
-
-}
-
-
-
-// =====================================
-// SAFE EVENT EMITTER
-// =====================================
-
-async function emitModuleEvent(
-  eventName,
-  payload = {}
-){
-
-  try{
-
-    if(
-      !isFunction(
-        emitSystemEvent
-      )
-    ){
-
-      return false;
-
-    }
-
-    await emitSystemEvent(
-
-      eventName,
-
-      {
-
-        source:
-        "module-activation",
-
-        timestamp:
-        Date.now(),
-
-        ...payload
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    console.warn(
-
-      "[ModuleActivation] Event emission failed:",
-
-      eventName,
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// TIMEOUT WRAPPER
-// =====================================
-
-function createModuleTimeout(
-  timeout
-){
-
-  const duration =
-
-    timeout ??
-
-    MODULE_LOADER_CONFIG
-    .ACTIVATION_TIMEOUT;
-
-  let timeoutId =
-  null;
-
-  const promise =
-  new Promise((_, reject) => {
-
-    timeoutId =
-    setTimeout(() => {
-
-      reject(
-
-        new Error(
-          "MODULE ACTIVATION TIMEOUT"
-        )
-
-      );
-
-    },
-
-    duration);
-
-  });
-
-  return {
-
-    promise,
-
-    clear(){
-
-      if(timeoutId){
-
-        clearTimeout(
-          timeoutId
-        );
-
-      }
-
-    }
-
-  };
-
-}
-
-
-
-// =====================================
-// MODULE CONTEXT
-// =====================================
-
 function createModuleContext(
   moduleDefinition
 ){
 
-  const context = {
+  return Object.freeze({
 
     name:
     moduleDefinition
@@ -309,34 +69,16 @@ function createModuleContext(
     dependencies:
     moduleDefinition
     .metadata
-    .dependencies,
+    .dependencies
 
-    createdAt:
-    Date.now()
-
-  };
-
-  if(
-    typeof freezeModuleObject ===
-    "function"
-  ){
-
-    return freezeModuleObject(
-      context
-    );
-
-  }
-
-  return Object.freeze(
-    context
-  );
+  });
 
 }
 
 
 
 // =====================================
-// LOAD DEPENDENCIES
+// DEPENDENCY LOADING
 // =====================================
 
 async function loadModuleDependencies(
@@ -373,24 +115,6 @@ async function loadModuleDependencies(
 
   }
 
-  await emitModuleEvent(
-
-    MODULE_EVENTS
-    .DEPENDENCIES_RESOLVED,
-
-    {
-
-      module:
-      moduleDefinition
-      .metadata
-      .name,
-
-      dependencies
-
-    }
-
-  );
-
   return true;
 
 }
@@ -411,38 +135,24 @@ async function activateModule(
     .metadata
     .name;
 
-  const runtime =
-  getModuleRuntime(
+  const runtimeState =
+  ModuleRegistry
+  .getModuleRuntimeState(
     moduleName
   );
 
   if(
-    !runtime
+    !runtimeState
   ){
 
     return null;
 
   }
 
-  const startedAt =
-  Date.now();
-
-  const context =
-  createModuleContext(
-    moduleDefinition
-  );
-
-  const timeout =
-  createModuleTimeout(
-
-    MODULE_LOADER_CONFIG
-    .ACTIVATION_TIMEOUT
-
-  );
-
   try{
 
-    updateModuleRuntime(
+    ModuleRegistry
+    .updateModuleRuntimeState(
 
       moduleName,
 
@@ -456,107 +166,28 @@ async function activateModule(
 
     );
 
-    const container =
-
-      typeof Container !==
-      "undefined"
-
-      ?
-
-      Container
-
-      :
-
-      null;
-
-    const state =
-
-      typeof StateManager !==
-      "undefined"
-
-      ?
-
-      StateManager
-
-      :
-
-      null;
-
-    const diagnostics =
-
-      typeof DiagnosticsRuntime !==
-      "undefined"
-
-      ?
-
-      DiagnosticsRuntime
-
-      :
-
-      null;
-
-    const events =
-
-      typeof SystemEvents !==
-      "undefined"
-
-      ?
-
-      SystemEvents
-
-      :
-
-      null;
+    const context =
+    createModuleContext(
+      moduleDefinition
+    );
 
     const instance =
-    await Promise.race([
-
-      moduleDefinition
-      .factory({
-
-        module:
-        context,
-
-        container,
-
-        state,
-
-        diagnostics,
-
-        events
-
-      }),
-
-      timeout
-      .promise
-
-    ]);
-
-    timeout.clear();
-
-    if(instance){
-
-      ModuleRegistry
-      .setModuleInstance(
-
-        moduleName,
-        instance
-
-      );
-
-    }
-
-    ModuleRegistry
-    .markModuleActive(
-      moduleName
+    await moduleDefinition
+    .factory(
+      context
     );
 
     ModuleRegistry
-    .clearFailedModule(
-      moduleName
+    .setModuleInstance(
+
+      moduleName,
+
+      instance
+
     );
 
-    updateModuleRuntime(
+    ModuleRegistry
+    .updateModuleRuntimeState(
 
       moduleName,
 
@@ -569,53 +200,8 @@ async function activateModule(
         activatedAt:
         Date.now(),
 
-        failedAt:null
-
-      }
-
-    );
-
-    moduleActivationRuntime
-    .diagnostics
-    .loaded++;
-
-    moduleActivationRuntime
-    .lastLoadedAt =
-    Date.now();
-
-    if(
-      isFunction(
-        trackPerformanceMetric
-      )
-    ){
-
-      trackPerformanceMetric(
-
-        "module.activation",
-
-        Date.now() -
-        startedAt,
-
-        {
-
-          module:
-          moduleName
-
-        }
-
-      );
-
-    }
-
-    await emitModuleEvent(
-
-      MODULE_EVENTS
-      .ACTIVATED,
-
-      {
-
-        module:
-        moduleName
+        failedAt:
+        null
 
       }
 
@@ -627,9 +213,8 @@ async function activateModule(
 
   catch(error){
 
-    timeout.clear();
-
-    updateModuleRuntime(
+    ModuleRegistry
+    .updateModuleRuntimeState(
 
       moduleName,
 
@@ -640,68 +225,12 @@ async function activateModule(
         .FAILED,
 
         retries:
-        runtime.retries + 1,
+
+          runtimeState
+          .retries + 1,
 
         failedAt:
         Date.now()
-
-      }
-
-    );
-
-    ModuleRegistry
-    .markModuleFailed(
-      moduleName
-    );
-
-    moduleActivationRuntime
-    .diagnostics
-    .failed++;
-
-    moduleActivationRuntime
-    .lastFailedAt =
-    Date.now();
-
-    if(
-      isFunction(
-        logDiagnosticError
-      )
-    ){
-
-      await logDiagnosticError(
-
-        "MODULE ACTIVATION FAILED",
-
-        {
-
-          module:
-          moduleName,
-
-          error:
-          normalizeActivationError(
-            error
-          )
-
-        }
-
-      );
-
-    }
-
-    await emitModuleEvent(
-
-      MODULE_EVENTS
-      .ACTIVATION_FAILED,
-
-      {
-
-        module:
-        moduleName,
-
-        error:
-        normalizeActivationError(
-          error
-        )
 
       }
 
@@ -736,16 +265,6 @@ async function loadModule(
 
   }
 
-  if(
-    detectModuleCircularDependency(
-      normalizedName
-    )
-  ){
-
-    return false;
-
-  }
-
   const moduleDefinition =
   ModuleRegistry
   .getRegisteredModule(
@@ -760,13 +279,14 @@ async function loadModule(
 
   }
 
-  const runtime =
-  getModuleRuntime(
+  const runtimeState =
+  ModuleRegistry
+  .getModuleRuntimeState(
     normalizedName
   );
 
   if(
-    !runtime
+    !runtimeState
   ){
 
     return false;
@@ -775,7 +295,7 @@ async function loadModule(
 
   if(
 
-    runtime.state ===
+    runtimeState.state ===
     MODULE_STATES.ACTIVE
 
   ){
@@ -784,46 +304,10 @@ async function loadModule(
 
   }
 
-  ModuleRegistry
-  .pushLoadingModule(
-    normalizedName
-  );
-
   try{
 
-    updateModuleRuntime(
-
-      normalizedName,
-
-      {
-
-        state:
-        MODULE_STATES
-        .INITIALIZING
-
-      }
-
-    );
-
-    await emitModuleEvent(
-
-      MODULE_EVENTS
-      .INITIALIZED,
-
-      {
-
-        module:
-        normalizedName
-
-      }
-
-    );
-
-    await loadModuleDependencies(
-      moduleDefinition
-    );
-
-    updateModuleRuntime(
+    ModuleRegistry
+    .updateModuleRuntimeState(
 
       normalizedName,
 
@@ -835,6 +319,10 @@ async function loadModule(
 
       }
 
+    );
+
+    await loadModuleDependencies(
+      moduleDefinition
     );
 
     const instance =
@@ -852,27 +340,14 @@ async function loadModule(
 
     }
 
-    await emitModuleEvent(
-
-      MODULE_EVENTS
-      .LOADED,
-
-      {
-
-        module:
-        normalizedName
-
-      }
-
-    );
-
     return true;
 
   }
 
   catch(error){
 
-    updateModuleRuntime(
+    ModuleRegistry
+    .updateModuleRuntimeState(
 
       normalizedName,
 
@@ -883,7 +358,9 @@ async function loadModule(
         .FAILED,
 
         retries:
-        runtime.retries + 1,
+
+          runtimeState
+          .retries + 1,
 
         failedAt:
         Date.now()
@@ -892,108 +369,7 @@ async function loadModule(
 
     );
 
-    ModuleRegistry
-    .markModuleFailed(
-      normalizedName
-    );
-
-    moduleActivationRuntime
-    .diagnostics
-    .failed++;
-
-    moduleActivationRuntime
-    .lastFailedAt =
-    Date.now();
-
-    if(
-      isFunction(
-        logDiagnosticError
-      )
-    ){
-
-      await logDiagnosticError(
-
-        "MODULE LOAD FAILED",
-
-        {
-
-          module:
-          normalizedName,
-
-          retries:
-          runtime.retries + 1,
-
-          error:
-          normalizeActivationError(
-            error
-          )
-
-        }
-
-      );
-
-    }
-
-    await emitModuleEvent(
-
-      MODULE_EVENTS
-      .LOAD_FAILED,
-
-      {
-
-        module:
-        normalizedName,
-
-        error:
-        normalizeActivationError(
-          error
-        )
-
-      }
-
-    );
-
-    if(
-
-      MODULE_LOADER_CONFIG
-      .ENABLE_RETRY_LOADING &&
-
-      runtime.retries <
-
-      MODULE_LOADER_CONFIG
-      .MAX_RETRIES
-
-    ){
-
-      await new Promise((resolve) => {
-
-        setTimeout(
-
-          resolve,
-
-          MODULE_LOADER_CONFIG
-          .RETRY_DELAY
-
-        );
-
-      });
-
-      return loadModule(
-        normalizedName
-      );
-
-    }
-
     return false;
-
-  }
-
-  finally{
-
-    ModuleRegistry
-    .removeLoadingModule(
-      normalizedName
-    );
 
   }
 
@@ -1022,34 +398,28 @@ async function unloadModule(
 
   }
 
-  const moduleDefinition =
+  const runtimeState =
   ModuleRegistry
-  .getRegisteredModule(
+  .getModuleRuntimeState(
     normalizedName
   );
 
   if(
-    !moduleDefinition
+    !runtimeState
   ){
 
     return false;
 
   }
 
-  const runtime =
-  getModuleRuntime(
+  const instance =
+  ModuleRegistry
+  .getModuleInstance(
     normalizedName
   );
 
-  if(
-    !runtime
-  ){
-
-    return false;
-
-  }
-
-  updateModuleRuntime(
+  ModuleRegistry
+  .updateModuleRuntimeState(
 
     normalizedName,
 
@@ -1061,26 +431,6 @@ async function unloadModule(
 
     }
 
-  );
-
-  await emitModuleEvent(
-
-    MODULE_EVENTS
-    .UNLOADING,
-
-    {
-
-      module:
-      normalizedName
-
-    }
-
-  );
-
-  const instance =
-  ModuleRegistry
-  .getModuleInstance(
-    normalizedName
   );
 
   if(
@@ -1100,19 +450,7 @@ async function unloadModule(
 
     }
 
-    catch(error){
-
-      console.warn(
-
-        "[ModuleActivation] Destroy failed:",
-
-        normalizedName,
-
-        error
-
-      );
-
-    }
+    catch(error){}
 
   }
 
@@ -1122,16 +460,7 @@ async function unloadModule(
   );
 
   ModuleRegistry
-  .clearActiveModule(
-    normalizedName
-  );
-
-  ModuleRegistry
-  .clearFailedModule(
-    normalizedName
-  );
-
-  updateModuleRuntime(
+  .updateModuleRuntimeState(
 
     normalizedName,
 
@@ -1145,31 +474,10 @@ async function unloadModule(
 
   );
 
-  moduleActivationRuntime
-  .diagnostics
-  .unloaded++;
-
-  moduleActivationRuntime
-  .lastUnloadedAt =
-  Date.now();
-
-  await emitModuleEvent(
-
-    MODULE_EVENTS
-    .UNLOADED,
-
-    {
-
-      module:
-      normalizedName
-
-    }
-
-  );
-
   return true;
 
 }
+
 
 
 // =====================================
@@ -1208,43 +516,9 @@ export {
 
   createModuleContext,
 
-  moduleActivationRuntime,
-
   ModuleActivation
 
 };
 
 export default
 ModuleActivation;
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "ModuleActivation",
-
-    {
-
-      value:
-      ModuleActivation,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
