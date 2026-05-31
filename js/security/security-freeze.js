@@ -99,8 +99,10 @@ function deepFreeze(
   );
 
   Reflect
-  .ownKeys(value)
-  .forEach((key) => {
+.ownKeys(value)
+.forEach((key) => {
+
+  try{
 
     deepFreeze(
 
@@ -110,7 +112,11 @@ function deepFreeze(
 
     );
 
-  });
+  }
+
+  catch{}
+
+});
 
   return safeFreeze(
     value
