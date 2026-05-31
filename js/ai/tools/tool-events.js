@@ -2,7 +2,7 @@
 // RIGO AI
 // TOOL EVENTS
 // =====================================
-
+ 
 import {
   TOOL_EXECUTOR_CONFIG
 }
