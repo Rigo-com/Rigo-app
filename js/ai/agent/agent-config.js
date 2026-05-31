@@ -1,0 +1,43 @@
+// =====================================
+// RIGO AI
+// AGENT CONFIG
+// =====================================
+
+export const AGENT_MANAGER_CONFIG =
+Object.freeze({
+
+  ENABLE_AGENT_EVENTS:true,
+
+  ENABLE_AGENT_MEMORY:true,
+
+  ENABLE_AGENT_DIAGNOSTICS:true,
+
+  ENABLE_AGENT_RECOVERY:true,
+
+  ENABLE_AGENT_HEALTHCHECKS:true,
+
+  ENABLE_AGENT_STATE_SYNC:true,
+
+  ENABLE_AGENT_QUEUE:true,
+
+  ENABLE_AGENT_ABORT:true,
+
+  MAX_AGENTS:
+  500,
+
+  MAX_AGENT_TASKS:
+  1000,
+
+  MAX_AGENT_RETRIES:
+  3,
+
+  MAX_QUEUE_SIZE:
+  1000,
+
+  TASK_TIMEOUT:
+  60000,
+
+  AGENT_HEALTHCHECK_INTERVAL:
+  30000
+
+});
