@@ -33,11 +33,42 @@ Object.freeze({
 // STATE
 // =====================================
 
-const securityMonitorState = {
+const securityMonitorState =
+Object.seal({
 
   events:[]
 
-};
+});
+
+
+
+// =====================================
+// EVENT ID
+// =====================================
+
+function createEventId(){
+
+  if(
+
+    typeof crypto !==
+    "undefined"
+
+    &&
+
+    typeof crypto.randomUUID ===
+    "function"
+
+  ){
+
+    return crypto.randomUUID();
+
+  }
+
+  return `event_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2)}`;
+
+}
 
 
 
@@ -52,10 +83,21 @@ function createSecurityEvent(
   SECURITY_SEVERITY.INFO
 ){
 
+  if(
+    typeof type !==
+    "string"
+  ){
+
+    throw new TypeError(
+      "Invalid event type"
+    );
+
+  }
+
   return Object.freeze({
 
     id:
-    crypto.randomUUID(),
+    createEventId(),
 
     type,
 
@@ -148,12 +190,12 @@ function recordViolation(
 
 function getEvents(){
 
-  return [
+  return Object.freeze([
 
     ...securityMonitorState
     .events
 
-  ];
+  ]);
 
 }
 
@@ -219,7 +261,7 @@ function getMetrics(){
 
 
 // =====================================
-// DEFAULT EVENTS
+// PUBLIC API
 // =====================================
 
 const SecurityMonitor =
