@@ -302,6 +302,10 @@ function validateSchema(
 ){
 
   validateObject(
+  value
+);
+  
+  validateObject(
     schema
   );
 
