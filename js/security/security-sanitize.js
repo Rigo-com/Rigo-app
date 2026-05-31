@@ -1,14 +1,13 @@
 // =====================================
 // RIGO AI
 // SECURITY SANITIZE
-// ENTERPRISE SANITIZATION ENGINE
-// FINAL HARDENED EDITION
+// PURE SANITIZATION LAYER
 // =====================================
 
 
 
 // =====================================
-// SANITIZER CONFIG
+// CONFIG
 // =====================================
 
 const SECURITY_SANITIZE_CONFIG =
@@ -17,47 +16,14 @@ Object.freeze({
   MAX_DEPTH:
   10,
 
-  MAX_KEYS:
-  1000,
+  MAX_STRING_LENGTH:
+  50000,
 
   MAX_ARRAY_LENGTH:
   5000,
 
-  MAX_STRING_LENGTH:
-  50000,
-
-  MAX_TOTAL_NODES:
-  10000,
-
-  ENABLE_HTTP_PROTOCOL:
-  false
-
-});
-
-
-
-// =====================================
-// SANITIZER STATE
-// =====================================
-
-const securitySanitizeState =
-Object.seal({
-
-  sanitizedStrings:0,
-
-  sanitizedObjects:0,
-
-  sanitizedArrays:0,
-
-  sanitizedURLs:0,
-
-  sanitizedPrompts:0,
-
-  blockedURLs:0,
-
-  failedSanitizations:0,
-
-  lastSanitizedAt:null
+  MAX_OBJECT_KEYS:
+  1000
 
 });
 
@@ -67,13 +33,13 @@ Object.seal({
 // HELPERS
 // =====================================
 
-function isPlainSanitizeObject(
+function isPlainObject(
   value
 ){
 
   if(
 
-    !value ||
+    value === null ||
 
     typeof value !==
     "object"
@@ -104,74 +70,9 @@ function isPlainSanitizeObject(
 
 
 
-function safeFreezeSanitized(
-  value,
-  visited = new WeakSet()
+function sanitizeString(
+  value
 ){
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  visited.add(value);
-
-  Reflect
-  .ownKeys(value)
-  .forEach((key) => {
-
-    try{
-
-      safeFreezeSanitized(
-        value[key],
-        visited
-      );
-
-    }
-
-    catch{}
-
-  });
-
-  return Object.freeze(
-    value
-  );
-
-}
-
-
-
-// =====================================
-// SAFE STRING
-// =====================================
-
-function safeString(
-  value,
-  options = {}
-){
-
-  securitySanitizeState
-  .sanitizedStrings++;
-
-  securitySanitizeState
-  .lastSanitizedAt =
-  Date.now();
 
   if(
     value == null
@@ -181,22 +82,16 @@ function safeString(
 
   }
 
-  const shouldTrim =
-  options.trim !== false;
-
-  let normalized = "";
+  let sanitized = "";
 
   try{
 
-    normalized =
+    sanitized =
     String(value);
 
   }
 
-  catch(error){
-
-    securitySanitizeState
-    .failedSanitizations++;
+  catch{
 
     return "";
 
@@ -204,17 +99,17 @@ function safeString(
 
   try{
 
-    normalized =
-    normalized.normalize(
+    sanitized =
+    sanitized.normalize(
       "NFKC"
     );
 
   }
 
-  catch(error){}
+  catch{}
 
-  normalized =
-  normalized
+  sanitized =
+  sanitized
 
   .replace(
     /[\u0000-\u001F\u007F]/g,
@@ -224,427 +119,223 @@ function safeString(
   .replace(
     /[\u202A-\u202E]/g,
     ""
-  );
+  )
 
-  if(
-    shouldTrim
-  ){
-
-    normalized =
-    normalized.trim();
-
-  }
-
-  const characters =
-  Array.from(
-    normalized
-  );
+  .trim();
 
   if(
 
-    characters.length >
+    sanitized.length >
 
     SECURITY_SANITIZE_CONFIG
     .MAX_STRING_LENGTH
 
   ){
 
-    normalized =
-    characters
-    .slice(
+    sanitized =
+    sanitized.slice(
 
       0,
 
       SECURITY_SANITIZE_CONFIG
       .MAX_STRING_LENGTH
 
-    )
-    .join("");
-
-  }
-
-  return normalized;
-
-}
-
-
-
-// =====================================
-// ESCAPE HTML
-// =====================================
-
-function escapeHTML(
-  input
-){
-
-  return safeString(input)
-
-  .replace(/&/g,"&amp;")
-  .replace(/</g,"&lt;")
-  .replace(/>/g,"&gt;")
-  .replace(/"/g,"&quot;")
-  .replace(/'/g,"&#39;")
-  .replace(/`/g,"&#96;");
-
-}
-
-
-
-// =====================================
-// SANITIZE HTML
-// =====================================
-
-function sanitizeHTML(
-  input
-){
-
-  return escapeHTML(
-    input
-  );
-
-}
-
-
-
-// =====================================
-// SANITIZE URL
-// =====================================
-
-function sanitizeURL(
-  url
-){
-
-  securitySanitizeState
-  .sanitizedURLs++;
-
-  const normalized =
-  safeString(
-    url
-  );
-
-  if(!normalized){
-
-    return "";
-  }
-
-  try{
-
-    const parsed =
-    new URL(
-
-      normalized,
-
-      "https://localhost"
-
     );
 
-    const protocol =
-    parsed.protocol
-    .toLowerCase();
+  }
 
-    const blockedProtocols =
+  return sanitized;
 
-      new Set([
+}
 
-        "javascript:",
 
-        "data:",
 
-        "vbscript:",
+// =====================================
+// INTERNAL SANITIZER
+// =====================================
 
-        "file:"
+function sanitizeInternal(
+  value,
+  depth,
+  visited
+){
 
-      ]);
+  if(
+
+    depth >
+
+    SECURITY_SANITIZE_CONFIG
+    .MAX_DEPTH
+
+  ){
+
+    return null;
+
+  }
+
+
+
+  // ================================
+  // NULL
+  // ================================
+
+  if(
+    value == null
+  ){
+
+    return null;
+
+  }
+
+
+
+  // ================================
+  // STRING
+  // ================================
+
+  if(
+    typeof value ===
+    "string"
+  ){
+
+    return sanitizeString(
+      value
+    );
+
+  }
+
+
+
+  // ================================
+  // NUMBER
+  // ================================
+
+  if(
+    typeof value ===
+    "number"
+  ){
+
+    return Number.isFinite(
+      value
+    )
+      ? value
+      : 0;
+
+  }
+
+
+
+  // ================================
+  // BOOLEAN
+  // ================================
+
+  if(
+    typeof value ===
+    "boolean"
+  ){
+
+    return value;
+
+  }
+
+
+
+  // ================================
+  // BIGINT
+  // ================================
+
+  if(
+    typeof value ===
+    "bigint"
+  ){
+
+    return value.toString();
+
+  }
+
+
+
+  // ================================
+  // DATE
+  // ================================
+
+  if(
+    value instanceof Date
+  ){
+
+    const timestamp =
+    value.getTime();
 
     if(
-      blockedProtocols.has(
-        protocol
+      Number.isNaN(
+        timestamp
       )
     ){
 
-      securitySanitizeState
-      .blockedURLs++;
+      return null;
 
-      return "";
     }
 
-    if(
-
-      SECURITY_SANITIZE_CONFIG
-      .ENABLE_HTTP_PROTOCOL ===
-      false
-
-      &&
-
-      protocol ===
-      "http:"
-
-    ){
-
-      securitySanitizeState
-      .blockedURLs++;
-
-      return "";
-    }
-
-    return parsed.href;
-
-  }
-
-  catch(error){
-
-    securitySanitizeState
-    .failedSanitizations++;
-
-    return "";
-
-  }
-
-}
-
-
-
-// =====================================
-// SANITIZE PROMPT
-// =====================================
-
-function sanitizePrompt(
-  prompt
-){
-
-  securitySanitizeState
-  .sanitizedPrompts++;
-
-  const normalized =
-  safeString(prompt);
-
-  const blockedPatterns = [
-
-    /ignore\s+previous\s+instructions/gi,
-
-    /ignore\s+all\s+previous/gi,
-
-    /system\s+prompt/gi,
-
-    /developer\s+message/gi,
-
-    /reveal\s+hidden/gi,
-
-    /show\s+internal/gi,
-
-    /disable\s+safety/gi,
-
-    /bypass\s+restrictions/gi,
-
-    /jailbreak/gi
-
-  ];
-
-  let sanitized =
-  normalized;
-
-  blockedPatterns
-  .forEach((pattern) => {
-
-    sanitized =
-    sanitized.replace(
-      pattern,
-      ""
+    return new Date(
+      timestamp
     );
 
-  });
+  }
 
-  return sanitized.trim();
 
-}
 
+  // ================================
+  // ERROR
+  // ================================
 
+  if(
+    value instanceof Error
+  ){
 
-// =====================================
-// SANITIZE VALUE
-// =====================================
+    return {
 
-function sanitizeValue(
-  input
-){
+      name:
+      sanitizeString(
+        value.name
+      ),
 
-  const stack = [
+      message:
+      sanitizeString(
+        value.message
+      )
 
-    {
-      source:input,
-      parent:null,
-      key:null,
-      depth:0
-    }
+    };
 
-  ];
+  }
 
-  const visited =
-  new WeakMap();
 
-  let totalNodes = 0;
 
-  let root = null;
-
-  while(stack.length){
-
-    const current =
-    stack.pop();
-
-    totalNodes++;
-
-    if(
-
-      totalNodes >
-
-      SECURITY_SANITIZE_CONFIG
-      .MAX_TOTAL_NODES
-
-    ){
-
-      break;
-
-    }
-
-    if(
-
-      current.depth >
-
-      SECURITY_SANITIZE_CONFIG
-      .MAX_DEPTH
-
-    ){
-
-      continue;
-
-    }
-
-    const value =
-    current.source;
-
-    let sanitized =
-    null;
-
-
-
-    // ================================
-    // PRIMITIVES
-    // ================================
-
-    if(
-      value == null
-    ){
-
-      sanitized = null;
-
-    }
-
-    else if(
-      typeof value ===
-      "string"
-    ){
-
-      sanitized =
-      safeString(value);
-
-    }
-
-    else if(
-
-      typeof value ===
-      "number"
-
-      ||
-
-      typeof value ===
-      "boolean"
-
-      ||
-
-      typeof value ===
-      "bigint"
-
-    ){
-
-      sanitized = value;
-
-    }
-
-
-
-    // ================================
-    // SPECIAL OBJECTS
-    // ================================
-
-    else if(
-      value instanceof Date
-    ){
-
-      sanitized =
-      new Date(
-        value.getTime()
-      );
-
-    }
-
-    else if(
-      value instanceof URL
-    ){
-
-      sanitized =
-      sanitizeURL(
-        value.href
-      );
-
-    }
-
-    else if(
-      value instanceof Error
-    ){
-
-      sanitized = {
-
-        name:
-        safeString(
-          value.name
-        ),
-
-        message:
-        safeString(
-          value.message
-        )
-
-      };
-
-    }
-
-
-
-    // ================================
-    // ARRAYS
-    // ================================
-
-    else if(
-  Array.isArray(
-    value
-  )
-){
-
-  securitySanitizeState
-  .sanitizedArrays++;
+  // ================================
+  // CIRCULAR
+  // ================================
 
   if(
     visited.has(value)
   ){
 
-    sanitized =
-    visited.get(value);
+    return visited.get(
+      value
+    );
 
   }
 
-  else{
 
-    sanitized = [];
+
+  // ================================
+  // ARRAY
+  // ================================
+
+  if(
+    Array.isArray(value)
+  ){
+
+    const sanitized =
+    [];
 
     visited.set(
       value,
@@ -652,264 +343,183 @@ function sanitizeValue(
     );
 
     value
+
     .slice(
+
       0,
+
       SECURITY_SANITIZE_CONFIG
       .MAX_ARRAY_LENGTH
+
     )
-    .forEach((item,index) => {
 
-      stack.push({
+    .forEach((item) => {
 
-        source:item,
+      sanitized.push(
 
-        parent:sanitized,
+        sanitizeInternal(
 
-        key:index,
+          item,
 
-        depth:
-        current.depth + 1
+          depth + 1,
 
-      });
+          visited
+
+        )
+
+      );
 
     });
 
+    return sanitized;
+
   }
 
-}
 
-      
 
-    // ================================
-    // OBJECTS
-    // ================================
+  // ================================
+  // OBJECT
+  // ================================
 
-    else if(
-      isPlainSanitizeObject(
-        value
-      )
-    ){
+  if(
+    isPlainObject(
+      value
+    )
+  ){
 
-      securitySanitizeState
-      .sanitizedObjects++;
+    const sanitized =
+    Object.create(null);
+
+    visited.set(
+      value,
+      sanitized
+    );
+
+    Object.keys(value)
+
+    .slice(
+
+      0,
+
+      SECURITY_SANITIZE_CONFIG
+      .MAX_OBJECT_KEYS
+
+    )
+
+    .forEach((key) => {
 
       if(
-        visited.has(value)
+
+        key ===
+        "__proto__"
+
+        ||
+
+        key ===
+        "prototype"
+
+        ||
+
+        key ===
+        "constructor"
+
       ){
 
-        sanitized =
-        visited.get(value);
+        return;
 
       }
 
-      else{
+      sanitized[key] =
 
-        sanitized =
-        Object.create(null);
+      sanitizeInternal(
 
-        visited.set(
-          value,
-          sanitized
-        );
+        value[key],
 
-        Object.keys(value)
-        .slice(
+        depth + 1,
 
-          0,
+        visited
 
-          SECURITY_SANITIZE_CONFIG
-          .MAX_KEYS
+      );
 
-        )
-        .forEach((key) => {
+    });
 
-          const normalizedKey =
-          safeString(key);
-
-          if(
-
-            normalizedKey ===
-            "__proto__"
-
-            ||
-
-            normalizedKey ===
-            "prototype"
-
-            ||
-
-            normalizedKey ===
-            "constructor"
-
-          ){
-
-            return;
-
-          }
-
-          stack.push({
-
-            source:
-            value[key],
-
-            parent:
-            sanitized,
-
-            key:
-            normalizedKey,
-
-            depth:
-            current.depth + 1
-
-          });
-
-        });
-
-      }
-
-    }
-
-
-
-    // ================================
-    // INVALID TYPES
-    // ================================
-
-    else{
-
-      sanitized = null;
-
-    }
-
-
-
-    // ================================
-    // ROOT
-    // ================================
-
-    if(
-      current.parent === null
-    ){
-
-      root = sanitized;
-
-      continue;
-
-    }
-
-
-
-    // ================================
-    // ASSIGN
-    // ================================
-
-    current.parent[
-      current.key
-    ] = sanitized;
+    return sanitized;
 
   }
 
-  return root;
+
+
+  // ================================
+  // UNSUPPORTED
+  // ================================
+
+  return null;
 
 }
 
 
 
 // =====================================
-// SAFE JSON STRINGIFY
+// ARRAY
 // =====================================
 
-function safeJSONStringify(
+function sanitizeArray(
   value
 ){
 
-  try{
+  return sanitizeInternal(
 
-    const sanitized =
-    sanitizeValue(
-      value
-    );
+    value,
 
-    return JSON.stringify(
+    0,
 
-      sanitized,
+    new WeakMap()
 
-      (_, currentValue) => {
-
-        if(
-          typeof currentValue ===
-          "bigint"
-        ){
-
-          return String(
-            currentValue
-          );
-
-        }
-
-        return currentValue;
-
-      }
-
-    );
-
-  }
-
-  catch(error){
-
-    securitySanitizeState
-    .failedSanitizations++;
-
-    return "{}";
-
-  }
+  );
 
 }
 
 
 
 // =====================================
-// DIAGNOSTICS
+// OBJECT
 // =====================================
 
-function getSecuritySanitizeDiagnostics(){
+function sanitizeObject(
+  value
+){
 
-  return Object.freeze({
+  return sanitizeInternal(
 
-    sanitizedStrings:
-    securitySanitizeState
-    .sanitizedStrings,
+    value,
 
-    sanitizedObjects:
-    securitySanitizeState
-    .sanitizedObjects,
+    0,
 
-    sanitizedArrays:
-    securitySanitizeState
-    .sanitizedArrays,
+    new WeakMap()
 
-    sanitizedURLs:
-    securitySanitizeState
-    .sanitizedURLs,
+  );
 
-    sanitizedPrompts:
-    securitySanitizeState
-    .sanitizedPrompts,
+}
 
-    blockedURLs:
-    securitySanitizeState
-    .blockedURLs,
 
-    failedSanitizations:
 
-      securitySanitizeState
-      .failedSanitizations,
+// =====================================
+// VALUE
+// =====================================
 
-    lastSanitizedAt:
-    securitySanitizeState
-    .lastSanitizedAt
+function sanitizeValue(
+  value
+){
 
-  });
+  return sanitizeInternal(
+
+    value,
+
+    0,
+
+    new WeakMap()
+
+  );
 
 }
 
@@ -920,30 +530,19 @@ function getSecuritySanitizeDiagnostics(){
 // =====================================
 
 const SecuritySanitize =
-safeFreezeSanitized({
+Object.freeze({
 
   string:
-  safeString,
+  sanitizeString,
 
-  html:
-  sanitizeHTML,
+  array:
+  sanitizeArray,
 
-  escapeHTML,
-
-  url:
-  sanitizeURL,
+  object:
+  sanitizeObject,
 
   value:
-  sanitizeValue,
-
-  prompt:
-  sanitizePrompt,
-
-  stringify:
-  safeJSONStringify,
-
-  diagnostics:
-  getSecuritySanitizeDiagnostics
+  sanitizeValue
 
 });
 
@@ -957,31 +556,14 @@ export {
 
   SECURITY_SANITIZE_CONFIG,
 
-  securitySanitizeState,
+  sanitizeString,
 
-  isPlainSanitizeObject,
+  sanitizeArray,
 
-  safeFreezeSanitized,
-
-  safeString,
-
-  escapeHTML,
-
-  sanitizeHTML,
-
-  sanitizeURL,
-
-  sanitizePrompt,
+  sanitizeObject,
 
   sanitizeValue,
-
-  safeJSONStringify,
-
-  getSecuritySanitizeDiagnostics,
 
   SecuritySanitize
 
 };
-
-
-
