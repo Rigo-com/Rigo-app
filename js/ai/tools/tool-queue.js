@@ -34,11 +34,6 @@ import {
 }
 from "./tool-events.js";
 
-import {
-  executeTool
-}
-from "./tool-executor.js";
-
 
 
 // =====================================
@@ -311,16 +306,13 @@ export async function processExecutionQueue(){
           .executionQueue
           .shift();
 
-        executeTool(
-
+        globalThis.ToolExecutor
+        ?.execute(
           queued.toolId,
-
           queued.payload,
-
           queued.context
-
         )
-        .catch(() => {});
+        ?.catch(() => {});
 
       }
 
