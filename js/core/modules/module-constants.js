@@ -379,35 +379,3 @@ export default
 ModuleConstants;
 
 
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "ModuleConstants",
-
-    {
-
-      value:
-      ModuleConstants,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-}
