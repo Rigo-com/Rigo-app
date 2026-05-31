@@ -2,7 +2,7 @@
 // RIGO AI
 // TOOL CONSTANTS
 // =====================================
-
+ 
 export const TOOL_PRIORITIES =
 Object.freeze({
 
