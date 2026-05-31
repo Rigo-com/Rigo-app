@@ -9,7 +9,7 @@
 // STATE
 // =====================================
 
-const analyticsRuntimeState =
+const analyticsState =
 Object.seal({
 
   initialized:false,
@@ -25,145 +25,98 @@ Object.seal({
 
 
 // =====================================
-// HELPERS
+// INITIALIZE
 // =====================================
 
-function sanitizeAnalyticsMetadata(
-  metadata
-){
+function initializeAnalytics(){
 
   if(
-
-    !metadata ||
-
-    typeof metadata !==
-    "object"
-
+    analyticsState.initialized
   ){
-
-    return {};
-
-  }
-
-  try{
-
-    return JSON.parse(
-      JSON.stringify(metadata)
-    );
-
-  }
-
-  catch(error){
-
-    return {};
-
-  }
-
-}
-
-
-
-async function emitAnalyticsEvent(
-  payload
-){
-
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    await emitSystemEvent(
-
-      "analytics.event",
-
-      payload
-
-    );
 
     return true;
 
   }
 
-  catch(error){
+  analyticsState.initialized =
+  true;
 
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// TRACK EVENT
+// TRACK
 // =====================================
 
-async function trackAnalyticsEvent(
-
+function trackEvent(
   eventName,
   metadata = {}
-
 ){
 
-  const normalizedEvent =
+  const event =
+
   String(
-    eventName || ""
+    eventName ?? ""
   )
   .trim();
 
-  if(!normalizedEvent){
+  if(
+    !event
+  ){
 
-    analyticsRuntimeState
+    analyticsState
     .failedEvents++;
 
     return false;
 
   }
 
-  const payload = {
+  analyticsState
+  .trackedEvents++;
 
-    source:
-    "analytics-runtime",
+  analyticsState
+  .lastEventAt =
+  Date.now();
 
-    event:
-    normalizedEvent,
+  return Object.freeze({
 
-    metadata:
-    sanitizeAnalyticsMetadata(
-      metadata
-    ),
+    event,
+
+    metadata,
 
     timestamp:
     Date.now()
 
-  };
+  });
 
-  const success =
-  await emitAnalyticsEvent(
-    payload
-  );
+}
 
-  if(!success){
 
-    analyticsRuntimeState
-    .failedEvents++;
 
-    return false;
+// =====================================
+// RESET
+// =====================================
 
-  }
+function resetAnalytics(){
 
-  analyticsRuntimeState
-  .trackedEvents++;
+  analyticsState
+  .initialized =
+  false;
 
-  analyticsRuntimeState
+  analyticsState
+  .trackedEvents =
+  0;
+
+  analyticsState
+  .failedEvents =
+  0;
+
+  analyticsState
   .lastEventAt =
-  Date.now();
+  null;
 
   return true;
 
@@ -180,78 +133,22 @@ function getAnalyticsDiagnostics(){
   return Object.freeze({
 
     initialized:
-    analyticsRuntimeState
+    analyticsState
     .initialized,
 
     trackedEvents:
-    analyticsRuntimeState
+    analyticsState
     .trackedEvents,
 
     failedEvents:
-    analyticsRuntimeState
+    analyticsState
     .failedEvents,
 
     lastEventAt:
-    analyticsRuntimeState
-    .lastEventAt,
-
-    timestamp:
-    Date.now()
+    analyticsState
+    .lastEventAt
 
   });
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-function resetAnalyticsRuntime(){
-
-  analyticsRuntimeState
-  .initialized =
-  false;
-
-  analyticsRuntimeState
-  .trackedEvents =
-  0;
-
-  analyticsRuntimeState
-  .failedEvents =
-  0;
-
-  analyticsRuntimeState
-  .lastEventAt =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-async function initializeAnalyticsRuntime(){
-
-  if(
-    analyticsRuntimeState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  analyticsRuntimeState
-  .initialized =
-  true;
-
-  return true;
 
 }
 
@@ -265,13 +162,13 @@ const AnalyticsRuntime =
 Object.freeze({
 
   initialize:
-  initializeAnalyticsRuntime,
-
-  reset:
-  resetAnalyticsRuntime,
+  initializeAnalytics,
 
   track:
-  trackAnalyticsEvent,
+  trackEvent,
+
+  reset:
+  resetAnalytics,
 
   diagnostics:
   getAnalyticsDiagnostics
@@ -281,15 +178,22 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.AnalyticsRuntime =
-  AnalyticsRuntime;
+  initializeAnalytics,
 
-}
+  trackEvent,
+
+  resetAnalytics,
+
+  getAnalyticsDiagnostics,
+
+  AnalyticsRuntime
+
+};
+
+export default
+AnalyticsRuntime;
