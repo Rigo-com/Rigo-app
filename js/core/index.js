@@ -1,177 +1,44 @@
 // =====================================
 // RIGO AI
 // CORE INDEX
-// CENTRAL CORE ORCHESTRATION LAYER
-// FINAL HARDENED EDITION
+// ENTRY POINT
 // =====================================
 
 
 
 // =====================================
-// FOUNDATIONAL SYSTEMS
+// IMPORTS
 // =====================================
 
-import "./constants/index.js";
-import "./config/index.js";
+import Constants
+from "./constants/index.js";
 
+import Config
+from "./config/index.js";
 
+import Container
+from "./container/index.js";
 
-// =====================================
-// CONTAINER SYSTEMS
-// =====================================
+import Events
+from "./events/index.js";
 
-import "./container/index.js";
-import "./dependencies/index.js";
+import State
+from "./state/index.js";
 
+import Modules
+from "./modules/index.js";
 
+import Runtime
+from "./runtime/index.js";
 
-// =====================================
-// EVENT + STATE SYSTEMS
-// =====================================
+import Lifecycle
+from "./lifecycle/index.js";
 
-import "./events/index.js";
-import "./state/index.js";
+import Health
+from "./health/index.js";
 
-
-
-// =====================================
-// MODULE MANAGEMENT
-// =====================================
-
-import "./modules/index.js";
-
-
-
-// =====================================
-// RUNTIME SYSTEMS
-// =====================================
-
-import "./runtime/index.js";
-import "./lifecycle/index.js";
-import "./health/index.js";
-
-
-
-// =====================================
-// APPLICATION LAYER
-// =====================================
-
-import "./app/index.js";
-
-
-
-// =====================================
-// INTERNAL HELPERS
-// =====================================
-
-function emitCoreIndexWarning(
-  message,
-  error = null
-){
-
-  console.warn(
-
-    `[RIGOCore] ${message}`,
-
-    error || ""
-
-  );
-
-}
-
-
-
-function isObject(
-  value
-){
-
-  return (
-
-    typeof value ===
-    "object" &&
-
-    value !==
-    null
-
-  );
-
-}
-
-
-
-// =====================================
-// VALIDATION
-// =====================================
-
-function validateCoreSystems(){
-
-  try{
-
-    if(
-      typeof globalThis ===
-      "undefined"
-    ){
-
-      return false;
-
-    }
-
-    const requiredSystems = [
-
-      "RIGOContainerRuntime",
-      "RIGOEventsRuntime",
-      "RIGOStateRuntime",
-      "RIGORuntimeRuntime",
-      "RIGOLifecycleRuntime"
-
-    ];
-
-    const missingSystems =
-
-      requiredSystems.filter((systemName) => {
-
-        return (
-
-          typeof globalThis[
-            systemName
-          ] ===
-
-          "undefined"
-
-        );
-
-      });
-
-    if(
-      missingSystems.length > 0
-    ){
-
-      emitCoreIndexWarning(
-
-        `Missing systems: ${missingSystems.join(", ")}`
-
-      );
-
-      return false;
-
-    }
-
-    return true;
-
-  }
-
-  catch(error){
-
-    emitCoreIndexWarning(
-      "Validation failed",
-      error
-    );
-
-    return false;
-
-  }
-
-}
+import App
+from "./app/index.js";
 
 
 
@@ -179,73 +46,175 @@ function validateCoreSystems(){
 // INITIALIZATION
 // =====================================
 
-async function initializeCoreSystems(){
+async function initializeCore(){
 
-  try{
+  const results =
+  await Promise.all([
 
-    if(
-      typeof globalThis ===
-      "undefined"
-    ){
+    Runtime.initialize?.(),
 
-      return false;
+    Modules.initialize?.(),
 
-    }
+    App.initialize?.()
 
-    if(
-      globalThis.__RIGO_CORE_READY__ ===
-      true
-    ){
+  ]);
 
-      return true;
+  return results.every(
+    Boolean
+  );
 
-    }
+}
 
-    if(
-      !validateCoreSystems()
-    ){
 
-      return false;
 
-    }
+// =====================================
+// BOOT
+// =====================================
 
-    const runtime =
-      globalThis.RIGORuntimeRuntime;
+async function bootCore(){
 
-    if(
+  const initialized =
+  await initializeCore();
 
-      runtime &&
-
-      typeof runtime.initialize ===
-      "function"
-
-    ){
-
-      await runtime.initialize();
-
-    }
-
-    globalThis.__RIGO_CORE_READY__ =
-      true;
-
-    console.info(
-      "[RIGOCore] Core systems initialized"
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    emitCoreIndexWarning(
-      "Initialization failed",
-      error
-    );
+  if(
+    !initialized
+  ){
 
     return false;
 
   }
+
+  if(
+    typeof App.start ===
+    "function"
+  ){
+
+    return App.start();
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownCore(){
+
+  if(
+    typeof App.shutdown ===
+    "function"
+  ){
+
+    await App.shutdown();
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetCore(){
+
+  if(
+    typeof App.reset ===
+    "function"
+  ){
+
+    await App.reset();
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createCoreSnapshot(){
+
+  return Object.freeze({
+
+    constants:
+    Constants,
+
+    config:
+    Config,
+
+    container:
+
+      Container.snapshot
+      ?.() ||
+
+      null,
+
+    events:
+
+      Events.snapshot
+      ?.() ||
+
+      null,
+
+    state:
+
+      State.snapshot
+      ?.() ||
+
+      null,
+
+    modules:
+
+      Modules.snapshot
+      ?.() ||
+
+      null,
+
+    runtime:
+
+      Runtime.snapshot
+      ?.() ||
+
+      null,
+
+    lifecycle:
+
+      Lifecycle.snapshot
+      ?.() ||
+
+      null,
+
+    health:
+
+      Health.snapshot
+      ?.() ||
+
+      null,
+
+    app:
+
+      App.snapshot
+      ?.() ||
+
+      null,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -255,94 +224,53 @@ async function initializeCoreSystems(){
 // PUBLIC API
 // =====================================
 
-const RIGOCoreRuntime =
+const Core =
 Object.freeze({
 
+  constants:
+  Constants,
 
+  config:
+  Config,
+
+  container:
+  Container,
+
+  events:
+  Events,
+
+  state:
+  State,
+
+  modules:
+  Modules,
+
+  runtime:
+  Runtime,
+
+  lifecycle:
+  Lifecycle,
+
+  health:
+  Health,
+
+  app:
+  App,
 
   initialize:
-  initializeCoreSystems,
+  initializeCore,
 
+  boot:
+  bootCore,
 
+  shutdown:
+  shutdownCore,
 
-  validate:
-  validateCoreSystems,
+  reset:
+  resetCore,
 
-
-
-  // ===================================
-  // SAFE ACCESSORS
-  // ===================================
-
-  get container(){
-
-    return globalThis.RIGOContainerRuntime;
-
-  },
-
-
-
-  get events(){
-
-    return globalThis.RIGOEventsRuntime;
-
-  },
-
-
-
-  get state(){
-
-    return globalThis.RIGOStateRuntime;
-
-  },
-
-
-
-  get runtime(){
-
-    return globalThis.RIGORuntimeRuntime;
-
-  },
-
-
-
-  get lifecycle(){
-
-    return globalThis.RIGOLifecycleRuntime;
-
-  },
-
-
-
-  get health(){
-
-    return globalThis.RIGOHealthRuntime;
-
-  },
-
-
-
-  get modules(){
-
-    return globalThis.RIGOModulesRuntime;
-
-  },
-
-
-
-  get config(){
-
-    return globalThis.RIGOConfigRuntime;
-
-  },
-
-
-
-  get constants(){
-
-    return globalThis.RIGOConstantsRuntime;
-
-  }
+  snapshot:
+  createCoreSnapshot
 
 });
 
@@ -354,80 +282,39 @@ Object.freeze({
 
 export {
 
-  validateCoreSystems,
+  Constants,
 
-  initializeCoreSystems,
+  Config,
 
-  RIGOCoreRuntime
+  Container,
+
+  Events,
+
+  State,
+
+  Modules,
+
+  Runtime,
+
+  Lifecycle,
+
+  Health,
+
+  App,
+
+  initializeCore,
+
+  bootCore,
+
+  shutdownCore,
+
+  resetCore,
+
+  createCoreSnapshot,
+
+  Core
 
 };
 
 export default
-RIGOCoreRuntime;
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOCoreRuntime",
-
-    {
-
-      value:
-      RIGOCoreRuntime,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE AUTO INITIALIZATION
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  queueMicrotask(async() => {
-
-    try{
-
-      await initializeCoreSystems();
-
-    }
-
-    catch(error){
-
-      emitCoreIndexWarning(
-
-        "Queued initialization failed",
-
-        error
-
-      );
-
-    }
-
-  });
-
-}
+Core;
