@@ -21,9 +21,6 @@ from "./app-recovery.js";
 import Runtime
 from "../runtime/index.js";
 
-import Modules
-from "../modules/index.js";
-
 
 
 // =====================================
@@ -101,9 +98,6 @@ async function bootApplication(){
     await Runtime
     .boot();
 
-    await Modules
-    .boot();
-
     AppDOM
     .showApp();
 
@@ -175,9 +169,6 @@ async function shutdownApplication(){
 
     AppDOM
     .hideApp();
-
-    await Modules
-      .shutdown();
 
     await Runtime
       .shutdown();
