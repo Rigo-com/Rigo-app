@@ -1,7 +1,6 @@
 // =====================================
 // RIGO AI
 // RUNTIME STATE
-// FINAL UNIFIED EDITION
 // =====================================
 
 
@@ -11,33 +10,11 @@
 // =====================================
 
 import {
+
   RUNTIME_STATES
-}
-from "../constants/runtime-states.js";
-
-
-
-// =====================================
-// DEFAULT DIAGNOSTICS
-// =====================================
-
-function createDefaultDiagnostics(){
-
-  return {
-
-    boots:0,
-
-    recoveries:0,
-
-    shutdowns:0,
-
-    failures:0,
-
-    synchronizedSystems:0
-
-  };
 
 }
+from "./runtime-config.js";
 
 
 
@@ -48,34 +25,148 @@ function createDefaultDiagnostics(){
 const runtimeState =
 Object.seal({
 
-  initialized:false,
-
-  booting:false,
-
-  shuttingDown:false,
-
-  recovering:false,
-
-  runtimeState:
+  state:
   RUNTIME_STATES
   .IDLE,
 
-  runtimeErrors:[],
+  initialized:
+  false,
 
-  bootRetries:0,
+  booted:
+  false,
 
-  diagnostics:
-  createDefaultDiagnostics(),
+  booting:
+  false,
 
-  startedAt:null,
+  shuttingDown:
+  false,
 
-  bootCompletedAt:null,
+  resetting:
+  false,
 
-  lastRecoveryAt:null,
+  startedAt:
+  null,
 
-  lastShutdownAt:null
+  stoppedAt:
+  null,
+
+  lastError:
+  null
 
 });
+
+
+
+// =====================================
+// STATE ACCESS
+// =====================================
+
+function getRuntimeState(){
+
+  return runtimeState;
+
+}
+
+
+
+// =====================================
+// STATE UPDATE
+// =====================================
+
+function updateRuntimeState(
+  updates = {}
+){
+
+  Object.assign(
+
+    runtimeState,
+    updates
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STATE RESET
+// =====================================
+
+function resetRuntimeState(){
+
+  runtimeState.state =
+  RUNTIME_STATES.IDLE;
+
+  runtimeState.initialized =
+  false;
+
+  runtimeState.booted =
+  false;
+
+  runtimeState.booting =
+  false;
+
+  runtimeState.shuttingDown =
+  false;
+
+  runtimeState.resetting =
+  false;
+
+  runtimeState.startedAt =
+  null;
+
+  runtimeState.stoppedAt =
+  null;
+
+  runtimeState.lastError =
+  null;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STATE FLAGS
+// =====================================
+
+function isRuntimeInitialized(){
+
+  return runtimeState
+  .initialized;
+
+}
+
+
+
+function isRuntimeBooted(){
+
+  return runtimeState
+  .booted;
+
+}
+
+
+
+function isRuntimeBusy(){
+
+  return (
+
+    runtimeState
+    .booting ||
+
+    runtimeState
+    .shuttingDown ||
+
+    runtimeState
+    .resetting
+
+  );
+
+}
 
 
 
@@ -87,9 +178,16 @@ function createRuntimeStateSnapshot(){
 
   return Object.freeze({
 
+    state:
+    runtimeState.state,
+
     initialized:
     runtimeState
     .initialized,
+
+    booted:
+    runtimeState
+    .booted,
 
     booting:
     runtimeState
@@ -99,47 +197,21 @@ function createRuntimeStateSnapshot(){
     runtimeState
     .shuttingDown,
 
-    recovering:
+    resetting:
     runtimeState
-    .recovering,
-
-    runtimeState:
-    runtimeState
-    .runtimeState,
-
-    runtimeErrors:[
-
-      ...runtimeState
-      .runtimeErrors
-
-    ],
-
-    bootRetries:
-    runtimeState
-    .bootRetries,
-
-    diagnostics:{
-
-      ...runtimeState
-      .diagnostics
-
-    },
+    .resetting,
 
     startedAt:
     runtimeState
     .startedAt,
 
-    bootCompletedAt:
+    stoppedAt:
     runtimeState
-    .bootCompletedAt,
+    .stoppedAt,
 
-    lastRecoveryAt:
+    lastError:
     runtimeState
-    .lastRecoveryAt,
-
-    lastShutdownAt:
-    runtimeState
-    .lastShutdownAt,
+    .lastError,
 
     timestamp:
     Date.now()
@@ -151,205 +223,62 @@ function createRuntimeStateSnapshot(){
 
 
 // =====================================
-// STATE HELPERS
-// =====================================
-
-function updateRuntimeState(
-
-  key,
-  value
-
-){
-
-  if(
-    !(key in runtimeState)
-  ){
-
-    return false;
-
-  }
-
-  runtimeState[key] =
-  value;
-
-  return true;
-
-}
-
-
-
-function pushRuntimeError(
-  error
-){
-
-  if(!error){
-
-    return false;
-
-  }
-
-  if(
-
-    runtimeState
-    .runtimeErrors
-    .length >= 50
-
-  ){
-
-    runtimeState
-    .runtimeErrors
-    .shift();
-
-  }
-
-  runtimeState
-  .runtimeErrors
-  .push(
-    String(error)
-  );
-
-  return true;
-
-}
-
-
-
-function incrementRuntimeMetric(
-  metric
-){
-
-  if(
-
-    typeof runtimeState
-    .diagnostics[metric] !==
-    "number"
-
-  ){
-
-    return false;
-
-  }
-
-  runtimeState
-  .diagnostics[metric]++;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-function resetRuntimeState(){
-
-  runtimeState
-  .initialized =
-  false;
-
-  runtimeState
-  .booting =
-  false;
-
-  runtimeState
-  .shuttingDown =
-  false;
-
-  runtimeState
-  .recovering =
-  false;
-
-  runtimeState
-  .runtimeState =
-  RUNTIME_STATES
-  .IDLE;
-
-  runtimeState
-  .runtimeErrors =
-  [];
-
-  runtimeState
-  .bootRetries =
-  0;
-
-  runtimeState
-  .diagnostics =
-  createDefaultDiagnostics();
-
-  runtimeState
-  .startedAt =
-  null;
-
-  runtimeState
-  .bootCompletedAt =
-  null;
-
-  runtimeState
-  .lastRecoveryAt =
-  null;
-
-  runtimeState
-  .lastShutdownAt =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
-const RIGORuntimeState =
+const RuntimeState =
 Object.freeze({
 
   get:
-  createRuntimeStateSnapshot,
-
-  reset:
-  resetRuntimeState,
+  getRuntimeState,
 
   update:
   updateRuntimeState,
 
-  pushError:
-  pushRuntimeError,
+  reset:
+  resetRuntimeState,
 
-  incrementMetric:
-  incrementRuntimeMetric
+  isInitialized:
+  isRuntimeInitialized,
+
+  isBooted:
+  isRuntimeBooted,
+
+  isBusy:
+  isRuntimeBusy,
+
+  snapshot:
+  createRuntimeStateSnapshot
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof globalThis !==
-  "undefined" &&
+export {
 
-  !globalThis
-  .RIGORuntimeState
-){
+  runtimeState,
 
-  globalThis
-  .RIGORuntimeState =
+  getRuntimeState,
 
-  RIGORuntimeState;
+  updateRuntimeState,
 
-}
+  resetRuntimeState,
 
+  isRuntimeInitialized,
 
+  isRuntimeBooted,
 
-// =====================================
-// DEFAULT EXPORT
-// =====================================
+  isRuntimeBusy,
+
+  createRuntimeStateSnapshot,
+
+  RuntimeState
+
+};
 
 export default
-RIGORuntimeState;
+RuntimeState;
