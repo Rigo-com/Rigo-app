@@ -6,23 +6,20 @@
 
 
 // =====================================
-// STATE
+// IMPORTS
 // =====================================
 
-const healthMonitorState =
-Object.seal({
+import {
 
-  running:false,
+  HEALTH_STATES,
 
-  checking:false,
+  HEALTH_THRESHOLDS
 
-  timer:null,
+}
+from "./health-config.js";
 
-  lastCheckAt:null,
-
-  lastResult:null
-
-});
+import HealthState
+from "./health-state.js";
 
 
 
@@ -30,133 +27,108 @@ Object.seal({
 // HELPERS
 // =====================================
 
-function updateHealthMonitorResult(
-  result
+function calculateHealthStatus(
+  score
 ){
 
-  healthMonitorState
-  .lastResult =
-  result;
-
-  healthMonitorState
-  .lastCheckAt =
-  Date.now();
-
-  return true;
-
-}
-
-
-
-function clearHealthcheckTimer(){
-
   if(
-    healthMonitorState
-    ?.timer
+    score >=
+    HEALTH_THRESHOLDS
+    .HEALTHY_SCORE
   ){
 
-    clearInterval(
-
-      healthMonitorState
-      .timer
-
-    );
-
-    healthMonitorState
-    .timer =
-    null;
+    return HEALTH_STATES
+    .HEALTHY;
 
   }
 
-  return true;
+  if(
+    score >=
+    HEALTH_THRESHOLDS
+    .WARNING_SCORE
+  ){
+
+    return HEALTH_STATES
+    .WARNING;
+
+  }
+
+  return HEALTH_STATES
+  .CRITICAL;
 
 }
 
 
 
 // =====================================
-// EXECUTE HEALTHCHECK
+// RUNTIME CHECK
 // =====================================
 
-async function executeHealthcheck(){
-
-  if(
-    healthMonitorState
-    .checking
-  ){
-
-    return false;
-
-  }
-
-  healthMonitorState
-  .checking =
-  true;
+async function checkRuntime(){
 
   try{
 
-    if(
-      typeof HealthRuntime ===
-      "undefined"
-    ){
-
-      return false;
-
-    }
-
-    if(
-      typeof HealthRuntime.run !==
-      "function"
-    ){
-
-      return false;
-
-    }
-
-    const result =
-    await HealthRuntime
-    .run();
-
-    updateHealthMonitorResult(
-      result
+    const runtimeModule =
+    await import(
+      "../runtime/index.js"
     );
 
-    return result;
+    const runtime =
 
-  }
-
-  catch(error){
+      runtimeModule.default ||
+      runtimeModule.Runtime;
 
     if(
-      typeof DiagnosticsRuntime !==
-      "undefined"
+      !runtime
     ){
 
-      await DiagnosticsRuntime
-      ?.error?.(
+      return {
 
-        "HEALTHCHECK EXECUTION FAILED",
+        score:0,
 
-        {
+        warning:
+        "Runtime unavailable"
 
-          error:
-          String(error)
-
-        }
-
-      );
+      };
 
     }
 
-    return false;
+    const snapshot =
+    runtime.snapshot();
+
+    if(
+      snapshot?.runtime?.booted
+    ){
+
+      return {
+
+        score:100
+
+      };
+
+    }
+
+    return {
+
+      score:50,
+
+      warning:
+      "Runtime not booted"
+
+    };
 
   }
 
-  finally{
+  catch{
 
-    healthMonitorState
-    .checking =
-    false;
+    return {
+
+      score:0,
+
+      warning:
+      "Runtime check failed"
+
+    };
 
   }
 
@@ -165,105 +137,264 @@ async function executeHealthcheck(){
 
 
 // =====================================
-// START HEALTHCHECKS
+// MODULES CHECK
 // =====================================
 
-function startHealthchecks(){
+async function checkModules(){
+
+  try{
+
+    const modulesModule =
+    await import(
+      "../modules/index.js"
+    );
+
+    const modules =
+
+      modulesModule.default ||
+      modulesModule.Modules;
+
+    if(
+      !modules
+    ){
+
+      return {
+
+        score:0,
+
+        warning:
+        "Modules unavailable"
+
+      };
+
+    }
+
+    const snapshot =
+    modules.snapshot();
+
+    const failedModules =
+
+      snapshot
+      ?.registry
+      ?.failedModules
+      ?.length || 0;
+
+    if(
+      failedModules <= 0
+    ){
+
+      return {
+
+        score:100
+
+      };
+
+    }
+
+    return {
+
+      score:
+      Math.max(
+        0,
+        100 -
+        (failedModules * 10)
+      ),
+
+      warning:
+      `${failedModules} failed modules`
+
+    };
+
+  }
+
+  catch{
+
+    return {
+
+      score:0,
+
+      warning:
+      "Modules check failed"
+
+    };
+
+  }
+
+}
+
+
+
+// =====================================
+// LIFECYCLE CHECK
+// =====================================
+
+async function checkLifecycle(){
+
+  try{
+
+    const lifecycleModule =
+    await import(
+      "../lifecycle/index.js"
+    );
+
+    const lifecycle =
+
+      lifecycleModule.default ||
+      lifecycleModule.Lifecycle;
+
+    if(
+      !lifecycle
+    ){
+
+      return {
+
+        score:0,
+
+        warning:
+        "Lifecycle unavailable"
+
+      };
+
+    }
+
+    const snapshot =
+    lifecycle.snapshot();
+
+    if(
+      snapshot
+      ?.lifecycle
+      ?.running
+    ){
+
+      return {
+
+        score:100
+
+      };
+
+    }
+
+    return {
+
+      score:50,
+
+      warning:
+      "Lifecycle not running"
+
+    };
+
+  }
+
+  catch{
+
+    return {
+
+      score:0,
+
+      warning:
+      "Lifecycle check failed"
+
+    };
+
+  }
+
+}
+
+
+
+// =====================================
+// HEALTH CHECK
+// =====================================
+
+async function runHealthCheck(){
+
+  const warnings =
+  [];
+
+  const runtime =
+  await checkRuntime();
+
+  const modules =
+  await checkModules();
+
+  const lifecycle =
+  await checkLifecycle();
 
   if(
-    typeof APP_CORE_CONFIG ===
-    "undefined"
+    runtime.warning
   ){
 
-    return false;
+    warnings.push(
+      runtime.warning
+    );
 
   }
 
   if(
-
-    !APP_CORE_CONFIG
-    .ENABLE_HEALTHCHECKS
-
+    modules.warning
   ){
 
-    return false;
+    warnings.push(
+      modules.warning
+    );
 
   }
 
-  clearHealthcheckTimer();
+  if(
+    lifecycle.warning
+  ){
 
-  healthMonitorState
-  .timer =
+    warnings.push(
+      lifecycle.warning
+    );
 
-  setInterval(
+  }
 
-    async() => {
+  const score =
+  Math.floor(
 
-      await executeHealthcheck();
+    (
 
-    },
+      runtime.score +
 
-    APP_CORE_CONFIG
-    .HEALTHCHECK_INTERVAL
+      modules.score +
+
+      lifecycle.score
+
+    ) / 3
 
   );
 
-  healthMonitorState
-  .running =
-  true;
+  const status =
+  calculateHealthStatus(
+    score
+  );
 
-  return true;
+  HealthState
+  .update({
 
-}
+    status,
 
+    score,
 
-
-// =====================================
-// STOP HEALTHCHECKS
-// =====================================
-
-function stopHealthchecks(){
-
-  clearHealthcheckTimer();
-
-  healthMonitorState
-  .running =
-  false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
-
-function createHealthMonitorSnapshot(){
-
-  return freezeHealthRuntime({
-
-    timestamp:
-    Date.now(),
-
-    running:
-    healthMonitorState
-    .running,
-
-    checking:
-    healthMonitorState
-    .checking,
+    warnings,
 
     lastCheckAt:
-    healthMonitorState
-    .lastCheckAt,
-
-    lastResult:
-    healthMonitorState
-    .lastResult
+    Date.now()
 
   });
+
+  HealthState
+  .addHistoryEntry({
+
+    status,
+
+    score
+
+  });
+
+  return HealthState
+  .snapshot();
 
 }
 
@@ -276,32 +407,35 @@ function createHealthMonitorSnapshot(){
 const HealthMonitor =
 Object.freeze({
 
-  start:
-  startHealthchecks,
+  checkRuntime,
 
-  stop:
-  stopHealthchecks,
+  checkModules,
 
-  execute:
-  executeHealthcheck,
+  checkLifecycle,
 
-  snapshot:
-  createHealthMonitorSnapshot
+  runHealthCheck
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.HealthMonitor =
-  HealthMonitor;
+  checkRuntime,
 
-}
+  checkModules,
+
+  checkLifecycle,
+
+  runHealthCheck,
+
+  HealthMonitor
+
+};
+
+export default
+HealthMonitor;
