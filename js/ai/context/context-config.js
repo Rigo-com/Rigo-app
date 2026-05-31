@@ -1,0 +1,83 @@
+// =====================================
+// RIGO AI
+// CONTEXT CONFIG
+// =====================================
+
+export const CONTEXT_MANAGER_CONFIG =
+Object.freeze({
+
+  ENABLE_CONTEXT_MEMORY:true,
+
+  ENABLE_CONTEXT_RANKING:true,
+
+  ENABLE_CONTEXT_COMPRESSION:true,
+
+  ENABLE_SHARED_CONTEXT:true,
+
+  ENABLE_SESSION_CONTEXT:true,
+
+  ENABLE_RUNTIME_CONTEXT:true,
+
+  ENABLE_CONTEXT_CACHE:true,
+
+  ENABLE_INDEXING:true,
+
+  ENABLE_AUTO_EVICTION:true,
+
+  ENABLE_DIAGNOSTICS:true,
+
+  ENABLE_NAMESPACE_ISOLATION:true,
+
+  ENABLE_DEDUPLICATION:true,
+
+  MAX_CONTEXTS:1000,
+
+  MAX_CONTEXT_ITEMS:500,
+
+  MAX_CONTEXT_TOKENS:12000,
+
+  MAX_WINDOW_CONTEXTS:50,
+
+  MAX_SESSION_CONTEXTS:100,
+
+  MAX_RUNTIME_CONTEXTS:200,
+
+  MAX_CONTEXT_AGE:
+  1000 * 60 * 60 * 24,
+
+  MAX_CONTENT_SIZE:100000,
+
+  MAX_QUERY_LENGTH:500,
+
+  MAX_CACHE_ITEMS:300,
+
+  MAX_INDEX_SIZE:5000,
+
+  CACHE_TTL:
+  1000 * 60 * 5,
+
+  EVICTION_INTERVAL:
+  1000 * 60 * 5,
+
+  COMPRESSION_PREVIEW_LENGTH:500
+
+});
+
+
+
+export const CONTEXT_TYPES =
+Object.freeze({
+
+  MEMORY:"memory",
+
+  SESSION:"session",
+
+  RUNTIME:"runtime",
+
+  AGENT:"agent",
+
+  SHARED:"shared",
+
+  SYSTEM:"system"
+
+});
