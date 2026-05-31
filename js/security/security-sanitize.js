@@ -145,7 +145,7 @@ function safeFreezeSanitized(
 
     }
 
-    catch(error){}
+    catch{}
 
   });
 
@@ -625,48 +625,60 @@ function sanitizeValue(
     // ================================
 
     else if(
-      Array.isArray(value)
-    ){
+  Array.isArray(
+    value
+  )
+){
 
-      securitySanitizeState
-      .sanitizedArrays++;
+  securitySanitizeState
+  .sanitizedArrays++;
 
-      sanitized = [];
+  if(
+    visited.has(value)
+  ){
 
-      visited.set(
-        value,
-        sanitized
-      );
+    sanitized =
+    visited.get(value);
 
-      value
-      .slice(
+  }
 
-        0,
+  else{
 
-        SECURITY_SANITIZE_CONFIG
-        .MAX_ARRAY_LENGTH
+    sanitized = [];
 
-      )
-      .forEach((item,index) => {
+    visited.set(
+      value,
+      sanitized
+    );
 
-        stack.push({
+    value
+    .slice(
+      0,
+      SECURITY_SANITIZE_CONFIG
+      .MAX_ARRAY_LENGTH
+    )
+    .forEach((item,index) => {
 
-          source:item,
+      stack.push({
 
-          parent:sanitized,
+        source:item,
 
-          key:index,
+        parent:sanitized,
 
-          depth:
-          current.depth + 1
+        key:index,
 
-        });
+        depth:
+        current.depth + 1
 
       });
 
-    }
+    });
 
+  }
 
+}
+
+      
 
     // ================================
     // OBJECTS
@@ -973,34 +985,3 @@ export {
 
 
 
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "SecuritySanitize",
-
-    {
-
-      value:
-      SecuritySanitize,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-}
