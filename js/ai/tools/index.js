@@ -121,5 +121,27 @@ Object.freeze({
 
 
 
+if(
+  typeof window !==
+  "undefined"
+){
+
+  window.ToolExecutor =
+  ToolExecutor;
+
+}
+
+if(
+  typeof globalThis !==
+  "undefined"
+){
+
+  globalThis.ToolExecutor =
+  ToolExecutor;
+
+}
+
+
+
 export default
 ToolExecutor;
