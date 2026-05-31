@@ -177,15 +177,15 @@ async function shutdownApplication(){
     .hideApp();
 
     await Modules
-.shutdown();
+      .shutdown();
 
-await Runtime
-.shutdown();
+    await Runtime
+      .shutdown();
 
-AppState
-.setBooted(
-  false
-);
+    AppState
+      .setBooted(
+        false
+      );
 
     AppState
     .setReady(
