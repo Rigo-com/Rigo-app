@@ -27,6 +27,17 @@ extends Error{
 
     super(message);
 
+    if(
+  Error.captureStackTrace
+){
+
+  Error.captureStackTrace(
+    this,
+    this.constructor
+  );
+
+}
+    
     this.name =
     "SecurityError";
 
