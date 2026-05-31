@@ -18,6 +18,12 @@ from "./app-dom.js";
 import AppRecovery
 from "./app-recovery.js";
 
+import Runtime
+from "../runtime/index.js";
+
+import Modules
+from "../modules/index.js";
+
 
 
 // =====================================
@@ -92,37 +98,11 @@ async function bootApplication(){
 
     }
 
-    if(
+    await Runtime
+    .boot();
 
-      typeof Runtime !==
-      "undefined" &&
-
-      typeof Runtime
-      .boot ===
-      "function"
-
-    ){
-
-      await Runtime
-      .boot();
-
-    }
-
-    if(
-
-      typeof Modules !==
-      "undefined" &&
-
-      typeof Modules
-      .boot ===
-      "function"
-
-    ){
-
-      await Modules
-      .boot();
-
-    }
+    await Modules
+    .boot();
 
     AppDOM
     .showApp();
@@ -170,7 +150,6 @@ async function bootApplication(){
 }
 
 
-
 // =====================================
 // SHUTDOWN
 // =====================================
@@ -197,26 +176,16 @@ async function shutdownApplication(){
     AppDOM
     .hideApp();
 
-    if(
+    await Modules
+.shutdown();
 
-      typeof Modules !==
-      "undefined" &&
+await Runtime
+.shutdown();
 
-      typeof Modules
-      .shutdown ===
-      "function"
-
-    ){
-
-      await Modules
-      .shutdown();
-
-    }
-
-    AppState
-    .setBooted(
-      false
-    );
+AppState
+.setBooted(
+  false
+);
 
     AppState
     .setReady(
