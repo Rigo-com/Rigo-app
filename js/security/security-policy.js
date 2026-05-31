@@ -100,6 +100,10 @@ function enforcePolicy(
   context = {}
 ){
 
+  validatePolicy(
+  policy
+);
+  
   if(
     !policy
   ){
@@ -219,7 +223,11 @@ function validatePolicy(
     !policy ||
 
     typeof policy !==
-    "object"
+    "object" ||
+
+    Array.isArray(
+      policy
+    )
 
   ){
 
@@ -232,7 +240,6 @@ function validatePolicy(
   return true;
 
 }
-
 
 
 // =====================================
