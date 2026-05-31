@@ -1,9 +1,20 @@
 // =====================================
 // RIGO AI
 // MODULE RUNTIME
-// PURE EXECUTION LAYER
-// ENTERPRISE FINAL
+// PURE RUNTIME LAYER
 // =====================================
+
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import ModuleRegistry
+from "./module-registry.js";
+
+import ModuleActivation
+from "./module-activation.js";
 
 
 
@@ -16,44 +27,17 @@ Object.seal({
 
   initialized:false,
 
+  booted:false,
+
   booting:false,
 
   shuttingDown:false,
 
-  recovering:false,
-
-  monitoring:false,
-
-  booted:false,
-
-  runtimeLocked:false,
-
-  healthTimer:null,
+  resetting:false,
 
   startedAt:null,
 
-  completedAt:null,
-
-  lastHealthcheckAt:null,
-
-  lastRecoveryAt:null,
-
-  lastError:null,
-
-  diagnostics:
-  Object.seal({
-
-    boots:0,
-
-    shutdowns:0,
-
-    recoveries:0,
-
-    healthchecks:0,
-
-    runtimeErrors:0
-
-  })
+  stoppedAt:null
 
 });
 
@@ -61,296 +45,6 @@ Object.seal({
 
 // =====================================
 // HELPERS
-// =====================================
-
-function isFunction(
-  value
-){
-
-  return typeof value ===
-  "function";
-
-}
-
-
-
-function isPlainObject(
-  value
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  const prototype =
-  Object.getPrototypeOf(
-    value
-  );
-
-  return (
-
-    prototype ===
-    Object.prototype ||
-
-    prototype ===
-    null
-
-  );
-
-}
-
-
-
-function normalizeRuntimeError(
-  error
-){
-
-  if(
-    typeof getSafeErrorMessage ===
-    "function"
-  ){
-
-    return getSafeErrorMessage(
-      error
-    );
-
-  }
-
-  return String(
-    error || "UNKNOWN ERROR"
-  );
-
-}
-
-
-
-// =====================================
-// SAFE IMMUTABLE FREEZE
-// =====================================
-
-function freeze(
-  value,
-  seen = new WeakSet()
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-
-  }
-
-  if(
-    seen.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Promise ||
-
-    value instanceof Date ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    value instanceof RegExp ||
-
-    (
-      typeof HTMLElement !==
-      "undefined" &&
-
-      value instanceof HTMLElement
-    )
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    !Array.isArray(value) &&
-
-    !isPlainObject(value)
-
-  ){
-
-    return value;
-
-  }
-
-  seen.add(value);
-
-  Object.freeze(value);
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    freeze(
-      nestedValue,
-      seen
-    );
-
-  });
-
-  return value;
-
-}
-
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-const MODULE_RUNTIME_EVENTS =
-Object.freeze({
-
-  INITIALIZED:
-  "module.runtime.initialized",
-
-  BOOT_STARTED:
-  "module.runtime.boot.started",
-
-  BOOT_COMPLETED:
-  "module.runtime.boot.completed",
-
-  SHUTDOWN_STARTED:
-  "module.runtime.shutdown.started",
-
-  SHUTDOWN_COMPLETED:
-  "module.runtime.shutdown.completed",
-
-  RECOVERY_STARTED:
-  "module.runtime.recovery.started",
-
-  RECOVERY_COMPLETED:
-  "module.runtime.recovery.completed",
-
-  HEALTHCHECK:
-  "module.runtime.healthcheck",
-
-  MONITORING_STARTED:
-  "module.runtime.monitoring.started",
-
-  MONITORING_STOPPED:
-  "module.runtime.monitoring.stopped",
-
-  RESET:
-  "module.runtime.reset"
-
-});
-
-
-
-// =====================================
-// EVENT EMITTER
-// =====================================
-
-async function emit(
-  event,
-  payload = {}
-){
-
-  try{
-
-    if(
-      !isFunction(
-        emitSystemEvent
-      )
-    ){
-
-      return false;
-
-    }
-
-    await emitSystemEvent(
-
-      event,
-
-      {
-
-        source:
-        "module-runtime",
-
-        timestamp:
-        Date.now(),
-
-        ...payload
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    console.warn(
-
-      "[ModuleRuntime] Event failed:",
-
-      event,
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// RUNTIME LOCKING
-// =====================================
-
-function lockRuntime(){
-
-  moduleRuntimeState
-  .runtimeLocked =
-  true;
-
-  return true;
-
-}
-
-
-
-function unlockRuntime(){
-
-  moduleRuntimeState
-  .runtimeLocked =
-  false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RUNTIME GUARDS
 // =====================================
 
 function isRuntimeBusy(){
@@ -364,7 +58,7 @@ function isRuntimeBusy(){
     .shuttingDown ||
 
     moduleRuntimeState
-    .recovering
+    .resetting
 
   );
 
@@ -373,102 +67,7 @@ function isRuntimeBusy(){
 
 
 // =====================================
-// MONITORING
-// =====================================
-
-async function startRuntimeMonitoring(){
-
-  if(
-    moduleRuntimeState
-    .monitoring
-  ){
-
-    return true;
-
-  }
-
-  if(
-    moduleRuntimeState
-    .healthTimer
-  ){
-
-    clearInterval(
-
-      moduleRuntimeState
-      .healthTimer
-
-    );
-
-  }
-
-  moduleRuntimeState
-  .monitoring =
-  true;
-
-  moduleRuntimeState
-  .healthTimer =
-
-    setInterval(() => {
-
-      executeModuleRuntimeHealthcheck()
-      .catch(() => {});
-
-    },
-
-    30000);
-
-  await emit(
-
-    MODULE_RUNTIME_EVENTS
-    .MONITORING_STARTED
-
-  );
-
-  return true;
-
-}
-
-
-
-async function stopRuntimeMonitoring(){
-
-  if(
-    moduleRuntimeState
-    .healthTimer
-  ){
-
-    clearInterval(
-
-      moduleRuntimeState
-      .healthTimer
-
-    );
-
-    moduleRuntimeState
-    .healthTimer =
-    null;
-
-  }
-
-  moduleRuntimeState
-  .monitoring =
-  false;
-
-  await emit(
-
-    MODULE_RUNTIME_EVENTS
-    .MONITORING_STOPPED
-
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INITIALIZE
+// INITIALIZATION
 // =====================================
 
 async function initializeModuleRuntime(){
@@ -486,13 +85,6 @@ async function initializeModuleRuntime(){
   .initialized =
   true;
 
-  await emit(
-
-    MODULE_RUNTIME_EVENTS
-    .INITIALIZED
-
-  );
-
   return true;
 
 }
@@ -506,15 +98,19 @@ async function initializeModuleRuntime(){
 async function bootModuleRuntime(){
 
   if(
-
-    isRuntimeBusy() ||
-
-    moduleRuntimeState
-    .booted
-
+    isRuntimeBusy()
   ){
 
     return false;
+
+  }
+
+  if(
+    moduleRuntimeState
+    .booted
+  ){
+
+    return true;
 
   }
 
@@ -522,73 +118,81 @@ async function bootModuleRuntime(){
   .booting =
   true;
 
-  lockRuntime();
-
-  moduleRuntimeState
-  .startedAt =
-  Date.now();
-
-  moduleRuntimeState
-  .lastError =
-  null;
-
-  moduleRuntimeState
-  .diagnostics
-  .boots++;
-
   try{
 
-    await emit(
+    const initialized =
+    await initializeModuleRuntime();
 
-      MODULE_RUNTIME_EVENTS
-      .BOOT_STARTED
+    if(
+      !initialized
+    ){
 
-    );
+      return false;
 
-    await startRuntimeMonitoring();
+    }
+
+    const modules =
+    ModuleRegistry
+    .getRegisteredModules();
+
+    for(
+      const moduleName
+      of modules
+    ){
+
+      const definition =
+      ModuleRegistry
+      .getRegisteredModule(
+        moduleName
+      );
+
+      if(
+        !definition
+      ){
+
+        continue;
+
+      }
+
+      if(
+        definition
+        .metadata
+        .lazy
+      ){
+
+        continue;
+
+      }
+
+      const loaded =
+      await ModuleActivation
+      .load(
+        moduleName
+      );
+
+      if(
+        !loaded
+      ){
+
+        return false;
+
+      }
+
+    }
 
     moduleRuntimeState
     .booted =
     true;
 
     moduleRuntimeState
-    .completedAt =
+    .startedAt =
     Date.now();
 
-    await emit(
-
-      MODULE_RUNTIME_EVENTS
-      .BOOT_COMPLETED,
-
-      {
-
-        duration:
-
-        moduleRuntimeState
-        .completedAt -
-
-        moduleRuntimeState
-        .startedAt
-
-      }
-
-    );
+    moduleRuntimeState
+    .stoppedAt =
+    null;
 
     return true;
-
-  }
-
-  catch(error){
-
-    moduleRuntimeState
-    .lastError =
-    error;
-
-    moduleRuntimeState
-    .diagnostics
-    .runtimeErrors++;
-
-    return false;
 
   }
 
@@ -597,229 +201,6 @@ async function bootModuleRuntime(){
     moduleRuntimeState
     .booting =
     false;
-
-    unlockRuntime();
-
-  }
-
-}
-
-
-
-// =====================================
-// HEALTHCHECK
-// =====================================
-
-async function executeModuleRuntimeHealthcheck(){
-
-  moduleRuntimeState
-  .diagnostics
-  .healthchecks++;
-
-  moduleRuntimeState
-  .lastHealthcheckAt =
-  Date.now();
-
-  const snapshot =
-  ModuleRegistry
-  ?.snapshot?.();
-
-  await emit(
-
-    MODULE_RUNTIME_EVENTS
-    .HEALTHCHECK,
-
-    {
-
-      status:
-
-      moduleRuntimeState
-      .booted
-
-      ?
-
-      "healthy"
-
-      :
-
-      "not_ready",
-
-      activeModules:
-
-      snapshot
-      ?.activeModules
-      ?.length || 0,
-
-      failedModules:
-
-      snapshot
-      ?.failedModules
-      ?.length || 0
-
-    }
-
-  );
-
-  return freeze({
-
-    booted:
-    moduleRuntimeState
-    .booted,
-
-    initialized:
-    moduleRuntimeState
-    .initialized,
-
-    monitoring:
-    moduleRuntimeState
-    .monitoring,
-
-    diagnostics:{
-
-      ...moduleRuntimeState
-      .diagnostics
-
-    },
-
-    registry:
-
-      snapshot ||
-
-      null,
-
-    timestamp:
-    Date.now()
-
-  });
-
-}
-
-
-
-// =====================================
-// RECOVERY
-// =====================================
-
-async function recoverModuleRuntime(){
-
-  if(
-    isRuntimeBusy()
-  ){
-
-    return false;
-
-  }
-
-  moduleRuntimeState
-  .recovering =
-  true;
-
-  lockRuntime();
-
-  moduleRuntimeState
-  .diagnostics
-  .recoveries++;
-
-  moduleRuntimeState
-  .lastRecoveryAt =
-  Date.now();
-
-  try{
-
-    await emit(
-
-      MODULE_RUNTIME_EVENTS
-      .RECOVERY_STARTED
-
-    );
-
-    const snapshot =
-    ModuleRegistry
-    ?.snapshot?.();
-
-    const failedModules =
-
-      snapshot
-      ?.failedModules ||
-
-      [];
-
-    for(
-      const moduleName
-      of failedModules
-    ){
-
-      if(
-
-        typeof ModuleLoader !==
-        "undefined" &&
-
-        isFunction(
-          ModuleLoader
-          .load
-        )
-
-      ){
-
-        try{
-
-          await ModuleLoader
-          .load(
-            moduleName
-          );
-
-        }
-
-        catch(error){}
-
-      }
-
-    }
-
-    moduleRuntimeState
-    .lastError =
-    null;
-
-    await emit(
-
-      MODULE_RUNTIME_EVENTS
-      .RECOVERY_COMPLETED,
-
-      {
-
-        recoveredModules:
-        failedModules
-        .length
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    moduleRuntimeState
-    .lastError =
-    error;
-
-    moduleRuntimeState
-    .diagnostics
-    .runtimeErrors++;
-
-    return false;
-
-  }
-
-  finally{
-
-    moduleRuntimeState
-    .recovering =
-    false;
-
-    unlockRuntime();
 
   }
 
@@ -834,15 +215,19 @@ async function recoverModuleRuntime(){
 async function shutdownModuleRuntime(){
 
   if(
-
-    isRuntimeBusy() ||
-
-    !moduleRuntimeState
-    .booted
-
+    isRuntimeBusy()
   ){
 
     return false;
+
+  }
+
+  if(
+    !moduleRuntimeState
+    .booted
+  ){
+
+    return true;
 
   }
 
@@ -850,49 +235,35 @@ async function shutdownModuleRuntime(){
   .shuttingDown =
   true;
 
-  lockRuntime();
-
-  moduleRuntimeState
-  .diagnostics
-  .shutdowns++;
-
   try{
 
-    await emit(
+    const modules =
 
-      MODULE_RUNTIME_EVENTS
-      .SHUTDOWN_STARTED
+      ModuleRegistry
+      .getRegisteredModules()
+      .reverse();
 
-    );
+    for(
+      const moduleName
+      of modules
+    ){
 
-    await stopRuntimeMonitoring();
+      await ModuleActivation
+      .unload(
+        moduleName
+      );
+
+    }
 
     moduleRuntimeState
     .booted =
     false;
 
-    await emit(
-
-      MODULE_RUNTIME_EVENTS
-      .SHUTDOWN_COMPLETED
-
-    );
+    moduleRuntimeState
+    .stoppedAt =
+    Date.now();
 
     return true;
-
-  }
-
-  catch(error){
-
-    moduleRuntimeState
-    .lastError =
-    error;
-
-    moduleRuntimeState
-    .diagnostics
-    .runtimeErrors++;
-
-    return false;
 
   }
 
@@ -901,8 +272,6 @@ async function shutdownModuleRuntime(){
     moduleRuntimeState
     .shuttingDown =
     false;
-
-    unlockRuntime();
 
   }
 
@@ -916,56 +285,53 @@ async function shutdownModuleRuntime(){
 
 async function resetModuleRuntime(){
 
-  await stopRuntimeMonitoring();
+  if(
+    isRuntimeBusy()
+  ){
+
+    return false;
+
+  }
 
   moduleRuntimeState
-  .booted =
-  false;
+  .resetting =
+  true;
 
-  moduleRuntimeState
-  .booting =
-  false;
+  try{
 
-  moduleRuntimeState
-  .shuttingDown =
-  false;
+    await shutdownModuleRuntime();
 
-  moduleRuntimeState
-  .recovering =
-  false;
+    moduleRuntimeState
+    .booted =
+    false;
 
-  moduleRuntimeState
-  .runtimeLocked =
-  false;
+    moduleRuntimeState
+    .booting =
+    false;
 
-  moduleRuntimeState
-  .startedAt =
-  null;
+    moduleRuntimeState
+    .shuttingDown =
+    false;
 
-  moduleRuntimeState
-  .completedAt =
-  null;
+    moduleRuntimeState
+    .startedAt =
+    null;
 
-  moduleRuntimeState
-  .lastHealthcheckAt =
-  null;
+    moduleRuntimeState
+    .stoppedAt =
+    null;
 
-  moduleRuntimeState
-  .lastRecoveryAt =
-  null;
+    return true;
 
-  moduleRuntimeState
-  .lastError =
-  null;
+  }
 
-  await emit(
+  finally{
 
-    MODULE_RUNTIME_EVENTS
-    .RESET
+    moduleRuntimeState
+    .resetting =
+    false;
 
-  );
-
-  return true;
+  }
 
 }
 
@@ -977,7 +343,7 @@ async function resetModuleRuntime(){
 
 function createModuleRuntimeSnapshot(){
 
-  return freeze({
+  return Object.freeze({
 
     initialized:
     moduleRuntimeState
@@ -995,60 +361,32 @@ function createModuleRuntimeSnapshot(){
     moduleRuntimeState
     .shuttingDown,
 
-    recovering:
+    resetting:
     moduleRuntimeState
-    .recovering,
-
-    monitoring:
-    moduleRuntimeState
-    .monitoring,
-
-    runtimeLocked:
-    moduleRuntimeState
-    .runtimeLocked,
+    .resetting,
 
     startedAt:
     moduleRuntimeState
     .startedAt,
 
-    completedAt:
+    stoppedAt:
     moduleRuntimeState
-    .completedAt,
+    .stoppedAt,
 
-    lastHealthcheckAt:
+    registeredModules:
 
-      moduleRuntimeState
-      .lastHealthcheckAt,
+      ModuleRegistry
+      .getRegisteredModules()
+      .length,
 
-    lastRecoveryAt:
+    instances:
 
-      moduleRuntimeState
-      .lastRecoveryAt,
+      ModuleRegistry
+      .snapshot()
+      .instances,
 
-    diagnostics:{
-
-      ...moduleRuntimeState
-      .diagnostics
-
-    },
-
-    lastError:
-
-      moduleRuntimeState
-      .lastError
-
-      ?
-
-      normalizeRuntimeError(
-
-        moduleRuntimeState
-        .lastError
-
-      )
-
-      :
-
-      null
+    timestamp:
+    Date.now()
 
   });
 
@@ -1072,18 +410,6 @@ Object.freeze({
   shutdown:
   shutdownModuleRuntime,
 
-  recover:
-  recoverModuleRuntime,
-
-  health:
-  executeModuleRuntimeHealthcheck,
-
-  startMonitoring:
-  startRuntimeMonitoring,
-
-  stopMonitoring:
-  stopRuntimeMonitoring,
-
   reset:
   resetModuleRuntime,
 
@@ -1095,31 +421,24 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  initializeModuleRuntime,
 
-    window,
+  bootModuleRuntime,
 
-    "ModuleRuntime",
+  shutdownModuleRuntime,
 
-    {
+  resetModuleRuntime,
 
-      value:
-      ModuleRuntime,
+  createModuleRuntimeSnapshot,
 
-      writable:false,
+  ModuleRuntime
 
-      configurable:false
+};
 
-    }
-
-  );
-
-}
+export default
+ModuleRuntime;
