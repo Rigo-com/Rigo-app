@@ -104,15 +104,6 @@ function enforcePolicy(
   policy
 );
   
-  if(
-    !policy
-  ){
-
-    throw new PolicyError(
-      "Policy is required"
-    );
-
-  }
 
   if(
 
