@@ -1,707 +1,22 @@
 // =====================================
 // RIGO AI
 // APPLICATION RUNTIME
-// ENTERPRISE ORCHESTRATION
-// ENTERPRISE FINAL
 // =====================================
 
 
 
 // =====================================
-// INTERNAL STATE
+// IMPORTS
 // =====================================
 
-const applicationRuntimeState =
-Object.seal({
+import AppState
+from "./app-state.js";
 
-  initialized:false,
+import AppDOM
+from "./app-dom.js";
 
-  started:false,
-
-  starting:false,
-
-  shuttingDown:false,
-
-  cleaning:false,
-
-  sending:false,
-
-  lastInitializedAt:null,
-
-  lastStartedAt:null,
-
-  lastShutdownAt:null,
-
-  lastCleanupAt:null,
-
-  lastMessageAt:null,
-
-  lastHealthcheckAt:null,
-
-  lastError:null
-
-});
-
-
-
-// =====================================
-// HELPERS
-// =====================================
-
-function isFunction(
-  value
-){
-
-  return typeof value ===
-  "function";
-
-}
-
-
-
-function isPlainObject(
-  value
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  const prototype =
-  Object.getPrototypeOf(
-    value
-  );
-
-  return (
-
-    prototype ===
-    Object.prototype ||
-
-    prototype ===
-    null
-
-  );
-
-}
-
-
-
-function getRuntimeDependency(
-  name
-){
-
-  try{
-
-    if(
-      typeof window ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    return (
-      window[name] ||
-      null
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-function normalizeRuntimeError(
-  error
-){
-
-  if(
-    typeof getSafeErrorMessage ===
-    "function"
-  ){
-
-    return getSafeErrorMessage(
-      error
-    );
-
-  }
-
-  return String(
-    error || "UNKNOWN ERROR"
-  );
-
-}
-
-
-
-function emitApplicationRuntimeWarning(
-  message,
-  error = null
-){
-
-  console.warn(
-
-    `[ApplicationRuntime] ${message}`,
-
-    error || ""
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE FREEZE
-// =====================================
-
-function safeFreeze(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Promise ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    value instanceof Date ||
-
-    value instanceof RegExp ||
-
-    (
-      typeof HTMLElement !==
-      "undefined" &&
-
-      value instanceof HTMLElement
-    )
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    !Array.isArray(value) &&
-
-    !isPlainObject(value)
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(value);
-
-  Object.freeze(value);
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    safeFreeze(
-      nestedValue,
-      visited
-    );
-
-  });
-
-  return value;
-
-}
-
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-const APPLICATION_RUNTIME_EVENTS =
-Object.freeze({
-
-  INITIALIZED:
-  "application.runtime.initialized",
-
-  STARTED:
-  "application.runtime.started",
-
-  SHUTDOWN:
-  "application.runtime.shutdown",
-
-  CLEANUP:
-  "application.runtime.cleanup",
-
-  MESSAGE:
-  "application.runtime.message",
-
-  HEALTHCHECK:
-  "application.runtime.healthcheck"
-
-});
-
-
-
-// =====================================
-// EVENT EMITTER
-// =====================================
-
-async function emitRuntimeEvent(
-  event,
-  payload = {}
-){
-
-  try{
-
-    if(
-      !isFunction(
-        emitSystemEvent
-      )
-    ){
-
-      return false;
-
-    }
-
-    await emitSystemEvent(
-
-      event,
-
-      {
-
-        source:
-        "application-runtime",
-
-        timestamp:
-        Date.now(),
-
-        ...payload
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    emitApplicationRuntimeWarning(
-
-      `Event failed: ${event}`,
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE EXECUTION
-// =====================================
-
-async function safelyExecute(
-  label,
-  operation
-){
-
-  try{
-
-    if(
-      !isFunction(
-        operation
-      )
-    ){
-
-      return false;
-
-    }
-
-    return await operation();
-
-  }
-
-  catch(error){
-
-    applicationRuntimeState
-    .lastError =
-    normalizeRuntimeError(
-      error
-    );
-
-    emitApplicationRuntimeWarning(
-
-      `${label} failed`,
-
-      error
-
-    );
-
-    if(
-      isFunction(
-        logCriticalError
-      )
-    ){
-
-      try{
-
-        await logCriticalError(
-
-          label.toUpperCase(),
-
-          {
-
-            error:
-
-            normalizeRuntimeError(
-              error
-            )
-
-          }
-
-        );
-
-      }
-
-      catch(loggingError){
-
-        emitApplicationRuntimeWarning(
-
-          "Critical logging failed",
-
-          loggingError
-
-        );
-
-      }
-
-    }
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
-
-function createApplicationRuntimeSnapshot(){
-
-  try{
-
-    const startupSnapshot =
-    getRuntimeDependency(
-      "createStartupSnapshot"
-    );
-
-    const shutdownSnapshot =
-    getRuntimeDependency(
-      "createShutdownSnapshot"
-    );
-
-    const messageRuntimeSnapshot =
-    getRuntimeDependency(
-      "createMessageRuntimeSnapshot"
-    );
-
-    const diagnostics =
-    getRuntimeDependency(
-      "getAppDiagnostics"
-    );
-
-    return safeFreeze({
-
-      timestamp:
-      Date.now(),
-
-      runtime:{
-
-        initialized:
-        applicationRuntimeState
-        .initialized,
-
-        started:
-        applicationRuntimeState
-        .started,
-
-        starting:
-        applicationRuntimeState
-        .starting,
-
-        shuttingDown:
-        applicationRuntimeState
-        .shuttingDown,
-
-        cleaning:
-        applicationRuntimeState
-        .cleaning,
-
-        sending:
-        applicationRuntimeState
-        .sending,
-
-        lastInitializedAt:
-
-          applicationRuntimeState
-          .lastInitializedAt,
-
-        lastStartedAt:
-
-          applicationRuntimeState
-          .lastStartedAt,
-
-        lastShutdownAt:
-
-          applicationRuntimeState
-          .lastShutdownAt,
-
-        lastCleanupAt:
-
-          applicationRuntimeState
-          .lastCleanupAt,
-
-        lastMessageAt:
-
-          applicationRuntimeState
-          .lastMessageAt,
-
-        lastHealthcheckAt:
-
-          applicationRuntimeState
-          .lastHealthcheckAt,
-
-        lastError:
-
-          applicationRuntimeState
-          .lastError
-
-      },
-
-      app:{
-
-        initialized:
-        Boolean(
-          appState?.initialized
-        ),
-
-        started:
-        Boolean(
-          appState?.started
-        ),
-
-        phase:
-        appState?.phase || null
-
-      },
-
-      startup:
-
-        isFunction(
-          startupSnapshot
-        )
-
-        ?
-
-        startupSnapshot()
-
-        :
-
-        null,
-
-      shutdown:
-
-        isFunction(
-          shutdownSnapshot
-        )
-
-        ?
-
-        shutdownSnapshot()
-
-        :
-
-        null,
-
-      messageRuntime:
-
-        isFunction(
-          messageRuntimeSnapshot
-        )
-
-        ?
-
-        messageRuntimeSnapshot()
-
-        :
-
-        null,
-
-      diagnostics:
-
-        isFunction(
-          diagnostics
-        )
-
-        ?
-
-        diagnostics()
-
-        :
-
-        null
-
-    });
-
-  }
-
-  catch(error){
-
-    emitApplicationRuntimeWarning(
-      "Snapshot creation failed",
-      error
-    );
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// HEALTHCHECK
-// =====================================
-
-async function validateApplicationHealth(){
-
-  try{
-
-    const runHealthcheck =
-    getRuntimeDependency(
-      "runAppHealthcheck"
-    );
-
-    if(
-      !isFunction(
-        runHealthcheck
-      )
-    ){
-
-      return false;
-
-    }
-
-    const report =
-    await runHealthcheck();
-
-    applicationRuntimeState
-    .lastHealthcheckAt =
-    Date.now();
-
-    const runtimeReady =
-
-      Boolean(
-        appState?.initialized
-      ) &&
-
-      Boolean(
-        appState?.started
-      );
-
-    const healthy =
-    Boolean(
-
-      report?.healthy &&
-
-      runtimeReady
-
-    );
-
-    await emitRuntimeEvent(
-
-      APPLICATION_RUNTIME_EVENTS
-      .HEALTHCHECK,
-
-      {
-
-        healthy
-
-      }
-
-    );
-
-    return healthy;
-
-  }
-
-  catch(error){
-
-    applicationRuntimeState
-    .lastError =
-    normalizeRuntimeError(
-      error
-    );
-
-    emitApplicationRuntimeWarning(
-
-      "Application healthcheck failed",
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
+import AppRecovery
+from "./app-recovery.js";
 
 
 
@@ -709,158 +24,148 @@ async function validateApplicationHealth(){
 // INITIALIZE
 // =====================================
 
-async function safelyInitializeApplication(){
+async function initializeApplication(){
 
-  if(
-    applicationRuntimeState
-    .initialized
-  ){
+  try{
+
+    await AppDOM
+    .waitForDOMReady();
+
+    AppState
+    .setInitialized(
+      true
+    );
 
     return true;
 
   }
 
-  return await safelyExecute(
+  catch(error){
 
-    "APPLICATION INITIALIZATION",
+    AppState
+    .setLastError(
+      error?.message ||
+      String(error)
+    );
 
-    async() => {
+    return false;
 
-      const initialize =
-      getRuntimeDependency(
-        "initializeApp"
-      );
-
-      if(
-        !isFunction(
-          initialize
-        )
-      ){
-
-        throw new Error(
-          "initializeApp unavailable"
-        );
-
-      }
-
-      const initialized =
-      await initialize();
-
-      if(
-        initialized
-      ){
-
-        applicationRuntimeState
-        .initialized =
-        true;
-
-        applicationRuntimeState
-        .lastInitializedAt =
-        Date.now();
-
-        await emitRuntimeEvent(
-          APPLICATION_RUNTIME_EVENTS
-          .INITIALIZED
-        );
-
-      }
-
-      return initialized;
-
-    }
-
-  );
+  }
 
 }
 
 
 
 // =====================================
-// START
+// BOOT
 // =====================================
 
-async function safelyStartApplication(){
+async function bootApplication(){
 
   if(
-    applicationRuntimeState
-    .started
+    AppState
+    .state
+    .booted
   ){
 
     return true;
 
   }
 
-  if(
-    applicationRuntimeState
-    .starting
-  ){
+  AppState
+  .setBooting(
+    true
+  );
+
+  try{
+
+    const initialized =
+    await initializeApplication();
+
+    if(
+      !initialized
+    ){
+
+      throw new Error(
+        "APPLICATION INITIALIZATION FAILED"
+      );
+
+    }
+
+    if(
+
+      typeof Runtime !==
+      "undefined" &&
+
+      typeof Runtime
+      .boot ===
+      "function"
+
+    ){
+
+      await Runtime
+      .boot();
+
+    }
+
+    if(
+
+      typeof Modules !==
+      "undefined" &&
+
+      typeof Modules
+      .boot ===
+      "function"
+
+    ){
+
+      await Modules
+      .boot();
+
+    }
+
+    AppDOM
+    .showApp();
+
+    AppState
+    .setBooted(
+      true
+    );
+
+    AppState
+    .setLastBootAt(
+      Date.now()
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    AppState
+    .setLastError(
+      error?.message ||
+      String(error)
+    );
+
+    await AppRecovery
+    .recover(
+      error
+    );
 
     return false;
 
   }
 
-  applicationRuntimeState
-  .starting =
-  true;
+  finally{
 
-  return await safelyExecute(
+    AppState
+    .setBooting(
+      false
+    );
 
-    "APPLICATION START",
-
-    async() => {
-
-      const start =
-      getRuntimeDependency(
-        "startApp"
-      );
-
-      if(
-        !isFunction(
-          start
-        )
-      ){
-
-        throw new Error(
-          "startApp unavailable"
-        );
-
-      }
-
-      const started =
-      await start();
-
-      if(
-        started
-      ){
-
-        applicationRuntimeState
-        .started =
-        true;
-
-        applicationRuntimeState
-        .lastStartedAt =
-        Date.now();
-
-        await emitRuntimeEvent(
-          APPLICATION_RUNTIME_EVENTS
-          .STARTED
-        );
-
-      }
-
-      return started;
-
-    }
-
-  )
-
-  .finally(() => {
-
-    applicationRuntimeState
-    .starting =
-    false;
-
-  });
+  }
 
 }
 
@@ -870,265 +175,129 @@ async function safelyStartApplication(){
 // SHUTDOWN
 // =====================================
 
-async function safelyShutdownApplication(){
+async function shutdownApplication(){
 
   if(
-    applicationRuntimeState
-    .shuttingDown
+    !AppState
+    .state
+    .booted
   ){
 
-    return false;
+    return true;
 
   }
 
-  applicationRuntimeState
-  .shuttingDown =
-  true;
-
-  return await safelyExecute(
-
-    "APPLICATION SHUTDOWN",
-
-    async() => {
-
-      const shutdown =
-      getRuntimeDependency(
-        "shutdownApp"
-      );
-
-      if(
-        !isFunction(
-          shutdown
-        )
-      ){
-
-        throw new Error(
-          "shutdownApp unavailable"
-        );
-
-      }
-
-      const shutdownResult =
-      await shutdown();
-
-      applicationRuntimeState
-      .started =
-      false;
-
-      applicationRuntimeState
-      .lastShutdownAt =
-      Date.now();
-
-      await emitRuntimeEvent(
-        APPLICATION_RUNTIME_EVENTS
-        .SHUTDOWN
-      );
-
-      return shutdownResult;
-
-    }
-
-  )
-
-  .finally(() => {
-
-    applicationRuntimeState
-    .shuttingDown =
-    false;
-
-  });
-
-}
-
-
-
-// =====================================
-// CLEANUP
-// =====================================
-
-async function safelyCleanupApplication(){
-
-  if(
-    applicationRuntimeState
-    .cleaning
-  ){
-
-    return false;
-
-  }
-
-  applicationRuntimeState
-  .cleaning =
-  true;
-
-  return await safelyExecute(
-
-    "APPLICATION CLEANUP",
-
-    async() => {
-
-      const cleanup =
-      getRuntimeDependency(
-        "cleanupApp"
-      );
-
-      if(
-        !isFunction(
-          cleanup
-        )
-      ){
-
-        throw new Error(
-          "cleanupApp unavailable"
-        );
-
-      }
-
-      const cleaned =
-      await cleanup();
-
-      applicationRuntimeState
-      .lastCleanupAt =
-      Date.now();
-
-      await emitRuntimeEvent(
-        APPLICATION_RUNTIME_EVENTS
-        .CLEANUP
-      );
-
-      return cleaned;
-
-    }
-
-  )
-
-  .finally(() => {
-
-    applicationRuntimeState
-    .cleaning =
-    false;
-
-  });
-
-}
-
-
-
-// =====================================
-// MESSAGE RUNTIME
-// =====================================
-
-async function safelySendMessage(
-  ...args
-){
-
-  if(
-    applicationRuntimeState
-    .sending
-  ){
-
-    return false;
-
-  }
-
-  applicationRuntimeState
-  .sending =
-  true;
-
-  return await safelyExecute(
-
-    "MESSAGE RUNTIME",
-
-    async() => {
-
-      const sendMessage =
-      getRuntimeDependency(
-        "handleSendMessage"
-      );
-
-      if(
-        !isFunction(
-          sendMessage
-        )
-      ){
-
-        throw new Error(
-          "handleSendMessage unavailable"
-        );
-
-      }
-
-      const result =
-      await sendMessage(
-        ...args
-      );
-
-      applicationRuntimeState
-      .lastMessageAt =
-      Date.now();
-
-      await emitRuntimeEvent(
-        APPLICATION_RUNTIME_EVENTS
-        .MESSAGE
-      );
-
-      return result;
-
-    }
-
-  )
-
-  .finally(() => {
-
-    applicationRuntimeState
-    .sending =
-    false;
-
-  });
-
-}
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
-
-function safelyGetDiagnostics(){
+  AppState
+  .setShuttingDown(
+    true
+  );
 
   try{
 
-    const diagnostics =
-    getRuntimeDependency(
-      "getAppDiagnostics"
-    );
+    AppDOM
+    .hideApp();
 
     if(
-      !isFunction(
-        diagnostics
-      )
+
+      typeof Modules !==
+      "undefined" &&
+
+      typeof Modules
+      .shutdown ===
+      "function"
+
     ){
 
-      return null;
+      await Modules
+      .shutdown();
 
     }
 
-    return safeFreeze(
-      diagnostics()
+    AppState
+    .setBooted(
+      false
     );
+
+    AppState
+    .setReady(
+      false
+    );
+
+    AppState
+    .setLastShutdownAt(
+      Date.now()
+    );
+
+    return true;
 
   }
 
   catch(error){
 
-    emitApplicationRuntimeWarning(
-      "Diagnostics failed",
-      error
+    AppState
+    .setLastError(
+      error?.message ||
+      String(error)
     );
 
-    return null;
+    return false;
 
   }
+
+  finally{
+
+    AppState
+    .setShuttingDown(
+      false
+    );
+
+  }
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetApplication(){
+
+  await shutdownApplication();
+
+  AppState
+  .reset();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createApplicationSnapshot(){
+
+  return Object.freeze({
+
+    app:
+    AppState
+    .snapshot(),
+
+    dom:
+    AppDOM
+    .snapshot(),
+
+    recovery:
+    AppRecovery
+    .snapshot(),
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -1142,59 +311,43 @@ const ApplicationRuntime =
 Object.freeze({
 
   initialize:
-  safelyInitializeApplication,
+  initializeApplication,
 
-  start:
-  safelyStartApplication,
+  boot:
+  bootApplication,
 
   shutdown:
-  safelyShutdownApplication,
+  shutdownApplication,
 
-  cleanup:
-  safelyCleanupApplication,
-
-  sendMessage:
-  safelySendMessage,
-
-  health:
-  validateApplicationHealth,
-
-  diagnostics:
-  safelyGetDiagnostics,
+  reset:
+  resetApplication,
 
   snapshot:
-  createApplicationRuntimeSnapshot
+  createApplicationSnapshot
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  initializeApplication,
 
-    window,
+  bootApplication,
 
-    "ApplicationRuntime",
+  shutdownApplication,
 
-    {
+  resetApplication,
 
-      value:
-      ApplicationRuntime,
+  createApplicationSnapshot,
 
-      writable:false,
+  ApplicationRuntime
 
-      configurable:false
+};
 
-    }
-
-  );
-
-}
+export default
+ApplicationRuntime;
