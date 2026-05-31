@@ -10,13 +10,17 @@
 // IMPORTS
 // =====================================
 
-import ModuleConstants, {
+import {
 
   MODULE_LIFECYCLES,
 
   MODULE_PRIORITIES,
 
-  MODULE_STATES
+  MODULE_STATES,
+
+  isValidModuleLifecycle,
+
+  isValidModulePriority
 
 }
 from "./module-constants.js";
@@ -24,35 +28,26 @@ from "./module-constants.js";
 
 
 // =====================================
-// INTERNAL STATE (PRIVATE)
+// INTERNAL STATE
 // =====================================
 
-const moduleLoaderState =
+const moduleRegistryState =
 Object.seal({
 
   modules:
   new Map(),
 
-  moduleRuntime:
+  runtime:
   new Map(),
 
   instances:
   new Map(),
 
-  activeModules:
-  new Set(),
-
-  failedModules:
-  new Set(),
-
   dependencyGraph:
   new Map(),
 
   reverseDependencies:
-  new Map(),
-
-  loadingStack:
-  []
+  new Map()
 
 });
 
@@ -87,7 +82,6 @@ function normalizeDependencies(
   ){
 
     return [];
-
   }
 
   return [
@@ -99,7 +93,6 @@ function normalizeDependencies(
       .map(
         normalizeModuleName
       )
-      .filter(Boolean)
 
     )
 
@@ -120,165 +113,8 @@ function isValidModuleFactory(
 
 
 
-function isPlainObject(
-  value
-){
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return false;
-
-  }
-
-  const prototype =
-  Object.getPrototypeOf(
-    value
-  );
-
-  return (
-
-    prototype ===
-    Object.prototype ||
-
-    prototype ===
-    null
-
-  );
-
-}
-
-
-
 // =====================================
-// SAFE DEEP FREEZE
-// =====================================
-
-function freezeModuleObject(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Promise ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    value instanceof Date ||
-
-    value instanceof RegExp ||
-
-    (
-      typeof HTMLElement !==
-      "undefined" &&
-
-      value instanceof HTMLElement
-    )
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    !Array.isArray(value) &&
-
-    !isPlainObject(value)
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    freezeModuleObject(
-      nestedValue,
-      visited
-    );
-
-  });
-
-  return value;
-
-}
-
-
-
-// =====================================
-// VALIDATION
-// =====================================
-
-function validateModuleLifecycle(
-  lifecycle
-){
-
-  return ModuleConstants
-  .validateLifecycle(
-    lifecycle
-  );
-
-}
-
-
-
-function validateModulePriority(
-  priority
-){
-
-  return ModuleConstants
-  .validatePriority(
-    priority
-  );
-
-}
-
-
-
-// =====================================
-// MODULE DEFINITION CREATION
+// MODULE DEFINITION
 // =====================================
 
 function createModuleDefinition(
@@ -287,40 +123,10 @@ function createModuleDefinition(
   options = {}
 ){
 
-  const lifecycle =
-
-    validateModuleLifecycle(
-      options.lifecycle
-    )
-
-    ?
-
-    options.lifecycle
-
-    :
-
-    MODULE_LIFECYCLES
-    .SINGLETON;
-
-  const priority =
-
-    validateModulePriority(
-      options.priority
-    )
-
-    ?
-
-    options.priority
-
-    :
-
-    MODULE_PRIORITIES
-    .NORMAL;
-
-  return Object.seal({
+  return Object.freeze({
 
     metadata:
-    freezeModuleObject({
+    Object.freeze({
 
       name:
       moduleName,
@@ -330,9 +136,35 @@ function createModuleDefinition(
         options.dependencies
       ),
 
-      lifecycle,
+      lifecycle:
 
-      priority,
+        isValidModuleLifecycle(
+          options.lifecycle
+        )
+
+        ?
+
+        options.lifecycle
+
+        :
+
+        MODULE_LIFECYCLES
+        .SINGLETON,
+
+      priority:
+
+        isValidModulePriority(
+          options.priority
+        )
+
+        ?
+
+        options.priority
+
+        :
+
+        MODULE_PRIORITIES
+        .NORMAL,
 
       lazy:
       options.lazy ?? false,
@@ -351,7 +183,113 @@ function createModuleDefinition(
 
 
 // =====================================
-// REGISTER MODULE
+// RUNTIME STATE
+// =====================================
+
+function createModuleRuntimeState(
+  moduleName
+){
+
+  const normalizedName =
+  normalizeModuleName(
+    moduleName
+  );
+
+  if(
+    !normalizedName
+  ){
+
+    return null;
+
+  }
+
+  const runtimeState =
+  Object.seal({
+
+    state:
+    MODULE_STATES
+    .REGISTERED,
+
+    retries:0,
+
+    activatedAt:null,
+
+    failedAt:null,
+
+    recoveredAt:null
+
+  });
+
+  moduleRegistryState
+  .runtime
+  .set(
+
+    normalizedName,
+    runtimeState
+
+  );
+
+  return runtimeState;
+
+}
+
+
+
+function getModuleRuntimeState(
+  moduleName
+){
+
+  return (
+
+    moduleRegistryState
+    .runtime
+    .get(
+
+      normalizeModuleName(
+        moduleName
+      )
+
+    ) ||
+
+    null
+
+  );
+
+}
+
+
+
+function updateModuleRuntimeState(
+  moduleName,
+  updates = {}
+){
+
+  const runtimeState =
+  getModuleRuntimeState(
+    moduleName
+  );
+
+  if(
+    !runtimeState
+  ){
+
+    return false;
+
+  }
+
+  Object.assign(
+    runtimeState,
+    updates
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// MODULE REGISTRATION
 // =====================================
 
 function registerModuleDefinition(
@@ -385,7 +323,7 @@ function registerModuleDefinition(
 
   if(
 
-    moduleLoaderState
+    moduleRegistryState
     .modules
     .has(
       normalizedName
@@ -406,7 +344,7 @@ function registerModuleDefinition(
 
   );
 
-  moduleLoaderState
+  moduleRegistryState
   .modules
   .set(
 
@@ -415,31 +353,11 @@ function registerModuleDefinition(
 
   );
 
-  moduleLoaderState
-  .moduleRuntime
-  .set(
-
-    normalizedName,
-
-    Object.seal({
-
-      retries:0,
-
-      state:
-      MODULE_STATES
-      .REGISTERED,
-
-      activatedAt:null,
-
-      failedAt:null,
-
-      recoveredAt:null
-
-    })
-
+  createModuleRuntimeState(
+    normalizedName
   );
 
-  moduleLoaderState
+  moduleRegistryState
   .dependencyGraph
   .set(
 
@@ -458,7 +376,7 @@ function registerModuleDefinition(
 
     if(
 
-      !moduleLoaderState
+      !moduleRegistryState
       .reverseDependencies
       .has(
         dependency
@@ -466,7 +384,7 @@ function registerModuleDefinition(
 
     ){
 
-      moduleLoaderState
+      moduleRegistryState
       .reverseDependencies
       .set(
 
@@ -478,7 +396,7 @@ function registerModuleDefinition(
 
     }
 
-    moduleLoaderState
+    moduleRegistryState
     .reverseDependencies
     .get(
       dependency
@@ -494,10 +412,6 @@ function registerModuleDefinition(
 }
 
 
-
-// =====================================
-// UNREGISTER MODULE
-// =====================================
 
 function unregisterModuleDefinition(
   moduleName
@@ -517,7 +431,7 @@ function unregisterModuleDefinition(
   }
 
   const definition =
-  moduleLoaderState
+  moduleRegistryState
   .modules
   .get(
     normalizedName
@@ -537,13 +451,15 @@ function unregisterModuleDefinition(
   .forEach((dependency) => {
 
     const reverse =
-    moduleLoaderState
+    moduleRegistryState
     .reverseDependencies
     .get(
       dependency
     );
 
-    if(reverse){
+    if(
+      reverse
+    ){
 
       reverse.delete(
         normalizedName
@@ -553,7 +469,7 @@ function unregisterModuleDefinition(
         reverse.size <= 0
       ){
 
-        moduleLoaderState
+        moduleRegistryState
         .reverseDependencies
         .delete(
           dependency
@@ -565,37 +481,25 @@ function unregisterModuleDefinition(
 
   });
 
-  moduleLoaderState
+  moduleRegistryState
   .modules
   .delete(
     normalizedName
   );
 
-  moduleLoaderState
-  .moduleRuntime
+  moduleRegistryState
+  .runtime
   .delete(
     normalizedName
   );
 
-  moduleLoaderState
+  moduleRegistryState
   .instances
   .delete(
     normalizedName
   );
 
-  moduleLoaderState
-  .activeModules
-  .delete(
-    normalizedName
-  );
-
-  moduleLoaderState
-  .failedModules
-  .delete(
-    normalizedName
-  );
-
-  moduleLoaderState
+  moduleRegistryState
   .dependencyGraph
   .delete(
     normalizedName
@@ -608,7 +512,7 @@ function unregisterModuleDefinition(
 
 
 // =====================================
-// INTERNAL RUNTIME MUTATIONS
+// INSTANCE MANAGEMENT
 // =====================================
 
 function setModuleInstance(
@@ -616,306 +520,19 @@ function setModuleInstance(
   instance
 ){
 
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  moduleLoaderState
+  moduleRegistryState
   .instances
   .set(
 
-    normalizedName,
+    normalizeModuleName(
+      moduleName
+    ),
+
     instance
 
   );
 
   return true;
-
-}
-
-
-
-function removeModuleInstance(
-  moduleName
-){
-
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  moduleLoaderState
-  .instances
-  .delete(
-    normalizedName
-  );
-
-  return true;
-
-}
-
-
-
-function markModuleActive(
-  moduleName
-){
-
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  moduleLoaderState
-  .activeModules
-  .add(
-    normalizedName
-  );
-
-  return true;
-
-}
-
-
-
-function clearActiveModule(
-  moduleName
-){
-
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  moduleLoaderState
-  .activeModules
-  .delete(
-    normalizedName
-  );
-
-  return true;
-
-}
-
-
-
-function markModuleFailed(
-  moduleName
-){
-
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  moduleLoaderState
-  .failedModules
-  .add(
-    normalizedName
-  );
-
-  return true;
-
-}
-
-
-
-function clearFailedModule(
-  moduleName
-){
-
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  moduleLoaderState
-  .failedModules
-  .delete(
-    normalizedName
-  );
-
-  return true;
-
-}
-
-
-
-function pushLoadingModule(
-  moduleName
-){
-
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  moduleLoaderState
-  .loadingStack
-  .push(
-    normalizedName
-  );
-
-  return true;
-
-}
-
-
-
-function removeLoadingModule(
-  moduleName
-){
-
-  const normalizedName =
-  normalizeModuleName(
-    moduleName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  const index =
-  moduleLoaderState
-  .loadingStack
-  .indexOf(
-    normalizedName
-  );
-
-  if(
-    index >= 0
-  ){
-
-    moduleLoaderState
-    .loadingStack
-    .splice(
-      index,
-      1
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// LOOKUP API
-// =====================================
-
-function getRegisteredModule(
-  moduleName
-){
-
-  return (
-
-    moduleLoaderState
-    .modules
-    .get(
-
-      normalizeModuleName(
-        moduleName
-      )
-
-    ) ||
-
-    null
-
-  );
-
-}
-
-
-
-function hasRegisteredModule(
-  moduleName
-){
-
-  return moduleLoaderState
-  .modules
-  .has(
-
-    normalizeModuleName(
-      moduleName
-    )
-
-  );
-
-}
-
-
-
-function getRegisteredModules(){
-
-  return [
-
-    ...moduleLoaderState
-    .modules
-    .keys()
-
-  ];
 
 }
 
@@ -927,7 +544,7 @@ function getModuleInstance(
 
   return (
 
-    moduleLoaderState
+    moduleRegistryState
     .instances
     .get(
 
@@ -945,14 +562,56 @@ function getModuleInstance(
 
 
 
-function getModuleRuntimeState(
+function removeModuleInstance(
+  moduleName
+){
+
+  moduleRegistryState
+  .instances
+  .delete(
+
+    normalizeModuleName(
+      moduleName
+    )
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// LOOKUP
+// =====================================
+
+function hasRegisteredModule(
+  moduleName
+){
+
+  return moduleRegistryState
+  .modules
+  .has(
+
+    normalizeModuleName(
+      moduleName
+    )
+
+  );
+
+}
+
+
+
+function getRegisteredModule(
   moduleName
 ){
 
   return (
 
-    moduleLoaderState
-    .moduleRuntime
+    moduleRegistryState
+    .modules
     .get(
 
       normalizeModuleName(
@@ -969,55 +628,57 @@ function getModuleRuntimeState(
 
 
 
+function getRegisteredModules(){
+
+  return [
+
+    ...moduleRegistryState
+    .modules
+    .keys()
+
+  ];
+
+}
+
+
+
 // =====================================
 // DIAGNOSTICS
 // =====================================
 
 function getModuleRegistryDiagnostics(){
 
-  return freezeModuleObject({
+  return Object.freeze({
 
-    totalModules:
+    modules:
 
-      moduleLoaderState
+      moduleRegistryState
       .modules
       .size,
 
-    activeModules:
+    runtime:
 
-      moduleLoaderState
-      .activeModules
-      .size,
-
-    failedModules:
-
-      moduleLoaderState
-      .failedModules
+      moduleRegistryState
+      .runtime
       .size,
 
     instances:
 
-      moduleLoaderState
+      moduleRegistryState
       .instances
       .size,
 
     dependencyGraphs:
 
-      moduleLoaderState
+      moduleRegistryState
       .dependencyGraph
       .size,
 
     reverseDependencies:
 
-      moduleLoaderState
+      moduleRegistryState
       .reverseDependencies
       .size,
-
-    loadingStackDepth:
-
-      moduleLoaderState
-      .loadingStack
-      .length,
 
     timestamp:
     Date.now()
@@ -1029,77 +690,34 @@ function getModuleRegistryDiagnostics(){
 
 
 // =====================================
-// SAFE SNAPSHOT
+// SNAPSHOT
 // =====================================
 
 function createModuleRegistrySnapshot(){
 
-  const reverseDependencies =
-  {};
-
-  moduleLoaderState
-  .reverseDependencies
-  .forEach((value, key) => {
-
-    reverseDependencies[key] =
-
-      [...value];
-
-  });
-
-  const runtimeStates =
-  {};
-
-  moduleLoaderState
-  .moduleRuntime
-  .forEach((value, key) => {
-
-    runtimeStates[key] =
-    freezeModuleObject(
-      value
-    );
-
-  });
-
-  return freezeModuleObject({
+  return Object.freeze({
 
     modules:
 
-      [...moduleLoaderState
-      .modules
-      .keys()],
+      getRegisteredModules(),
 
-    activeModules:
+    runtimeStates:
 
-      [...moduleLoaderState
-      .activeModules],
-
-    failedModules:
-
-      [...moduleLoaderState
-      .failedModules],
+      Object.fromEntries(
+        moduleRegistryState
+        .runtime
+      ),
 
     dependencyGraph:
 
       Object.fromEntries(
-        moduleLoaderState
+        moduleRegistryState
         .dependencyGraph
       ),
 
-    reverseDependencies,
-
-    runtimeStates,
-
-    loadingStack:[
-
-      ...moduleLoaderState
-      .loadingStack
-
-    ],
-
     instances:
 
-      moduleLoaderState
+      moduleRegistryState
       .instances
       .size,
 
@@ -1123,31 +741,23 @@ Object.freeze({
 
   unregisterModuleDefinition,
 
-  setModuleInstance,
-
-  removeModuleInstance,
-
-  markModuleActive,
-
-  clearActiveModule,
-
-  markModuleFailed,
-
-  clearFailedModule,
-
-  pushLoadingModule,
-
-  removeLoadingModule,
+  hasRegisteredModule,
 
   getRegisteredModule,
 
-  hasRegisteredModule,
-
   getRegisteredModules,
+
+  createModuleRuntimeState,
+
+  getModuleRuntimeState,
+
+  updateModuleRuntimeState,
+
+  setModuleInstance,
 
   getModuleInstance,
 
-  getModuleRuntimeState,
+  removeModuleInstance,
 
   diagnostics:
   getModuleRegistryDiagnostics,
@@ -1165,39 +775,29 @@ Object.freeze({
 
 export {
 
-  moduleLoaderState,
-
   normalizeModuleName,
 
   registerModuleDefinition,
 
   unregisterModuleDefinition,
 
-  setModuleInstance,
-
-  removeModuleInstance,
-
-  markModuleActive,
-
-  clearActiveModule,
-
-  markModuleFailed,
-
-  clearFailedModule,
-
-  pushLoadingModule,
-
-  removeLoadingModule,
+  hasRegisteredModule,
 
   getRegisteredModule,
 
-  hasRegisteredModule,
-
   getRegisteredModules,
+
+  createModuleRuntimeState,
+
+  getModuleRuntimeState,
+
+  updateModuleRuntimeState,
+
+  setModuleInstance,
 
   getModuleInstance,
 
-  getModuleRuntimeState,
+  removeModuleInstance,
 
   getModuleRegistryDiagnostics,
 
@@ -1209,35 +809,3 @@ export {
 
 export default
 ModuleRegistry;
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "ModuleRegistry",
-
-    {
-
-      value:
-      ModuleRegistry,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
