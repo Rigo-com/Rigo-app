@@ -13,13 +13,6 @@ from "./security-sanitize.js";
 
 import {
 
-  SecurityValidator
-
-}
-from "./security-validator.js";
-
-import {
-
   SecurityURL
 
 }
@@ -85,6 +78,17 @@ function validateValue(
   value,
   options = {}
 ){
+
+  if(
+    typeof validator !==
+    "function"
+  ){
+
+    throw new TypeError(
+      "Validator must be a function"
+    );
+
+  }
 
   return validator(
     value,
@@ -207,16 +211,10 @@ function securePayload(
 
   try{
 
-    const sanitized =
-
-      SecuritySanitize
-      .value(
-        payload
-      );
-
-    
-
-    return sanitized;
+    return SecuritySanitize
+    .value(
+      payload
+    );
 
   }
 
