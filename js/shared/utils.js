@@ -336,24 +336,9 @@ async function safeExecute(
 
     try{
 
-      if(
-        typeof safeLogError ===
-        "function"
-      ){
-
-        safeLogError(
-          error
-        );
-
-      }
-
-      else{
-
-        console.error(
-          error
-        );
-
-      }
+      console.error(
+        error
+      );
 
     }
 
@@ -465,6 +450,7 @@ function sharedDeepFreeze(
     catch(error){
 
       // IGNORE ACCESS ERRORS
+
     }
 
   });
@@ -512,6 +498,7 @@ function sharedDeepClone(
   catch(error){
 
     // FALLBACK
+
   }
 
   try{
@@ -592,6 +579,7 @@ function createUniqueId(
   catch(error){
 
     // FALLBACK
+
   }
 
   return (
@@ -772,33 +760,40 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  wait,
 
-    window,
+  noop,
 
-    "SharedUtils",
+  clamp,
 
-    {
+  safeTrim,
 
-      value:
-      SharedUtils,
+  safeParseNumber,
 
-      writable:
-      false,
+  safeParseBoolean,
 
-      configurable:
-      false
+  isPlainObject,
 
-    }
+  safeExecute,
 
-  );
+  sharedDeepFreeze,
 
-}
+  sharedDeepClone,
+
+  createUniqueId,
+
+  debounce,
+
+  throttle,
+
+  SharedUtils
+
+};
+
+export default
+SharedUtils;
