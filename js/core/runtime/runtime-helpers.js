@@ -1,43 +1,108 @@
 // =====================================
 // RIGO AI
 // RUNTIME HELPERS
-// FINAL UNIFIED EDITION
 // =====================================
 
 
 
 // =====================================
-// IMPORTS
+// TYPE CHECKS
 // =====================================
 
-import {
-  RUNTIME_STATES
+function isFunction(
+  value
+){
+
+  return typeof value ===
+  "function";
+
 }
-from "../constants/runtime-states.js";
-
-import RIGORuntimeState
-from "./runtime-state.js";
 
 
 
-// =====================================
-// DEEP FREEZE
-// =====================================
+function isObject(
+  value
+){
 
-function freezeRuntimeObject(
+  return (
 
-  value,
-  visited = new WeakSet()
+    value !== null &&
 
+    typeof value ===
+    "object"
+
+  );
+
+}
+
+
+
+function isPlainObject(
+  value
 ){
 
   if(
+    !isObject(value)
+  ){
 
-    !value ||
+    return false;
 
-    typeof value !==
-    "object"
+  }
 
+  const prototype =
+  Object.getPrototypeOf(
+    value
+  );
+
+  return (
+
+    prototype ===
+    Object.prototype ||
+
+    prototype ===
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// ERROR HELPERS
+// =====================================
+
+function normalizeRuntimeError(
+  error
+){
+
+  if(
+    error instanceof Error
+  ){
+
+    return error.message;
+
+  }
+
+  return String(
+    error || "UNKNOWN ERROR"
+  );
+
+}
+
+
+
+// =====================================
+// SAFE FREEZE
+// =====================================
+
+function safeFreeze(
+  value,
+  visited = new WeakSet()
+){
+
+  if(
+    !isObject(value)
   ){
 
     return value;
@@ -46,6 +111,24 @@ function freezeRuntimeObject(
 
   if(
     visited.has(value)
+  ){
+
+    return value;
+
+  }
+
+  if(
+
+    value instanceof Date ||
+
+    value instanceof Map ||
+
+    value instanceof Set ||
+
+    value instanceof Promise ||
+
+    value instanceof RegExp
+
   ){
 
     return value;
@@ -63,21 +146,10 @@ function freezeRuntimeObject(
   Object.values(value)
   .forEach((nestedValue) => {
 
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      freezeRuntimeObject(
-        nestedValue,
-        visited
-      );
-
-    }
+    safeFreeze(
+      nestedValue,
+      visited
+    );
 
   });
 
@@ -88,152 +160,68 @@ function freezeRuntimeObject(
 
 
 // =====================================
-// VALIDATE STATE
+// SAFE CLONE
 // =====================================
 
-function isValidRuntimeState(
-  runtimeState
+function safeClone(
+  value
 ){
 
-  return Object.values(
-    RUNTIME_STATES
-  )
-  .includes(
-    runtimeState
-  );
+  try{
+
+    return structuredClone(
+      value
+    );
+
+  }
+
+  catch{
+
+    return JSON.parse(
+      JSON.stringify(
+        value
+      )
+    );
+
+  }
 
 }
 
 
 
 // =====================================
-// SET STATE
+// TIME HELPERS
 // =====================================
 
-function setRuntimeState(
-  runtimeState
+function getCurrentTimestamp(){
+
+  return Date.now();
+
+}
+
+
+
+function createDuration(
+  startedAt,
+  endedAt = Date.now()
 ){
 
   if(
-
-    !isValidRuntimeState(
-      runtimeState
-    )
-
+    !startedAt
   ){
 
-    return false;
+    return 0;
 
   }
 
-  return RIGORuntimeState
-  ?.update?.(
+  return Math.max(
 
-    "runtimeState",
-    runtimeState
+    0,
 
-  );
-
-}
-
-
-
-// =====================================
-// ADD ERROR
-// =====================================
-
-function addRuntimeError(
-  error
-){
-
-  if(!error){
-
-    return false;
-
-  }
-
-  RIGORuntimeState
-  ?.pushError?.(
-    error
-  );
-
-  RIGORuntimeState
-  ?.incrementMetric?.(
-    "failures"
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLEAR ERRORS
-// =====================================
-
-function clearRuntimeErrors(){
-
-  return RIGORuntimeState
-  ?.update?.(
-
-    "runtimeErrors",
-    []
+    endedAt -
+    startedAt
 
   );
-
-}
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
-
-function getRuntimeDiagnostics(){
-
-  const snapshot =
-  RIGORuntimeState
-  ?.get?.();
-
-  return freezeRuntimeObject({
-
-    runtimeState:
-    snapshot?.runtimeState,
-
-    initialized:
-    snapshot?.initialized,
-
-    booting:
-    snapshot?.booting,
-
-    recovering:
-    snapshot?.recovering,
-
-    shuttingDown:
-    snapshot?.shuttingDown,
-
-    bootRetries:
-    snapshot?.bootRetries,
-
-    runtimeErrors:[
-
-      ...(snapshot
-      ?.runtimeErrors || [])
-
-    ],
-
-    diagnostics:{
-
-      ...(snapshot
-      ?.diagnostics || {})
-
-    },
-
-    timestamp:
-    Date.now()
-
-  });
 
 }
 
@@ -243,55 +231,54 @@ function getRuntimeDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const RIGORuntimeHelpers =
+const RuntimeHelpers =
 Object.freeze({
 
-  freeze:
-  freezeRuntimeObject,
+  isFunction,
 
-  validateState:
-  isValidRuntimeState,
+  isObject,
 
-  setState:
-  setRuntimeState,
+  isPlainObject,
 
-  addError:
-  addRuntimeError,
+  normalizeRuntimeError,
 
-  clearErrors:
-  clearRuntimeErrors,
+  safeFreeze,
 
-  diagnostics:
-  getRuntimeDiagnostics
+  safeClone,
+
+  getCurrentTimestamp,
+
+  createDuration
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof globalThis !==
-  "undefined" &&
+export {
 
-  !globalThis
-  .RIGORuntimeHelpers
-){
+  isFunction,
 
-  globalThis
-  .RIGORuntimeHelpers =
+  isObject,
 
-  RIGORuntimeHelpers;
+  isPlainObject,
 
-}
+  normalizeRuntimeError,
 
+  safeFreeze,
 
+  safeClone,
 
-// =====================================
-// DEFAULT EXPORT
-// =====================================
+  getCurrentTimestamp,
+
+  createDuration,
+
+  RuntimeHelpers
+
+};
 
 export default
-RIGORuntimeHelpers;
+RuntimeHelpers;
