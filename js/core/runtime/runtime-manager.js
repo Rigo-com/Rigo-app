@@ -6,271 +6,126 @@
 
 
 // =====================================
-// SAFE EVENT EMITTER
+// IMPORTS
 // =====================================
 
-async function emitRuntimeEvent(
-  event,
-  payload = null
-){
+import {
+
+  RUNTIME_STATES
+
+}
+from "./runtime-config.js";
+
+import RuntimeState
+from "./runtime-state.js";
+
+import {
+
+  normalizeRuntimeError,
+
+  safeFreeze,
+
+  getCurrentTimestamp
+
+}
+from "./runtime-helpers.js";
+
+import RuntimeBootSequence
+from "./runtime-boot-sequence.js";
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+async function initializeRuntime(){
 
   if(
-    typeof emitSystemEvent !==
-    "function"
+    RuntimeState
+    .isInitialized()
   ){
-
-    return false;
-
-  }
-
-  try{
-
-    await emitSystemEvent(
-      event,
-      payload
-    );
 
     return true;
 
   }
 
-  catch(error){
+  RuntimeState
+  .update({
 
-    RuntimeHelpers
-    ?.addError?.(error);
+    initialized:true,
 
-    return false;
+    state:
+    RUNTIME_STATES
+    .INITIALIZED
 
-  }
+  });
 
-}
-
-
-
-// =====================================
-// EXECUTE WITH TIMEOUT
-// =====================================
-
-async function executeRuntimeOperation({
-
-  operation,
-  timeout,
-  timeoutMessage
-
-}){
-
-  return Promise.race([
-
-    Promise.resolve(
-      operation?.()
-    ),
-
-    new Promise((_,reject) => {
-
-      setTimeout(() => {
-
-        reject(
-          new Error(
-            timeoutMessage
-          )
-        );
-
-      },timeout);
-
-    })
-
-  ]);
+  return true;
 
 }
 
 
 
 // =====================================
-// EXECUTE BOOT STEP
+// BOOT
 // =====================================
 
-async function executeBootStep(
-  step
-){
+async function bootRuntime(){
 
   if(
-    !RuntimeBootSequence
-    ?.validate?.(step)
+    RuntimeState
+    .isBusy()
   ){
 
     return false;
 
   }
 
+  if(
+    RuntimeState
+    .isBooted()
+  ){
+
+    return true;
+
+  }
+
   try{
 
-    const success =
-    await executeRuntimeOperation({
+    RuntimeState
+    .update({
 
-      operation:
-      step.initialize,
+      booting:true,
 
-      timeout:
-      step.timeout ||
+      state:
+      RUNTIME_STATES
+      .BOOTING,
 
-      RUNTIME_MANAGER_CONFIG
-      .STARTUP_TIMEOUT,
-
-      timeoutMessage:
-      `BOOT STEP TIMEOUT: ${step.name}`
+      lastError:null
 
     });
 
-    if(!success){
+    await initializeRuntime();
 
-      throw new Error(
-
-        `BOOT STEP FAILED: ${step.name}`
-
-      );
-
-    }
+    await RuntimeBootSequence
+    .executeBootSequence();
 
     RuntimeState
-    ?.incrementMetric?.(
-      "synchronizedSystems"
-    );
+    .update({
 
-    return true;
+      booting:false,
 
-  }
+      booted:true,
 
-  catch(error){
-
-    RuntimeHelpers
-    ?.addError?.(error);
-
-    safeLogError?.(
-
-      "BOOT STEP FAILED",
-
-      {
-
-        step:
-        step?.name,
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// BOOT RUNTIME
-// =====================================
-
-async function bootRuntimeManager(){
-
-  const snapshot =
-  RuntimeState
-  ?.get?.();
-
-  if(
-    snapshot?.booting
-  ){
-
-    return false;
-
-  }
-
-  RuntimeState
-  ?.update?.(
-    "booting",
-    true
-  );
-
-  RuntimeState
-  ?.update?.(
-    "startedAt",
-    Date.now()
-  );
-
-  RuntimeHelpers
-  ?.setState?.(
-    RUNTIME_STATES
-    .BOOTING
-  );
-
-  RuntimeState
-  ?.incrementMetric?.(
-    "boots"
-  );
-
-  await emitRuntimeEvent(
-    RUNTIME_EVENTS
-    ?.BOOT_STARTED
-  );
-
-  try{
-
-    const bootSequence =
-    RuntimeBootSequence
-    ?.create?.() || [];
-
-    for(
-      const step
-      of bootSequence
-    ){
-
-      if(
-        step?.enabled ===
-        false
-      ){
-
-        continue;
-
-      }
-
-      const success =
-      await executeBootStep(
-        step
-      );
-
-      if(
-        !success &&
-        step?.critical
-      ){
-
-        throw new Error(
-
-          `CRITICAL BOOT FAILURE: ${step.name}`
-
-        );
-
-      }
-
-    }
-
-    RuntimeState
-    ?.update?.(
-      "bootCompletedAt",
-      Date.now()
-    );
-
-    RuntimeHelpers
-    ?.setState?.(
+      state:
       RUNTIME_STATES
-      .READY
-    );
+      .RUNNING,
 
-    await emitRuntimeEvent(
-      RUNTIME_EVENTS
-      ?.BOOT_COMPLETED
-    );
+      startedAt:
+      getCurrentTimestamp()
+
+    });
 
     return true;
 
@@ -278,173 +133,25 @@ async function bootRuntimeManager(){
 
   catch(error){
 
-    RuntimeHelpers
-    ?.addError?.(error);
-
     RuntimeState
-    ?.incrementMetric?.(
-      "failures"
-    );
+    .update({
 
-    RuntimeHelpers
-    ?.setState?.(
+      booting:false,
+
+      booted:false,
+
+      state:
       RUNTIME_STATES
-      ?.FAILED
-    );
+      .FAILED,
 
-    const retries =
+      lastError:
+      normalizeRuntimeError(
+        error
+      )
 
-      RuntimeState
-      ?.get?.()
-      ?.bootRetries || 0;
-
-    if(
-
-      RUNTIME_MANAGER_CONFIG
-      .ENABLE_RECOVERY &&
-
-      retries <
-
-      RUNTIME_MANAGER_CONFIG
-      .MAX_BOOT_RETRIES
-
-    ){
-
-      RuntimeState
-      ?.update?.(
-
-        "bootRetries",
-        retries + 1
-
-      );
-
-      return recoverRuntimeManager();
-
-    }
-
-    await emitRuntimeEvent(
-
-      RUNTIME_EVENTS
-      ?.BOOT_FAILED,
-
-      {
-
-        error:
-        String(error)
-
-      }
-
-    );
+    });
 
     return false;
-
-  }
-
-  finally{
-
-    RuntimeState
-    ?.update?.(
-      "booting",
-      false
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// RECOVERY
-// =====================================
-
-async function recoverRuntimeManager(){
-
-  const snapshot =
-  RuntimeState
-  ?.get?.();
-
-  if(
-    snapshot?.recovering
-  ){
-
-    return false;
-
-  }
-
-  RuntimeState
-  ?.update?.(
-    "recovering",
-    true
-  );
-
-  RuntimeState
-  ?.update?.(
-    "lastRecoveryAt",
-    Date.now()
-  );
-
-  RuntimeHelpers
-  ?.setState?.(
-    RUNTIME_STATES
-    ?.RECOVERING
-  );
-
-  RuntimeState
-  ?.incrementMetric?.(
-    "recoveries"
-  );
-
-  await emitRuntimeEvent(
-    RUNTIME_EVENTS
-    ?.RECOVERY_STARTED
-  );
-
-  try{
-
-    await shutdownRuntimeManager();
-
-    const rebooted =
-    await bootRuntimeManager();
-
-    if(!rebooted){
-
-      throw new Error(
-        "RUNTIME RECOVERY FAILED"
-      );
-
-    }
-
-    await emitRuntimeEvent(
-      RUNTIME_EVENTS
-      ?.RECOVERY_COMPLETED
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    RuntimeHelpers
-    ?.addError?.(error);
-
-    RuntimeState
-    ?.incrementMetric?.(
-      "failures"
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    RuntimeState
-    ?.update?.(
-      "recovering",
-      false
-    );
 
   }
 
@@ -456,60 +163,57 @@ async function recoverRuntimeManager(){
 // SHUTDOWN
 // =====================================
 
-async function shutdownRuntimeManager(){
-
-  const snapshot =
-  RuntimeState
-  ?.get?.();
+async function shutdownRuntime(){
 
   if(
-    snapshot?.shuttingDown
+    RuntimeState
+    .isBusy()
   ){
 
     return false;
 
   }
 
-  RuntimeState
-  ?.update?.(
-    "shuttingDown",
-    true
-  );
+  if(
+    !RuntimeState
+    .isBooted()
+  ){
 
-  RuntimeState
-  ?.update?.(
-    "lastShutdownAt",
-    Date.now()
-  );
+    return true;
 
-  RuntimeHelpers
-  ?.setState?.(
-    RUNTIME_STATES
-    ?.SHUTTING_DOWN
-  );
-
-  RuntimeState
-  ?.incrementMetric?.(
-    "shutdowns"
-  );
-
-  await emitRuntimeEvent(
-    RUNTIME_EVENTS
-    ?.SHUTDOWN_STARTED
-  );
+  }
 
   try{
 
-    RuntimeHelpers
-    ?.setState?.(
-      RUNTIME_STATES
-      ?.IDLE
-    );
+    RuntimeState
+    .update({
 
-    await emitRuntimeEvent(
-      RUNTIME_EVENTS
-      ?.SHUTDOWN_COMPLETED
-    );
+      shuttingDown:true,
+
+      state:
+      RUNTIME_STATES
+      .SHUTTING_DOWN
+
+    });
+
+    await RuntimeBootSequence
+    .executeShutdownSequence();
+
+    RuntimeState
+    .update({
+
+      shuttingDown:false,
+
+      booted:false,
+
+      state:
+      RUNTIME_STATES
+      .STOPPED,
+
+      stoppedAt:
+      getCurrentTimestamp()
+
+    });
 
     return true;
 
@@ -517,76 +221,113 @@ async function shutdownRuntimeManager(){
 
   catch(error){
 
-    RuntimeHelpers
-    ?.addError?.(error);
+    RuntimeState
+    .update({
 
-    RuntimeHelpers
-    ?.setState?.(
+      shuttingDown:false,
+
+      state:
       RUNTIME_STATES
-      ?.FAILED
-    );
+      .FAILED,
+
+      lastError:
+      normalizeRuntimeError(
+        error
+      )
+
+    });
 
     return false;
 
   }
 
-  finally{
+}
 
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function resetRuntime(){
+
+  if(
     RuntimeState
-    ?.update?.(
-      "shuttingDown",
-      false
-    );
+    .isBusy()
+  ){
+
+    return false;
 
   }
 
-}
+  try{
 
+    RuntimeState
+    .update({
 
+      resetting:true,
 
-// =====================================
-// HEALTH REPORT
-// =====================================
+      state:
+      RUNTIME_STATES
+      .RESETTING
 
-function getRuntimeHealthReport(){
+    });
 
-  return RuntimeHelpers
-  ?.diagnostics?.();
+    await shutdownRuntime();
 
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-async function initializeRuntimeManager(){
-
-  const snapshot =
-  RuntimeState
-  ?.get?.();
-
-  if(
-    snapshot?.initialized
-  ){
+    RuntimeState
+    .reset();
 
     return true;
 
   }
 
-  RuntimeState
-  ?.update?.(
-    "initialized",
-    true
-  );
+  catch(error){
 
-  await emitRuntimeEvent(
-    RUNTIME_EVENTS
-    ?.INITIALIZED
-  );
+    RuntimeState
+    .update({
 
-  return true;
+      resetting:false,
+
+      state:
+      RUNTIME_STATES
+      .FAILED,
+
+      lastError:
+      normalizeRuntimeError(
+        error
+      )
+
+    });
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createRuntimeSnapshot(){
+
+  return safeFreeze({
+
+    runtime:
+    RuntimeState
+    .snapshot(),
+
+    bootSequence:
+    RuntimeBootSequence
+    .snapshot(),
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -600,50 +341,43 @@ const RuntimeManager =
 Object.freeze({
 
   initialize:
-  initializeRuntimeManager,
+  initializeRuntime,
 
   boot:
-  bootRuntimeManager,
-
-  recover:
-  recoverRuntimeManager,
+  bootRuntime,
 
   shutdown:
-  shutdownRuntimeManager,
+  shutdownRuntime,
 
-  health:
-  getRuntimeHealthReport
+  reset:
+  resetRuntime,
+
+  snapshot:
+  createRuntimeSnapshot
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  initializeRuntime,
 
-    window,
+  bootRuntime,
 
-    "RuntimeManager",
+  shutdownRuntime,
 
-    {
+  resetRuntime,
 
-      value:
-      RuntimeManager,
+  createRuntimeSnapshot,
 
-      writable:false,
+  RuntimeManager
 
-      configurable:false
+};
 
-    }
-
-  );
-
-}
+export default
+RuntimeManager;
