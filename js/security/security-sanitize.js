@@ -331,8 +331,10 @@ function sanitizeInternal(
   // ================================
 
   if(
-    Array.isArray(value)
-  ){
+  !Array.isArray(value)
+){
+  return [];
+}
 
     const sanitized =
     [];
@@ -382,10 +384,10 @@ function sanitizeInternal(
   // ================================
 
   if(
-    isPlainObject(
-      value
-    )
-  ){
+  !isPlainObject(value)
+){
+  return Object.create(null);
+}
 
     const sanitized =
     Object.create(null);
