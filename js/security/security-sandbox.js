@@ -117,6 +117,21 @@ function createRestrictedScope(
   scope = {}
 ){
 
+  if(
+
+    !scope ||
+
+    typeof scope !==
+    "object"
+
+  ){
+
+    throw new SandboxError(
+      "Invalid sandbox scope"
+    );
+
+  }
+
   const blockedKeys =
   new Set([
 
@@ -137,8 +152,7 @@ function createRestrictedScope(
   ]);
 
   const restricted =
-
-    Object.create(null);
+  Object.create(null);
 
   Object.entries(scope)
   .forEach(([
@@ -156,6 +170,7 @@ function createRestrictedScope(
     ){
 
       return;
+
     }
 
     restricted[key] =
