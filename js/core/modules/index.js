@@ -1,372 +1,26 @@
 // =====================================
 // RIGO AI
 // MODULES INDEX
-// CLEAN COMPOSITION LAYER
-// FINAL HARDENED EDITION
+// ENTRY POINT
 // =====================================
 
 
 
 // =====================================
-// MODULE FILES
+// IMPORTS
 // =====================================
 
-import "./module-constants.js";
-import "./module-registry.js";
-import "./module-runtime.js";
-import "./module-health.js";
-import "./module-loader.js";
-import "./module-activation.js";
-import "./module-kernel.js";
+import ModuleConstants
+from "./module-constants.js";
 
+import ModuleRegistry
+from "./module-registry.js";
 
+import ModuleActivation
+from "./module-activation.js";
 
-// =====================================
-// INTERNAL STATE
-// =====================================
-
-const modulesIndexState =
-Object.seal({
-
-  initialized:false,
-
-  booted:false,
-
-  initializing:false,
-
-  booting:false,
-
-  lastInitializedAt:null,
-
-  lastBootedAt:null,
-
-  lastError:null
-
-});
-
-
-
-// =====================================
-// INTERNAL HELPERS
-// =====================================
-
-function isFunction(
-  value
-){
-
-  return (
-    typeof value ===
-    "function"
-  );
-
-}
-
-
-
-function isPlainObject(
-  value
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return false;
-
-  }
-
-  const prototype =
-  Object.getPrototypeOf(
-    value
-  );
-
-  return (
-
-    prototype ===
-    Object.prototype ||
-
-    prototype ===
-    null
-
-  );
-
-}
-
-
-
-function safeFreeze(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    value instanceof Promise ||
-
-    value instanceof Map ||
-
-    value instanceof Set ||
-
-    value instanceof Date ||
-
-    value instanceof RegExp ||
-
-    (
-      typeof HTMLElement !==
-      "undefined" &&
-
-      value instanceof HTMLElement
-    )
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-
-    !Array.isArray(value) &&
-
-    !isPlainObject(value)
-
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(value)
-  .forEach((nestedValue) => {
-
-    safeFreeze(
-      nestedValue,
-      visited
-    );
-
-  });
-
-  return value;
-
-}
-
-
-
-function normalizeModulesIndexError(
-  error
-){
-
-  if(
-    typeof getSafeErrorMessage ===
-    "function"
-  ){
-
-    return getSafeErrorMessage(
-      error
-    );
-
-  }
-
-  return String(
-    error || "UNKNOWN ERROR"
-  );
-
-}
-
-
-
-function emitModulesIndexWarning(
-  message,
-  error = null
-){
-
-  console.warn(
-
-    `[ModulesIndex] ${message}`,
-
-    error || ""
-
-  );
-
-}
-
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-const MODULES_INDEX_EVENTS =
-Object.freeze({
-
-  INITIALIZATION_STARTED:
-  "modules.index.initialization.started",
-
-  INITIALIZATION_COMPLETED:
-  "modules.index.initialization.completed",
-
-  BOOT_STARTED:
-  "modules.index.boot.started",
-
-  BOOT_COMPLETED:
-  "modules.index.boot.completed",
-
-  HEALTHCHECK:
-  "modules.index.healthcheck"
-
-});
-
-
-
-// =====================================
-// EVENT EMITTER
-// =====================================
-
-async function emitModulesIndexEvent(
-  event,
-  payload = {}
-){
-
-  try{
-
-    if(
-      !isFunction(
-        emitSystemEvent
-      )
-    ){
-
-      return false;
-
-    }
-
-    await emitSystemEvent(
-
-      event,
-
-      {
-
-        source:
-        "modules-index",
-
-        timestamp:
-        Date.now(),
-
-        ...payload
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    emitModulesIndexWarning(
-
-      `Event failed: ${event}`,
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// VALIDATION
-// =====================================
-
-function validateModulesLayer(){
-
-  if(
-    typeof globalThis ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
-
-  const requiredSystems = [
-
-    "RIGOModuleConstants",
-    "RIGOModuleRegistry",
-    "RIGOModuleRuntime",
-    "RIGOModuleHealth",
-    "RIGOModuleLoader",
-    "RIGOModuleKernel",
-    "RIGOModuleActivation"
-
-  ];
-
-  const missingSystems =
-
-    requiredSystems.filter((systemName) => {
-
-      return (
-
-        typeof globalThis[
-          systemName
-        ] ===
-
-        "undefined"
-
-      );
-
-    });
-
-  if(
-    missingSystems.length > 0
-  ){
-
-    emitModulesIndexWarning(
-
-      `Missing systems: ${missingSystems.join(", ")}`
-
-    );
-
-    return false;
-
-  }
-
-  return true;
-
-}
+import ModuleRuntime
+from "./module-runtime.js";
 
 
 
@@ -374,142 +28,10 @@ function validateModulesLayer(){
 // INITIALIZATION
 // =====================================
 
-async function initializeModulesLayer(){
+async function initializeModules(){
 
-  if(
-    modulesIndexState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  if(
-    modulesIndexState
-    .initializing
-  ){
-
-    return false;
-
-  }
-
-  modulesIndexState
-  .initializing =
-  true;
-
-  modulesIndexState
-  .lastError =
-  null;
-
-  try{
-
-    await emitModulesIndexEvent(
-
-      MODULES_INDEX_EVENTS
-      .INITIALIZATION_STARTED
-
-    );
-
-    if(
-      !validateModulesLayer()
-    ){
-
-      throw new Error(
-        "MODULE LAYER VALIDATION FAILED"
-      );
-
-    }
-
-    const kernel =
-      globalThis.RIGOModuleKernel;
-
-    if(
-
-      kernel &&
-
-      isFunction(
-        kernel.initialize
-      )
-
-    ){
-
-      const initialized =
-      await kernel.initialize();
-
-      if(
-        !initialized
-      ){
-
-        throw new Error(
-
-          "MODULE KERNEL INITIALIZATION FAILED"
-
-        );
-
-      }
-
-    }
-
-    modulesIndexState
-    .initialized =
-    true;
-
-    modulesIndexState
-    .lastInitializedAt =
-    Date.now();
-
-    globalThis.__RIGO_MODULES_READY__ =
-    true;
-
-    await emitModulesIndexEvent(
-
-      MODULES_INDEX_EVENTS
-      .INITIALIZATION_COMPLETED,
-
-      {
-
-        initialized:true
-
-      }
-
-    );
-
-    console.info(
-      "[ModulesIndex] Modules layer initialized"
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    modulesIndexState
-    .lastError =
-    normalizeModulesIndexError(
-      error
-    );
-
-    emitModulesIndexWarning(
-
-      "Modules initialization failed",
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    modulesIndexState
-    .initializing =
-    false;
-
-  }
+  return ModuleRuntime
+  .initialize();
 
 }
 
@@ -519,244 +41,36 @@ async function initializeModulesLayer(){
 // BOOT
 // =====================================
 
-async function bootModulesLayer(){
+async function bootModules(){
 
-  if(
-    modulesIndexState
-    .booted
-  ){
-
-    return true;
-
-  }
-
-  if(
-    modulesIndexState
-    .booting
-  ){
-
-    return false;
-
-  }
-
-  modulesIndexState
-  .booting =
-  true;
-
-  try{
-
-    await emitModulesIndexEvent(
-
-      MODULES_INDEX_EVENTS
-      .BOOT_STARTED
-
-    );
-
-    const initialized =
-    await initializeModulesLayer();
-
-    if(
-      !initialized
-    ){
-
-      throw new Error(
-        "MODULES INITIALIZATION FAILED"
-      );
-
-    }
-
-    const kernel =
-      globalThis.RIGOModuleKernel;
-
-    if(
-
-      !kernel ||
-
-      !isFunction(
-        kernel.boot
-      )
-
-    ){
-
-      throw new Error(
-        "INVALID MODULE KERNEL"
-      );
-
-    }
-
-    const booted =
-    await kernel.boot();
-
-    if(
-      !booted
-    ){
-
-      throw new Error(
-        "MODULE KERNEL BOOT FAILED"
-      );
-
-    }
-
-    modulesIndexState
-    .booted =
-    true;
-
-    modulesIndexState
-    .lastBootedAt =
-    Date.now();
-
-    await emitModulesIndexEvent(
-
-      MODULES_INDEX_EVENTS
-      .BOOT_COMPLETED,
-
-      {
-
-        booted:true
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    modulesIndexState
-    .lastError =
-    normalizeModulesIndexError(
-      error
-    );
-
-    emitModulesIndexWarning(
-      "Auto boot failed",
-      error
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    modulesIndexState
-    .booting =
-    false;
-
-  }
+  return ModuleRuntime
+  .boot();
 
 }
 
 
 
 // =====================================
-// HEALTHCHECK
+// SHUTDOWN
 // =====================================
 
-async function getModulesLayerHealth(){
+async function shutdownModules(){
 
-  try{
+  return ModuleRuntime
+  .shutdown();
 
-    const kernel =
-      globalThis.RIGOModuleKernel;
+}
 
-    const health =
 
-      kernel &&
 
-      isFunction(
-        kernel.health
-      )
+// =====================================
+// RESET
+// =====================================
 
-      ?
+async function resetModules(){
 
-      await kernel.health()
-
-      :
-
-      null;
-
-    const snapshot =
-    safeFreeze({
-
-      initialized:
-      modulesIndexState
-      .initialized,
-
-      booted:
-      modulesIndexState
-      .booted,
-
-      initializing:
-      modulesIndexState
-      .initializing,
-
-      booting:
-      modulesIndexState
-      .booting,
-
-      lastInitializedAt:
-
-        modulesIndexState
-        .lastInitializedAt,
-
-      lastBootedAt:
-
-        modulesIndexState
-        .lastBootedAt,
-
-      lastError:
-
-        modulesIndexState
-        .lastError,
-
-      kernel:
-      health,
-
-      timestamp:
-      Date.now()
-
-    });
-
-    await emitModulesIndexEvent(
-
-      MODULES_INDEX_EVENTS
-      .HEALTHCHECK,
-
-      {
-
-        health:
-        snapshot
-
-      }
-
-    );
-
-    return snapshot;
-
-  }
-
-  catch(error){
-
-    modulesIndexState
-    .lastError =
-    normalizeModulesIndexError(
-      error
-    );
-
-    emitModulesIndexWarning(
-
-      "Healthcheck failed",
-
-      error
-
-    );
-
-    return null;
-
-  }
+  return ModuleRuntime
+  .reset();
 
 }
 
@@ -766,40 +80,20 @@ async function getModulesLayerHealth(){
 // SNAPSHOT
 // =====================================
 
-function createModulesLayerSnapshot(){
+function createModulesSnapshot(){
 
-  return safeFreeze({
+  return Object.freeze({
 
-    initialized:
-    modulesIndexState
-    .initialized,
+    constants:
+    ModuleConstants,
 
-    booted:
-    modulesIndexState
-    .booted,
+    registry:
+    ModuleRegistry
+    .snapshot(),
 
-    initializing:
-    modulesIndexState
-    .initializing,
-
-    booting:
-    modulesIndexState
-    .booting,
-
-    lastInitializedAt:
-
-      modulesIndexState
-      .lastInitializedAt,
-
-    lastBootedAt:
-
-      modulesIndexState
-      .lastBootedAt,
-
-    lastError:
-
-      modulesIndexState
-      .lastError,
+    runtime:
+    ModuleRuntime
+    .snapshot(),
 
     timestamp:
     Date.now()
@@ -814,84 +108,35 @@ function createModulesLayerSnapshot(){
 // PUBLIC API
 // =====================================
 
-const RIGOModulesRuntime =
+const Modules =
 Object.freeze({
 
+  constants:
+  ModuleConstants,
 
+  registry:
+  ModuleRegistry,
 
-  get constants(){
+  activation:
+  ModuleActivation,
 
-    return globalThis.RIGOModuleConstants;
-
-  },
-
-
-
-  get registry(){
-
-    return globalThis.RIGOModuleRegistry;
-
-  },
-
-
-
-  get runtime(){
-
-    return globalThis.RIGOModuleRuntime;
-
-  },
-
-
-
-  get health(){
-
-    return globalThis.RIGOModuleHealth;
-
-  },
-
-
-
-  get loader(){
-
-    return globalThis.RIGOModuleLoader;
-
-  },
-
-
-
-  get kernel(){
-
-    return globalThis.RIGOModuleKernel;
-
-  },
-
-
-
-  get activation(){
-
-    return globalThis.RIGOModuleActivation;
-
-  },
-
-
+  runtime:
+  ModuleRuntime,
 
   initialize:
-  initializeModulesLayer,
-
-
+  initializeModules,
 
   boot:
-  bootModulesLayer,
+  bootModules,
 
+  shutdown:
+  shutdownModules,
 
-
-  healthcheck:
-  getModulesLayerHealth,
-
-
+  reset:
+  resetModules,
 
   snapshot:
-  createModulesLayerSnapshot
+  createModulesSnapshot
 
 });
 
@@ -903,88 +148,27 @@ Object.freeze({
 
 export {
 
-  modulesIndexState,
+  ModuleConstants,
 
-  validateModulesLayer,
+  ModuleRegistry,
 
-  initializeModulesLayer,
+  ModuleActivation,
 
-  bootModulesLayer,
+  ModuleRuntime,
 
-  getModulesLayerHealth,
+  initializeModules,
 
-  createModulesLayerSnapshot,
+  bootModules,
 
-  RIGOModulesRuntime
+  shutdownModules,
+
+  resetModules,
+
+  createModulesSnapshot,
+
+  Modules
 
 };
 
 export default
-RIGOModulesRuntime;
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOModulesRuntime",
-
-    {
-
-      value:
-      RIGOModulesRuntime,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE AUTO INITIALIZATION
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  queueMicrotask(async() => {
-
-    try{
-
-      await initializeModulesLayer();
-
-    }
-
-    catch(error){
-
-      emitModulesIndexWarning(
-
-        "Queued initialization failed",
-
-        error
-
-      );
-
-    }
-
-  });
-
-}
+Modules;
