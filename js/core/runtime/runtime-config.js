@@ -1,598 +1,135 @@
 // =====================================
 // RIGO AI
-// CONFIG RUNTIME SYSTEM
+// RUNTIME CONFIG
 // =====================================
 
 
 
 // =====================================
-// SAFE FREEZE
+// VERSION
 // =====================================
 
-function safeDeepFreeze(
-  value,
-  visited = new WeakSet()
-){
-
-  try{
-
-    if(
-
-      !value ||
-
-      typeof value !==
-      "object"
-
-    ){
-
-      return value;
-
-    }
-
-    if(
-      visited.has(value)
-    ){
-
-      return value;
-
-    }
-
-    visited.add(
-      value
-    );
-
-    Object.freeze(
-      value
-    );
-
-    Object.values(value)
-    .forEach((nestedValue) => {
-
-      if(
-
-        nestedValue &&
-
-        typeof nestedValue ===
-        "object"
-
-      ){
-
-        safeDeepFreeze(
-          nestedValue,
-          visited
-        );
-
-      }
-
-    });
-
-    return value;
-
-  }
-
-  catch(error){
-
-    return value;
-
-  }
-
-}
+const RUNTIME_VERSION =
+"1.0.0";
 
 
 
 // =====================================
-// SAFE CLONE
+// BOOT CONFIG
 // =====================================
 
-function safeConfigClone(
-  value
-){
-
-  try{
-
-    return structuredClone(
-      value
-    );
-
-  }
-
-  catch(error){
-
-    try{
-
-      return JSON.parse(
-        JSON.stringify(
-          value
-        )
-      );
-
-    }
-
-    catch(cloneError){
-
-      return null;
-
-    }
-
-  }
-
-}
-
-
-
-// =====================================
-// SHARED CONSTANTS
-// =====================================
-
-const SHARED_TIMEOUT =
-30000;
-
-const SHARED_RETRIES =
-2;
-
-const SHARED_RETRY_DELAY =
-1200;
-
-const STORAGE_NAMESPACE =
-"rigo-ai:v1";
-
-
-
-// =====================================
-// CONFIG EVENTS
-// =====================================
-
-const CONFIG_RUNTIME_EVENTS =
+const RUNTIME_BOOT_CONFIG =
 Object.freeze({
 
-  CONFIG_UPDATED:
-  "config.updated",
+  AUTO_BOOT:
+  false,
 
-  CONFIG_RESET:
-  "config.reset",
+  BOOT_TIMEOUT:
+  30000,
 
-  CONFIG_VALIDATED:
-  "config.validated"
+  SHUTDOWN_TIMEOUT:
+  15000,
+
+  RESET_TIMEOUT:
+  15000,
+
+  MAX_BOOT_RETRIES:
+  3
 
 });
 
 
 
 // =====================================
-// BASE CONFIG
+// STATE CONFIG
 // =====================================
 
-const BASE_APP_CONFIG =
-safeDeepFreeze({
+const RUNTIME_STATE_CONFIG =
+Object.freeze({
 
+  ENABLE_SNAPSHOTS:
+  true,
 
+  ENABLE_HISTORY:
+  true,
 
-  // ===================================
-  // CHAT
-  // ===================================
-
-  CHAT:{
-
-    TITLE_LIMIT:
-    30,
-
-    AI_DELAY:
-    1200,
-
-    MESSAGE_TIMEOUT:
-    SHARED_TIMEOUT,
-
-    MAX_MESSAGE_LENGTH:
-    5000,
-
-    MAX_PENDING_MESSAGES:
-    10,
-
-    MAX_CHAT_MESSAGES:
-    200,
-
-    VALID_ROLES:
-    safeDeepFreeze([
-
-      "user",
-
-      "assistant",
-
-      "system"
-
-    ])
-
-  },
-
-
-
-  // ===================================
-  // API
-  // ===================================
-
-  API:{
-
-    BASE_URL:
-    "",
-
-    REQUEST_TIMEOUT:
-    SHARED_TIMEOUT,
-
-    MAX_RETRIES:
-    SHARED_RETRIES,
-
-    RETRY_DELAY:
-    SHARED_RETRY_DELAY
-
-  },
-
-
-
-  // ===================================
-  // AI
-  // ===================================
-
-  AI:{
-
-    DEFAULT_MODEL:
-    "gpt-4.1-mini",
-
-    TEMPERATURE:
-    0.7,
-
-    MAX_RESPONSE_CHARS:
-    4000,
-
-    STREAMING:
-    false
-
-  },
-
-
-
-  // ===================================
-  // STORAGE
-  // ===================================
-
-  STORAGE:{
-
-    APP_KEY:
-
-    STORAGE_NAMESPACE +
-
-    ":app",
-
-    CHAT_KEY:
-
-    STORAGE_NAMESPACE +
-
-    ":chat-data",
-
-    SETTINGS_KEY:
-
-    STORAGE_NAMESPACE +
-
-    ":settings",
-
-    AUTH_KEY:
-
-    STORAGE_NAMESPACE +
-
-    ":auth-session"
-
-  },
-
-
-
-  // ===================================
-  // UI
-  // ===================================
-
-  UI:{
-
-    MESSAGE_ANIMATION_MS:
-    180,
-
-    TYPING_ANIMATION_MS:
-    1000,
-
-    LOADING_FADE_DURATION:
-    300,
-
-    AUTO_SCROLL:
-    true
-
-  }
+  MAX_HISTORY_ENTRIES:
+  100
 
 });
 
 
 
 // =====================================
-// CONFIG STATE
+// RUNTIME STATES
 // =====================================
 
-const configRuntimeState =
-Object.seal({
+const RUNTIME_STATES =
+Object.freeze({
 
-  initialized:false,
+  IDLE:
+  "idle",
 
-  runtimeOverrides:{},
+  INITIALIZING:
+  "initializing",
 
-  lastUpdatedAt:null,
+  INITIALIZED:
+  "initialized",
 
-  diagnostics:{
+  BOOTING:
+  "booting",
 
-    updates:0,
+  RUNNING:
+  "running",
 
-    validations:0,
+  SHUTTING_DOWN:
+  "shutting_down",
 
-    resets:0,
+  STOPPED:
+  "stopped",
 
-    errors:0
+  RESETTING:
+  "resetting",
 
-  }
+  FAILED:
+  "failed"
 
 });
 
 
 
 // =====================================
-// HELPERS
+// RUNTIME EVENTS
 // =====================================
 
-async function emitConfigRuntimeEvent(
-  eventName,
-  payload = {}
-){
+const RUNTIME_EVENTS =
+Object.freeze({
 
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
+  INITIALIZED:
+  "runtime.initialized",
 
-    return false;
+  BOOT_STARTED:
+  "runtime.boot.started",
 
-  }
+  BOOT_COMPLETED:
+  "runtime.boot.completed",
 
-  try{
+  SHUTDOWN_STARTED:
+  "runtime.shutdown.started",
 
-    await emitSystemEvent(
+  SHUTDOWN_COMPLETED:
+  "runtime.shutdown.completed",
 
-      eventName,
+  RESET_STARTED:
+  "runtime.reset.started",
 
-      {
+  RESET_COMPLETED:
+  "runtime.reset.completed",
 
-        source:
-        "runtime-config",
+  FAILED:
+  "runtime.failed"
 
-        ...payload
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    return false;
-
-  }
-
-}
-
-
-
-function mergeConfigObjects(
-  target,
-  source
-){
-
-  const output =
-  safeConfigClone(
-    target
-  ) || {};
-
-  Object.keys(
-    source || {}
-  )
-  .forEach((key) => {
-
-    const sourceValue =
-    source[key];
-
-    const targetValue =
-    output[key];
-
-    if(
-
-      sourceValue &&
-
-      typeof sourceValue ===
-      "object" &&
-
-      !Array.isArray(
-        sourceValue
-      )
-
-    ){
-
-      output[key] =
-      mergeConfigObjects(
-
-        targetValue || {},
-
-        sourceValue
-
-      );
-
-    }
-
-    else{
-
-      output[key] =
-      sourceValue;
-
-    }
-
-  });
-
-  return output;
-
-}
-
-
-
-// =====================================
-// GET CONFIG
-// =====================================
-
-function getAppConfig(){
-
-  return {
-
-    APP_INFO,
-
-    CURRENT_ENVIRONMENT,
-
-    FEATURE_FLAGS,
-
-    PLATFORM_CAPABILITIES,
-
-    APP_CORE_CONFIG,
-
-    ...mergeConfigObjects(
-
-      BASE_APP_CONFIG,
-
-      configRuntimeState
-      .runtimeOverrides
-
-    )
-
-  };
-
-}
-
-
-
-// =====================================
-// GET CONFIG VALUE
-// =====================================
-
-function getConfigValue(
-  path = ""
-){
-
-  try{
-
-    const normalizedPath =
-    String(path)
-    .trim();
-
-    if(!normalizedPath){
-
-      return null;
-
-    }
-
-    const config =
-    getAppConfig();
-
-    return normalizedPath
-    .split(".")
-    .reduce((current,key) => {
-
-      return current?.[key];
-
-    },config);
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// UPDATE CONFIG
-// =====================================
-
-async function updateRuntimeConfig(
-  updates = {}
-){
-
-  try{
-
-    if(
-
-      !updates ||
-
-      typeof updates !==
-      "object"
-
-    ){
-
-      return false;
-
-    }
-
-    configRuntimeState
-    .runtimeOverrides =
-
-    mergeConfigObjects(
-
-      configRuntimeState
-      .runtimeOverrides,
-
-      updates
-
-    );
-
-    configRuntimeState
-    .lastUpdatedAt =
-    Date.now();
-
-    configRuntimeState
-    .diagnostics
-    .updates++;
-
-    await emitConfigRuntimeEvent(
-
-      CONFIG_RUNTIME_EVENTS
-      .CONFIG_UPDATED,
-
-      {
-
-        updates
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    configRuntimeState
-    .diagnostics
-    .errors++;
-
-    return false;
-
-  }
-
-}
+});
 
 
 
@@ -600,253 +137,31 @@ async function updateRuntimeConfig(
 // VALIDATION
 // =====================================
 
-function validateAppConfig(){
-
-  try{
-
-    const config =
-    getAppConfig();
-
-    if(
-
-      !Number.isFinite(
-
-        config
-        .CHAT
-        .MAX_MESSAGE_LENGTH
-
-      )
-
-      ||
-
-      config
-      .CHAT
-      .MAX_MESSAGE_LENGTH <= 0
-
-    ){
-
-      return false;
-
-    }
-
-    if(
-
-      !Number.isFinite(
-
-        config
-        .API
-        .REQUEST_TIMEOUT
-
-      )
-
-      ||
-
-      config
-      .API
-      .REQUEST_TIMEOUT < 1000
-
-    ){
-
-      return false;
-
-    }
-
-    if(
-
-      !Number.isFinite(
-
-        config
-        .API
-        .MAX_RETRIES
-
-      )
-
-      ||
-
-      config
-      .API
-      .MAX_RETRIES < 0
-
-    ){
-
-      return false;
-
-    }
-
-    if(
-
-      !Array.isArray(
-
-        config
-        .CHAT
-        .VALID_ROLES
-
-      )
-
-      ||
-
-      config
-      .CHAT
-      .VALID_ROLES
-      .length <= 0
-
-    ){
-
-      return false;
-
-    }
-
-    configRuntimeState
-    .diagnostics
-    .validations++;
-
-    emitConfigRuntimeEvent(
-
-      CONFIG_RUNTIME_EVENTS
-      .CONFIG_VALIDATED
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    configRuntimeState
-    .diagnostics
-    .errors++;
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
-
-function createConfigSnapshot(){
-
-  return Object.freeze({
-
-    timestamp:
-    Date.now(),
-
-    config:
-    getAppConfig(),
-
-    diagnostics:{
-
-      ...configRuntimeState
-      .diagnostics
-
-    }
-
-  });
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-async function resetRuntimeConfig(){
-
-  configRuntimeState
-  .runtimeOverrides =
-  {};
-
-  configRuntimeState
-  .lastUpdatedAt =
-  Date.now();
-
-  configRuntimeState
-  .diagnostics
-  .resets++;
-
-  await emitConfigRuntimeEvent(
-
-    CONFIG_RUNTIME_EVENTS
-    .CONFIG_RESET
-
+function isValidRuntimeState(
+  state
+){
+
+  return Object.values(
+    RUNTIME_STATES
+  )
+  .includes(
+    String(state)
   );
 
-  return true;
-
 }
 
 
 
-// =====================================
-// INITIALIZE
-// =====================================
+function isValidRuntimeEvent(
+  event
+){
 
-function initializeConfigRuntime(){
-
-  if(
-    configRuntimeState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  const valid =
-  validateAppConfig();
-
-  if(!valid){
-
-    configRuntimeState
-    .diagnostics
-    .errors++;
-
-    return false;
-
-  }
-
-  configRuntimeState
-  .initialized =
-  true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
-
-function getConfigRuntimeDiagnostics(){
-
-  return safeConfigClone({
-
-    initialized:
-
-      configRuntimeState
-      .initialized,
-
-    lastUpdatedAt:
-
-      configRuntimeState
-      .lastUpdatedAt,
-
-    diagnostics:{
-
-      ...configRuntimeState
-      .diagnostics
-
-    }
-
-  });
+  return Object.values(
+    RUNTIME_EVENTS
+  )
+  .includes(
+    String(event)
+  );
 
 }
 
@@ -856,61 +171,57 @@ function getConfigRuntimeDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const RIGORuntimeConfig =
+const RuntimeConfig =
 Object.freeze({
 
-  initialize:
-  initializeConfigRuntime,
+  version:
+  RUNTIME_VERSION,
 
-  get:
-  getAppConfig,
+  boot:
+  RUNTIME_BOOT_CONFIG,
 
-  getValue:
-  getConfigValue,
+  state:
+  RUNTIME_STATE_CONFIG,
 
-  update:
-  updateRuntimeConfig,
+  states:
+  RUNTIME_STATES,
 
-  validate:
-  validateAppConfig,
+  events:
+  RUNTIME_EVENTS,
 
-  snapshot:
-  createConfigSnapshot,
+  validateState:
+  isValidRuntimeState,
 
-  diagnostics:
-  getConfigRuntimeDiagnostics,
-
-  reset:
-  resetRuntimeConfig
+  validateEvent:
+  isValidRuntimeEvent
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof globalThis !==
-  "undefined" &&
+export {
 
-  !globalThis
-  .RIGORuntimeConfig
-){
+  RUNTIME_VERSION,
 
-  globalThis
-  .RIGORuntimeConfig =
+  RUNTIME_BOOT_CONFIG,
 
-  RIGORuntimeConfig;
+  RUNTIME_STATE_CONFIG,
 
-}
+  RUNTIME_STATES,
 
+  RUNTIME_EVENTS,
 
+  isValidRuntimeState,
 
-// =====================================
-// DEFAULT EXPORT
-// =====================================
+  isValidRuntimeEvent,
+
+  RuntimeConfig
+
+};
 
 export default
-RIGORuntimeConfig;
+RuntimeConfig;
