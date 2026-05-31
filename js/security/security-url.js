@@ -20,9 +20,6 @@ from "./security-errors.js";
 const SECURITY_URL_CONFIG =
 Object.freeze({
 
-  ALLOW_HTTP:
-  false,
-
   ALLOWED_PROTOCOLS:
   Object.freeze([
 
@@ -57,10 +54,21 @@ function parseURL(
   value
 ){
 
+  if(
+    typeof value !==
+    "string"
+  ){
+
+    throw new URLError(
+      "URL must be a string"
+    );
+
+  }
+
   try{
 
     return new URL(
-      value
+      value.trim()
     );
 
   }
@@ -107,24 +115,6 @@ function validateProtocol(
 
   if(
 
-    SECURITY_URL_CONFIG
-    .ALLOW_HTTP === false
-
-    &&
-
-    normalized ===
-    "http:"
-
-  ){
-
-    throw new URLError(
-      "HTTP protocol is disabled"
-    );
-
-  }
-
-  if(
-
     !SECURITY_URL_CONFIG
     .ALLOWED_PROTOCOLS
     .includes(
@@ -153,20 +143,9 @@ function validateURL(
   value
 ){
 
-  if(
-    typeof value !==
-    "string"
-  ){
-
-    throw new URLError(
-      "URL must be a string"
-    );
-
-  }
-
   const parsed =
   parseURL(
-    value.trim()
+    value
   );
 
   validateProtocol(
@@ -189,8 +168,7 @@ function sanitizeURL(
 
   const parsed =
   parseURL(
-    String(value)
-    .trim()
+    value
   );
 
   validateProtocol(
