@@ -1,270 +1,199 @@
 // =====================================
 // RIGO AI
 // RUNTIME BOOT SEQUENCE
-// FINAL UNIFIED EDITION
 // =====================================
 
 
 
 // =====================================
-// CREATE STEP
+// IMPORTS
 // =====================================
 
-function createBootStep({
+import ModuleRuntime
+from "../modules/module-runtime.js";
 
+
+
+// =====================================
+// INTERNAL STATE
+// =====================================
+
+const runtimeBootSequenceState =
+Object.seal({
+
+  bootSteps:
+  [],
+
+  shutdownSteps:
+  []
+
+});
+
+
+
+// =====================================
+// REGISTRATION
+// =====================================
+
+function registerBootStep(
   name,
-  critical = false,
-  enabled = true,
-  timeout = 10000,
-  initialize = null
+  handler
+){
 
-}){
+  runtimeBootSequenceState
+  .bootSteps
+  .push({
 
-  return Object.freeze({
+    name,
 
-    name:
-    String(name),
-
-    critical:
-    Boolean(critical),
-
-    enabled:
-    Boolean(enabled),
-
-    timeout:
-    Number(timeout),
-
-    initialize:
-
-      typeof initialize ===
-      "function"
-
-      ?
-
-      initialize
-
-      :
-
-      null
+    handler
 
   });
 
+  return true;
+
 }
 
 
 
-// =====================================
-// VALIDATE STEP
-// =====================================
-
-function isValidBootStep(
-  step
+function registerShutdownStep(
+  name,
+  handler
 ){
 
-  return Boolean(
+  runtimeBootSequenceState
+  .shutdownSteps
+  .push({
 
-    step &&
+    name,
 
-    typeof step.name ===
-    "string" &&
+    handler
 
-    typeof step.critical ===
-    "boolean" &&
+  });
 
-    typeof step.enabled ===
-    "boolean" &&
-
-    typeof step.timeout ===
-    "number" &&
-
-    typeof step.initialize ===
-    "function"
-
-  );
+  return true;
 
 }
 
 
 
 // =====================================
-// CREATE BOOT SEQUENCE
+// BOOT EXECUTION
 // =====================================
 
-function createRuntimeBootSequence(){
+async function executeBootSequence(){
 
-  const sequence = [
+  for(
+    const step
+    of runtimeBootSequenceState
+    .bootSteps
+  ){
 
+    await step
+    .handler();
 
+  }
 
-    // ================================
-    // CORE SYSTEMS
-    // ================================
-
-    createBootStep({
-
-      name:"diagnostics",
-
-      critical:true,
-
-      initialize:
-      globalThis
-      ?.initializeDiagnosticsSystem
-
-    }),
-
-    createBootStep({
-
-      name:"events",
-
-      critical:true,
-
-      initialize:
-      globalThis
-      ?.initializeSystemEvents
-
-    }),
-
-    createBootStep({
-
-      name:"state",
-
-      critical:true,
-
-      initialize:
-      globalThis
-      ?.initializeStateManager
-
-    }),
-
-
-
-    // ================================
-    // PLATFORM SYSTEMS
-    // ================================
-
-    createBootStep({
-
-      name:"container",
-
-      critical:true,
-
-      initialize:
-      globalThis
-      ?.initializeContainer
-
-    }),
-
-    createBootStep({
-
-      name:"modules",
-
-      critical:true,
-
-      initialize:
-      globalThis
-      ?.initializeModuleLoader
-
-    }),
-
-    createBootStep({
-
-      name:"runtime-config",
-
-      critical:false,
-
-      initialize:
-      globalThis
-      ?.initializeConfigRuntime
-
-    }),
-
-
-
-    // ================================
-    // MEMORY
-    // ================================
-
-    createBootStep({
-
-      name:"memory",
-
-      critical:false,
-
-      initialize:
-      globalThis
-      ?.MemoryAPI
-      ?.initialize
-
-    }),
-
-
-
-    // ================================
-    // UI
-    // ================================
-
-    createBootStep({
-
-      name:"ui",
-
-      critical:false,
-
-      initialize:
-      globalThis
-      ?.initializeUI
-
-    }),
-
-
-
-    // ================================
-    // OPTIONAL RUNTIMES
-    // ================================
-
-    createBootStep({
-
-      name:"voice-runtime",
-
-      critical:false,
-
-      initialize:
-      globalThis
-      ?.VoiceRuntime
-      ?.initialize
-
-    })
-
-  ];
-
-  return Object.freeze(
-
-    sequence.filter(
-      isValidBootStep
-    )
-
-  );
+  return true;
 
 }
 
 
 
 // =====================================
-// GET STEP
+// SHUTDOWN EXECUTION
 // =====================================
 
-function getBootStepByName(
-  stepName
-){
+async function executeShutdownSequence(){
 
-  return createRuntimeBootSequence()
-  .find((step) => {
+  const steps =
 
-    return (
-      step.name ===
-      stepName
-    );
+    [...runtimeBootSequenceState
+    .shutdownSteps]
+    .reverse();
 
-  }) || null;
+  for(
+    const step
+    of steps
+  ){
+
+    await step
+    .handler();
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DEFAULT RUNTIME STEP
+// =====================================
+
+registerBootStep(
+
+  "modules-runtime",
+
+  async() => {
+
+    await ModuleRuntime
+    .boot();
+
+  }
+
+);
+
+
+
+registerShutdownStep(
+
+  "modules-runtime",
+
+  async() => {
+
+    await ModuleRuntime
+    .shutdown();
+
+  }
+
+);
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createBootSequenceSnapshot(){
+
+  return Object.freeze({
+
+    bootSteps:
+
+      runtimeBootSequenceState
+      .bootSteps
+      .map((step) => {
+
+        return step.name;
+
+      }),
+
+    shutdownSteps:
+
+      runtimeBootSequenceState
+      .shutdownSteps
+      .map((step) => {
+
+        return step.name;
+
+      }),
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
@@ -274,46 +203,43 @@ function getBootStepByName(
 // PUBLIC API
 // =====================================
 
-const RIGORuntimeBootSequence =
+const RuntimeBootSequence =
 Object.freeze({
 
-  create:
-  createRuntimeBootSequence,
+  registerBootStep,
 
-  getStep:
-  getBootStepByName,
+  registerShutdownStep,
 
-  validate:
-  isValidBootStep
+  executeBootSequence,
+
+  executeShutdownSequence,
+
+  snapshot:
+  createBootSequenceSnapshot
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof globalThis !==
-  "undefined" &&
+export {
 
-  !globalThis
-  .RIGORuntimeBootSequence
-){
+  registerBootStep,
 
-  globalThis
-  .RIGORuntimeBootSequence =
+  registerShutdownStep,
 
-  RIGORuntimeBootSequence;
+  executeBootSequence,
 
-}
+  executeShutdownSequence,
 
+  createBootSequenceSnapshot,
 
+  RuntimeBootSequence
 
-// =====================================
-// DEFAULT EXPORT
-// =====================================
+};
 
 export default
-RIGORuntimeBootSequence;
+RuntimeBootSequence;
