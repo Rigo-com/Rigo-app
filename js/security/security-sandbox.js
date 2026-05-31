@@ -1,245 +1,64 @@
 // =====================================
 // RIGO AI
 // SECURITY SANDBOX
-// ENTERPRISE GUARDED EXECUTION LAYER
-// FINAL HARDENED EDITION
+// EXECUTION SAFETY LAYER
 // =====================================
 
+import {
+
+  SandboxError
+
+}
+from "./security-errors.js";
+
 
 
 // =====================================
-// SANDBOX CONFIG
+// CONFIG
 // =====================================
 
-const SANDBOX_CONFIG =
+const SECURITY_SANDBOX_CONFIG =
 Object.freeze({
 
-  DEFAULT_TIMEOUT:
-  5000,
+  BLOCKED_PATTERNS:
+  Object.freeze([
 
-  MAX_TIMEOUT:
-  30000,
+    /\beval\s*\(/i,
 
-  MAX_CONCURRENT_EXECUTIONS:
-  10,
+    /\bFunction\s*\(/i,
 
-  MAX_SOURCE_LENGTH:
-  50000,
+    /\bsetTimeout\s*\(/i,
 
-  MAX_SCOPE_KEYS:
-  100,
+    /\bsetInterval\s*\(/i,
 
-  ENABLE_SOURCE_VALIDATION:
-  true,
+    /\bimport\s*\(/i,
 
-  ENABLE_RESULT_FREEZE:
-  true,
+    /\brequire\s*\(/i,
 
-  ENABLE_ASYNC_EXECUTION:
-  true,
+    /\bglobalThis\b/i,
 
-  ENABLE_SCOPE_FREEZE:
-  true,
+    /\bwindow\b/i,
 
-  ENABLE_GLOBAL_BLOCKING:
-  true
+    /\bdocument\b/i,
+
+    /\bprocess\b/i
+
+  ])
 
 });
 
 
 
 // =====================================
-// SANDBOX STATE
+// SAFE CODE CHECK
 // =====================================
 
-const sandboxState =
-Object.seal({
-
-  activeExecutions:
-  new Map(),
-
-  completedExecutions:
-  0,
-
-  failedExecutions:
-  0,
-
-  timeoutExecutions:
-  0,
-
-  blockedExecutions:
-  0,
-
-  abortedExecutions:
-  0,
-
-  totalExecutions:
-  0,
-
-  lastExecutionAt:
-  null
-
-});
-
-
-
-// =====================================
-// BLOCKED SOURCE PATTERNS
-// =====================================
-
-const BLOCKED_SANDBOX_PATTERNS =
-Object.freeze([
-
-  "eval(",
-
-  "Function(",
-
-  "new Function",
-
-  "document.cookie",
-
-  "localStorage",
-
-  "sessionStorage",
-
-  "indexedDB",
-
-  "window.location",
-
-  "importScripts",
-
-  "XMLHttpRequest",
-
-  "fetch(",
-
-  "WebSocket",
-
-  "navigator.",
-
-  "globalThis.",
-
-  "window.",
-
-  "document.",
-
-  "self."
-
-]);
-
-
-
-// =====================================
-// SAFE LOG
-// =====================================
-
-function logSandboxEvent(
-  message,
-  metadata = null
-){
-
-  try{
-
-    if(
-      typeof logSecurityEvent ===
-      "function"
-    ){
-
-      logSecurityEvent(
-        message,
-        metadata
-      );
-
-    }
-
-  }
-
-  catch(error){}
-
-}
-
-
-
-// =====================================
-// NORMALIZE SOURCE
-// =====================================
-
-function normalizeSandboxSource(
-  source
-){
-
-  try{
-
-    return String(
-      source || ""
-    )
-    .normalize("NFKC")
-    .trim();
-
-  }
-
-  catch(error){
-
-    return "";
-
-  }
-
-}
-
-
-
-// =====================================
-// VALIDATE CALLBACK
-// =====================================
-
-function validateSandboxCallback(
-  callback
-){
-
-  return (
-    typeof callback ===
-    "function"
-  );
-
-}
-
-
-
-// =====================================
-// GET SOURCE
-// =====================================
-
-function getSandboxSource(
-  callback
-){
-
-  try{
-
-    return normalizeSandboxSource(
-      callback.toString()
-    );
-
-  }
-
-  catch(error){
-
-    return "";
-
-  }
-
-}
-
-
-
-// =====================================
-// VALIDATE SOURCE
-// =====================================
-
-function validateSandboxSource(
-  source
+function isSafeCode(
+  code
 ){
 
   if(
-    typeof source !==
+    typeof code !==
     "string"
   ){
 
@@ -247,38 +66,18 @@ function validateSandboxSource(
 
   }
 
-  if(!source){
+  return !
 
-    return false;
+  SECURITY_SANDBOX_CONFIG
+  .BLOCKED_PATTERNS
 
-  }
+  .some((pattern) =>
 
-  if(
+    pattern.test(
+      code
+    )
 
-    source.length >
-
-    SANDBOX_CONFIG
-    .MAX_SOURCE_LENGTH
-
-  ){
-
-    return false;
-
-  }
-
-  const normalized =
-  source.toLowerCase();
-
-  return !BLOCKED_SANDBOX_PATTERNS
-  .some((pattern) => {
-
-    return normalized.includes(
-
-      pattern.toLowerCase()
-
-    );
-
-  });
+  );
 
 }
 
@@ -288,53 +87,19 @@ function validateSandboxSource(
 // VALIDATE EXECUTION
 // =====================================
 
-function validateSandboxExecution(
-  callback
+function validateExecution(
+  code
 ){
 
   if(
-    !validateSandboxCallback(
-      callback
+    !isSafeCode(
+      code
     )
   ){
 
-    return false;
-
-  }
-
-  if(
-
-    !SANDBOX_CONFIG
-    .ENABLE_SOURCE_VALIDATION
-
-  ){
-
-    return true;
-
-  }
-
-  const source =
-  getSandboxSource(
-    callback
-  );
-
-  const valid =
-  validateSandboxSource(
-    source
-  );
-
-  if(!valid){
-
-    sandboxState
-    .blockedExecutions++;
-
-    logSandboxEvent(
-
-      "SANDBOX_EXECUTION_BLOCKED"
-
+    throw new SandboxError(
+      "Unsafe code detected"
     );
-
-    return false;
 
   }
 
@@ -345,658 +110,86 @@ function validateSandboxExecution(
 
 
 // =====================================
-// CREATE EXECUTION SCOPE
+// RESTRICTED SCOPE
 // =====================================
 
-function createSandboxScope(
+function createRestrictedScope(
   scope = {}
 ){
 
-  if(
+  const blockedKeys =
+  new Set([
 
-    !scope ||
+    "window",
 
-    typeof scope !==
-    "object"
+    "document",
 
-  ){
+    "globalThis",
 
-    return Object.freeze({});
+    "process",
 
-  }
+    "require",
 
-  const entries =
+    "eval",
+
+    "Function"
+
+  ]);
+
+  const restricted =
+
+    Object.create(null);
+
   Object.entries(scope)
-  .slice(
+  .forEach(([
 
-    0,
+    key,
 
-    SANDBOX_CONFIG
-    .MAX_SCOPE_KEYS
+    value
 
-  );
-
-  const cleanScope =
-  Object.create(null);
-
-  entries.forEach(([key,value]) => {
-
-    cleanScope[key] = value;
-
-  });
-
-  if(
-
-    SANDBOX_CONFIG
-    .ENABLE_SCOPE_FREEZE
-
-    &&
-
-    typeof deepFreezeSecurity ===
-    "function"
-
-  ){
-
-    return deepFreezeSecurity(
-      cleanScope
-    );
-
-  }
-
-  return Object.freeze(
-    cleanScope
-  );
-
-}
-
-
-
-// =====================================
-// CREATE TIMEOUT
-// =====================================
-
-function createSandboxTimeout(
-  timeout,
-  controller
-){
-
-  const normalizedTimeout =
-
-    Number.isFinite(
-      timeout
-    )
-
-    &&
-
-    timeout > 0
-
-    ?
-
-    Math.min(
-
-      timeout,
-
-      SANDBOX_CONFIG
-      .MAX_TIMEOUT
-
-    )
-
-    :
-
-    SANDBOX_CONFIG
-    .DEFAULT_TIMEOUT;
-
-  let timeoutId =
-  null;
-
-  const promise =
-  new Promise((_,reject) => {
-
-    timeoutId =
-    setTimeout(() => {
-
-      try{
-
-        controller.abort();
-
-      }
-
-      catch(error){}
-
-      reject(
-
-        new Error(
-          "SANDBOX_TIMEOUT"
-        )
-
-      );
-
-    },
-
-    normalizedTimeout);
-
-  });
-
-  return {
-
-    promise,
-
-    clear(){
-
-      if(timeoutId){
-
-        clearTimeout(
-          timeoutId
-        );
-
-        timeoutId =
-        null;
-
-      }
-
-    }
-
-  };
-
-}
-
-
-
-// =====================================
-// CREATE RESULT
-// =====================================
-
-function createSandboxExecutionResult(
-  payload = {}
-){
-
-  const result = {
-
-    success:
-    Boolean(
-      payload.success
-    ),
-
-    blocked:
-    Boolean(
-      payload.blocked
-    ),
-
-    timedOut:
-    Boolean(
-      payload.timedOut
-    ),
-
-    aborted:
-    Boolean(
-      payload.aborted
-    ),
-
-    executionId:
-    payload.executionId ||
-    null,
-
-    duration:
-
-      Number.isFinite(
-        payload.duration
-      )
-
-      ?
-
-      payload.duration
-
-      :
-
-      0,
-
-    result:
-    payload.result,
-
-    error:
-
-      payload.error
-
-      ?
-
-      normalizeSandboxSource(
-        payload.error
-      )
-
-      :
-
-      null
-
-  };
-
-  if(
-
-    SANDBOX_CONFIG
-    .ENABLE_RESULT_FREEZE
-
-    &&
-
-    typeof deepFreezeSecurity ===
-    "function"
-
-  ){
-
-    return deepFreezeSecurity(
-      result
-    );
-
-  }
-
-  return Object.freeze(
-    result
-  );
-
-}
-
-
-
-// =====================================
-// EXECUTE SANDBOX TASK
-// =====================================
-
-async function executeSandboxTask(
-  callback,
-  context
-){
-
-  if(
-    context.signal.aborted
-  ){
-
-    throw new Error(
-      "SANDBOX_ABORTED"
-    );
-
-  }
-
-  if(
-
-    !SANDBOX_CONFIG
-    .ENABLE_ASYNC_EXECUTION
-
-  ){
-
-    return callback(
-      context
-    );
-
-  }
-
-  return await callback(
-    context
-  );
-
-}
-
-
-
-// =====================================
-// EXECUTE IN SANDBOX
-// =====================================
-
-async function executeInSandbox(
-  callback,
-  options = {}
-){
-
-  sandboxState
-  .totalExecutions++;
-
-  if(
-    !validateSandboxExecution(
-      callback
-    )
-  ){
-
-    return createSandboxExecutionResult({
-
-      success:false,
-
-      blocked:true
-
-    });
-
-  }
-
-  if(
-
-    sandboxState
-    .activeExecutions
-    .size >=
-
-    SANDBOX_CONFIG
-    .MAX_CONCURRENT_EXECUTIONS
-
-  ){
-
-    sandboxState
-    .blockedExecutions++;
-
-    return createSandboxExecutionResult({
-
-      success:false,
-
-      blocked:true,
-
-      error:
-      "MAX_CONCURRENT_EXECUTIONS"
-
-    });
-
-  }
-
-  const executionId =
-
-    typeof createUniqueId ===
-    "function"
-
-    ?
-
-    createUniqueId(
-      "sandbox"
-    )
-
-    :
-
-    `sandbox_${Date.now()}`;
-
-  const startedAt =
-  Date.now();
-
-  sandboxState
-  .lastExecutionAt =
-  startedAt;
-
-  const controller =
-  new AbortController();
-
-  const timeoutController =
-  createSandboxTimeout(
-
-    options.timeout,
-
-    controller
-
-  );
-
-  const executionContext =
-  Object.freeze({
-
-    signal:
-    controller.signal,
-
-    scope:
-    createSandboxScope(
-      options.scope
-    ),
-
-    executionId
-
-  });
-
-  sandboxState
-  .activeExecutions
-  .set(
-
-    executionId,
-
-    {
-
-      startedAt,
-
-      timeout:
-
-        options.timeout ||
-
-        SANDBOX_CONFIG
-        .DEFAULT_TIMEOUT
-
-    }
-
-  );
-
-  try{
-
-    const executionPromise =
-    Promise.resolve()
-    .then(() => {
-
-      return executeSandboxTask(
-
-        callback,
-
-        executionContext
-
-      );
-
-    });
-
-    const result =
-    await Promise.race([
-
-      executionPromise,
-
-      timeoutController
-      .promise
-
-    ]);
-
-    sandboxState
-    .completedExecutions++;
-
-    return createSandboxExecutionResult({
-
-      success:true,
-
-      executionId,
-
-      duration:
-
-        Date.now() -
-        startedAt,
-
-      result
-
-    });
-
-  }
-
-  catch(error){
-
-    const message =
-    normalizeSandboxSource(
-      error?.message
-    );
-
-    const timedOut =
-
-      message ===
-      "SANDBOX_TIMEOUT";
-
-    const aborted =
-
-      message ===
-      "SANDBOX_ABORTED";
+  ]) => {
 
     if(
-      timedOut
+      blockedKeys.has(
+        key
+      )
     ){
 
-      sandboxState
-      .timeoutExecutions++;
-
+      return;
     }
 
-    else if(
-      aborted
-    ){
+    restricted[key] =
+    value;
 
-      sandboxState
-      .abortedExecutions++;
+  });
 
-    }
-
-    else{
-
-      sandboxState
-      .failedExecutions++;
-
-    }
-
-    logSandboxEvent(
-
-      "SANDBOX_EXECUTION_FAILED",
-
-      {
-
-        executionId,
-
-        timedOut,
-
-        aborted
-
-      }
-
-    );
-
-    return createSandboxExecutionResult({
-
-      success:false,
-
-      executionId,
-
-      duration:
-
-        Date.now() -
-        startedAt,
-
-      timedOut,
-
-      aborted,
-
-      error:
-      message
-
-    });
-
-  }
-
-  finally{
-
-    timeoutController
-    .clear();
-
-    sandboxState
-    .activeExecutions
-    .delete(
-      executionId
-    );
-
-  }
+  return Object.freeze(
+    restricted
+  );
 
 }
 
 
 
 // =====================================
-// DIAGNOSTICS
+// CONTEXT
 // =====================================
 
-function getSandboxDiagnostics(){
+function createContext(
+  scope = {}
+){
 
   return Object.freeze({
 
-    activeExecutions:
+    createdAt:
+    Date.now(),
 
-      sandboxState
-      .activeExecutions
-      .size,
-
-    completedExecutions:
-
-      sandboxState
-      .completedExecutions,
-
-    failedExecutions:
-
-      sandboxState
-      .failedExecutions,
-
-    timeoutExecutions:
-
-      sandboxState
-      .timeoutExecutions,
-
-    blockedExecutions:
-
-      sandboxState
-      .blockedExecutions,
-
-    abortedExecutions:
-
-      sandboxState
-      .abortedExecutions,
-
-    totalExecutions:
-
-      sandboxState
-      .totalExecutions,
-
-    lastExecutionAt:
-
-      sandboxState
-      .lastExecutionAt
+    scope:
+    createRestrictedScope(
+      scope
+    )
 
   });
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-function resetSandboxState(){
-
-  sandboxState
-  .activeExecutions
-  .clear();
-
-  sandboxState
-  .completedExecutions =
-  0;
-
-  sandboxState
-  .failedExecutions =
-  0;
-
-  sandboxState
-  .timeoutExecutions =
-  0;
-
-  sandboxState
-  .blockedExecutions =
-  0;
-
-  sandboxState
-  .abortedExecutions =
-  0;
-
-  sandboxState
-  .totalExecutions =
-  0;
-
-  sandboxState
-  .lastExecutionAt =
-  null;
-
-  return true;
 
 }
 
@@ -1009,14 +202,13 @@ function resetSandboxState(){
 const SecuritySandbox =
 Object.freeze({
 
-  execute:
-  executeInSandbox,
+  isSafeCode,
 
-  diagnostics:
-  getSandboxDiagnostics,
+  validateExecution,
 
-  reset:
-  resetSandboxState
+  createRestrictedScope,
+
+  createContext
 
 });
 
@@ -1028,72 +220,16 @@ Object.freeze({
 
 export {
 
-  SANDBOX_CONFIG,
+  SECURITY_SANDBOX_CONFIG,
 
-  sandboxState,
+  isSafeCode,
 
-  BLOCKED_SANDBOX_PATTERNS,
+  validateExecution,
 
-  logSandboxEvent,
+  createRestrictedScope,
 
-  normalizeSandboxSource,
-
-  validateSandboxCallback,
-
-  getSandboxSource,
-
-  validateSandboxSource,
-
-  validateSandboxExecution,
-
-  createSandboxScope,
-
-  createSandboxTimeout,
-
-  createSandboxExecutionResult,
-
-  executeSandboxTask,
-
-  executeInSandbox,
-
-  getSandboxDiagnostics,
-
-  resetSandboxState,
+  createContext,
 
   SecuritySandbox
 
 };
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "SecuritySandbox",
-
-    {
-
-      value:
-      SecuritySandbox,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-}
