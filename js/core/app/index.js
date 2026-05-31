@@ -1,194 +1,97 @@
 // =====================================
 // RIGO AI
 // APP INDEX
-// CLEAN APPLICATION COMPOSITION LAYER
-// FINAL HARDENED EDITION
+// ENTRY POINT
 // =====================================
 
 
 
 // =====================================
-// APPLICATION MODULES
+// IMPORTS
 // =====================================
 
-import "./app-dom.js";
-import "./app-recovery.js";
-import "./app.js";
-import "./application-runtime.js";
+import AppState
+from "./app-state.js";
+
+import AppDOM
+from "./app-dom.js";
+
+import AppRecovery
+from "./app-recovery.js";
+
+import ApplicationRuntime
+from "./application-runtime.js";
+
+import AppManager
+from "./app-manager.js";
 
 
 
 // =====================================
-// INTERNAL HELPERS
+// SHORTCUTS
 // =====================================
 
-function isFunction(value){
+async function initializeApp(){
 
-  return (
-    typeof value ===
-    "function"
-  );
+  return AppManager
+  .initialize();
 
 }
 
 
 
-function emitAppIndexWarning(
-  message,
-  error = null
-){
+async function startApp(){
 
-  console.warn(
-
-    `[AppIndex] ${message}`,
-
-    error || ""
-
-  );
+  return AppManager
+  .start();
 
 }
 
 
 
-// =====================================
-// VALIDATION
-// =====================================
+async function shutdownApp(){
 
-function validateAppLayer(){
+  return AppManager
+  .shutdown();
 
-  try{
+}
 
-    if(
-      typeof window ===
-      "undefined"
-    ){
 
-      return false;
 
-    }
+async function restartApp(){
 
-    const requiredSystems = [
+  return AppManager
+  .restart();
 
-      "AppDOM",
-      "AppRecovery",
-      "RIGOApplication",
-      "ApplicationRuntime"
+}
 
-    ];
 
-    const missingSystems =
 
-      requiredSystems.filter((systemName) => {
+async function resetApp(){
 
-        return (
-          typeof window[systemName] ===
-          "undefined"
-        );
-
-      });
-
-    if(
-      missingSystems.length > 0
-    ){
-
-      emitAppIndexWarning(
-
-        `Missing systems: ${missingSystems.join(", ")}`
-
-      );
-
-      return false;
-
-    }
-
-    return true;
-
-  }
-
-  catch(error){
-
-    emitAppIndexWarning(
-      "Validation failed",
-      error
-    );
-
-    return false;
-
-  }
+  return AppManager
+  .reset();
 
 }
 
 
 
 // =====================================
-// INITIALIZATION
+// SNAPSHOT
 // =====================================
 
-async function initializeAppLayer(){
+function createAppSnapshot(){
 
-  try{
+  return Object.freeze({
 
-    if(
-      typeof window ===
-      "undefined"
-    ){
+    app:
+    AppManager
+    .snapshot(),
 
-      return false;
+    timestamp:
+    Date.now()
 
-    }
-
-    if(
-      window.__RIGO_APP_LAYER_READY__ ===
-      true
-    ){
-
-      return true;
-
-    }
-
-    if(
-      !validateAppLayer()
-    ){
-
-      return false;
-
-    }
-
-    const runtime =
-      window.ApplicationRuntime;
-
-    if(
-      runtime &&
-      isFunction(
-        runtime.initialize
-      )
-    ){
-
-      await runtime.initialize();
-
-    }
-
-    window.__RIGO_APP_LAYER_READY__ =
-      true;
-
-    console.info(
-      "[AppIndex] Application layer initialized"
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    emitAppIndexWarning(
-      "Initialization failed",
-      error
-    );
-
-    return false;
-
-  }
+  });
 
 }
 
@@ -198,50 +101,41 @@ async function initializeAppLayer(){
 // PUBLIC API
 // =====================================
 
-const RIGOAppRuntime =
+const App =
 Object.freeze({
 
+  state:
+  AppState,
+
+  dom:
+  AppDOM,
+
+  recovery:
+  AppRecovery,
+
+  runtime:
+  ApplicationRuntime,
+
+  manager:
+  AppManager,
+
   initialize:
-  initializeAppLayer,
+  initializeApp,
 
-  validate:
-  validateAppLayer,
+  start:
+  startApp,
 
+  shutdown:
+  shutdownApp,
 
+  restart:
+  restartApp,
 
-  // ===================================
-  // SAFE LAZY ACCESSORS
-  // ===================================
+  reset:
+  resetApp,
 
-  get dom(){
-
-    return window.AppDOM;
-
-  },
-
-
-
-  get recovery(){
-
-    return window.AppRecovery;
-
-  },
-
-
-
-  get runtime(){
-
-    return window.ApplicationRuntime;
-
-  },
-
-
-
-  get application(){
-
-    return window.RIGOApplication;
-
-  }
+  snapshot:
+  createAppSnapshot
 
 });
 
@@ -253,79 +147,31 @@ Object.freeze({
 
 export {
 
-  validateAppLayer,
+  AppState,
 
-  initializeAppLayer,
+  AppDOM,
 
-  RIGOAppRuntime
+  AppRecovery,
+
+  ApplicationRuntime,
+
+  AppManager,
+
+  initializeApp,
+
+  startApp,
+
+  shutdownApp,
+
+  restartApp,
+
+  resetApp,
+
+  createAppSnapshot,
+
+  App
 
 };
 
 export default
-RIGOAppRuntime;
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOAppRuntime",
-
-    {
-
-      value:
-      RIGOAppRuntime,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE AUTO INITIALIZATION
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  queueMicrotask(async() => {
-
-    try{
-
-      await initializeAppLayer();
-
-    }
-
-    catch(error){
-
-      emitAppIndexWarning(
-        "Queued initialization failed",
-        error
-      );
-
-    }
-
-  });
-
-}
+App;
