@@ -26,6 +26,7 @@ import {
   createPlanRuntime,
   isPlannerContextValid,
   normalizePlanId
+  createPlannerId
 }
 from "./planner-utils.js";
 
@@ -70,8 +71,7 @@ export function createPlanObject(
     normalizePlanId(
 
       config.id ||
-
-      crypto.randomUUID()
+      createPlannerId()
 
     ),
 
