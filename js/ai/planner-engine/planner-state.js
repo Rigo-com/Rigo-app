@@ -37,7 +37,8 @@ Object.seal({
   failedPlans:
   new Set(),
 
-  diagnostics:{
+  diagnostics:
+  Object.seal({
 
     created:0,
 
@@ -59,7 +60,7 @@ Object.seal({
 
     terminated:0
 
-  },
+  }),
 
   lastPlanAt:null
 
