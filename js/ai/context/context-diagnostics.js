@@ -1,4 +1,26 @@
 // =====================================
+// IMPORTS
+// =====================================
+
+import {
+  CONTEXT_MANAGER_CONFIG
+}
+from "./context-config.js";
+
+import {
+  contextManagerState
+}
+from "./context-state.js";
+
+import {
+  freezeContextObject,
+  safeClone
+}
+from "./context-utils.js";
+
+
+
+// =====================================
 // RIGO AI
 // CONTEXT DIAGNOSTICS
 // =====================================
