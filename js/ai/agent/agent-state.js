@@ -35,7 +35,8 @@ Object.seal({
   healthcheckTimer:
   null,
 
-  diagnostics:{
+  diagnostics:
+  Object.seal({
 
     created:0,
 
@@ -55,7 +56,7 @@ Object.seal({
 
     aborted:0
 
-  },
+}),
 
   lastAgentCreatedAt:
   null
