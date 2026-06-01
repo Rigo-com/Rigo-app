@@ -3,19 +3,26 @@
 // PLANNER AGENTS
 // =====================================
 
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 
 // =====================================
 // AVAILABLE AGENTS
 // =====================================
 
-export function getAvailableAgents(){
+export async function getAvailableAgents(){
 
   try{
 
+    const agents =
+    await ServiceManager.resolve(
+      "agents"
+    );
+
     if(
-      typeof AgentManager ===
-      "undefined"
+      !agents
     ){
 
       return [];
@@ -23,7 +30,7 @@ export function getAvailableAgents(){
     }
 
     if(
-      typeof AgentManager.list !==
+      typeof agents.list !==
       "function"
     ){
 
@@ -31,8 +38,7 @@ export function getAvailableAgents(){
 
     }
 
-    return AgentManager
-    .list();
+    return await agents.list();
 
   }
 
@@ -50,12 +56,12 @@ export function getAvailableAgents(){
 // ASSIGN AGENT
 // =====================================
 
-export function assignAgentToPlan(){
+export async function assignAgentToPlan(){
 
   try{
 
     const agents =
-    getAvailableAgents();
+    await getAvailableAgents();
 
     const availableAgent =
     agents.find((agent) => {
