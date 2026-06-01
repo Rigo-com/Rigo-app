@@ -209,7 +209,7 @@ export async function generateExecutionPlan(
   );
 
   const tools =
-  selectToolsForGoal(
+  await selectToolsForGoal(
     plan.goal
   );
 
