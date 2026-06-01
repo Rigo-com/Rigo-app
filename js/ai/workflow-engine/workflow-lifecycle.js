@@ -125,9 +125,7 @@ export async function shutdownWorkflowEngine(){
 // INITIALIZE
 // =====================================
 
-export async function initializeWorkflowEngine(
-  WorkflowEngine
-){
+export async function initializeWorkflowEngine(){
 
   if(
     workflowEngineState
@@ -176,20 +174,6 @@ export async function initializeWorkflowEngine(
       .shuttingDown =
       false;
 
-      if(
-        typeof registerModule ===
-        "function"
-      ){
-
-        await registerModule(
-
-          "workflow-engine",
-
-          async () => WorkflowEngine
-
-        );
-
-      }
 
       return true;
 
