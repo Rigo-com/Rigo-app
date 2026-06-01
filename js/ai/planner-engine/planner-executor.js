@@ -47,7 +47,8 @@ import {
 }
 from "./planner-queue.js";
 
-
+import ServiceManager
+from "../../services/service-manager.js";
 
 // =====================================
 // EXECUTE STEP
@@ -77,9 +78,13 @@ export async function executePlanStep(
         step.assignedTool
       ){
 
+        const toolExecutor =
+        await ServiceManager.resolve(
+          "tools"
+        );
+
         if(
-          typeof ToolExecutor ===
-          "undefined"
+          !toolExecutor
         ){
 
           throw new Error(
@@ -89,7 +94,7 @@ export async function executePlanStep(
         }
 
         if(
-          typeof ToolExecutor.execute !==
+          typeof toolExecutor.execute !==
           "function"
         ){
 
@@ -100,7 +105,7 @@ export async function executePlanStep(
         }
 
         const result =
-        await ToolExecutor.execute(
+        await toolExecutor.execute(
 
           step.assignedTool,
 
