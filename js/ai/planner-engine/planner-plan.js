@@ -214,7 +214,7 @@ export async function generateExecutionPlan(
   );
 
   const assignedAgent =
-  assignAgentToPlan();
+  await assignAgentToPlan();
 
   plan.steps =
   steps
