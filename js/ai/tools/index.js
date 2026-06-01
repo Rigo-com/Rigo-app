@@ -1,6 +1,6 @@
 // =====================================
 // RIGO AI
-// TOOL EXECUTOR
+// TOOLS ENGINE
 // PUBLIC EXPORTS
 // =====================================
 
@@ -119,27 +119,6 @@ Object.freeze({
 
 });
 
-
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  window.ToolExecutor =
-  ToolExecutor;
-
-}
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  globalThis.ToolExecutor =
-  ToolExecutor;
-
-}
 
 
 
