@@ -1,0 +1,57 @@
+// =====================================
+// RIGO AI
+// WORKFLOW CONFIG
+// =====================================
+
+export const WORKFLOW_ENGINE_CONFIG =
+Object.freeze({
+
+  ENABLE_WORKFLOW_EVENTS:true,
+
+  ENABLE_PERSISTENCE:true,
+
+  ENABLE_RECOVERY:true,
+
+  ENABLE_RETRIES:true,
+
+  ENABLE_CONDITIONALS:true,
+
+  ENABLE_PARALLEL_EXECUTION:true,
+
+  ENABLE_DIAGNOSTICS:true,
+
+  ENABLE_ABORT_CONTROLLERS:true,
+
+  ENABLE_QUEUE:true,
+
+  MAX_WORKFLOWS:
+  1000,
+
+  MAX_STEPS:
+  500,
+
+  MAX_RETRIES:
+  3,
+
+  MAX_CONCURRENT_WORKFLOWS:
+  50,
+
+  MAX_PARALLEL_STEPS:
+  10,
+
+  MAX_QUEUE_SIZE:
+  500,
+
+  WORKFLOW_TIMEOUT:
+  600000,
+
+  RETRY_DELAY:
+  500,
+
+  MAX_CONTEXT_SIZE:
+  100000,
+
+  MAX_EXECUTION_HISTORY:
+  500
+
+});
