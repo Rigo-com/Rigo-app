@@ -498,7 +498,9 @@ export async function executePlan(
       normalizedId
     );
 
-    drainPlannerQueue()
+    drainPlannerQueue(
+      executePlan
+    )
     .catch(() => {});
 
   }
