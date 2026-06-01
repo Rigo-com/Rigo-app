@@ -1,22 +1,169 @@
 // =====================================
 // RIGO AI
 // API INDEX
+// ENTRY POINT
 // =====================================
 
-export * from "./api-config.js";
 
-export * from "./api-events.js";
 
-export * from "./api-state.js";
+// =====================================
+// IMPORTS
+// =====================================
 
-export * from "./api-errors.js";
+import {
 
-export * from "./api-helpers.js";
+  API_CONFIG
 
-export * from "./api-request.js";
+}
+from "./api-config.js";
 
-export * from "./api-upload.js";
+import {
 
-export * from "./api-diagnostics.js";
+  apiState
 
-export * from "./api-runtime.js";
+}
+from "./api-state.js";
+
+import APIRuntime
+from "./api-runtime.js";
+
+import APIManager
+from "./api-manager.js";
+
+
+
+// =====================================
+// SHORTCUTS
+// =====================================
+
+async function initializeAPI(){
+
+  return APIManager
+  .initialize();
+
+}
+
+
+
+async function startAPI(){
+
+  return APIManager
+  .start();
+
+}
+
+
+
+async function shutdownAPI(){
+
+  return APIManager
+  .shutdown();
+
+}
+
+
+
+async function resetAPI(){
+
+  return APIManager
+  .reset();
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createAPISnapshot(){
+
+  return Object.freeze({
+
+    manager:
+
+      APIManager
+      .snapshot(),
+
+    runtime:
+
+      APIRuntime
+      .snapshot(),
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const API =
+Object.freeze({
+
+  config:
+  API_CONFIG,
+
+  state:
+  apiState,
+
+  runtime:
+  APIRuntime,
+
+  manager:
+  APIManager,
+
+  initialize:
+  initializeAPI,
+
+  start:
+  startAPI,
+
+  shutdown:
+  shutdownAPI,
+
+  reset:
+  resetAPI,
+
+  snapshot:
+  createAPISnapshot
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  API_CONFIG,
+
+  apiState,
+
+  APIRuntime,
+
+  APIManager,
+
+  initializeAPI,
+
+  startAPI,
+
+  shutdownAPI,
+
+  resetAPI,
+
+  createAPISnapshot,
+
+  API
+
+};
+
+export default
+API;
