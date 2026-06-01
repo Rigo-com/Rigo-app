@@ -9,6 +9,11 @@ import {
 }
 from "./agent-state.js";
 
+import {
+  executeAgentTask
+}
+from "./agent-executor.js";
+
 
 
 // =====================================
@@ -55,9 +60,7 @@ processAgentQueue(){
 
       try{
 
-        await globalThis
-        .AgentManager
-        ?.execute(
+        await executeAgentTask(
 
           queuedTask.agentId,
 
