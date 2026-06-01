@@ -18,37 +18,23 @@ import {
 }
 from "./kernel-events.js";
 
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 
 // =====================================
 // GET SERVICE
 // =====================================
 
-export function getAIService(
+export async function getAIService(
   serviceName
 ){
 
   try{
 
-    if(
-      typeof ServiceRegistry ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    if(
-      typeof ServiceRegistry.get !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return ServiceRegistry.get(
+    return await ServiceManager
+    .resolve(
       serviceName
     );
 
