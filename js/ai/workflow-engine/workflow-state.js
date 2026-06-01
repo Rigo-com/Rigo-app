@@ -37,8 +37,9 @@ Object.seal({
   failedWorkflows:
   new Set(),
 
-  diagnostics:{
-
+  diagnostics:
+  Object.seal({
+    
     created:0,
 
     started:0,
@@ -57,7 +58,7 @@ Object.seal({
 
     rejected:0
 
-  },
+  }),
 
   lastWorkflowAt:null
 
