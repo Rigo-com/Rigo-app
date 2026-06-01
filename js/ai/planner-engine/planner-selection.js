@@ -14,7 +14,7 @@ from "./planner-tools.js";
 // TOOL SELECTION
 // =====================================
 
-export function selectToolsForGoal(
+export async function selectToolsForGoal(
   goal
 ){
 
@@ -24,8 +24,10 @@ export function selectToolsForGoal(
     String(goal)
     .toLowerCase();
 
-    return getRegisteredTools()
+    const tools =
+    await getRegisteredTools();
 
+    return tools
     .filter((tool) => {
 
       const toolName =
