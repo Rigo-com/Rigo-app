@@ -26,12 +26,17 @@ resetToolExecutor(){
     .keys()
   ){
 
-    cancelExecution(
-      executionId
-    )
-    .catch(() => {});
+    try{
 
-  }
+      await cancelExecution(
+        executionId
+      );
+
+     }
+
+     catch(error){}
+
+  } 
 
   toolExecutorState
   .tools
