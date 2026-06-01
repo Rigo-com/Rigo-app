@@ -3,10 +3,6 @@
 // AI KERNEL RECOVERY
 // =====================================
 
-import {
-  AI_KERNEL_CONFIG
-}
-from "./kernel-config.js";
 
 import {
   AI_KERNEL_STATES,
