@@ -3,19 +3,26 @@
 // PLANNER TOOLS
 // =====================================
 
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 
 // =====================================
 // REGISTERED TOOLS
 // =====================================
 
-export function getRegisteredTools(){
+export async function getRegisteredTools(){
 
   try{
 
+    const tools =
+    await ServiceManager.resolve(
+      "tools"
+    );
+
     if(
-      typeof ToolExecutor ===
-      "undefined"
+      !tools
     ){
 
       return [];
@@ -23,7 +30,7 @@ export function getRegisteredTools(){
     }
 
     if(
-      typeof ToolExecutor.list !==
+      typeof tools.list !==
       "function"
     ){
 
@@ -31,8 +38,7 @@ export function getRegisteredTools(){
 
     }
 
-    return ToolExecutor
-    .list();
+    return await tools.list();
 
   }
 
