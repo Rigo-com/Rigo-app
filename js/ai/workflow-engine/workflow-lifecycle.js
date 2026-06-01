@@ -67,27 +67,40 @@ export async function resetWorkflowEngine(){
   .clear();
 
   workflowEngineState
-  .diagnostics = {
+.diagnostics
+.created = 0;
 
-    created:0,
+workflowEngineState
+.diagnostics
+.started = 0;
 
-    started:0,
+workflowEngineState
+.diagnostics
+.completed = 0;
 
-    completed:0,
+workflowEngineState
+.diagnostics
+.failed = 0;
 
-    failed:0,
+workflowEngineState
+.diagnostics
+.terminated = 0;
 
-    terminated:0,
+workflowEngineState
+.diagnostics
+.executedSteps = 0;
 
-    executedSteps:0,
+workflowEngineState
+.diagnostics
+.retries = 0;
 
-    retries:0,
+workflowEngineState
+.diagnostics
+.queued = 0;
 
-    queued:0,
-
-    rejected:0
-
-  };
+workflowEngineState
+.diagnostics
+.rejected = 0;
 
   workflowEngineState
   .lastWorkflowAt =
