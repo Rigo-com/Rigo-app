@@ -252,23 +252,12 @@ export function getTool(
   toolId
 ){
 
-  const tool =
-  toolExecutorState
+  return toolExecutorState
   .tools
   .get(
     normalizeToolName(
       toolId
     )
-  );
-
-  if(!tool){
-
-    return null;
-
-  }
-
-  return freezeToolObject(
-    cloneToolObject(tool)
   );
 
 }
