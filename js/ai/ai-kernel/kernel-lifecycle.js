@@ -89,8 +89,11 @@ initializeAIKernel(){
 
       );
 
+      const validSystems =
+      await validateAISystems();
+
       if(
-        !validateAISystems()
+        !validSystems
       ){
 
         throw new Error(
@@ -241,6 +244,10 @@ shutdownAIKernel(){
 
   );
 
+  aiKernelState
+  .initialized =
+  false;
+  
   return true;
 
 }
