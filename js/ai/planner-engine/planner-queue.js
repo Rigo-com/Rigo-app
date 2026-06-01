@@ -13,18 +13,15 @@ import {
 }
 from "./planner-state.js";
 
-import {
-  executePlan
-}
-from "./planner-executor.js";
-
 
 
 // =====================================
 // DRAIN QUEUE
 // =====================================
 
-export async function drainPlannerQueue(){
+export async function drainPlannerQueue(
+  executor
+){
 
   if(
     !PLANNER_ENGINE_CONFIG
@@ -73,7 +70,7 @@ export async function drainPlannerQueue(){
     queuedPlan
   );
 
-  executePlan(
+  executor(
     queuedPlan
   )
   .catch(() => {});
