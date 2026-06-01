@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SERVICE STATE
-// PURE STATE LAYER
+// RUNTIME STATE ONLY
 // =====================================
 
 
@@ -13,380 +13,28 @@
 const serviceState =
 Object.seal({
 
-  definitions:
-  new Map(),
+  initialized:false,
 
-  runtime:
-  new Map(),
+  synchronized:false,
 
-  instances:
-  new Map(),
+  booted:false,
 
-  dependencyGraph:
-  new Map(),
+  startedAt:null,
 
-  reverseDependencies:
-  new Map(),
+  stoppedAt:null,
 
-  synchronized:
-  false,
+  diagnostics:
+  Object.seal({
 
-  initialized:
-  false,
+    registered:0,
 
-  startedAt:
-  null,
+    started:0,
 
-  stoppedAt:
-  null
+    failed:0
+
+  })
 
 });
-
-
-
-// =====================================
-// HELPERS
-// =====================================
-
-function normalizeServiceName(
-  serviceName
-){
-
-  return String(
-    serviceName || ""
-  )
-  .trim()
-  .toLowerCase();
-
-}
-
-
-
-// =====================================
-// DEFINITIONS
-// =====================================
-
-function setServiceDefinition(
-  serviceName,
-  definition
-){
-
-  const normalizedName =
-  normalizeServiceName(
-    serviceName
-  );
-
-  if(
-    !normalizedName
-  ){
-
-    return false;
-
-  }
-
-  serviceState
-  .definitions
-  .set(
-
-    normalizedName,
-
-    definition
-
-  );
-
-  return true;
-
-}
-
-
-
-function getServiceDefinition(
-  serviceName
-){
-
-  return (
-
-    serviceState
-    .definitions
-    .get(
-
-      normalizeServiceName(
-        serviceName
-      )
-
-    )
-
-    ||
-
-    null
-
-  );
-
-}
-
-
-
-function removeServiceDefinition(
-  serviceName
-){
-
-  return serviceState
-  .definitions
-  .delete(
-
-    normalizeServiceName(
-      serviceName
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// RUNTIME
-// =====================================
-
-function setServiceRuntime(
-  serviceName,
-  runtimeState
-){
-
-  serviceState
-  .runtime
-  .set(
-
-    normalizeServiceName(
-      serviceName
-    ),
-
-    runtimeState
-
-  );
-
-  return true;
-
-}
-
-
-
-function getServiceRuntime(
-  serviceName
-){
-
-  return (
-
-    serviceState
-    .runtime
-    .get(
-
-      normalizeServiceName(
-        serviceName
-      )
-
-    )
-
-    ||
-
-    null
-
-  );
-
-}
-
-
-
-function removeServiceRuntime(
-  serviceName
-){
-
-  return serviceState
-  .runtime
-  .delete(
-
-    normalizeServiceName(
-      serviceName
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// INSTANCES
-// =====================================
-
-function setServiceInstance(
-  serviceName,
-  instance
-){
-
-  serviceState
-  .instances
-  .set(
-
-    normalizeServiceName(
-      serviceName
-    ),
-
-    instance
-
-  );
-
-  return true;
-
-}
-
-
-
-function getServiceInstance(
-  serviceName
-){
-
-  return (
-
-    serviceState
-    .instances
-    .get(
-
-      normalizeServiceName(
-        serviceName
-      )
-
-    )
-
-    ||
-
-    null
-
-  );
-
-}
-
-
-
-function removeServiceInstance(
-  serviceName
-){
-
-  return serviceState
-  .instances
-  .delete(
-
-    normalizeServiceName(
-      serviceName
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// DEPENDENCIES
-// =====================================
-
-function setDependencyGraph(
-  serviceName,
-  dependencies = []
-){
-
-  serviceState
-  .dependencyGraph
-  .set(
-
-    normalizeServiceName(
-      serviceName
-    ),
-
-    [...dependencies]
-
-  );
-
-  return true;
-
-}
-
-
-
-function getDependencyGraph(
-  serviceName
-){
-
-  return (
-
-    serviceState
-    .dependencyGraph
-    .get(
-
-      normalizeServiceName(
-        serviceName
-      )
-
-    )
-
-    ||
-
-    []
-
-  );
-
-}
-
-
-
-function setReverseDependency(
-  dependency,
-  serviceName
-){
-
-  const normalizedDependency =
-  normalizeServiceName(
-    dependency
-  );
-
-  if(
-
-    !serviceState
-    .reverseDependencies
-    .has(
-      normalizedDependency
-    )
-
-  ){
-
-    serviceState
-    .reverseDependencies
-    .set(
-
-      normalizedDependency,
-
-      new Set()
-
-    );
-
-  }
-
-  serviceState
-  .reverseDependencies
-  .get(
-    normalizedDependency
-  )
-  .add(
-
-    normalizeServiceName(
-      serviceName
-    )
-
-  );
-
-  return true;
-
-}
 
 
 
@@ -398,36 +46,6 @@ function createServiceStateSnapshot(){
 
   return Object.freeze({
 
-    definitions:
-
-      serviceState
-      .definitions
-      .size,
-
-    runtime:
-
-      serviceState
-      .runtime
-      .size,
-
-    instances:
-
-      serviceState
-      .instances
-      .size,
-
-    dependencyGraph:
-
-      serviceState
-      .dependencyGraph
-      .size,
-
-    reverseDependencies:
-
-      serviceState
-      .reverseDependencies
-      .size,
-
     initialized:
     serviceState
     .initialized,
@@ -436,6 +54,10 @@ function createServiceStateSnapshot(){
     serviceState
     .synchronized,
 
+    booted:
+    serviceState
+    .booted,
+
     startedAt:
     serviceState
     .startedAt,
@@ -443,6 +65,14 @@ function createServiceStateSnapshot(){
     stoppedAt:
     serviceState
     .stoppedAt,
+
+    diagnostics:
+    {
+
+      ...serviceState
+      .diagnostics
+
+    },
 
     timestamp:
     Date.now()
@@ -460,31 +90,15 @@ function createServiceStateSnapshot(){
 function resetServiceState(){
 
   serviceState
-  .definitions
-  .clear();
-
-  serviceState
-  .runtime
-  .clear();
-
-  serviceState
-  .instances
-  .clear();
-
-  serviceState
-  .dependencyGraph
-  .clear();
-
-  serviceState
-  .reverseDependencies
-  .clear();
-
-  serviceState
   .initialized =
   false;
 
   serviceState
   .synchronized =
+  false;
+
+  serviceState
+  .booted =
   false;
 
   serviceState
@@ -494,6 +108,18 @@ function resetServiceState(){
   serviceState
   .stoppedAt =
   null;
+
+  serviceState
+  .diagnostics
+  .registered = 0;
+
+  serviceState
+  .diagnostics
+  .started = 0;
+
+  serviceState
+  .diagnostics
+  .failed = 0;
 
   return true;
 
@@ -508,24 +134,6 @@ function resetServiceState(){
 export {
 
   serviceState,
-
-  normalizeServiceName,
-
-  setServiceDefinition,
-  getServiceDefinition,
-  removeServiceDefinition,
-
-  setServiceRuntime,
-  getServiceRuntime,
-  removeServiceRuntime,
-
-  setServiceInstance,
-  getServiceInstance,
-  removeServiceInstance,
-
-  setDependencyGraph,
-  getDependencyGraph,
-  setReverseDependency,
 
   createServiceStateSnapshot,
 
