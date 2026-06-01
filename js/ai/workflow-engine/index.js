@@ -91,31 +91,6 @@ Object.freeze({
 
 
 
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  window.WorkflowEngine =
-  WorkflowEngine;
-
-}
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  globalThis.WorkflowEngine =
-  WorkflowEngine;
-
-}
-
-
 
 export default
 WorkflowEngine;
