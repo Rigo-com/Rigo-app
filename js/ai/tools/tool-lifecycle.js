@@ -17,7 +17,7 @@ from "./tool-queue.js";
 import {
   resetToolExecutor
 }
-from "./tool-reset.js"
+from "./tool-reset.js";
 
 
 
@@ -78,21 +78,6 @@ initializeToolExecutor(){
       toolExecutorState
       .queueProcessorPromise =
       processExecutionQueue();
-
-      if(
-        typeof registerModule ===
-        "function"
-      ){
-
-        await registerModule(
-
-          "tool-executor",
-
-          async () => true
-
-        );
-
-      }
 
       return true;
 
