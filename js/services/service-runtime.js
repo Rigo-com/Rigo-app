@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SERVICE RUNTIME
-// RUNTIME LAYER
+// LIFECYCLE RUNTIME
 // =====================================
 
 
@@ -11,31 +11,24 @@
 // =====================================
 
 import {
+  RIGOContainer
+}
+from "../core/container/index.js";
 
+import {
   SERVICE_STATES
-
 }
 from "./service-types.js";
 
 import {
-
-  serviceState,
-
-  getServiceDefinition,
-
-  getServiceRuntime,
-
-  getRegisteredServices
-
+  serviceState
 }
-from "./service-registration.js";
+from "./service-state.js";
 
 import {
-
-  resolveService
-
+  getRegisteredServices
 }
-from "./service-resolution.js";
+from "./service-registration.js";
 
 
 
@@ -58,7 +51,10 @@ Object.seal({
 
   startedAt:null,
 
-  stoppedAt:null
+  stoppedAt:null,
+
+  runtime:
+  new Map()
 
 });
 
@@ -121,59 +117,63 @@ async function initializeServiceRuntime(){
 // =====================================
 
 async function startService(
-  container,
   serviceName
 ){
 
-  const definition =
-  getServiceDefinition(
-    serviceName
-  );
-
-  if(
-    !definition
-  ){
-
-    return false;
-
-  }
-
-  const runtime =
-  getServiceRuntime(
-    serviceName
-  );
-
-  if(
-    !runtime
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    runtime.state =
-    SERVICE_STATES
-    .INITIALIZING;
+    serviceRuntimeState
+    .runtime
+    .set(
 
-    await resolveService(
+      serviceName,
 
-      container,
+      {
 
-      serviceName
+        state:
+        SERVICE_STATES
+        .INITIALIZING,
+
+        initializedAt:
+        null,
+
+        failedAt:
+        null
+
+      }
 
     );
 
-    runtime.state =
-    SERVICE_STATES
-    .ACTIVE;
+    await RIGOContainer
+    .resolve(
+      serviceName
+    );
 
-    runtime.initializedAt =
-    Date.now();
+    serviceRuntimeState
+    .runtime
+    .set(
 
-    runtime.failedAt =
-    null;
+      serviceName,
+
+      {
+
+        state:
+        SERVICE_STATES
+        .ACTIVE,
+
+        initializedAt:
+        Date.now(),
+
+        failedAt:
+        null
+
+      }
+
+    );
+
+    serviceState
+    .diagnostics
+    .started++;
 
     return true;
 
@@ -181,14 +181,31 @@ async function startService(
 
   catch(error){
 
-    runtime.state =
-    SERVICE_STATES
-    .FAILED;
+    serviceRuntimeState
+    .runtime
+    .set(
 
-    runtime.failedAt =
-    Date.now();
+      serviceName,
 
-    runtime.retries++;
+      {
+
+        state:
+        SERVICE_STATES
+        .FAILED,
+
+        initializedAt:
+        null,
+
+        failedAt:
+        Date.now()
+
+      }
+
+    );
+
+    serviceState
+    .diagnostics
+    .failed++;
 
     return false;
 
@@ -202,9 +219,7 @@ async function startService(
 // BOOT
 // =====================================
 
-async function bootServiceRuntime(
-  container
-){
+async function bootServiceRuntime(){
 
   if(
     isRuntimeBusy()
@@ -239,36 +254,9 @@ async function bootServiceRuntime(
       of services
     ){
 
-      const definition =
-      getServiceDefinition(
-        serviceName
-      );
-
-      if(
-        !definition
-      ){
-
-        continue;
-
-      }
-
-      if(
-        definition
-        .metadata
-        .lazy
-      ){
-
-        continue;
-
-      }
-
       const started =
       await startService(
-
-        container,
-
         serviceName
-
       );
 
       if(
@@ -288,6 +276,10 @@ async function bootServiceRuntime(
     serviceRuntimeState
     .startedAt =
     Date.now();
+
+    serviceState
+    .booted =
+    true;
 
     serviceState
     .startedAt =
@@ -338,32 +330,15 @@ async function shutdownServiceRuntime(){
 
   try{
 
-    const services =
+    serviceRuntimeState
+    .runtime
+    .forEach((runtime) => {
 
-      getRegisteredServices()
-      .reverse();
+      runtime.state =
+      SERVICE_STATES
+      .STOPPED;
 
-    for(
-      const serviceName
-      of services
-    ){
-
-      const runtime =
-      getServiceRuntime(
-        serviceName
-      );
-
-      if(
-        runtime
-      ){
-
-        runtime.state =
-        SERVICE_STATES
-        .STOPPED;
-
-      }
-
-    }
+    });
 
     serviceRuntimeState
     .booted =
@@ -372,6 +347,10 @@ async function shutdownServiceRuntime(){
     serviceRuntimeState
     .stoppedAt =
     Date.now();
+
+    serviceState
+    .booted =
+    false;
 
     serviceState
     .stoppedAt =
@@ -414,6 +393,10 @@ async function resetServiceRuntime(){
   try{
 
     await shutdownServiceRuntime();
+
+    serviceRuntimeState
+    .runtime
+    .clear();
 
     serviceRuntimeState
     .booted =
@@ -470,6 +453,12 @@ function createServiceRuntimeSnapshot(){
     resetting:
     serviceRuntimeState
     .resetting,
+
+    services:
+
+      serviceRuntimeState
+      .runtime
+      .size,
 
     startedAt:
     serviceRuntimeState
