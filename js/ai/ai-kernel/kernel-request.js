@@ -48,10 +48,14 @@ export function validateKernelPayload(
 
   return (
 
-    payload &&
+    payload !== null &&
 
     typeof payload ===
-    "object"
+    "object" &&
+
+    !Array.isArray(
+      payload
+    )
 
   );
 
