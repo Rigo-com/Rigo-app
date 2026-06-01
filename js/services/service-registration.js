@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SERVICE REGISTRATION
-// REGISTRY LAYER
+// CONTAINER ADAPTER LAYER
 // =====================================
 
 
@@ -11,186 +11,19 @@
 // =====================================
 
 import {
+  RIGOContainer
+}
+from "../core/container/index.js";
 
-  SERVICE_LIFECYCLES,
-  SERVICE_PRIORITIES,
-  SERVICE_STATES,
-  isValidServiceLifecycle,
-  isValidServicePriority
-
+import {
+  SERVICE_LIFECYCLES
 }
 from "./service-types.js";
 
 import {
-
-  serviceState,
-
-  normalizeServiceName,
-
-  setServiceDefinition,
-  getServiceDefinition,
-  removeServiceDefinition,
-
-  setServiceRuntime,
-  getServiceRuntime,
-  removeServiceRuntime,
-
-  setDependencyGraph,
-  setReverseDependency
-
+  serviceState
 }
 from "./service-state.js";
-
-
-
-// =====================================
-// HELPERS
-// =====================================
-
-function normalizeDependencies(
-  dependencies
-){
-
-  if(
-    !Array.isArray(
-      dependencies
-    )
-  ){
-
-    return [];
-  }
-
-  return [
-
-    ...new Set(
-
-      dependencies
-      .filter(Boolean)
-      .map(
-        normalizeServiceName
-      )
-
-    )
-
-  ];
-
-}
-
-
-
-function isValidServiceFactory(
-  factory
-){
-
-  return typeof factory ===
-  "function";
-
-}
-
-
-
-// =====================================
-// DEFINITION
-// =====================================
-
-function createServiceDefinition(
-  serviceName,
-  factory,
-  options = {}
-){
-
-  return Object.freeze({
-
-    metadata:
-    Object.freeze({
-
-      name:
-      serviceName,
-
-      dependencies:
-      normalizeDependencies(
-        options.dependencies
-      ),
-
-      lifecycle:
-
-        isValidServiceLifecycle(
-          options.lifecycle
-        )
-
-        ?
-
-        options.lifecycle
-
-        :
-
-        SERVICE_LIFECYCLES
-        .SINGLETON,
-
-      priority:
-
-        isValidServicePriority(
-          options.priority
-        )
-
-        ?
-
-        options.priority
-
-        :
-
-        SERVICE_PRIORITIES
-        .NORMAL,
-
-      lazy:
-      options.lazy ?? false,
-
-      createdAt:
-      Date.now()
-
-    }),
-
-    factory
-
-  });
-
-}
-
-
-
-// =====================================
-// RUNTIME
-// =====================================
-
-function createServiceRuntimeState(
-  serviceName
-){
-
-  const runtime =
-  Object.seal({
-
-    state:
-    SERVICE_STATES
-    .REGISTERED,
-
-    retries:0,
-
-    initializedAt:null,
-
-    failedAt:null,
-
-    recoveredAt:null
-
-  });
-
-  setServiceRuntime(
-    serviceName,
-    runtime
-  );
-
-  return runtime;
-
-}
 
 
 
@@ -198,90 +31,40 @@ function createServiceRuntimeState(
 // REGISTER
 // =====================================
 
-function registerService(
+async function registerService(
   serviceName,
   factory,
   options = {}
 ){
 
-  const normalizedName =
-  normalizeServiceName(
-    serviceName
-  );
+  await RIGOContainer
+  .register({
 
-  if(
-    !normalizedName
-  ){
+    name:
+    serviceName,
 
-    return false;
-
-  }
-
-  if(
-    !isValidServiceFactory(
-      factory
-    )
-  ){
-
-    return false;
-
-  }
-
-  if(
-    getServiceDefinition(
-      normalizedName
-    )
-  ){
-
-    return false;
-
-  }
-
-  const definition =
-  createServiceDefinition(
-
-    normalizedName,
     factory,
-    options
 
-  );
+    dependencies:
 
-  setServiceDefinition(
+      options
+      .dependencies ||
 
-    normalizedName,
-    definition
+      [],
 
-  );
+    lifecycle:
 
-  createServiceRuntimeState(
-    normalizedName
-  );
+      options
+      .lifecycle ||
 
-  const dependencies =
-  definition
-  .metadata
-  .dependencies;
+      SERVICE_LIFECYCLES
+      .SINGLETON
 
-  setDependencyGraph(
+  });
 
-    normalizedName,
-    dependencies
-
-  );
-
-  for(
-    const dependency
-    of dependencies
-  ){
-
-    setReverseDependency(
-
-      dependency,
-      normalizedName
-
-    );
-
-  }
+  serviceState
+  .diagnostics
+  .registered++;
 
   return true;
 
@@ -297,45 +80,10 @@ function unregisterService(
   serviceName
 ){
 
-  const normalizedName =
-  normalizeServiceName(
+  return RIGOContainer
+  .remove(
     serviceName
   );
-
-  const definition =
-  getServiceDefinition(
-    normalizedName
-  );
-
-  if(
-    !definition
-  ){
-
-    return false;
-
-  }
-
-  removeServiceDefinition(
-    normalizedName
-  );
-
-  removeServiceRuntime(
-    normalizedName
-  );
-
-  serviceState
-  .instances
-  .delete(
-    normalizedName
-  );
-
-  serviceState
-  .dependencyGraph
-  .delete(
-    normalizedName
-  );
-
-  return true;
 
 }
 
@@ -349,12 +97,9 @@ function hasRegisteredService(
   serviceName
 ){
 
-  return Boolean(
-
-    getServiceDefinition(
-      serviceName
-    )
-
+  return RIGOContainer
+  .has(
+    serviceName
   );
 
 }
@@ -363,13 +108,8 @@ function hasRegisteredService(
 
 function getRegisteredServices(){
 
-  return [
-
-    ...serviceState
-    .definitions
-    .keys()
-
-  ];
+  return RIGOContainer
+  .services();
 
 }
 
@@ -383,29 +123,11 @@ function getServiceRegistrationDiagnostics(){
 
   return Object.freeze({
 
-    services:
+    registered:
 
-      serviceState
-      .definitions
-      .size,
-
-    runtime:
-
-      serviceState
-      .runtime
-      .size,
-
-    instances:
-
-      serviceState
-      .instances
-      .size,
-
-    dependencyGraph:
-
-      serviceState
-      .dependencyGraph
-      .size,
+      RIGOContainer
+      .services()
+      .length,
 
     timestamp:
     Date.now()
@@ -421,10 +143,6 @@ function getServiceRegistrationDiagnostics(){
 // =====================================
 
 export {
-
-  createServiceDefinition,
-
-  createServiceRuntimeState,
 
   registerService,
 
