@@ -87,25 +87,6 @@ initializeAgentManager(){
       .diagnostics
       .initialized++;
 
-      if(
-
-        typeof AIKernel !==
-        "undefined"
-
-        &&
-
-        typeof AIKernel
-        .registerSystem ===
-        "function"
-
-      ){
-
-        AIKernel.registerSystem(
-          "agents",
-          true
-        );
-
-      }
 
       return true;
 
