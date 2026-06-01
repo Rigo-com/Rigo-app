@@ -1,0 +1,75 @@
+// =====================================
+// RIGO AI
+// AI KERNEL CONFIG
+// =====================================
+
+export const AI_KERNEL_CONFIG =
+Object.freeze({
+
+  ENABLE_REQUEST_ROUTING:
+  true,
+
+  ENABLE_RUNTIME_SYNC:
+  true,
+
+  ENABLE_HEALTH_MONITORING:
+  true,
+
+  ENABLE_RECOVERY:
+  true,
+
+  ENABLE_DIAGNOSTICS:
+  true,
+
+  ENABLE_EXECUTION_PIPELINES:
+  true,
+
+  ENABLE_CONTEXT_INJECTION:
+  true,
+
+  ENABLE_WORKFLOW_ROUTING:
+  true,
+
+  ENABLE_PLANNER_ROUTING:
+  true,
+
+  ENABLE_REQUEST_QUEUE:
+  true,
+
+  ENABLE_ABORT_CONTROLLER:
+  true,
+
+  ENABLE_AUTO_REQUEST_CLEANUP:
+  true,
+
+  MAX_CONCURRENT_REQUESTS:
+  200,
+
+  MAX_QUEUE_SIZE:
+  500,
+
+  MAX_RECOVERY_ATTEMPTS:
+  3,
+
+  REQUEST_TIMEOUT:
+  60000,
+
+  RECOVERY_COOLDOWN:
+  3000,
+
+  MAX_COMPLETED_REQUESTS:
+  500,
+
+  MAX_FAILED_REQUESTS:
+  300,
+
+  CLEANUP_INTERVAL:
+  60000,
+
+  HEALTH_CHECK_INTERVAL:
+  30000,
+
+  STUCK_REQUEST_TIMEOUT:
+  120000
+
+});
