@@ -65,22 +65,22 @@ routeKernelRequest(
   .toLowerCase();
 
   const planner =
-  getAIService(
+  await getAIService(
     "planner"
   );
 
   const workflows =
-  getAIService(
+  await getAIService(
     "workflows"
   );
 
   const tools =
-  getAIService(
+  await getAIService(
     "tools"
   );
 
   const agents =
-  getAIService(
+  await getAIService(
     "agents"
   );
 
@@ -212,7 +212,7 @@ executeKernelRequest(
 
       async () => {
 
-        return routeKernelRequest(
+        return await routeKernelRequest(
           request
         );
 
