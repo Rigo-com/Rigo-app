@@ -25,6 +25,12 @@ import {
 from "./kernel-utils.js";
 
 import {
+  shouldRecoverKernel,
+  recoverAIKernel
+}
+from "./kernel-recovery.js";
+
+import {
   emitKernelEvent
 }
 from "./kernel-events.js";
@@ -40,11 +46,6 @@ import {
   createKernelRequest
 }
 from "./kernel-request.js";
-
-import {
-  recoverAIKernel
-}
-from "./kernel-recovery.js";
 
 
 
@@ -149,6 +150,360 @@ routeKernelRequest(
 
   throw new Error(
     "NO AVAILABLE REQUEST ROUTER"
+  );
+
+}
+
+
+
+// =====================================
+// EXECUTE REQUEST
+// =====================================
+
+export async function
+executeKernelRequest(
+  request
+){
+
+  request.runtime.startedAt =
+  Date.now();
+
+  aiKernelState
+  .activeRequests
+  .set(
+    request.id,
+    request
+  );
+
+  aiKernelState
+  .diagnostics
+  .requests++;
+
+  aiKernelState
+  .lastRequestAt =
+  Date.now();
+
+  await emitKernelEvent(
+
+    AI_KERNEL_EVENTS
+    .REQUEST_RECEIVED,
+
+    {
+      requestId:
+      request.id
+    }
+
+  );
+
+  try{
+
+    setKernelState(
+
+      AI_KERNEL_STATES
+      .PROCESSING
+
+    );
+
+    const result =
+    await createTimeoutPromise(
+
+      AI_KERNEL_CONFIG
+      .REQUEST_TIMEOUT,
+
+      async () => {
+
+        return routeKernelRequest(
+          request
+        );
+
+      }
+
+    );
+
+    request.runtime
+    .completedAt =
+    Date.now();
+
+    aiKernelState
+    .completedRequests
+    .push({
+
+      id:
+      request.id,
+
+      completedAt:
+      Date.now()
+
+    });
+
+    aiKernelState
+    .diagnostics
+    .completed++;
+
+    await emitKernelEvent(
+
+      AI_KERNEL_EVENTS
+      .REQUEST_COMPLETED,
+
+      {
+        requestId:
+        request.id
+      }
+
+    );
+
+    return result;
+
+  }
+
+  catch(error){
+
+    aiKernelState
+    .failedRequests
+    .push({
+
+      id:
+      request.id,
+
+      error:
+      String(error),
+
+      failedAt:
+      Date.now()
+
+    });
+
+    aiKernelState
+    .diagnostics
+    .failed++;
+
+    if(
+
+      AI_KERNEL_CONFIG
+      .ENABLE_RECOVERY
+
+      &&
+
+      shouldRecoverKernel(
+        error
+      )
+
+      &&
+
+      aiKernelState
+      .recoveryAttempts <
+
+      AI_KERNEL_CONFIG
+      .MAX_RECOVERY_ATTEMPTS
+
+    ){
+
+      recoverAIKernel()
+      .catch(() => {});
+
+    }
+
+    await emitKernelEvent(
+
+      AI_KERNEL_EVENTS
+      .REQUEST_FAILED,
+
+      {
+
+        requestId:
+        request.id,
+
+        error:
+        String(error)
+
+      }
+
+    );
+
+    throw error;
+
+  }
+
+  finally{
+
+    aiKernelState
+    .activeRequests
+    .delete(
+      request.id
+    );
+
+    if(
+
+      aiKernelState
+      .requestQueue
+      .length > 0
+
+      &&
+
+      aiKernelState
+      .activeRequests
+      .size <
+
+      AI_KERNEL_CONFIG
+      .MAX_CONCURRENT_REQUESTS
+
+    ){
+
+      const queuedRequest =
+
+      aiKernelState
+      .requestQueue
+      .shift();
+
+      executeKernelRequest(
+        queuedRequest
+      )
+      .catch(() => {});
+
+    }
+
+    if(
+
+      aiKernelState
+      .activeRequests
+      .size <= 0
+
+    ){
+
+      setKernelState(
+
+        AI_KERNEL_STATES
+        .READY
+
+      );
+
+    }
+
+  }
+
+}
+
+
+
+// =====================================
+// PROCESS REQUEST
+// =====================================
+
+export async function
+processKernelRequest(
+  payload = {}
+){
+
+  if(
+    aiKernelState
+    .shuttingDown
+  ){
+
+    throw new Error(
+      "KERNEL SHUTDOWN ACTIVE"
+    );
+
+  }
+
+  if(
+    !validateKernelPayload(
+      payload
+    )
+  ){
+
+    throw new Error(
+      "INVALID REQUEST PAYLOAD"
+    );
+
+  }
+
+  const request =
+  createKernelRequest(
+    payload
+  );
+
+  if(
+
+    aiKernelState
+    .activeRequests
+    .size >=
+
+    AI_KERNEL_CONFIG
+    .MAX_CONCURRENT_REQUESTS
+
+  ){
+
+    if(
+
+      !AI_KERNEL_CONFIG
+      .ENABLE_REQUEST_QUEUE
+
+    ){
+
+      throw new Error(
+
+        "MAX CONCURRENT REQUESTS REACHED"
+
+      );
+
+    }
+
+    if(
+
+      aiKernelState
+      .requestQueue
+      .length >=
+
+      AI_KERNEL_CONFIG
+      .MAX_QUEUE_SIZE
+
+    ){
+
+      throw new Error(
+        "REQUEST QUEUE FULL"
+      );
+
+    }
+
+    request.runtime
+    .queuedAt =
+    Date.now();
+
+    aiKernelState
+    .requestQueue
+    .push(
+      request
+    );
+
+    aiKernelState
+    .diagnostics
+    .queued++;
+
+    await emitKernelEvent(
+
+      AI_KERNEL_EVENTS
+      .REQUEST_QUEUED,
+
+      {
+        requestId:
+        request.id
+      }
+
+    );
+
+    return {
+
+      queued:true,
+
+      requestId:
+      request.id
+
+    };
+
+  }
+
+  return executeKernelRequest(
+    request
   );
 
 }
