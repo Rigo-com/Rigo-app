@@ -183,46 +183,6 @@ async function initializeContextManager(){
       .lastUpdatedAt =
       Date.now();
 
-      if(
-
-        typeof ServiceRegistry !==
-        "undefined"
-
-        &&
-
-        typeof ServiceRegistry
-        .register ===
-        "function"
-
-        &&
-
-        !ServiceRegistry.has(
-          "context-manager"
-        )
-
-      ){
-
-        ServiceRegistry.register(
-
-          "context-manager",
-
-          ContextManager,
-
-          {
-
-            version:"1.0.0",
-
-            immutable:true
-
-          }
-
-        );
-
-        ServiceRegistry.activate(
-          "context-manager"
-        );
-
-      }
 
       return true;
 
