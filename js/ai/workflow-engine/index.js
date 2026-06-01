@@ -47,9 +47,7 @@ export const WorkflowEngine =
 Object.freeze({
 
   initialize:
-  () => initializeWorkflowEngine(
-    WorkflowEngine
-  ),
+  initializeWorkflowEngine,
 
   shutdown:
   shutdownWorkflowEngine,
