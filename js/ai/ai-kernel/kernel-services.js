@@ -54,30 +54,30 @@ export async function getAIService(
 // VALIDATE SYSTEMS
 // =====================================
 
-export function validateAISystems(){
+export async function validateAISystems()
 
   const planner =
-  getAIService(
+  await getAIService(
     "planner"
   );
 
   const workflows =
-  getAIService(
+  await getAIService(
     "workflows"
   );
 
   const tools =
-  getAIService(
+  await getAIService(
     "tools"
   );
 
   const agents =
-  getAIService(
+  await getAIService(
     "agents"
   );
 
   const contexts =
-  getAIService(
+  await getAIService(
     "contexts"
   );
 
@@ -149,7 +149,7 @@ synchronizeAISystems(){
   ){
 
     const system =
-    getAIService(
+    await getAIService(
       systemName
     );
 
