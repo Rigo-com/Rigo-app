@@ -40,8 +40,8 @@ Object.seal({
   circuitBreakers:
   new Map(),
 
-  diagnostics:{
-
+  diagnostics:
+  object.seal({
     registered:0,
 
     executed:0,
@@ -64,7 +64,7 @@ Object.seal({
 
     enabled:0
 
-  },
+  }),
 
   lastExecutionAt:null
 
