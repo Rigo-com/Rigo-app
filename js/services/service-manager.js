@@ -35,7 +35,7 @@ from "./service-runtime.js";
 
 
 // =====================================
-// REGISTER
+// REGISTRATION
 // =====================================
 
 function register(
@@ -55,10 +55,6 @@ function register(
 }
 
 
-
-// =====================================
-// UNREGISTER
-// =====================================
 
 function unregister(
   serviceName
@@ -101,14 +97,13 @@ function list(){
 // =====================================
 
 async function resolve(
-  container,
   serviceName,
   scope = "global"
 ){
 
   return resolveService(
 
-    container,
+    null,
     serviceName,
     scope
 
@@ -119,14 +114,13 @@ async function resolve(
 
 
 async function resolveMany(
-  container,
   services,
   scope = "global"
 ){
 
   return resolveServices(
 
-    container,
+    null,
     services,
     scope
 
@@ -149,14 +143,10 @@ async function initialize(){
 
 
 
-async function boot(
-  container
-){
+async function boot(){
 
   return ServiceRuntime
-  .boot(
-    container
-  );
+  .boot();
 
 }
 
