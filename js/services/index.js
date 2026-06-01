@@ -22,6 +22,12 @@ from "./service-runtime.js";
 import ServiceManager
 from "./service-manager.js";
 
+import Analytics
+from "./analytics/index.js";
+
+import Files
+from "./files/index.js";
+
 
 
 // =====================================
@@ -86,6 +92,36 @@ function createServicesSnapshot(){
       ServiceRuntime
       .snapshot(),
 
+    analytics:
+
+      typeof Analytics
+      ?.snapshot ===
+      "function"
+
+      ?
+
+      Analytics
+      .snapshot()
+
+      :
+
+      null,
+
+    files:
+
+      typeof Files
+      ?.snapshot ===
+      "function"
+
+      ?
+
+      Files
+      .snapshot()
+
+      :
+
+      null,
+
     timestamp:
     Date.now()
 
@@ -113,6 +149,12 @@ Object.freeze({
 
   manager:
   ServiceManager,
+
+  analytics:
+  Analytics,
+
+  files:
+  Files,
 
   initialize:
   initializeServices,
@@ -146,6 +188,10 @@ export {
   ServiceRuntime,
 
   ServiceManager,
+
+  Analytics,
+
+  Files,
 
   initializeServices,
 
