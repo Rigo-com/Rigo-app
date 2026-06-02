@@ -10,6 +10,10 @@ from "./auth-config.js";
 
 
 
+// =====================================
+// STATE
+// =====================================
+
 export const authRuntimeState =
 Object.seal({
 
@@ -59,6 +63,91 @@ Object.seal({
 
 
 
+// =====================================
+// VALIDATION
+// =====================================
+
+export function validateAuthStateValue(
+  key,
+  value
+){
+
+  switch(key){
+
+    case "initialized":
+
+    case "initializing":
+
+    case "authenticated":
+
+    case "loading":
+
+      return (
+        typeof value ===
+        "boolean"
+      );
+
+    case "user":
+
+      return (
+
+        value === null ||
+
+        typeof value ===
+        "object"
+
+      );
+
+    case "token":
+
+      return (
+
+        value === null ||
+
+        typeof value ===
+        "string"
+
+      );
+
+    case "sessionExpiresAt":
+
+    case "lastActivityAt":
+
+      return (
+
+        value === null ||
+
+        Number.isFinite(
+          value
+        )
+
+      );
+
+    case "error":
+
+      return (
+
+        value === null ||
+
+        typeof value ===
+        "string"
+
+      );
+
+    default:
+
+      return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// UPDATE
+// =====================================
+
 export function updateAuthRuntimeState(
   updates = {}
 ){
@@ -73,7 +162,9 @@ export function updateAuthRuntimeState(
 
   }
 
-  Object.keys(updates)
+  Object.keys(
+    updates
+  )
   .forEach((key) => {
 
     if(
@@ -85,8 +176,23 @@ export function updateAuthRuntimeState(
 
     }
 
-    authRuntimeState[key] =
+    const value =
     updates[key];
+
+    const valid =
+    validateAuthStateValue(
+      key,
+      value
+    );
+
+    if(!valid){
+
+      return;
+
+    }
+
+    authRuntimeState[key] =
+    value;
 
   });
 
@@ -95,6 +201,10 @@ export function updateAuthRuntimeState(
 }
 
 
+
+// =====================================
+// RESET
+// =====================================
 
 export function resetAuthRuntimeState(){
 
@@ -119,6 +229,10 @@ export function resetAuthRuntimeState(){
 }
 
 
+
+// =====================================
+// SNAPSHOT
+// =====================================
 
 export function getAuthRuntimeState(){
 
