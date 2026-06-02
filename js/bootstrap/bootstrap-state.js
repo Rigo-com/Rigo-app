@@ -16,6 +16,8 @@ Object.seal({
 
   state:"idle",
 
+  recoveryAttempts:0,
+  
   startupPromise:null,
 
 
