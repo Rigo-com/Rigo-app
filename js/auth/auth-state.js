@@ -8,6 +8,11 @@ import {
 }
 from "./auth-config.js";
 
+import {
+  safeCloneAuth
+}
+from "./auth-utils.js";
+
 
 
 // =====================================
@@ -75,11 +80,8 @@ export function validateAuthStateValue(
   switch(key){
 
     case "initialized":
-
     case "initializing":
-
     case "authenticated":
-
     case "loading":
 
       return (
@@ -110,7 +112,6 @@ export function validateAuthStateValue(
       );
 
     case "sessionExpiresAt":
-
     case "lastActivityAt":
 
       return (
@@ -226,6 +227,14 @@ export function resetAuthRuntimeState(){
 
   });
 
+  authRuntimeState
+  .failedLoginAttempts =
+  0;
+
+  authRuntimeState
+  .loginBlockedUntil =
+  null;
+
 }
 
 
@@ -251,7 +260,9 @@ export function getAuthRuntimeState(){
     authRuntimeState.loading,
 
     user:
-    authRuntimeState.user,
+    safeCloneAuth(
+      authRuntimeState.user
+    ),
 
     token:
     authRuntimeState.token,
@@ -266,7 +277,9 @@ export function getAuthRuntimeState(){
     authRuntimeState.error,
 
     diagnostics:
-    authRuntimeState.diagnostics
+    safeCloneAuth(
+      authRuntimeState.diagnostics
+    )
 
   };
 
