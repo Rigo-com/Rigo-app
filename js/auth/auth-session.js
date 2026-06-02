@@ -41,6 +41,9 @@ export function createAuthSession({
 
   }
 
+  const now =
+  Date.now();
+
   return {
 
     user,
@@ -49,13 +52,13 @@ export function createAuthSession({
 
     expiresAt:
 
-      Date.now() +
+      now +
 
       AUTH_RUNTIME_CONFIG
       .SESSION_DURATION,
 
     createdAt:
-    Date.now()
+    now
 
   };
 
@@ -93,7 +96,9 @@ export function saveAuthSession(
       AUTH_RUNTIME_CONFIG
       .STORAGE_KEY,
 
-      JSON.stringify(session)
+      JSON.stringify(
+        session
+      )
 
     );
 
@@ -234,7 +239,7 @@ export function updateLastActivity(){
 
 export function isLoginBlocked(){
 
-  return (
+  return Boolean(
 
     authRuntimeState
     .loginBlockedUntil
