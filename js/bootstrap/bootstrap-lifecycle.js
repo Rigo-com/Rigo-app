@@ -29,6 +29,9 @@ export async function bootBootstrapSystems(){
 
   }
 
+  bootstrapState.state =
+  "booting";
+
   bootstrapState
   .booting =
   true;
@@ -119,6 +122,9 @@ export async function bootBootstrapSystems(){
     .completedAt =
     Date.now();
 
+    bootstrapState.state =
+    "ready";
+
     return true;
 
   }
@@ -132,6 +138,9 @@ export async function bootBootstrapSystems(){
     bootstrapState
     .lastError =
     error;
+
+    bootstrapState.state =
+    "failed";
 
     return false;
 
