@@ -173,6 +173,9 @@ export async function shutdownBootstrapSystems(){
 
   }
 
+  bootstrapState.state =
+  "shutdown";
+  
   bootstrapState
   .shuttingDown =
   true;
@@ -228,6 +231,9 @@ export async function shutdownBootstrapSystems(){
     .completedAt =
     null;
 
+    bootstrapState.state =
+    "idle";
+    
     return true;
 
   }
@@ -259,6 +265,9 @@ export async function recoverBootstrapSystems(){
 
   }
 
+  bootstrapState.state =
+  "recovering";
+
   bootstrapState
   .recovering =
   true;
@@ -267,11 +276,31 @@ export async function recoverBootstrapSystems(){
   .diagnostics
   .recoveries++;
 
+  bootstrapState
+  .recoveryAttempts++;
+
   try{
+
+    if(
+
+      bootstrapState
+      .recoveryAttempts >
+
+      3
+
+    ){
+
+      bootstrapState.state =
+      "failed";
+
+      return false;
+
+    }
 
     await shutdownBootstrapSystems();
 
-    return bootBootstrapSystems();
+    return await
+    bootBootstrapSystems();
 
   }
 
@@ -318,6 +347,26 @@ export async function resetBootstrapSystems(){
   bootstrapState
   .initialized =
   false;
+
+  bootstrapState
+  .booting =
+  false;
+
+  bootstrapState
+  .shuttingDown =
+  false;
+
+  bootstrapState
+  .recovering =
+  false;
+
+  bootstrapState
+  .recoveryAttempts =
+  0;
+
+  bootstrapState
+  .state =
+  "idle";
 
   return true;
 
