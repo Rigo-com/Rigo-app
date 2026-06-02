@@ -41,6 +41,14 @@ export function safeCloneAuth(
   value
 ){
 
+  if(
+    value === undefined
+  ){
+
+    return undefined;
+
+  }
+
   try{
 
     if(
@@ -90,6 +98,19 @@ export function safeCloneAuth(
 export function freezeAuthObject(
   value
 ){
+
+  if(
+
+    value === null ||
+
+    typeof value !==
+    "object"
+
+  ){
+
+    return value;
+
+  }
 
   if(
     typeof deepFreeze ===
