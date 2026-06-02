@@ -1,53 +1,52 @@
 // =====================================
-// EMIT CHAT EVENT
-// STABILIZED EVENT RUNTIME
+// RIGO AI
+// CHAT EVENTS
 // =====================================
 
-async function emitChatRuntimeEvent(
+import {
+  CHAT_RUNTIME_CONFIG
+}
+from "./chat-config.js";
+
+
+
+// =====================================
+// EMIT CHAT EVENT
+// =====================================
+
+export async function emitChatRuntimeEvent(
   eventName,
   payload = {}
 ){
 
   if(
-
     !CHAT_RUNTIME_CONFIG
     ?.ENABLE_EVENTS
-
   ){
-
     return false;
-
   }
 
   if(
     typeof eventName !==
     "string"
   ){
-
     return false;
-
   }
 
   const normalizedEvent =
-  eventName
-  .trim();
+  eventName.trim();
 
   if(
-    normalizedEvent
-    .length <= 0
+    normalizedEvent.length <= 0
   ){
-
     return false;
-
   }
 
   if(
     typeof emitSystemEvent !==
     "function"
   ){
-
     return false;
-
   }
 
   const safePayload =
@@ -97,12 +96,9 @@ async function emitChatRuntimeEvent(
 
   catch(error){
 
-    safeLogError?.(
-
+    console.error(
       "CHAT EVENT ERROR:",
-
       error
-
     );
 
     return false;
