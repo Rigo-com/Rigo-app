@@ -4,11 +4,6 @@
 // =====================================
 
 import {
-  AUTH_RUNTIME_EVENTS
-}
-from "./auth-config.js";
-
-import {
   authRuntimeState,
   updateAuthRuntimeState,
   resetAuthRuntimeState
@@ -32,6 +27,14 @@ import {
 }
 from "./auth-session.js";
 
+import {
+  createUniqueId,
+  createSecureToken,
+  getSafeErrorMessage,
+  safeCloneAuth
+}
+from "./auth-utils.js";
+
 
 
 // =====================================
@@ -41,8 +44,11 @@ from "./auth-session.js";
 export async function restoreAuthSession(){
 
   updateAuthRuntimeState({
+
     loading:true,
+
     error:null
+
   });
 
   try{
@@ -77,7 +83,9 @@ export async function restoreAuthSession(){
       authenticated:true,
 
       user:
-      session.user,
+      safeCloneAuth(
+        session.user
+      ),
 
       token:
       session.token,
@@ -115,6 +123,7 @@ export async function restoreAuthSession(){
     updateAuthRuntimeState({
 
       initialized:true,
+
       loading:false
 
     });
@@ -184,19 +193,11 @@ export async function login({
     const user = {
 
       id:
-
-      typeof crypto !==
-      "undefined" &&
-
-      typeof crypto.randomUUID ===
-      "function"
-
-      ? crypto.randomUUID()
-
-      : Date.now(),
+      createUniqueId(
+        "user"
+      ),
 
       email:
-
       String(email)
       .trim()
       .toLowerCase()
@@ -204,20 +205,7 @@ export async function login({
     };
 
     const token =
-
-      typeof crypto !==
-      "undefined" &&
-
-      typeof crypto.randomUUID ===
-      "function"
-
-      ? crypto.randomUUID()
-      .replaceAll("-","") +
-
-      crypto.randomUUID()
-      .replaceAll("-","")
-
-      : String(Date.now());
+    createSecureToken();
 
     const session =
     createAuthSession({
@@ -252,7 +240,10 @@ export async function login({
 
       authenticated:true,
 
-      user,
+      user:
+      safeCloneAuth(
+        user
+      ),
 
       token,
 
@@ -283,8 +274,9 @@ export async function login({
     updateAuthRuntimeState({
 
       error:
-      error?.message ||
-      "UNKNOWN_ERROR"
+      getSafeErrorMessage(
+        error
+      )
 
     });
 
@@ -322,6 +314,7 @@ export async function register({
   await login({
 
     email,
+
     password
 
   });
