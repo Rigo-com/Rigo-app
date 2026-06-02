@@ -13,6 +13,9 @@ Object.freeze({
   true,
 
   MAX_RECOVERY_ATTEMPTS:
-  3
+  3,
+
+  BOOT_TIMEOUT:
+  120000
 
 });
