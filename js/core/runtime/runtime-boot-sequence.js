@@ -12,6 +12,8 @@
 import ModuleRuntime
 from "../modules/module-runtime.js";
 
+import AI
+from "../../ai/index.js";
 
 
 // =====================================
@@ -134,6 +136,20 @@ async function executeShutdownSequence(){
 
 registerBootStep(
 
+  "ai-system",
+
+  async() => {
+
+    await AI
+    .initialize();
+
+  }
+
+);
+
+
+registerBootStep(
+
   "modules-runtime",
 
   async() => {
@@ -154,6 +170,20 @@ registerShutdownStep(
   async() => {
 
     await ModuleRuntime
+    .shutdown();
+
+  }
+
+);
+
+
+registerShutdownStep(
+
+  "ai-system",
+
+  async() => {
+
+    await AI
     .shutdown();
 
   }
