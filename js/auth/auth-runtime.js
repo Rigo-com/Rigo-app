@@ -24,6 +24,14 @@ import {
 }
 from "./auth-state.js";
 
+import {
+  validateEmail,
+  validatePassword,
+  validateToken,
+  validateAuthSession
+}
+from "./auth-validation.js";
+
 
 
 // =====================================
@@ -324,121 +332,6 @@ function createSecureToken(){
 
   return createUniqueId(
     "token"
-  );
-
-}
-
-
-
-
-// =====================================
-// VALIDATION
-// =====================================
-
-function validateEmail(
-  email
-){
-
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  .test(
-    String(email || "")
-    .trim()
-    .toLowerCase()
-  );
-
-}
-
-
-
-function validatePassword(
-  password
-){
-
-  return (
-
-    String(password || "")
-    .trim()
-    .length >=
-
-    AUTH_RUNTIME_CONFIG
-    .MIN_PASSWORD_LENGTH
-
-  );
-
-}
-
-
-
-function validateToken(
-  token
-){
-
-  return (
-
-    typeof token ===
-    "string"
-
-    &&
-
-    token.trim()
-    .length >= 20
-
-  );
-
-}
-
-
-
-function validateAuthSession(
-  session
-){
-
-  if(
-
-    !session ||
-
-    typeof session !==
-    "object"
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    AUTH_RUNTIME_CONFIG
-    .ENABLE_TOKEN_VALIDATION
-
-    &&
-
-    !validateToken(
-      session.token
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  return (
-
-    typeof session.user ===
-    "object"
-
-    &&
-
-    session.user !==
-    null
-
-    &&
-
-    Number.isFinite(
-      session.expiresAt
-    )
-
   );
 
 }
