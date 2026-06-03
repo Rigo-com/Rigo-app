@@ -1,10 +1,7 @@
 // =====================================
 // RIGO AI
 // CHAT QUEUE
-// ENTERPRISE CHAT QUEUE SYSTEM
-// FINAL STABLE EDITION
 // =====================================
-
 
 import {
   CHAT_RUNTIME_CONFIG,
@@ -21,6 +18,17 @@ import {
   emitChatRuntimeEvent
 }
 from "./chat-events.js";
+
+import {
+  wait,
+  continueQueueProcessing
+}
+from "./chat-utils.js";
+
+import {
+  ChatStreamManager
+}
+from "./chat-stream-manager.js";
 
 
 
@@ -58,94 +66,7 @@ Object.seal({
 
 
 // =====================================
-// SERVICE ACCESS
-// =====================================
-
-function getQueueService(
-  serviceName
-){
-
-  try{
-
-    if(
-      typeof ServiceRegistry ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    if(
-      typeof ServiceRegistry.get !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return ServiceRegistry.get(
-      serviceName
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE LOGGER
-// =====================================
-
-function safeQueueLogError(
-  ...args
-){
-
-  try{
-
-    const diagnostics =
-    getQueueService(
-      "diagnostics"
-    );
-
-    if(
-      diagnostics &&
-      typeof diagnostics.error ===
-      "function"
-    ){
-
-      diagnostics.error(
-        ...args
-      );
-
-      return;
-
-    }
-
-    console.error(...args);
-
-  }
-
-  catch(error){
-
-    console.error(error);
-
-  }
-
-}
-
-
-
-// =====================================
-// CREATE ABORT ERROR
+// ABORT ERROR
 // =====================================
 
 function createAbortError(){
@@ -165,30 +86,23 @@ function createAbortError(){
 
 
 // =====================================
-// VALIDATE QUEUE
+// ENQUEUE
 // =====================================
 
-function validateQueueRuntime(){
+function enqueueChatItem(
+  item
+){
 
   if(
-    typeof chatRuntimeState !==
-    "object"
+    !item ||
+    !item.id
   ){
-
     return false;
-
   }
 
-
-  if(
-    !Array.isArray(
-      chatRuntimeState.queue
-    )
-  ){
-
-    return false;
-
-  }
+  chatRuntimeState
+  .queue
+  .push(item);
 
   return true;
 
@@ -197,87 +111,53 @@ function validateQueueRuntime(){
 
 
 // =====================================
-// VALIDATE QUEUE SIZE
+// DEQUEUE
 // =====================================
 
-function validateQueueSize(){
+function dequeueChatItem(){
 
-  return (
-
+  if(
     chatRuntimeState
     .queue
-    .length <=
+    .length <= 0
+  ){
+    return null;
+  }
 
-    CHAT_RUNTIME_CONFIG
-    .MAX_QUEUE_SIZE
-
-  );
+  return chatRuntimeState
+  .queue
+  .shift();
 
 }
 
 
 
 // =====================================
-// PROCESS AI QUEUE
+// PROCESS QUEUE
 // =====================================
 
-async function processAIQueue(){
+async function processAIQueue(
+  generator
+){
 
   if(
     chatQueueState.processing
   ){
-
     return false;
-
   }
 
   if(
-    !validateQueueRuntime()
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !validateQueueSize()
-  ){
-
-    safeQueueLogError(
-      "QUEUE_LIMIT_EXCEEDED"
-    );
-
-    chatRuntimeState
-    .queue
-    .splice(
-
-      CHAT_RUNTIME_CONFIG
-      .MAX_QUEUE_SIZE
-
-    );
-
-  }
-
-  if(
-    typeof generateAIResponse !==
+    typeof generator !==
     "function"
   ){
-
-    safeQueueLogError(
-      "AI_SERVICE_NOT_AVAILABLE"
-    );
-
     return false;
-
   }
 
   if(
     chatRuntimeState.queue
     .length <= 0
   ){
-
     return false;
-
   }
 
   const queueItem =
@@ -286,45 +166,29 @@ async function processAIQueue(){
 
   if(
     !queueItem
-    ||
-    !queueItem.id
   ){
-
-    chatRuntimeState
-    .queue.shift();
-
     return false;
-
   }
 
-  chatQueueState
-  .processing =
+  chatQueueState.processing =
   true;
 
-  chatQueueState
-  .activeQueueId =
+  chatQueueState.activeQueueId =
   queueItem.id;
 
-  chatRuntimeState
-  .processing =
+  chatRuntimeState.processing =
   true;
 
-  chatRuntimeState
-  .generating =
+  chatRuntimeState.generating =
   true;
 
-  chatRuntimeState
-  .streaming =
+  chatRuntimeState.streaming =
   true;
 
-  chatRuntimeState
-  .activeMessageId =
+  chatRuntimeState.activeMessageId =
   queueItem.id;
 
-  const startedAt =
-  Date.now();
-
-  let shouldRemoveQueueItem =
+  let shouldRemove =
   true;
 
   try{
@@ -336,78 +200,41 @@ async function processAIQueue(){
     .generationController =
     controller;
 
-    const signal =
-    controller.signal;
-
     if(
-      signal.aborted
+      controller.signal.aborted
     ){
-
       throw createAbortError();
-
     }
 
+    ChatStreamManager.start(
+      queueItem.id
+    );
 
+    await emitChatRuntimeEvent(
 
-    // =================================
-    // STREAM START
-    // =================================
+      CHAT_RUNTIME_EVENTS
+      .GENERATION_STARTED,
 
-    if(
-
-      typeof ChatStreamManager !==
-      "undefined"
-
-      &&
-
-      typeof ChatStreamManager.start ===
-      "function"
-
-    ){
-
-      ChatStreamManager.start(
+      {
+        messageId:
         queueItem.id
-      );
+      }
 
-    }
+    );
 
+    const result =
+    await generator({
 
+      queueItem,
 
-    // =================================
-    // EVENTS
-    // =================================
+      signal:
+      controller.signal
+
+    });
 
     if(
-      typeof emitChatRuntimeEvent ===
-      "function"
+      !result
     ){
-
-      await emitChatRuntimeEvent(
-
-        CHAT_RUNTIME_EVENTS
-        .GENERATION_STARTED,
-
-        {
-
-          messageId:
-          queueItem.id
-
-        }
-
-      );
-
-    }
-
-
-
-    // =================================
-    // GENERATE
-    // =================================
-
-    const generated =
-    await generateAIResponse();
-
-    if(!generated){
 
       throw new Error(
         "GENERATION_FAILED"
@@ -415,44 +242,8 @@ async function processAIQueue(){
 
     }
 
-
-
-    // =================================
-    // COMPLETE STREAM
-    // =================================
-
-    if(
-
-      typeof ChatStreamManager !==
-      "undefined"
-
-      &&
-
-      typeof ChatStreamManager.complete ===
-      "function"
-
-    ){
-
-      ChatStreamManager
-      .complete();
-
-    }
-
-    if(
-
-      typeof finalizeStreamingMessage ===
-      "function"
-
-      &&
-
-      streamingMessageState
-      ?.activeElement
-
-    ){
-
-      finalizeStreamingMessage();
-
-    }
+    ChatStreamManager
+    .complete();
 
     chatRuntimeState
     .diagnostics
@@ -466,37 +257,17 @@ async function processAIQueue(){
     .lastProcessedAt =
     Date.now();
 
+    await emitChatRuntimeEvent(
 
+      CHAT_RUNTIME_EVENTS
+      .GENERATION_COMPLETED,
 
-    // =================================
-    // EVENTS
-    // =================================
+      {
+        messageId:
+        queueItem.id
+      }
 
-    if(
-      typeof emitChatRuntimeEvent ===
-      "function"
-    ){
-
-      await emitChatRuntimeEvent(
-
-        CHAT_RUNTIME_EVENTS
-        .GENERATION_COMPLETED,
-
-        {
-
-          messageId:
-          queueItem.id,
-
-          duration:
-
-            Date.now() -
-            startedAt
-
-        }
-
-      );
-
-    }
+    );
 
     return true;
 
@@ -508,79 +279,36 @@ async function processAIQueue(){
     .lastError =
     error;
 
-    const aborted =
-
+    if(
       error?.name ===
-      "AbortError";
+      "AbortError"
+    ){
 
-
-
-    // =================================
-    // ABORT
-    // =================================
-
-    if(aborted){
+      ChatStreamManager
+      .abort();
 
       chatQueueState
       .diagnostics
       .aborted++;
 
-      if(
+      await emitChatRuntimeEvent(
 
-        typeof ChatStreamManager !==
-        "undefined"
+        CHAT_RUNTIME_EVENTS
+        .GENERATION_ABORTED,
 
-        &&
+        {
+          messageId:
+          queueItem.id
+        }
 
-        typeof ChatStreamManager.abort ===
-        "function"
-
-      ){
-
-        ChatStreamManager
-        .abort();
-
-      }
-
-      if(
-        typeof abortStreamingMessage ===
-        "function"
-      ){
-
-        abortStreamingMessage();
-
-      }
-
-      if(
-        typeof emitChatRuntimeEvent ===
-        "function"
-      ){
-
-        await emitChatRuntimeEvent(
-
-          CHAT_RUNTIME_EVENTS
-          .GENERATION_ABORTED,
-
-          {
-
-            messageId:
-            queueItem.id
-
-          }
-
-        );
-
-      }
+      );
 
     }
 
-
-
-    // =================================
-    // FAILURE
-    // =================================
-
     else{
+
+      ChatStreamManager
+      .fail(error);
 
       chatRuntimeState
       .diagnostics
@@ -589,25 +317,6 @@ async function processAIQueue(){
       chatQueueState
       .diagnostics
       .failed++;
-
-      if(
-
-        typeof ChatStreamManager !==
-        "undefined"
-
-        &&
-
-        typeof ChatStreamManager.fail ===
-        "function"
-
-      ){
-
-        ChatStreamManager
-        .fail(
-          error
-        );
-
-      }
 
       if(
 
@@ -620,7 +329,7 @@ async function processAIQueue(){
 
         queueItem.retries++;
 
-        shouldRemoveQueueItem =
+        shouldRemove =
         false;
 
         chatRuntimeState
@@ -631,29 +340,22 @@ async function processAIQueue(){
         .diagnostics
         .retries++;
 
-        if(
-          typeof emitChatRuntimeEvent ===
-          "function"
-        ){
+        await emitChatRuntimeEvent(
 
-          await emitChatRuntimeEvent(
+          CHAT_RUNTIME_EVENTS
+          .MESSAGE_RETRY,
 
-            CHAT_RUNTIME_EVENTS
-            .MESSAGE_RETRY,
+          {
 
-            {
+            messageId:
+            queueItem.id,
 
-              messageId:
-              queueItem.id,
+            retries:
+            queueItem.retries
 
-              retries:
-              queueItem.retries
+          }
 
-            }
-
-          );
-
-        }
+        );
 
         await wait(
 
@@ -666,37 +368,22 @@ async function processAIQueue(){
 
       else{
 
-        safeQueueLogError(
+        await emitChatRuntimeEvent(
 
-          "QUEUE_PROCESS_ERROR",
+          CHAT_RUNTIME_EVENTS
+          .MESSAGE_FAILED,
 
-          error
+          {
+
+            messageId:
+            queueItem.id,
+
+            error:
+            String(error)
+
+          }
 
         );
-
-        if(
-          typeof emitChatRuntimeEvent ===
-          "function"
-        ){
-
-          await emitChatRuntimeEvent(
-
-            CHAT_RUNTIME_EVENTS
-            .MESSAGE_FAILED,
-
-            {
-
-              messageId:
-              queueItem.id,
-
-              error:
-              String(error)
-
-            }
-
-          );
-
-        }
 
       }
 
@@ -710,7 +397,7 @@ async function processAIQueue(){
 
     if(
 
-      shouldRemoveQueueItem
+      shouldRemove
 
       &&
 
@@ -725,42 +412,31 @@ async function processAIQueue(){
 
     }
 
-    chatRuntimeState
-    .processing =
+    chatRuntimeState.processing =
     false;
 
-    chatRuntimeState
-    .generating =
+    chatRuntimeState.generating =
     false;
 
-    chatRuntimeState
-    .streaming =
+    chatRuntimeState.streaming =
     false;
 
-    chatRuntimeState
-    .activeMessageId =
+    chatRuntimeState.activeMessageId =
     null;
 
-    chatRuntimeState
-    .generationController =
+    chatRuntimeState.generationController =
     null;
 
-    chatQueueState
-    .processing =
+    chatQueueState.processing =
     false;
 
-    chatQueueState
-    .activeQueueId =
+    chatQueueState.activeQueueId =
     null;
 
-    if(
-      typeof continueQueueProcessing ===
-      "function"
-    ){
-
-      continueQueueProcessing();
-
-    }
+    continueQueueProcessing(
+      () => processAIQueue(generator),
+      chatRuntimeState
+    );
 
   }
 
@@ -769,7 +445,7 @@ async function processAIQueue(){
 
 
 // =====================================
-// QUEUE DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getQueueDiagnostics(){
@@ -792,22 +468,6 @@ function getQueueDiagnostics(){
     chatQueueState
     .lastProcessedAt,
 
-    lastError:
-
-      chatQueueState
-      .lastError
-
-      ?
-
-      String(
-        chatQueueState
-        .lastError
-      )
-
-      :
-
-      null,
-
     diagnostics:{
 
       ...chatQueueState
@@ -822,71 +482,10 @@ function getQueueDiagnostics(){
 
 
 // =====================================
-// INITIALIZE QUEUE
+// INITIALIZE
 // =====================================
 
 function initializeChatQueue(){
-
-  if(
-    chatQueueState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  if(
-
-    typeof ServiceRegistry !==
-    "undefined"
-
-    &&
-
-    typeof ServiceRegistry.register ===
-    "function"
-
-    &&
-
-    typeof ServiceRegistry.has ===
-    "function"
-
-    &&
-
-    !ServiceRegistry.has(
-      "chat-queue"
-    )
-
-  ){
-
-    ServiceRegistry.register(
-
-      "chat-queue",
-
-      ChatQueue,
-
-      {
-
-        immutable:true,
-
-        version:"1.0.0"
-
-      }
-
-    );
-
-    if(
-      typeof ServiceRegistry.activate ===
-      "function"
-    ){
-
-      ServiceRegistry.activate(
-        "chat-queue"
-      );
-
-    }
-
-  }
 
   chatQueueState
   .initialized =
@@ -907,6 +506,12 @@ Object.freeze({
 
   initialize:
   initializeChatQueue,
+
+  enqueue:
+  enqueueChatItem,
+
+  dequeue:
+  dequeueChatItem,
 
   process:
   processAIQueue,
@@ -930,6 +535,10 @@ export {
   ChatQueue,
 
   initializeChatQueue,
+
+  enqueueChatItem,
+
+  dequeueChatItem,
 
   processAIQueue,
 
