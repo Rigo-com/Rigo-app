@@ -1,8 +1,6 @@
 // =====================================
 // RIGO AI
 // CHAT MARKDOWN RENDERER
-// ENTERPRISE MARKDOWN PIPELINE
-// FINAL STABLE EDITION
 // =====================================
 
 
@@ -14,19 +12,13 @@
 const markdownRendererState =
 Object.seal({
 
-  initialized:false,
+  initialized:true,
 
   rendering:false,
 
   parsing:false,
 
   sanitizing:false,
-
-  highlightedBlocks:
-  new WeakSet(),
-
-  renderedElements:
-  new WeakMap(),
 
   diagnostics:Object.seal({
 
@@ -43,93 +35,6 @@ Object.seal({
   })
 
 });
-
-
-
-// =====================================
-// SERVICE ACCESS
-// =====================================
-
-function getMarkdownService(
-  serviceName
-){
-
-  try{
-
-    if(
-      typeof ServiceRegistry ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    if(
-      typeof ServiceRegistry.get !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return ServiceRegistry.get(
-      serviceName
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE LOGGER
-// =====================================
-
-function safeMarkdownLogError(
-  ...args
-){
-
-  try{
-
-    const diagnostics =
-    getMarkdownService(
-      "diagnostics"
-    );
-
-    if(
-      diagnostics &&
-      typeof diagnostics.error ===
-      "function"
-    ){
-
-      diagnostics.error(
-        ...args
-      );
-
-      return;
-
-    }
-
-    console.error(...args);
-
-  }
-
-  catch(error){
-
-    console.error(error);
-
-  }
-
-}
 
 
 
@@ -180,17 +85,34 @@ function escapeMarkdownHTML(
   value
 ){
 
-  return String(value)
+  return String(
+    value || ""
+  )
 
-  .replace(/&/g,"&amp;")
+  .replace(
+    /&/g,
+    "&amp;"
+  )
 
-  .replace(/</g,"&lt;")
+  .replace(
+    /</g,
+    "&lt;"
+  )
 
-  .replace(/>/g,"&gt;")
+  .replace(
+    />/g,
+    "&gt;"
+  )
 
-  .replace(/"/g,"&quot;")
+  .replace(
+    /"/g,
+    "&quot;"
+  )
 
-  .replace(/'/g,"&#39;");
+  .replace(
+    /'/g,
+    "&#39;"
+  );
 
 }
 
@@ -210,6 +132,7 @@ function sanitizeMarkdownHTML(
   ){
 
     return "";
+
   }
 
   markdownRendererState
@@ -222,23 +145,35 @@ function sanitizeMarkdownHTML(
     html
 
     .replace(
+
       /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+
       ""
+
     )
 
     .replace(
+
       /on\w+="[^"]*"/gi,
+
       ""
+
     )
 
     .replace(
+
       /javascript:/gi,
+
       ""
+
     )
 
     .replace(
+
       /data:text\/html/gi,
+
       ""
+
     );
 
     markdownRendererState
@@ -444,25 +379,23 @@ function renderMarkdownLinks(
 
     (_,label,url) => {
 
-      const safeLabel =
-      escapeMarkdownHTML(
-        label
-      );
-
-      const safeURL =
-      escapeMarkdownHTML(
-        url
-      );
-
       return (
 
         '<a href="' +
 
-        safeURL +
+        escapeMarkdownHTML(
+          url
+        )
+
+        +
 
         '" target="_blank" rel="noopener noreferrer">' +
 
-        safeLabel +
+        escapeMarkdownHTML(
+          label
+        )
+
+        +
 
         "</a>"
 
@@ -491,30 +424,33 @@ function renderMarkdownLists(
     (match) => {
 
       const items =
-      match
 
-      .trim()
+        match
 
-      .split("\n")
+        .trim()
 
-      .map((item) => {
+        .split("\n")
 
-        return (
+        .map((item) => {
 
-          "<li>" +
+          return (
 
-          item
-          .replace(/^\- /,"")
+            "<li>" +
 
-          +
+            item.replace(
+              /^\- /,
+              ""
+            )
 
-          "</li>"
+            +
 
-        );
+            "</li>"
 
-      })
+          );
 
-      .join("");
+        })
+
+        .join("");
 
       return (
 
@@ -544,49 +480,69 @@ function renderMarkdownParagraphs(
 
   return content
 
-  .split(/\n\s*\n/)
+  .split(
+    /\n\s*\n/
+  )
 
   .map((block) => {
 
     const trimmed =
     block.trim();
 
-    if(!trimmed){
+    if(
+      !trimmed
+    ){
 
       return "";
+
     }
 
     const isHTML =
 
-      trimmed.startsWith("<h")
+      trimmed.startsWith(
+        "<h"
+      )
 
       ||
 
-      trimmed.startsWith("<pre")
+      trimmed.startsWith(
+        "<pre"
+      )
 
       ||
 
-      trimmed.startsWith("<ul")
+      trimmed.startsWith(
+        "<ul"
+      )
 
       ||
 
-      trimmed.startsWith("<li")
+      trimmed.startsWith(
+        "<li"
+      )
 
       ||
 
-      trimmed.startsWith("<p");
+      trimmed.startsWith(
+        "<p"
+      );
 
-    if(isHTML){
+    if(
+      isHTML
+    ){
 
       return trimmed;
+
     }
 
     return (
 
       "<p>" +
 
-      trimmed
-      .replace(/\n/g,"<br>")
+      trimmed.replace(
+        /\n/g,
+        "<br>"
+      )
 
       +
 
@@ -616,6 +572,7 @@ function parseMarkdown(
   ){
 
     return "";
+
   }
 
   markdownRendererState
@@ -684,11 +641,6 @@ function parseMarkdown(
     .diagnostics
     .failed++;
 
-    safeMarkdownLogError(
-      "MARKDOWN PARSE ERROR",
-      error
-    );
-
     return escapeMarkdownHTML(
       content
     );
@@ -708,7 +660,7 @@ function parseMarkdown(
 
 
 // =====================================
-// RENDER MARKDOWN
+// RENDER
 // =====================================
 
 function renderMarkdownContent(
@@ -730,20 +682,11 @@ function renderMarkdownContent(
 
   try{
 
-    const parsed =
-    parseMarkdown(
-      content
-    );
-
     element.innerHTML =
-    parsed;
 
-    markdownRendererState
-    .renderedElements
-    .set(
-      element,
-      parsed
-    );
+      parseMarkdown(
+        content
+      );
 
     markdownRendererState
     .diagnostics
@@ -758,11 +701,6 @@ function renderMarkdownContent(
     markdownRendererState
     .diagnostics
     .failed++;
-
-    safeMarkdownLogError(
-      "MARKDOWN RENDER ERROR",
-      error
-    );
 
     return false;
 
@@ -781,14 +719,10 @@ function renderMarkdownContent(
 
 
 // =====================================
-// RESET MARKDOWN
+// RESET
 // =====================================
 
 function resetMarkdownRenderer(){
-
-  markdownRendererState
-  .initialized =
-  false;
 
   markdownRendererState
   .rendering =
@@ -801,14 +735,6 @@ function resetMarkdownRenderer(){
   markdownRendererState
   .sanitizing =
   false;
-
-  markdownRendererState
-  .highlightedBlocks =
-  new WeakSet();
-
-  markdownRendererState
-  .renderedElements =
-  new WeakMap();
 
   markdownRendererState
   .diagnostics
@@ -837,71 +763,7 @@ function resetMarkdownRenderer(){
 
 
 // =====================================
-// INITIALIZE MARKDOWN
-// =====================================
-
-function initializeMarkdownRenderer(){
-
-  if(
-    markdownRendererState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  if(
-    typeof ServiceRegistry !==
-    "undefined"
-
-    &&
-
-    typeof ServiceRegistry.register ===
-    "function"
-
-    &&
-
-    !ServiceRegistry.has(
-      "markdown-renderer"
-    )
-
-  ){
-
-    ServiceRegistry.register(
-
-      "markdown-renderer",
-
-      ChatMarkdownRenderer,
-
-      {
-
-        immutable:true,
-
-        version:"1.0.0"
-
-      }
-
-    );
-
-    ServiceRegistry.activate(
-      "markdown-renderer"
-    );
-
-  }
-
-  markdownRendererState
-  .initialized =
-  true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// MARKDOWN DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getMarkdownDiagnostics(){
@@ -950,9 +812,6 @@ function getMarkdownDiagnostics(){
 const ChatMarkdownRenderer =
 Object.freeze({
 
-  initialize:
-  initializeMarkdownRenderer,
-
   parse:
   parseMarkdown,
 
@@ -976,31 +835,24 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  ChatMarkdownRenderer,
 
-    window,
+  parseMarkdown,
 
-    "ChatMarkdownRenderer",
+  renderMarkdownContent,
 
-    {
+  sanitizeMarkdownHTML,
 
-      value:
-      ChatMarkdownRenderer,
+  resetMarkdownRenderer,
 
-      writable:false,
+  getMarkdownDiagnostics
 
-      configurable:false
+};
 
-    }
-
-  );
-
-}
+export default
+ChatMarkdownRenderer;
