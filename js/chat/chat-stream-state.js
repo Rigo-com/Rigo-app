@@ -592,69 +592,56 @@ function getChatStreamStatus(){
   return freezeStreamObject({
 
     initialized:
-
-      chatStreamState
-      .initialized,
+    chatStreamState
+    .initialized,
 
     active:
-
-      chatStreamState
-      .active,
+    chatStreamState
+    .active,
 
     paused:
-
-      chatStreamState
-      .paused,
+    chatStreamState
+    .paused,
 
     aborted:
-
-      chatStreamState
-      .aborted,
+    chatStreamState
+    .aborted,
 
     flushing:
-
-      chatStreamState
-      .flushing,
+    chatStreamState
+    .flushing,
 
     rendering:
-
-      chatStreamState
-      .rendering,
+    chatStreamState
+    .rendering,
 
     locked:
-
-      chatStreamState
-      .locked,
+    chatStreamState
+    .locked,
 
     status:
     chatStreamState
     .status,
 
     activeStreamId:
-
-      chatStreamState
-      .activeStreamId,
+    chatStreamState
+    .activeStreamId,
 
     activeMessageId:
-
-      chatStreamState
-      .activeMessageId,
+    chatStreamState
+    .activeMessageId,
 
     partialLength:
-
-      String(
-        chatStreamState
-        .partialContent || ""
-      )
-      .length,
+    String(
+      chatStreamState
+      .partialContent || ""
+    ).length,
 
     bufferedLength:
-
-      String(
-        chatStreamState
-        .bufferedContent || ""
-      )
-      .length,
+    String(
+      chatStreamState
+      .bufferedContent || ""
+    ).length,
 
     queuedChunks:
 
@@ -710,19 +697,15 @@ function getChatStreamStatus(){
     streamHistory:
 
       safeStreamClone(
-
         chatStreamState
         .streamHistory
-
       ),
 
     diagnostics:
 
       safeStreamClone(
-
         chatStreamState
         .diagnostics
-
       )
 
   });
@@ -784,6 +767,9 @@ function cleanupChatStreamState(){
 const ChatStreamState =
 Object.freeze({
 
+  state:
+  chatStreamState,
+
   initialize:
   initializeChatStreamState,
 
@@ -810,31 +796,32 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  CHAT_STREAM_STATUS,
 
-    window,
+  CHAT_STREAM_CONFIG,
 
-    "ChatStreamState",
+  chatStreamState,
 
-    {
+  initializeChatStreamState,
 
-      value:
-      ChatStreamState,
+  resetChatStreamState,
 
-      writable:false,
+  cleanupChatStreamState,
 
-      configurable:false
+  isStreamReady,
 
-    }
+  isStreamActive,
 
-  );
+  getChatStreamStatus,
 
-}
+  ChatStreamState
+
+};
+
+export default
+ChatStreamState;
