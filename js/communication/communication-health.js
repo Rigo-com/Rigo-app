@@ -1,383 +1,163 @@
 // =====================================
 // RIGO AI
 // COMMUNICATION HEALTH
+// HEALTH MONITOR LAYER
 // =====================================
 
+import {
+
+  getCommunicationSnapshot,
+
+  getCommunicationDiagnostics
+
+}
+from "./communication-state.js";
+
+import {
+  COMMUNICATION_STATES
+}
+from "./communication-config.js";
+
+
 
 // =====================================
-// INTERNAL HELPERS
+// HEALTH STATUS
 // =====================================
 
-function cleanupProcessedHashes(){
+function getHealthStatus(){
 
-  const now =
-  Date.now();
+  const state =
 
-  communicationRuntimeState
-  .processedHashes
-  .forEach((timestamp,hash) => {
+    getCommunicationSnapshot();
 
-    const expired =
+  let status =
+  "healthy";
 
-      now - timestamp >
+  if(
+    state.destroyed
+  ){
 
-      COMMUNICATION_RUNTIME_CONFIG
-      .HASH_TTL;
+    status =
+    "destroyed";
 
-    if(expired){
+  }
 
-      communicationRuntimeState
-      .processedHashes
-      .delete(hash);
+  else if(
+    !state.initialized
+  ){
 
-    }
+    status =
+    "inactive";
+
+  }
+
+  else if(
+    state.state ===
+
+    COMMUNICATION_STATES
+    .FAILED
+  ){
+
+    status =
+    "failed";
+
+  }
+
+  else if(
+    state.recovering
+  ){
+
+    status =
+    "recovering";
+
+  }
+
+  return Object.freeze({
+
+    status,
+
+    initialized:
+    state.initialized,
+
+    processing:
+    state.processing,
+
+    streaming:
+    state.streaming,
+
+    recovering:
+    state.recovering,
+
+    typing:
+    state.typing,
+
+    runtimeState:
+    state.state
 
   });
 
-  return true;
-
 }
 
 
 
-function trimConversationHistory(){
+// =====================================
+// DIAGNOSTICS
+// =====================================
 
-  const limit =
+function getDiagnostics(){
 
-    COMMUNICATION_RUNTIME_CONFIG
-    .MAX_CONVERSATIONS;
+  return Object.freeze(
 
-  if(
-
-    communicationRuntimeState
-    .conversations
-    .size <= limit
-
-  ){
-
-    return true;
-
-  }
-
-  const overflow =
-
-    communicationRuntimeState
-    .conversations
-    .size - limit;
-
-  const keys = [
-
-    ...communicationRuntimeState
-    .conversations
-    .keys()
-
-  ];
-
-  for(
-    let index = 0;
-    index < overflow;
-    index++
-  ){
-
-    communicationRuntimeState
-    .conversations
-    .delete(
-      keys[index]
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-async function stopTypingIndicator(){
-
-  communicationRuntimeState
-  .typing =
-  false;
-
-  await emitCommunicationEvent(
-
-    COMMUNICATION_RUNTIME_EVENTS
-    .TYPING_STOPPED
+    getCommunicationDiagnostics()
 
   );
 
-  return true;
-
 }
 
 
 
-async function processCommunicationQueue(){
-
-  if(
-    communicationRuntimeState
-    .processing
-  ){
-
-    return false;
-
-  }
-
-  communicationRuntimeState
-  .processing =
-  true;
-
-  try{
-
-    while(
-
-      communicationRuntimeState
-      .messageQueue
-      .length > 0
-
-    ){
-
-      communicationRuntimeState
-      .messageQueue
-      .shift();
-
-    }
-
-    return true;
-
-  }
-
-  finally{
-
-    communicationRuntimeState
-    .processing =
-    false;
-
-  }
-
-}
-
 // =====================================
-// HEALTH CHECK
+// HEALTH REPORT
 // =====================================
 
-async function monitorCommunicationHealth(){
+function getHealthReport(){
 
-  try{
+  return Object.freeze({
 
-    if(
-      communicationRuntimeState
-      .destroyed
-    ){
+    health:
+    getHealthStatus(),
 
-      throw new Error(
-        "COMMUNICATION_DESTROYED"
-      );
+    diagnostics:
+    getDiagnostics(),
 
-    }
+    snapshot:
+    getCommunicationSnapshot()
 
-    if(
-
-      communicationRuntimeState
-      .state ===
-
-      COMMUNICATION_RUNTIME_STATES
-      .FAILED
-
-    ){
-
-      throw new Error(
-        "COMMUNICATION_FAILED"
-      );
-
-    }
-
-    cleanupProcessedHashes();
-
-    trimConversationHistory();
-
-    return true;
-
-  }
-
-  catch(error){
-
-    if(
-      COMMUNICATION_RUNTIME_CONFIG
-      .DEBUG
-    ){
-
-      console.error(
-        "COMMUNICATION_HEALTH_ERROR:",
-        error
-      );
-
-    }
-
-    if(
-
-      COMMUNICATION_RUNTIME_CONFIG
-      .ENABLE_RECOVERY
-
-    ){
-
-      await recoverCommunicationRuntime();
-
-    }
-
-    return false;
-
-  }
+  });
 
 }
 
 
 
 // =====================================
-// RECOVERY
+// IS HEALTHY
 // =====================================
 
-async function recoverCommunicationRuntime(){
+function isHealthy(){
 
-  if(
-    communicationRuntimeState
-    .recovering
-  ){
+  const health =
 
-    return false;
+    getHealthStatus();
 
-  }
+  return (
 
-  communicationRuntimeState
-  .recovering =
-  true;
-
-  communicationRuntimeState
-  .diagnostics
-  .recoveries++;
-
-  setCommunicationState(
-
-    COMMUNICATION_RUNTIME_STATES
-    .RECOVERING
+    health.status ===
+    "healthy"
 
   );
 
-  await emitCommunicationEvent(
-
-    COMMUNICATION_RUNTIME_EVENTS
-    .RECOVERY_STARTED
-
-  );
-
-  try{
-
-    await stopTypingIndicator();
-
-    abortAllCommunicationMessages();
-
-    communicationRuntimeState
-    .processing =
-    false;
-
-    communicationRuntimeState
-    .streaming =
-    false;
-
-    communicationRuntimeState
-    .typing =
-    false;
-
-    communicationRuntimeState
-    .activeStreams
-    .clear();
-
-    communicationRuntimeState
-    .activeRequests
-    .clear();
-
-    communicationRuntimeState
-    .abortControllers
-    .clear();
-
-    if(
-
-      communicationRuntimeState
-      .messageQueue
-      .length > 0
-
-    ){
-
-      await processCommunicationQueue();
-
-    }
-
-    setCommunicationState(
-
-      COMMUNICATION_RUNTIME_STATES
-      .READY
-
-    );
-
-    await emitCommunicationEvent(
-
-      COMMUNICATION_RUNTIME_EVENTS
-      .RECOVERY_COMPLETED
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    if(
-      COMMUNICATION_RUNTIME_CONFIG
-      .DEBUG
-    ){
-
-      console.error(
-        "COMMUNICATION_RECOVERY_ERROR:",
-        error
-      );
-
-    }
-
-    setCommunicationState(
-
-      COMMUNICATION_RUNTIME_STATES
-      .FAILED
-
-    );
-
-    await emitCommunicationEvent(
-
-      COMMUNICATION_RUNTIME_EVENTS
-      .MESSAGE_FAILED,
-
-      {
-
-        error:
-        String(error)
-
-      }
-
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    communicationRuntimeState
-    .recovering =
-    false;
-
-  }
-
 }
+
 
 
 // =====================================
@@ -387,39 +167,38 @@ async function recoverCommunicationRuntime(){
 const CommunicationHealth =
 Object.freeze({
 
-  monitor:
-  monitorCommunicationHealth,
+  status:
+  getHealthStatus,
 
-  recover:
-  recoverCommunicationRuntime
+  diagnostics:
+  getDiagnostics,
+
+  report:
+  getHealthReport,
+
+  isHealthy
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.CommunicationHealth =
-  CommunicationHealth;
+  getHealthStatus,
 
-}
+  getDiagnostics,
 
+  getHealthReport,
 
+  isHealthy,
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  CommunicationHealth
 
-  globalThis
-  .CommunicationHealth =
-  CommunicationHealth;
+};
 
-}
+export default
+CommunicationHealth;
