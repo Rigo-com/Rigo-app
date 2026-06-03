@@ -9,7 +9,7 @@
 // SAFE CHAT CLONE
 // =====================================
 
-export function safeChatClone(
+function safeChatClone(
   value
 ){
 
@@ -48,7 +48,7 @@ export function safeChatClone(
 // WAIT
 // =====================================
 
-export function wait(
+function wait(
   duration = 0
 ){
 
@@ -75,7 +75,7 @@ export function wait(
 // CREATE QUEUE ITEM
 // =====================================
 
-export function createQueueItem(
+function createQueueItem(
   messageId
 ){
 
@@ -89,7 +89,7 @@ export function createQueueItem(
     return null;
   }
 
-  return Object.freeze({
+  return {
 
     id:
     String(messageId),
@@ -99,7 +99,7 @@ export function createQueueItem(
 
     retries:0
 
-  });
+  };
 
 }
 
@@ -112,7 +112,7 @@ export function createQueueItem(
 let queueProcessingScheduled =
 false;
 
-export async function continueQueueProcessing(
+async function continueQueueProcessing(
   processor,
   runtimeState
 ){
@@ -124,7 +124,7 @@ export async function continueQueueProcessing(
   ){
     return false;
   }
-  
+
   if(
     queueProcessingScheduled
   ){
@@ -132,20 +132,20 @@ export async function continueQueueProcessing(
   }
 
   if(
-    runtimeState?.processing
+    runtimeState.processing
   ){
     return false;
   }
 
   if(
-    runtimeState?.generating
+    runtimeState.generating
   ){
     return false;
   }
 
   if(
     !Array.isArray(
-      runtimeState?.queue
+      runtimeState.queue
     )
     ||
     runtimeState.queue.length <= 0
@@ -187,3 +187,45 @@ export async function continueQueueProcessing(
   }
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatUtils =
+Object.freeze({
+
+  safeChatClone,
+
+  wait,
+
+  createQueueItem,
+
+  continueQueueProcessing
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  safeChatClone,
+
+  wait,
+
+  createQueueItem,
+
+  continueQueueProcessing,
+
+  ChatUtils
+
+};
+
+export default
+ChatUtils;
