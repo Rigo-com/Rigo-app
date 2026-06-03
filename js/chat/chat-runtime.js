@@ -1,135 +1,29 @@
 // =====================================
 // RIGO AI
 // CHAT RUNTIME
-// SAFE ENTERPRISE ORCHESTRATOR
-// FINAL STABLE EDITION
 // =====================================
 
-
-
-// =====================================
-// SERVICE ACCESS
-// =====================================
-
-function getChatRuntimeService(
-  serviceName
-){
-
-  try{
-
-    if(
-      typeof ServiceRegistry ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    if(
-      typeof ServiceRegistry.get !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return ServiceRegistry.get(
-      serviceName
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
+import {
+  chatRuntimeState,
+  getChatRuntimeStatus,
+  resetChatState
 }
+from "./chat-state.js";
 
-
-
-// =====================================
-// SAFE LOGGER
-// =====================================
-
-function safeChatRuntimeLogError(
-  ...args
-){
-
-  try{
-
-    const diagnostics =
-    getChatRuntimeService(
-      "diagnostics"
-    );
-
-    if(
-      diagnostics &&
-      typeof diagnostics.error ===
-      "function"
-    ){
-
-      diagnostics.error(
-        ...args
-      );
-
-      return;
-
-    }
-
-    console.error(...args);
-
-  }
-
-  catch(error){
-
-    console.error(error);
-
-  }
-
+import {
+  ChatActions
 }
+from "./chat-actions.js";
 
-
-
-function safeChatRuntimeLogInfo(
-  ...args
-){
-
-  try{
-
-    const diagnostics =
-    getChatRuntimeService(
-      "diagnostics"
-    );
-
-    if(
-      diagnostics &&
-      typeof diagnostics.info ===
-      "function"
-    ){
-
-      diagnostics.info(
-        ...args
-      );
-
-      return;
-
-    }
-
-    console.info(...args);
-
-  }
-
-  catch(error){
-
-    console.error(error);
-
-  }
-
+import {
+  ChatQueue
 }
+from "./chat-queue.js";
+
+import {
+  ChatStreamManager
+}
+from "./chat-stream-manager.js";
 
 
 
@@ -142,34 +36,7 @@ function isChatRuntimeReady(){
   return (
 
     chatRuntimeState
-    ?.initialized === true
-
-    &&
-
-    chatRuntimeState
-    ?.destroyed !== true
-
-  );
-
-}
-
-
-
-// =====================================
-// VALIDATE RUNTIME DEPENDENCIES
-// =====================================
-
-function validateChatRuntimeDependencies(){
-
-  return (
-
-    typeof ChatElements !==
-    "undefined"
-
-    &&
-
-    typeof ChatElements.initialize ===
-    "function"
+    .initialized === true
 
   );
 
@@ -186,219 +53,32 @@ async function initializeChatRuntime(){
   try{
 
     if(
-      chatRuntimeState?.initialized
+      chatRuntimeState
+      .initialized
     ){
-
       return true;
-
     }
 
     if(
-      chatRuntimeState?.initializing
+      chatRuntimeState
+      .initializing
     ){
-
       return false;
-
     }
 
-    const dependenciesReady =
-    validateChatRuntimeDependencies();
-
-    if(
-      !dependenciesReady
-    ){
-
-      safeChatRuntimeLogError(
-        "CHAT_RUNTIME_DEPENDENCIES_MISSING"
-      );
-
-      return false;
-
-    }
-
-    chatRuntimeState.initializing =
+    chatRuntimeState
+    .initializing =
     true;
 
+    ChatQueue
+    .initialize();
 
+    ChatStreamManager
+    .initialize();
 
-    // ============================
-    // CHAT ELEMENTS
-    // ============================
-
-    const elementsReady =
-    await Promise.resolve(
-
-      ChatElements.initialize()
-
-    );
-
-    if(!elementsReady){
-
-      safeChatRuntimeLogError(
-        "CHAT_ELEMENTS_INIT_FAILED"
-      );
-
-      await resetChatRuntime();
-
-      return false;
-
-    }
-
-
-
-    // ============================
-    // MARKDOWN
-    // ============================
-
-    try{
-
-      if(
-
-        typeof ChatMarkdownRenderer !==
-        "undefined"
-
-        &&
-
-        typeof ChatMarkdownRenderer.initialize ===
-        "function"
-
-      ){
-
-        await ChatMarkdownRenderer
-        .initialize();
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "MARKDOWN_INIT_WARNING",
-
-        error
-
-      );
-
-    }
-
-
-
-    // ============================
-    // STREAM MANAGER
-    // ============================
-
-    try{
-
-      if(
-
-        typeof ChatStreamManager !==
-        "undefined"
-
-        &&
-
-        typeof ChatStreamManager.initialize ===
-        "function"
-
-      ){
-
-        await ChatStreamManager
-        .initialize();
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "STREAM_MANAGER_WARNING",
-
-        error
-
-      );
-
-    }
-
-
-
-    // ============================
-    // REGISTER SERVICE
-    // ============================
-
-    try{
-
-      if(
-
-        typeof ServiceRegistry !==
-        "undefined"
-
-        &&
-
-        typeof ServiceRegistry.register ===
-        "function"
-
-        &&
-
-        !ServiceRegistry.has(
-          "chat-runtime"
-        )
-
-      ){
-
-        ServiceRegistry.register(
-
-          "chat-runtime",
-
-          ChatRuntime,
-
-          {
-
-            immutable:true,
-
-            version:"1.0.0"
-
-          }
-
-        );
-
-        ServiceRegistry.activate(
-          "chat-runtime"
-        );
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "CHAT_RUNTIME_REGISTER_FAILED",
-
-        error
-
-      );
-
-    }
-
-
-
-    // ============================
-    // READY
-    // ============================
-
-    chatRuntimeState.initialized =
+    chatRuntimeState
+    .initialized =
     true;
-
-    chatRuntimeState.destroyed =
-    false;
-
-    safeChatRuntimeLogInfo(
-      "CHAT_RUNTIME_READY"
-    );
 
     return true;
 
@@ -406,23 +86,14 @@ async function initializeChatRuntime(){
 
   catch(error){
 
-    safeChatRuntimeLogError(
-
-      "CHAT_RUNTIME_INIT_ERROR",
-
-      error
-
-    );
-
-    await resetChatRuntime();
-
     return false;
 
   }
 
   finally{
 
-    chatRuntimeState.initializing =
+    chatRuntimeState
+    .initializing =
     false;
 
   }
@@ -439,224 +110,19 @@ async function resetChatRuntime(){
 
   try{
 
-    if(
-      typeof abortMessageGeneration ===
-      "function"
-    ){
+    await ChatActions
+    .abort();
 
-      await abortMessageGeneration();
+    ChatStreamManager
+    .destroy();
 
-    }
-
-
-
-    // ============================
-    // STREAM MANAGER
-    // ============================
-
-    try{
-
-      if(
-
-        typeof ChatStreamManager !==
-        "undefined"
-
-        &&
-
-        typeof ChatStreamManager.destroy ===
-        "function"
-
-      ){
-
-        await Promise.resolve(
-          ChatStreamManager.destroy()
-        );
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "STREAM_DESTROY_ERROR",
-
-        error
-
-      );
-
-    }
-
-
-
-    // ============================
-    // STREAM STATE
-    // ============================
-
-    try{
-
-      if(
-        typeof resetStreamingMessageState ===
-        "function"
-      ){
-
-        resetStreamingMessageState();
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "STREAM_RESET_ERROR",
-
-        error
-
-      );
-
-    }
-
-
-
-    // ============================
-    // MARKDOWN
-    // ============================
-
-    try{
-
-      if(
-
-        typeof ChatMarkdownRenderer !==
-        "undefined"
-
-        &&
-
-        typeof ChatMarkdownRenderer.reset ===
-        "function"
-
-      ){
-
-        ChatMarkdownRenderer.reset();
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "MARKDOWN_RESET_ERROR",
-
-        error
-
-      );
-
-    }
-
-
-
-    // ============================
-    // ELEMENTS
-    // ============================
-
-    try{
-
-      if(
-
-        typeof ChatElements !==
-        "undefined"
-
-        &&
-
-        typeof ChatElements.cleanup ===
-        "function"
-
-      ){
-
-        ChatElements.cleanup();
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "ELEMENTS_CLEANUP_ERROR",
-
-        error
-
-      );
-
-    }
-
-
-
-    // ============================
-    // CHAT STATE
-    // ============================
-
-    try{
-
-      if(
-        typeof resetChatState ===
-        "function"
-      ){
-
-        resetChatState();
-
-      }
-
-    }
-
-    catch(error){
-
-      safeChatRuntimeLogError(
-
-        "CHAT_STATE_RESET_ERROR",
-
-        error
-
-      );
-
-    }
-
-    chatRuntimeState.initialized =
-    false;
-
-    chatRuntimeState.initializing =
-    false;
-
-    chatRuntimeState.generating =
-    false;
-
-    chatRuntimeState.processing =
-    false;
-
-    chatRuntimeState.streaming =
-    false;
-
-    chatRuntimeState.destroyed =
-    true;
+    resetChatState();
 
     return true;
 
   }
 
   catch(error){
-
-    safeChatRuntimeLogError(
-
-      "RESET_CHAT_RUNTIME_ERROR",
-
-      error
-
-    );
 
     return false;
 
@@ -670,44 +136,28 @@ async function resetChatRuntime(){
 // SEND
 // =====================================
 
-async function runtimeSendMessage(){
+async function runtimeSendMessage(
+  text,
+  generator
+){
 
   try{
 
     if(
       !isChatRuntimeReady()
     ){
-
       return false;
-
     }
 
-    if(
-      typeof sendMessage !==
-      "function"
-    ){
-
-      safeChatRuntimeLogError(
-        "SEND_MESSAGE_MISSING"
-      );
-
-      return false;
-
-    }
-
-    return await sendMessage();
+    return await ChatActions
+    .send(
+      text,
+      generator
+    );
 
   }
 
   catch(error){
-
-    safeChatRuntimeLogError(
-
-      "CHAT_RUNTIME_SEND_ERROR",
-
-      error
-
-    );
 
     return false;
 
@@ -721,63 +171,8 @@ async function runtimeSendMessage(){
 // PROCESS
 // =====================================
 
-async function runtimeProcessQueue(){
-
-  try{
-
-    if(
-      !isChatRuntimeReady()
-    ){
-
-      return false;
-
-    }
-
-    if(
-      chatRuntimeState.processing
-    ){
-
-      return false;
-
-    }
-
-    if(
-      typeof processAIQueue !==
-      "function"
-    ){
-
-      return false;
-
-    }
-
-    return await processAIQueue();
-
-  }
-
-  catch(error){
-
-    safeChatRuntimeLogError(
-
-      "CHAT_RUNTIME_PROCESS_ERROR",
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// ADD
-// =====================================
-
-function runtimeAddMessage(
-  message
+async function runtimeProcessQueue(
+  generator
 ){
 
   try{
@@ -785,74 +180,24 @@ function runtimeAddMessage(
     if(
       !isChatRuntimeReady()
     ){
-
       return false;
-
     }
 
     if(
-      typeof addMessage !==
-      "function"
+      chatRuntimeState
+      .processing
     ){
-
       return false;
-
     }
 
-    return addMessage(
-      message
+    return await ChatQueue
+    .process(
+      generator
     );
 
   }
 
   catch(error){
-
-    safeChatRuntimeLogError(
-
-      "CHAT_RUNTIME_ADD_ERROR",
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-async function runtimeResetChat(){
-
-  try{
-
-    if(
-      typeof resetCurrentChat !==
-      "function"
-    ){
-
-      return false;
-
-    }
-
-    return await resetCurrentChat();
-
-  }
-
-  catch(error){
-
-    safeChatRuntimeLogError(
-
-      "CHAT_RUNTIME_RESET_ERROR",
-
-      error
-
-    );
 
     return false;
 
@@ -870,28 +215,35 @@ async function runtimeAbortGeneration(){
 
   try{
 
-    if(
-      typeof abortMessageGeneration !==
-      "function"
-    ){
-
-      return false;
-
-    }
-
-    return await abortMessageGeneration();
+    return await ChatActions
+    .abort();
 
   }
 
   catch(error){
 
-    safeChatRuntimeLogError(
+    return false;
 
-      "CHAT_RUNTIME_ABORT_ERROR",
+  }
 
-      error
+}
 
-    );
+
+
+// =====================================
+// RESET
+// =====================================
+
+async function runtimeResetChat(){
+
+  try{
+
+    return await ChatActions
+    .reset();
+
+  }
+
+  catch(error){
 
     return false;
 
@@ -907,34 +259,7 @@ async function runtimeAbortGeneration(){
 
 function runtimeGetStatus(){
 
-  try{
-
-    if(
-      typeof getChatRuntimeStatus !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return getChatRuntimeStatus();
-
-  }
-
-  catch(error){
-
-    safeChatRuntimeLogError(
-
-      "CHAT_RUNTIME_STATUS_ERROR",
-
-      error
-
-    );
-
-    return null;
-
-  }
+  return getChatRuntimeStatus();
 
 }
 
@@ -946,7 +271,7 @@ function runtimeGetStatus(){
 
 function getChatRuntimeDiagnostics(){
 
-  return runtimeGetStatus();
+  return getChatRuntimeStatus();
 
 }
 
@@ -968,14 +293,11 @@ Object.freeze({
   process:
   runtimeProcessQueue,
 
-  add:
-  runtimeAddMessage,
+  abort:
+  runtimeAbortGeneration,
 
   reset:
   runtimeResetChat,
-
-  abort:
-  runtimeAbortGeneration,
 
   status:
   runtimeGetStatus,
@@ -994,31 +316,30 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  ChatRuntime,
 
-    window,
+  initializeChatRuntime,
 
-    "ChatRuntime",
+  resetChatRuntime,
 
-    {
+  runtimeSendMessage,
 
-      value:
-      ChatRuntime,
+  runtimeProcessQueue,
 
-      writable:false,
+  runtimeAbortGeneration,
 
-      configurable:false
+  runtimeResetChat,
 
-    }
+  runtimeGetStatus,
 
-  );
+  getChatRuntimeDiagnostics
 
-}
+};
+
+export default
+ChatRuntime;
