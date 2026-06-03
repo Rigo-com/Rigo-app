@@ -779,6 +779,15 @@ Object.freeze({
   cleanup:
   cleanupChatStreamState,
 
+  clearTimers:
+  clearStreamTimers,
+
+  trimHistory:
+  trimStreamHistory,
+
+  trimQueue:
+  trimChunkQueue,
+
   isReady:
   isStreamReady,
 
@@ -806,6 +815,12 @@ export {
   CHAT_STREAM_CONFIG,
 
   chatStreamState,
+
+  clearStreamTimers,
+
+  trimStreamHistory,
+
+  trimChunkQueue,
 
   initializeChatStreamState,
 
