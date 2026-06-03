@@ -590,6 +590,36 @@ function getStreamHistory(){
 
 }
 
+function isStreamActive(){
+
+  return (
+
+    chatStreamState.active ===
+    true
+
+    &&
+
+    chatStreamState.status ===
+    CHAT_STREAM_STATUS
+    .STREAMING
+
+  );
+
+}
+
+
+function isStreamPaused(){
+
+  return (
+
+    chatStreamState
+    .paused ===
+    true
+
+  );
+
+}
+
 
 
 // =====================================
@@ -598,6 +628,21 @@ function getStreamHistory(){
 
 const ChatStreamState =
 Object.freeze({
+
+  getStreamStatus,
+
+  getActiveStreamId,
+  getActiveMessageId,
+
+  getCurrentChunk,
+
+  getPartialContent,
+  getBufferedContent,
+
+  getStreamHistory,
+
+  isStreamActive,
+  isStreamPaused,
 
   setStreamInitialized,
   setStreamActive,
@@ -651,6 +696,21 @@ Object.freeze({
 export {
 
   CHAT_STREAM_STATUS,
+
+  getStreamStatus,
+
+  getActiveStreamId,
+  getActiveMessageId,
+
+  getCurrentChunk,
+
+  getPartialContent,
+  getBufferedContent,
+
+  getStreamHistory,
+
+  isStreamActive,
+  isStreamPaused,
 
   setStreamInitialized,
   setStreamActive,
