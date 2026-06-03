@@ -3,7 +3,13 @@
 // CHAT CONFIG
 // =====================================
 
-export const CHAT_RUNTIME_CONFIG =
+
+
+// =====================================
+// CHAT CONFIG
+// =====================================
+
+const CHAT_RUNTIME_CONFIG =
 (typeof deepFreeze === "function"
 ? deepFreeze
 : Object.freeze)({
@@ -36,7 +42,11 @@ export const CHAT_RUNTIME_CONFIG =
 
 
 
-export const CHAT_RUNTIME_EVENTS =
+// =====================================
+// CHAT EVENTS
+// =====================================
+
+const CHAT_RUNTIME_EVENTS =
 Object.freeze({
 
   MESSAGE_CREATED:
@@ -67,15 +77,17 @@ Object.freeze({
 
 
 
-export const VALID_CHAT_STATE_KEYS =
+// =====================================
+// VALID CHAT STATE KEYS
+// =====================================
+
+const VALID_CHAT_STATE_KEYS =
 Object.freeze(
 new Set([
 
   "initialized",
 
   "initializing",
-
-  "destroyed",
 
   "generating",
 
@@ -89,6 +101,57 @@ new Set([
 
   "activeMessageId",
 
-  "generationController"
+  "generationController",
+
+  "queue",
+
+  "pendingOperations",
+
+  "renderQueue",
+
+  "cache",
+
+  "diagnostics"
 
 ]));
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatConfig =
+Object.freeze({
+
+  config:
+  CHAT_RUNTIME_CONFIG,
+
+  events:
+  CHAT_RUNTIME_EVENTS,
+
+  validStateKeys:
+  VALID_CHAT_STATE_KEYS
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  CHAT_RUNTIME_CONFIG,
+
+  CHAT_RUNTIME_EVENTS,
+
+  VALID_CHAT_STATE_KEYS,
+
+  ChatConfig
+
+};
+
+export default
+ChatConfig;
