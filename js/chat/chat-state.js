@@ -21,6 +21,8 @@ Object.seal({
 
   initializing:false,
 
+  destroyed:false,
+
   generating:false,
 
   streaming:false,
@@ -123,6 +125,10 @@ export function resetChatState(){
   false;
 
   chatRuntimeState
+  .destroyed =
+  false;
+
+  chatRuntimeState
   .generating =
   false;
 
@@ -156,24 +162,19 @@ export function resetChatState(){
   chatRuntimeState
   .renderQueue.length = 0;
 
-  if(
-    chatRuntimeState
-    .pendingOperations
-  ){
-    chatRuntimeState
-    .pendingOperations
-    .clear();
-  }
+  chatRuntimeState
+  .pendingOperations
+  .clear();
 
   chatRuntimeState
   .cache
-  ?.messages
-  ?.clear();
+  .messages
+  .clear();
 
   chatRuntimeState
   .cache
-  ?.rendered
-  ?.clear();
+  .rendered
+  .clear();
 
   resetChatDiagnostics();
 
@@ -199,6 +200,10 @@ export function getChatRuntimeStatus(){
     chatRuntimeState
     .initializing,
 
+    destroyed:
+    chatRuntimeState
+    .destroyed,
+
     generating:
     chatRuntimeState
     .generating,
@@ -220,57 +225,29 @@ export function getChatRuntimeStatus(){
     .rendering,
 
     queueSize:
-
-      Array.isArray(
-        chatRuntimeState
-        .queue
-      )
-
-      ?
-
-      chatRuntimeState
-      .queue
-      .length
-
-      :
-
-      0,
+    chatRuntimeState
+    .queue
+    .length,
 
     renderQueueSize:
-
-      Array.isArray(
-        chatRuntimeState
-        .renderQueue
-      )
-
-      ?
-
-      chatRuntimeState
-      .renderQueue
-      .length
-
-      :
-
-      0,
+    chatRuntimeState
+    .renderQueue
+    .length,
 
     activeMessageId:
     chatRuntimeState
     .activeMessageId,
 
     pendingOperations:
-
-      chatRuntimeState
-      .pendingOperations
-      .size,
+    chatRuntimeState
+    .pendingOperations
+    .size,
 
     diagnostics:
-
-      safeChatClone(
-
-        chatRuntimeState
-        .diagnostics
-
-      )
+    safeChatClone(
+      chatRuntimeState
+      .diagnostics
+    )
 
   });
 
@@ -290,6 +267,9 @@ Object.freeze({
 
   reset:
   resetChatState,
+
+  resetDiagnostics:
+  resetChatDiagnostics,
 
   diagnostics:
   getChatRuntimeStatus,
