@@ -1,96 +1,7 @@
 // =====================================
 // RIGO AI
 // CHAT MESSAGE ELEMENTS
-// ENTERPRISE MESSAGE ELEMENT SYSTEM
-// FINAL STABLE EDITION
 // =====================================
-
-
-
-// =====================================
-// SERVICE ACCESS
-// =====================================
-
-function getChatMessageService(
-  serviceName
-){
-
-  try{
-
-    if(
-      typeof ServiceRegistry ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    if(
-      typeof ServiceRegistry.get !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return ServiceRegistry.get(
-      serviceName
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE LOGGER
-// =====================================
-
-function safeMessageLogError(
-  ...args
-){
-
-  try{
-
-    const diagnostics =
-    getChatMessageService(
-      "diagnostics"
-    );
-
-    if(
-      diagnostics &&
-      typeof diagnostics.error ===
-      "function"
-    ){
-
-      diagnostics.error(
-        ...args
-      );
-
-      return;
-
-    }
-
-    console.error(...args);
-
-  }
-
-  catch(error){
-
-    console.error(error);
-
-  }
-
-}
 
 
 
@@ -112,17 +23,13 @@ function getMessageRoleClass(
   switch(normalizedRole){
 
     case "assistant":
-
       return "ai-message";
 
     case "system":
-
       return "system-message";
 
     case "user":
-
     default:
-
       return "user-message";
 
   }
@@ -132,7 +39,7 @@ function getMessageRoleClass(
 
 
 // =====================================
-// SAFE MESSAGE CONTENT
+// SAFE CONTENT
 // =====================================
 
 function getSafeMessageContent(
@@ -148,7 +55,7 @@ function getSafeMessageContent(
 
 
 // =====================================
-// FORMAT MESSAGE TIMESTAMP
+// FORMAT TIMESTAMP
 // =====================================
 
 function formatMessageTimestamp(
@@ -163,7 +70,6 @@ function formatMessageTimestamp(
       parsedTimestamp
     )
   ){
-
     return "";
   }
 
@@ -176,7 +82,7 @@ function formatMessageTimestamp(
 
   }
 
-  catch(error){
+  catch{
 
     return "";
 
@@ -187,7 +93,7 @@ function formatMessageTimestamp(
 
 
 // =====================================
-// CREATE MESSAGE CONTENT
+// CREATE CONTENT ELEMENT
 // =====================================
 
 function createMessageContentElement(
@@ -198,9 +104,7 @@ function createMessageContentElement(
     typeof document ===
     "undefined"
   ){
-
     return null;
-
   }
 
   const content =
@@ -219,19 +123,20 @@ function createMessageContentElement(
 
   try{
 
-    const markdownRenderer =
-    getChatMessageService(
-      "markdown-renderer"
-    );
-
     if(
-      markdownRenderer &&
-      typeof markdownRenderer
+
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+
+      &&
+
+      typeof ChatMarkdownRenderer
       .render ===
       "function"
+
     ){
 
-      markdownRenderer.render(
+      ChatMarkdownRenderer.render(
         content,
         messageContent
       );
@@ -249,11 +154,6 @@ function createMessageContentElement(
 
   catch(error){
 
-    safeMessageLogError(
-      "MESSAGE CONTENT ERROR:",
-      error
-    );
-
     content.textContent =
     messageContent;
 
@@ -266,7 +166,7 @@ function createMessageContentElement(
 
 
 // =====================================
-// MESSAGE META
+// CREATE META ELEMENT
 // =====================================
 
 function createMessageMetaElement(
@@ -277,9 +177,7 @@ function createMessageMetaElement(
     typeof document ===
     "undefined"
   ){
-
     return null;
-
   }
 
   const meta =
@@ -313,18 +211,14 @@ function createMessageElement(
   if(
     !message
   ){
-
     return null;
-
   }
 
   if(
     typeof document ===
     "undefined"
   ){
-
     return null;
-
   }
 
   const wrapper =
@@ -354,32 +248,18 @@ function createMessageElement(
     message.role || ""
   );
 
-
-
-  // ===================================
-  // CONTENT
-  // ===================================
-
   const content =
   createMessageContentElement(
     message
   );
 
   if(!content){
-
     return null;
-
   }
 
   wrapper.appendChild(
     content
   );
-
-
-
-  // ===================================
-  // META
-  // ===================================
 
   const meta =
   createMessageMetaElement(
@@ -413,17 +293,7 @@ function updateMessageElement(
     !element ||
     !message
   ){
-
     return false;
-
-  }
-
-  if(
-    !element.isConnected
-  ){
-
-    return false;
-
   }
 
   const content =
@@ -433,9 +303,7 @@ function updateMessageElement(
     );
 
   if(!content){
-
     return false;
-
   }
 
   const messageContent =
@@ -445,19 +313,20 @@ function updateMessageElement(
 
   try{
 
-    const markdownRenderer =
-    getChatMessageService(
-      "markdown-renderer"
-    );
-
     if(
-      markdownRenderer &&
-      typeof markdownRenderer
+
+      typeof ChatMarkdownRenderer !==
+      "undefined"
+
+      &&
+
+      typeof ChatMarkdownRenderer
       .render ===
       "function"
+
     ){
 
-      markdownRenderer.render(
+      ChatMarkdownRenderer.render(
         content,
         messageContent
       );
@@ -474,11 +343,6 @@ function updateMessageElement(
   }
 
   catch(error){
-
-    safeMessageLogError(
-      "MESSAGE UPDATE ERROR:",
-      error
-    );
 
     content.textContent =
     messageContent;
@@ -527,67 +391,39 @@ function removeMessageElement(
   if(
     !element
   ){
-
     return false;
-
   }
 
   try{
 
-    if(
-      typeof element.remove ===
-      "function"
-    ){
+    element.remove();
 
-      element.remove();
-
-      return true;
-
-    }
-
-    if(
-      element.parentNode
-    ){
-
-      element.parentNode
-      .removeChild(
-        element
-      );
-
-      return true;
-
-    }
+    return true;
 
   }
 
-  catch(error){
+  catch{
 
-    safeMessageLogError(
-      "REMOVE MESSAGE ERROR:",
-      error
-    );
+    return false;
 
   }
-
-  return false;
 
 }
 
 
 
 // =====================================
-// MESSAGE DIAGNOSTICS
+// DIAGNOSTICS
 // =====================================
 
 function getChatMessageElementDiagnostics(){
 
   return Object.freeze({
 
-    rendererAvailable:
+    markdownAvailable:
 
-      !!getChatMessageService(
-        "markdown-renderer"
-      ),
+      typeof ChatMarkdownRenderer !==
+      "undefined",
 
     documentAvailable:
 
@@ -627,31 +463,22 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  ChatMessageElements,
 
-    window,
+  createMessageElement,
 
-    "ChatMessageElements",
+  updateMessageElement,
 
-    {
+  removeMessageElement,
 
-      value:
-      ChatMessageElements,
+  getChatMessageElementDiagnostics
 
-      writable:false,
+};
 
-      configurable:false
-
-    }
-
-  );
-
-}
+export default
+ChatMessageElements;
