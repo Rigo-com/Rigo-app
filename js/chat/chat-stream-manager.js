@@ -1,11 +1,7 @@
 // =====================================
 // RIGO AI
 // CHAT STREAM MANAGER
-// ENTERPRISE STREAMING ENGINE
-// FINAL STABLE EDITION
 // =====================================
-
-
 
 import {
   createStreamId
@@ -32,17 +28,16 @@ from "./chat-stream-state.js";
 function initializeChatStream(){
 
   if(
-    chatStreamState
-    .initialized
+    chatStreamState.initialized
   ){
-
     return true;
-
   }
 
-  chatStreamState
-  .initialized =
+  chatStreamState.initialized =
   true;
+
+  chatStreamState.status =
+  CHAT_STREAM_STATUS.IDLE;
 
   return true;
 
@@ -59,117 +54,84 @@ function startChatStream(
 ){
 
   if(
-    !messageId
+    messageId === null ||
+    messageId === undefined
   ){
-
     return false;
-
   }
 
   if(
     chatStreamState.active
   ){
-
     abortChatStream();
-
   }
-
-  resetStreamingMessageState?.();
 
   clearStreamTimers();
 
   const streamId =
   createStreamId();
 
-  chatStreamState
-  .active =
+  chatStreamState.active =
   true;
 
-  chatStreamState
-  .paused =
+  chatStreamState.paused =
   false;
 
-  chatStreamState
-  .aborted =
+  chatStreamState.aborted =
   false;
 
-  chatStreamState
-  .flushing =
+  chatStreamState.flushing =
   false;
 
-  chatStreamState
-  .rendering =
+  chatStreamState.rendering =
   false;
 
-  chatStreamState
-  .locked =
+  chatStreamState.locked =
   false;
 
-  chatStreamState
-  .status =
-  CHAT_STREAM_STATUS
-  .STARTING;
+  chatStreamState.status =
+  CHAT_STREAM_STATUS.STREAMING;
 
-  chatStreamState
-  .activeStreamId =
+  chatStreamState.activeStreamId =
   streamId;
 
-  chatStreamState
-  .activeMessageId =
+  chatStreamState.activeMessageId =
   String(messageId);
 
-  chatStreamState
-  .activeController =
+  chatStreamState.activeController =
   new AbortController();
 
-  chatStreamState
-  .currentChunk =
+  chatStreamState.currentChunk =
   "";
 
-  chatStreamState
-  .partialContent =
+  chatStreamState.partialContent =
   "";
 
-  chatStreamState
-  .bufferedContent =
+  chatStreamState.bufferedContent =
   "";
 
-  chatStreamState
-  .streamStartAt =
+  chatStreamState.streamStartAt =
   Date.now();
 
-  chatStreamState
-  .streamEndAt =
+  chatStreamState.streamEndAt =
   null;
 
-  chatStreamState
-  .lastChunkAt =
+  chatStreamState.lastChunkAt =
   null;
 
-  chatStreamState
-  .lastFlushAt =
+  chatStreamState.lastFlushAt =
   null;
 
-  chatStreamState
-  .chunkQueue =
+  chatStreamState.chunkQueue =
   [];
 
-  chatStreamState
-  .renderQueue =
+  chatStreamState.renderQueue =
   [];
 
-  chatStreamState
-  .chunkBuffer =
+  chatStreamState.chunkBuffer =
   [];
 
-  chatStreamState
-  .diagnostics
-  .streams++;
-
-  chatStreamState
-  .status =
-  CHAT_STREAM_STATUS
-  .STREAMING;
+  chatStreamState.diagnostics.streams++;
 
   return streamId;
 
@@ -188,45 +150,31 @@ function pushStreamChunk(
   if(
     !chatStreamState.active
   ){
-
     return false;
-
   }
 
   if(
     chatStreamState.aborted
   ){
-
     return false;
-
   }
 
   if(
     typeof chunk !==
     "string"
   ){
-
     return false;
-
   }
 
   if(
     chunk.length <= 0
   ){
-
     return false;
-
   }
 
   if(
-
-    chatStreamState
-    .chunkQueue
-    .length >=
-
-    CHAT_STREAM_CONFIG
-    .MAX_CHUNK_QUEUE
-
+    chatStreamState.chunkQueue.length >=
+    CHAT_STREAM_CONFIG.MAX_CHUNK_QUEUE
   ){
 
     chatStreamState
@@ -234,61 +182,42 @@ function pushStreamChunk(
     .droppedChunks++;
 
     return false;
-
   }
 
-  const normalizedChunk =
-  String(chunk);
+  chatStreamState.currentChunk =
+  chunk;
 
-  chatStreamState
-  .currentChunk =
-  normalizedChunk;
-
-  chatStreamState
-  .lastChunkAt =
+  chatStreamState.lastChunkAt =
   Date.now();
 
-  chatStreamState
-  .chunkQueue
-  .push(
-    normalizedChunk
+  chatStreamState.chunkQueue.push(
+    chunk
   );
 
-  chatStreamState
-  .chunkBuffer
-  .push(
-    normalizedChunk
+  chatStreamState.chunkBuffer.push(
+    chunk
   );
 
-  chatStreamState
-  .bufferedContent +=
-  normalizedChunk;
+  chatStreamState.partialContent +=
+  chunk;
 
-  chatStreamState
-  .partialContent +=
-  normalizedChunk;
+  chatStreamState.bufferedContent +=
+  chunk;
 
   if(
-
-    chatStreamState
-    .bufferedContent
+    chatStreamState.bufferedContent
     .length >
-
     CHAT_STREAM_CONFIG
     .MAX_BUFFER_SIZE
-
   ){
 
-    chatStreamState
-    .bufferedContent =
+    chatStreamState.bufferedContent =
 
       chatStreamState
       .bufferedContent
       .slice(
-
         -CHAT_STREAM_CONFIG
         .MAX_BUFFER_SIZE
-
       );
 
   }
@@ -297,8 +226,6 @@ function pushStreamChunk(
   .diagnostics
   .chunks++;
 
-  scheduleStreamFlush();
-
   return true;
 
 }
@@ -306,57 +233,7 @@ function pushStreamChunk(
 
 
 // =====================================
-// SCHEDULE FLUSH
-// =====================================
-
-function scheduleStreamFlush(){
-
-  if(
-    !chatStreamState.active
-  ){
-
-    return false;
-
-  }
-
-  if(
-    chatStreamState
-    .flushing
-  ){
-
-    return false;
-
-  }
-
-  chatStreamState
-  .flushing =
-  true;
-
-  clearStreamTimers();
-
-  chatStreamState
-  .flushTimer =
-  setTimeout(() => {
-
-    chatStreamState
-    .flushTimer =
-    null;
-
-    flushStreamChunks();
-
-  },
-
-  CHAT_STREAM_CONFIG
-  .FLUSH_INTERVAL);
-
-  return true;
-
-}
-
-
-
-// =====================================
-// FLUSH CHUNKS
+// FLUSH STREAM
 // =====================================
 
 function flushStreamChunks(){
@@ -364,36 +241,14 @@ function flushStreamChunks(){
   if(
     !chatStreamState.active
   ){
-
-    chatStreamState
-    .flushing =
-    false;
-
     return false;
-
   }
 
   if(
-
-    !Array.isArray(
-      chatStreamState
-      .chunkQueue
-    )
-
-    ||
-
-    chatStreamState
-    .chunkQueue
+    chatStreamState.chunkQueue
     .length <= 0
-
   ){
-
-    chatStreamState
-    .flushing =
-    false;
-
     return false;
-
   }
 
   const chunks =
@@ -402,191 +257,14 @@ function flushStreamChunks(){
     .chunkQueue
     .splice(0);
 
-  const combined =
-  chunks.join("");
-
-  if(
-    combined.length <= 0
-  ){
-
-    chatStreamState
-    .flushing =
-    false;
-
-    return false;
-
-  }
-
-  chatStreamState
-  .renderQueue
-  .push(
-    combined
-  );
-
-  chatStreamState
-  .lastFlushAt =
+  chatStreamState.lastFlushAt =
   Date.now();
 
   chatStreamState
   .diagnostics
   .flushes++;
 
-  processRenderQueue();
-
-  chatStreamState
-  .flushing =
-  false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// PROCESS RENDER QUEUE
-// =====================================
-
-function processRenderQueue(){
-
-  if(
-    chatStreamState
-    .rendering
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    !Array.isArray(
-      chatStreamState
-      .renderQueue
-    )
-
-    ||
-
-    chatStreamState
-    .renderQueue
-    .length <= 0
-
-  ){
-
-    return false;
-
-  }
-
-  chatStreamState
-  .rendering =
-  true;
-
-  const renderTask = () => {
-
-    try{
-
-      while(
-
-        chatStreamState
-        .renderQueue
-        .length > 0
-
-      ){
-
-        if(
-          !chatStreamState.active
-          &&
-          chatStreamState.status !==
-          CHAT_STREAM_STATUS.COMPLETED
-        ){
-
-          break;
-
-        }
-
-        const chunk =
-
-          chatStreamState
-          .renderQueue
-          .shift();
-
-        if(
-          typeof chunk !==
-          "string"
-        ){
-
-          continue;
-
-        }
-
-        try{
-
-          if(
-            typeof renderStreamingMessage ===
-            "function"
-          ){
-
-            renderStreamingMessage(
-              chunk
-            );
-
-          }
-
-        }
-
-        catch(error){
-
-          safeLogError?.(
-            "STREAM RENDER TASK ERROR",
-            error
-          );
-
-        }
-
-        chatStreamState
-        .diagnostics
-        .renders++;
-
-      }
-
-    }
-
-    finally{
-
-      chatStreamState
-      .rendering =
-      false;
-
-      chatStreamState
-      .flushFrame =
-      null;
-
-    }
-
-  };
-
-  if(
-
-    typeof requestAnimationFrame ===
-    "function"
-
-  ){
-
-    chatStreamState
-    .flushFrame =
-    requestAnimationFrame(
-      renderTask
-    );
-
-  }
-
-  else{
-
-    renderTask();
-
-  }
-
-  return true;
+  return chunks.join("");
 
 }
 
@@ -601,34 +279,23 @@ function completeChatStream(){
   if(
     !chatStreamState.active
   ){
-
     return false;
-
   }
 
   flushStreamChunks();
 
-  finalizeStreamingMessage?.();
+  chatStreamState.status =
+  CHAT_STREAM_STATUS.COMPLETED;
 
-  chatStreamState
-  .status =
-  CHAT_STREAM_STATUS
-  .COMPLETED;
-
-  chatStreamState
-  .streamEndAt =
+  chatStreamState.streamEndAt =
   Date.now();
 
-  chatStreamState
-  .partialContent =
+  chatStreamState.partialContent =
 
     String(
-
-      chatStreamState
-      .partialContent || ""
-
-    )
-    .trim();
+      chatStreamState.partialContent
+      || ""
+    ).trim();
 
   chatStreamState
   .diagnostics
@@ -639,30 +306,25 @@ function completeChatStream(){
   .push({
 
     id:
-
-      chatStreamState
-      .activeStreamId,
+    chatStreamState
+    .activeStreamId,
 
     messageId:
-
-      chatStreamState
-      .activeMessageId,
+    chatStreamState
+    .activeMessageId,
 
     startedAt:
-
-      chatStreamState
-      .streamStartAt,
+    chatStreamState
+    .streamStartAt,
 
     endedAt:
-
-      chatStreamState
-      .streamEndAt,
+    chatStreamState
+    .streamEndAt,
 
     chunks:
-
-      chatStreamState
-      .diagnostics
-      .chunks
+    chatStreamState
+    .diagnostics
+    .chunks
 
   });
 
@@ -670,12 +332,10 @@ function completeChatStream(){
 
   clearStreamTimers();
 
-  chatStreamState
-  .active =
+  chatStreamState.active =
   false;
 
-  chatStreamState
-  .activeController =
+  chatStreamState.activeController =
   null;
 
   return true;
@@ -704,59 +364,39 @@ function abortChatStream(){
       if(
         !controller.signal.aborted
       ){
-
         controller.abort();
-
       }
 
     }
 
-    catch(error){
-
-      safeLogError?.(
-        "STREAM ABORT ERROR",
-        error
-      );
-
-    }
+    catch(error){}
 
   }
 
   clearStreamTimers();
 
-  abortStreamingMessage?.();
-
-  chatStreamState
-  .active =
+  chatStreamState.active =
   false;
 
-  chatStreamState
-  .aborted =
+  chatStreamState.aborted =
   true;
 
-  chatStreamState
-  .status =
-  CHAT_STREAM_STATUS
-  .ABORTED;
+  chatStreamState.status =
+  CHAT_STREAM_STATUS.ABORTED;
 
-  chatStreamState
-  .streamEndAt =
+  chatStreamState.streamEndAt =
   Date.now();
 
-  chatStreamState
-  .chunkQueue =
+  chatStreamState.chunkQueue =
   [];
 
-  chatStreamState
-  .renderQueue =
+  chatStreamState.chunkBuffer =
   [];
 
-  chatStreamState
-  .chunkBuffer =
+  chatStreamState.renderQueue =
   [];
 
-  chatStreamState
-  .activeController =
+  chatStreamState.activeController =
   null;
 
   chatStreamState
@@ -779,49 +419,32 @@ function failChatStream(
 
   clearStreamTimers();
 
-  abortStreamingMessage?.();
-
-  chatStreamState
-  .active =
+  chatStreamState.active =
   false;
 
-  chatStreamState
-  .status =
-  CHAT_STREAM_STATUS
-  .FAILED;
+  chatStreamState.status =
+  CHAT_STREAM_STATUS.FAILED;
 
-  chatStreamState
-  .streamEndAt =
+  chatStreamState.streamEndAt =
   Date.now();
 
-  chatStreamState
-  .chunkQueue =
+  chatStreamState.chunkQueue =
   [];
 
-  chatStreamState
-  .renderQueue =
+  chatStreamState.chunkBuffer =
   [];
 
-  chatStreamState
-  .chunkBuffer =
+  chatStreamState.renderQueue =
   [];
 
-  chatStreamState
-  .activeController =
+  chatStreamState.activeController =
   null;
 
   chatStreamState
   .diagnostics
   .failed++;
 
-  if(error){
-
-    safeLogError?.(
-      "STREAM FAILURE",
-      error
-    );
-
-  }
+  void error;
 
   return true;
 
