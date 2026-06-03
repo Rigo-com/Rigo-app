@@ -80,7 +80,8 @@ Object.seal({
 
   streamHistory:[],
 
-  diagnostics:Object.seal({
+  diagnostics:
+  Object.seal({
 
     streams:0,
 
@@ -105,18 +106,8 @@ Object.seal({
 
 
 // =====================================
-// INTERNAL HELPERS
+// HELPERS
 // =====================================
-
-function createSnapshot(){
-
-  return structuredClone(
-    chatStreamState
-  );
-
-}
-
-
 
 function trimStreamHistory(){
 
@@ -142,19 +133,294 @@ function trimStreamHistory(){
 
 
 // =====================================
-// GET STATE
+// STATE API
 // =====================================
 
-function getChatStreamState(){
+function setStreamInitialized(
+  value
+){
 
-  return chatStreamState;
+  chatStreamState.initialized =
+  Boolean(value);
+
+}
+
+
+
+function setStreamActive(
+  value
+){
+
+  chatStreamState.active =
+  Boolean(value);
+
+}
+
+
+
+function setStreamPaused(
+  value
+){
+
+  chatStreamState.paused =
+  Boolean(value);
+
+}
+
+
+
+function setStreamAborted(
+  value
+){
+
+  chatStreamState.aborted =
+  Boolean(value);
+
+}
+
+
+
+function setStreamRendering(
+  value
+){
+
+  chatStreamState.rendering =
+  Boolean(value);
+
+}
+
+
+
+function setStreamStatus(
+  status
+){
+
+  chatStreamState.status =
+  status;
+
+}
+
+
+
+function setActiveStreamId(
+  streamId
+){
+
+  chatStreamState.activeStreamId =
+  streamId ?? null;
+
+}
+
+
+
+function setActiveMessageId(
+  messageId
+){
+
+  chatStreamState.activeMessageId =
+  messageId ?? null;
+
+}
+
+
+
+function setCurrentChunk(
+  chunk
+){
+
+  chatStreamState.currentChunk =
+  String(
+    chunk || ""
+  );
+
+}
+
+
+
+function setPartialContent(
+  content
+){
+
+  chatStreamState.partialContent =
+  String(
+    content || ""
+  );
+
+}
+
+
+
+function setBufferedContent(
+  content
+){
+
+  chatStreamState.bufferedContent =
+  String(
+    content || ""
+  );
+
+}
+
+
+
+function setStreamStartAt(
+  timestamp
+){
+
+  chatStreamState.streamStartAt =
+  timestamp ?? null;
+
+}
+
+
+
+function setStreamEndAt(
+  timestamp
+){
+
+  chatStreamState.streamEndAt =
+  timestamp ?? null;
+
+}
+
+
+
+function setLastChunkAt(
+  timestamp
+){
+
+  chatStreamState.lastChunkAt =
+  timestamp ?? null;
+
+}
+
+
+
+function setLastFlushAt(
+  timestamp
+){
+
+  chatStreamState.lastFlushAt =
+  timestamp ?? null;
 
 }
 
 
 
 // =====================================
-// GET SNAPSHOT
+// HISTORY API
+// =====================================
+
+function addStreamHistory(
+  record
+){
+
+  if(
+    !record
+  ){
+    return false;
+  }
+
+  chatStreamState
+  .streamHistory
+  .push(
+    record
+  );
+
+  trimStreamHistory();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS API
+// =====================================
+
+function incrementStreams(){
+
+  chatStreamState
+  .diagnostics
+  .streams++;
+
+}
+
+
+
+function incrementCompleted(){
+
+  chatStreamState
+  .diagnostics
+  .completed++;
+
+}
+
+
+
+function incrementAborted(){
+
+  chatStreamState
+  .diagnostics
+  .aborted++;
+
+}
+
+
+
+function incrementFailed(){
+
+  chatStreamState
+  .diagnostics
+  .failed++;
+
+}
+
+
+
+function incrementChunks(){
+
+  chatStreamState
+  .diagnostics
+  .chunks++;
+
+}
+
+
+
+function incrementFlushes(){
+
+  chatStreamState
+  .diagnostics
+  .flushes++;
+
+}
+
+
+
+function incrementRenders(){
+
+  chatStreamState
+  .diagnostics
+  .renders++;
+
+}
+
+
+
+function incrementDroppedChunks(){
+
+  chatStreamState
+  .diagnostics
+  .droppedChunks++;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
 // =====================================
 
 function getChatStreamSnapshot(){
@@ -162,35 +428,12 @@ function getChatStreamSnapshot(){
   trimStreamHistory();
 
   return Object.freeze(
-    createSnapshot()
+
+    structuredClone(
+      chatStreamState
+    )
+
   );
-
-}
-
-
-
-// =====================================
-// UPDATE STATE
-// =====================================
-
-function updateChatStreamState(
-  updates = {}
-){
-
-  if(
-    !updates ||
-    typeof updates !==
-    "object"
-  ){
-    return false;
-  }
-
-  Object.assign(
-    chatStreamState,
-    updates
-  );
-
-  return true;
 
 }
 
@@ -241,75 +484,34 @@ function resetStreamDiagnostics(){
 
 
 // =====================================
-// RESET STREAM STATE
+// RESET
 // =====================================
 
 function resetChatStreamState(){
 
-  chatStreamState
-  .initialized =
-  false;
+  chatStreamState.initialized = false;
+  chatStreamState.active = false;
+  chatStreamState.paused = false;
+  chatStreamState.aborted = false;
+  chatStreamState.rendering = false;
 
-  chatStreamState
-  .active =
-  false;
+  chatStreamState.status =
+  CHAT_STREAM_STATUS.IDLE;
 
-  chatStreamState
-  .paused =
-  false;
+  chatStreamState.activeStreamId = null;
+  chatStreamState.activeMessageId = null;
 
-  chatStreamState
-  .aborted =
-  false;
+  chatStreamState.currentChunk = "";
+  chatStreamState.partialContent = "";
+  chatStreamState.bufferedContent = "";
 
-  chatStreamState
-  .rendering =
-  false;
+  chatStreamState.streamStartAt = null;
+  chatStreamState.streamEndAt = null;
 
-  chatStreamState
-  .status =
-  CHAT_STREAM_STATUS
-  .IDLE;
+  chatStreamState.lastChunkAt = null;
+  chatStreamState.lastFlushAt = null;
 
-  chatStreamState
-  .activeStreamId =
-  null;
-
-  chatStreamState
-  .activeMessageId =
-  null;
-
-  chatStreamState
-  .currentChunk =
-  "";
-
-  chatStreamState
-  .partialContent =
-  "";
-
-  chatStreamState
-  .bufferedContent =
-  "";
-
-  chatStreamState
-  .streamStartAt =
-  null;
-
-  chatStreamState
-  .streamEndAt =
-  null;
-
-  chatStreamState
-  .lastChunkAt =
-  null;
-
-  chatStreamState
-  .lastFlushAt =
-  null;
-
-  chatStreamState
-  .streamHistory =
-  [];
+  chatStreamState.streamHistory = [];
 
   resetStreamDiagnostics();
 
@@ -326,14 +528,40 @@ function resetChatStreamState(){
 const ChatStreamState =
 Object.freeze({
 
-  get:
-  getChatStreamState,
+  setStreamInitialized,
+  setStreamActive,
+  setStreamPaused,
+  setStreamAborted,
+  setStreamRendering,
+
+  setStreamStatus,
+
+  setActiveStreamId,
+  setActiveMessageId,
+
+  setCurrentChunk,
+  setPartialContent,
+  setBufferedContent,
+
+  setStreamStartAt,
+  setStreamEndAt,
+
+  setLastChunkAt,
+  setLastFlushAt,
+
+  addStreamHistory,
+
+  incrementStreams,
+  incrementCompleted,
+  incrementAborted,
+  incrementFailed,
+  incrementChunks,
+  incrementFlushes,
+  incrementRenders,
+  incrementDroppedChunks,
 
   snapshot:
   getChatStreamSnapshot,
-
-  update:
-  updateChatStreamState,
 
   reset:
   resetChatStreamState,
@@ -353,16 +581,41 @@ export {
 
   CHAT_STREAM_STATUS,
 
-  chatStreamState,
+  setStreamInitialized,
+  setStreamActive,
+  setStreamPaused,
+  setStreamAborted,
+  setStreamRendering,
 
-  getChatStreamState,
+  setStreamStatus,
+
+  setActiveStreamId,
+  setActiveMessageId,
+
+  setCurrentChunk,
+  setPartialContent,
+  setBufferedContent,
+
+  setStreamStartAt,
+  setStreamEndAt,
+
+  setLastChunkAt,
+  setLastFlushAt,
+
+  addStreamHistory,
+
+  incrementStreams,
+  incrementCompleted,
+  incrementAborted,
+  incrementFailed,
+  incrementChunks,
+  incrementFlushes,
+  incrementRenders,
+  incrementDroppedChunks,
 
   getChatStreamSnapshot,
 
-  updateChatStreamState,
-
   resetChatStreamState,
-
   resetStreamDiagnostics,
 
   ChatStreamState
