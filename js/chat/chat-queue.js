@@ -6,6 +6,23 @@
 // =====================================
 
 
+import {
+  CHAT_RUNTIME_CONFIG,
+  CHAT_RUNTIME_EVENTS
+}
+from "./chat-config.js";
+
+import {
+  chatRuntimeState
+}
+from "./chat-state.js";
+
+import {
+  emitChatRuntimeEvent
+}
+from "./chat-events.js";
+
+
 
 // =====================================
 // QUEUE STATE
@@ -17,8 +34,6 @@ Object.seal({
   initialized:false,
 
   processing:false,
-
-  scheduled:false,
 
   activeQueueId:null,
 
@@ -164,14 +179,6 @@ function validateQueueRuntime(){
 
   }
 
-  if(
-    chatRuntimeState.destroyed ===
-    true
-  ){
-
-    return false;
-
-  }
 
   if(
     !Array.isArray(
@@ -915,31 +922,20 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  ChatQueue,
 
-    window,
+  initializeChatQueue,
 
-    "ChatQueue",
+  processAIQueue,
 
-    {
+  getQueueDiagnostics
 
-      value:
-      ChatQueue,
+};
 
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
-
-}
+export default
+ChatQueue;
