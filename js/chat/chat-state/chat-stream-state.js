@@ -195,8 +195,20 @@ function setStreamStatus(
   status
 ){
 
+  if(
+    !Object.values(
+      CHAT_STREAM_STATUS
+    ).includes(
+      status
+    )
+  ){
+    return false;
+  }
+
   chatStreamState.status =
   status;
+
+  return true;
 
 }
 
@@ -579,6 +591,41 @@ function getBufferedContent(){
 
 
 
+function getStreamStartAt(){
+
+  return chatStreamState
+  .streamStartAt;
+
+}
+
+
+
+function getStreamEndAt(){
+
+  return chatStreamState
+  .streamEndAt;
+
+}
+
+
+
+function getLastChunkAt(){
+
+  return chatStreamState
+  .lastChunkAt;
+
+}
+
+
+
+function getLastFlushAt(){
+
+  return chatStreamState
+  .lastFlushAt;
+
+}
+
+
 function getStreamHistory(){
 
   return structuredClone(
@@ -638,6 +685,12 @@ Object.freeze({
 
   getPartialContent,
   getBufferedContent,
+
+  getStreamStartAt,
+  getStreamEndAt,
+
+  getLastChunkAt,
+  getLastFlushAt,
 
   getStreamHistory,
 
@@ -707,6 +760,12 @@ export {
   getPartialContent,
   getBufferedContent,
 
+  getStreamStartAt,
+  getStreamEndAt,
+
+  getLastChunkAt,
+  getLastFlushAt,
+  
   getStreamHistory,
 
   isStreamActive,
