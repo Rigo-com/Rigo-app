@@ -10,9 +10,7 @@
 // =====================================
 
 const CHAT_RUNTIME_CONFIG =
-(typeof deepFreeze === "function"
-? deepFreeze
-: Object.freeze)({
+Object.freeze({
 
   MAX_QUEUE_SIZE:
   100,
@@ -78,46 +76,6 @@ Object.freeze({
 
 
 // =====================================
-// VALID CHAT STATE KEYS
-// =====================================
-
-const VALID_CHAT_STATE_KEYS =
-Object.freeze(
-new Set([
-
-  "initialized",
-
-  "initializing",
-
-  "generating",
-
-  "streaming",
-
-  "syncing",
-
-  "processing",
-
-  "rendering",
-
-  "activeMessageId",
-
-  "generationController",
-
-  "queue",
-
-  "pendingOperations",
-
-  "renderQueue",
-
-  "cache",
-
-  "diagnostics"
-
-]));
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
@@ -128,10 +86,7 @@ Object.freeze({
   CHAT_RUNTIME_CONFIG,
 
   events:
-  CHAT_RUNTIME_EVENTS,
-
-  validStateKeys:
-  VALID_CHAT_STATE_KEYS
+  CHAT_RUNTIME_EVENTS
 
 });
 
@@ -146,8 +101,6 @@ export {
   CHAT_RUNTIME_CONFIG,
 
   CHAT_RUNTIME_EVENTS,
-
-  VALID_CHAT_STATE_KEYS,
 
   ChatConfig
 
