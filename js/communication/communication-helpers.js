@@ -1,427 +1,82 @@
 // =====================================
 // RIGO AI
 // COMMUNICATION HELPERS
+// UTILITY LAYER
 // =====================================
 
+import {
+  COMMUNICATION_TIMERS
+}
+from "./communication-config.js";
+
 
 
 // =====================================
-// SAFE CLONE
+// IDS
 // =====================================
 
-function safeCommunicationClone(
-  value
+function createCommunicationId(
+  prefix = "comm"
 ){
 
-  try{
+  return (
 
-    if(
-      typeof structuredClone ===
-      "function"
-    ){
+    String(prefix)
 
-      return structuredClone(
-        value
-      );
+    + "_"
 
-    }
+    + Date.now()
 
-    return JSON.parse(
-      JSON.stringify(
-        value
-      )
-    );
+    + "_"
 
-  }
+    + Math.random()
+    .toString(36)
+    .slice(2,10)
 
-  catch(error){
-
-    return null;
-
-  }
+  );
 
 }
 
 
 
 // =====================================
-// MESSAGE HASH
+// DELAY
+// =====================================
+
+function waitCommunication(
+  duration =
+  COMMUNICATION_TIMERS
+  .RETRY_DELAY
+){
+
+  return new Promise(
+    resolve => {
+
+      setTimeout(
+        resolve,
+        duration
+      );
+
+    }
+  );
+
+}
+
+
+
+// =====================================
+// HASHING
 // =====================================
 
 function createMessageHash(
-  message
+  value = ""
 ){
 
-  try{
-
-    const normalized =
-
-      JSON.stringify({
-
-        content:
-        message?.content,
-
-        metadata:
-        message?.metadata
-
-      });
-
-    if(
-      typeof btoa ===
-      "function"
-    ){
-
-      return btoa(
-
-        encodeURIComponent(
-          normalized
-        )
-
-      );
-
-    }
-
-    return createCommunicationId(
-      "hash"
-    );
-
-  }
-
-  catch(error){
-
-    return createCommunicationId(
-      "hash"
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// CLEANUP HASHES
-// =====================================
-
-function cleanupProcessedHashes(){
-
-  const now =
-  Date.now();
-
-  communicationRuntimeState
-  .processedHashes
-  .forEach((timestamp,key) => {
-
-    if(
-
-      now - timestamp >
-
-      COMMUNICATION_RUNTIME_CONFIG
-      .HASH_TTL
-
-    ){
-
-      communicationRuntimeState
-      .processedHashes
-      .delete(key);
-
-    }
-
-  });
-
-  if(
-
-    communicationRuntimeState
-    .processedHashes
-    .size <=
-
-    COMMUNICATION_RUNTIME_CONFIG
-    .MAX_HASH_CACHE
-
-  ){
-
-    return;
-  }
-
-  const keys = [
-
-    ...communicationRuntimeState
-    .processedHashes
-    .keys()
-
-  ];
-
-  const overflow =
-
-    keys.length -
-
-    COMMUNICATION_RUNTIME_CONFIG
-    .MAX_HASH_CACHE;
-
-  for(
-    let index = 0;
-    index < overflow;
-    index++
-  ){
-
-    communicationRuntimeState
-    .processedHashes
-    .delete(
-      keys[index]
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// CLEANUP CONVERSATIONS
-// =====================================
-
-function trimConversationHistory(){
-
-  const now =
-  Date.now();
-
-  communicationRuntimeState
-  .conversations
-  .forEach((conversation,key) => {
-
-    if(
-
-      now -
-
-      (
-        conversation?.createdAt ||
-        0
-      )
-
-      >
-
-      COMMUNICATION_RUNTIME_CONFIG
-      .CONVERSATION_TTL
-
-    ){
-
-      communicationRuntimeState
-      .conversations
-      .delete(key);
-
-    }
-
-  });
-
-  if(
-
-    communicationRuntimeState
-    .conversations
-    .size <=
-
-    COMMUNICATION_RUNTIME_CONFIG
-    .MAX_CONVERSATIONS
-
-  ){
-
-    return;
-  }
-
-  const keys = [
-
-    ...communicationRuntimeState
-    .conversations
-    .keys()
-
-  ];
-
-  const overflow =
-
-    keys.length -
-
-    COMMUNICATION_RUNTIME_CONFIG
-    .MAX_CONVERSATIONS;
-
-  for(
-    let index = 0;
-    index < overflow;
-    index++
-  ){
-
-    communicationRuntimeState
-    .conversations
-    .delete(
-      keys[index]
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-async function emitCommunicationEvent(
-  eventName,
-  payload = {}
-){
-
-  if(
-
-    !COMMUNICATION_RUNTIME_CONFIG
-    .ENABLE_EVENTS
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    await emitSystemEvent(
-
-      eventName,
-
-      {
-
-        source:
-        "communication-runtime",
-
-        ...payload
-
-      }
-
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    if(
-      COMMUNICATION_RUNTIME_CONFIG
-      .DEBUG
-    ){
-
-      console.error(
-        "COMMUNICATION_EVENT_ERROR:",
-        error
-      );
-
-    }
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// FREEZE OBJECT
-// =====================================
-
-function freezeCommunicationObject(
-  value,
-  visited = new WeakSet()
-){
-
-  try{
-
-    if(
-
-      !value ||
-
-      typeof value !==
-      "object"
-
-    ){
-
-      return value;
-
-    }
-
-    if(
-
-      value instanceof AbortController ||
-
-      value instanceof AbortSignal ||
-
-      value instanceof Map ||
-
-      value instanceof Set ||
-
-      value instanceof WeakMap ||
-
-      value instanceof WeakSet
-
-    ){
-
-      return value;
-
-    }
-
-    if(
-      visited.has(value)
-    ){
-
-      return value;
-
-    }
-
-    visited.add(
-      value
-    );
-
-    Object.freeze(
-      value
-    );
-
-    Object.values(value)
-    .forEach((nestedValue) => {
-
-      if(
-
-        nestedValue &&
-
-        typeof nestedValue ===
-        "object"
-
-      ){
-
-        freezeCommunicationObject(
-          nestedValue,
-          visited
-        );
-
-      }
-
-    });
-
-    return value;
-
-  }
-
-  catch(error){
-
-    return value;
-
-  }
+  return String(
+    value
+  )
+  .trim()
+  .toLowerCase();
 
 }
 
@@ -431,108 +86,133 @@ function freezeCommunicationObject(
 // VALIDATION
 // =====================================
 
-function validateCommunicationMessage(
-  message
+function isValidRequestId(
+  requestId
 ){
 
-  if(
+  return (
 
-    !message ||
-
-    typeof message !==
-    "object"
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    typeof message.content !==
+    typeof requestId ===
     "string"
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    message.content
-    .trim()
-    .length === 0
-
-  ){
-
-    return false;
-
-  }
-
-  const maxLength =
-
-    Number.isFinite(
-
-      APP_CONFIG
-      ?.CHAT
-      ?.MAX_MESSAGE_LENGTH
-
-    )
-
-    ?
-
-    APP_CONFIG
-    .CHAT
-    .MAX_MESSAGE_LENGTH
-
-    :
-
-    10000;
-
-  if(
-
-    message.content
-    .length >
-
-    maxLength
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    message.metadata !==
-    undefined
 
     &&
 
-    (
+    requestId.length > 0
 
-      typeof message.metadata !==
-      "object"
+  );
 
-      ||
+}
 
-      Array.isArray(
-        message.metadata
-      )
 
-    )
 
+function isValidPayload(
+  payload
+){
+
+  return (
+
+    payload !== null
+
+    &&
+
+    typeof payload ===
+    "object"
+
+  );
+
+}
+
+
+
+function isValidUrl(
+  url
+){
+
+  if(
+    typeof url !==
+    "string"
   ){
+    return false;
+  }
+
+  try{
+
+    new URL(
+      url
+    );
+
+    return true;
+
+  }
+
+  catch{
 
     return false;
 
   }
 
-  return true;
+}
+
+
+
+// =====================================
+// RESPONSE HELPERS
+// =====================================
+
+function isSuccessResponse(
+  response
+){
+
+  return Boolean(
+
+    response
+
+    &&
+
+    response.ok ===
+    true
+
+  );
 
 }
+
+
+
+function normalizeError(
+  error
+){
+
+  if(
+    error instanceof Error
+  ){
+
+    return {
+
+      name:
+      error.name,
+
+      message:
+      error.message
+
+    };
+
+  }
+
+  return {
+
+    name:
+    "Error",
+
+    message:
+    String(
+      error ??
+      "Unknown Error"
+    )
+
+  };
+
+}
+
 
 
 // =====================================
@@ -542,55 +222,51 @@ function validateCommunicationMessage(
 const CommunicationHelpers =
 Object.freeze({
 
-  clone:
-  safeCommunicationClone,
+  createCommunicationId,
 
-  hash:
+  waitCommunication,
+
   createMessageHash,
 
-  cleanupHashes:
-  cleanupProcessedHashes,
+  isValidRequestId,
 
-  trimConversations:
-  trimConversationHistory,
+  isValidPayload,
 
-  emitEvent:
-  emitCommunicationEvent,
+  isValidUrl,
 
-  freeze:
-  freezeCommunicationObject,
+  isSuccessResponse,
 
-  validateMessage:
-  validateCommunicationMessage
+  normalizeError
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window
-  .CommunicationHelpers =
-  CommunicationHelpers;
+  createCommunicationId,
 
-}
+  waitCommunication,
 
+  createMessageHash,
 
+  isValidRequestId,
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  isValidPayload,
 
-  globalThis
-  .CommunicationHelpers =
-  CommunicationHelpers;
+  isValidUrl,
 
-}
+  isSuccessResponse,
+
+  normalizeError,
+
+  CommunicationHelpers
+
+};
+
+export default
+CommunicationHelpers;
