@@ -1,265 +1,150 @@
 // =====================================
 // RIGO AI
-// CHAT MESSAGE SERVICE
+// CHAT MESSAGE STATE
 // =====================================
-
-import {
-
-  addMessage,
-
-  updateMessageRecord,
-
-  removeMessage,
-
-  getMessage as getStoredMessage,
-
-  getMessages as getStoredMessages,
-
-  hasMessage,
-
-  getMessageCount,
-
-  incrementCreated,
-
-  incrementUpdated,
-
-  incrementDeleted,
-
-  getChatMessageSnapshot,
-
-  resetChatMessageState
-
-}
-from "../chat-state/chat-message-state.js";
-
-import {
-  emit
-}
-from "../chat-events/chat-events.js";
-
-import {
-  CHAT_EVENTS
-}
-from "../chat-config.js";
 
 
 
 // =====================================
-// SERVICE STATE
+// STATE
 // =====================================
 
-const serviceState =
+const chatMessageState =
 Object.seal({
 
-  initialized:false
+  activeMessageId:null,
+
+  lastMessageId:null,
+
+  messageOrder:[],
+
+  messages:
+  new Map(),
+
+  diagnostics:
+  Object.seal({
+
+    created:0,
+
+    updated:0,
+
+    deleted:0,
+
+    cleared:0
+
+  })
 
 });
 
 
 
-let messageCounter = 0;
-
-
-
 // =====================================
-// HELPERS
+// READ API
 // =====================================
 
-function createMessageId(){
-
-  messageCounter++;
-
-  return (
-    "msg_" +
-    Date.now() +
-    "_" +
-    messageCounter
-  );
-
-}
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-function initialize(){
-
-  if(
-    serviceState.initialized
-  ){
-    return true;
-  }
-
-  serviceState.initialized =
-  true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// DESTROY
-// =====================================
-
-function destroy(){
-
-  reset();
-
-  serviceState.initialized =
-  false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
-
-function reset(){
-
-  messageCounter = 0;
-
-  resetChatMessageState();
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CREATE MESSAGE
-// =====================================
-
-function createMessage(
-  payload = {}
+function getMessage(
+  messageId
 ){
 
-  const message = {
-
-    id:
-    createMessageId(),
-
-    role:
-    String(
-      payload.role ||
-      "assistant"
-    ),
-
-    content:
-    String(
-      payload.content ||
-      ""
-    ),
-
-    metadata:
-    payload.metadata ||
-    {},
-
-    createdAt:
-    Date.now(),
-
-    updatedAt:
-    Date.now()
-
-  };
-
-  addMessage(
-    message
-  );
-
-  incrementCreated();
-
-  emit(
-    CHAT_EVENTS
-    .MESSAGE_CREATED,
-    structuredClone(
-      message
-    )
-  );
-
-  return structuredClone(
-    message
+  return (
+    chatMessageState
+    .messages
+    .get(messageId)
+    ?? null
   );
 
 }
 
 
 
+function getMessages(){
+
+  return Array.from(
+
+    chatMessageState
+    .messages
+    .values()
+
+  );
+
+}
+
+
+
+function hasMessage(
+  messageId
+){
+
+  return chatMessageState
+  .messages
+  .has(messageId);
+
+}
+
+
+
+function getMessageCount(){
+
+  return chatMessageState
+  .messages
+  .size;
+
+}
+
+
+
 // =====================================
-// UPDATE MESSAGE
+// WRITE API
 // =====================================
 
-function updateMessage(
+function addMessage(
+  message
+){
+
+  if(
+    !message ||
+    !message.id
+  ){
+    return false;
+  }
+
+  chatMessageState
+  .messages
+  .set(
+    message.id,
+    message
+  );
+
+  chatMessageState
+  .messageOrder
+  .push(
+    message.id
+  );
+
+  chatMessageState
+  .activeMessageId =
+  message.id;
+
+  chatMessageState
+  .lastMessageId =
+  message.id;
+
+  return true;
+
+}
+
+
+
+function updateMessageRecord(
   messageId,
   updates = {}
 ){
 
-  if(
-    !hasMessage(
-      messageId
-    )
-  ){
-    return null;
-  }
-
-  updateMessageRecord(
-
-    messageId,
-
-    {
-
-      ...updates,
-
-      updatedAt:
-      Date.now()
-
-    }
-
-  );
-
   const message =
-  getStoredMessage(
-    messageId
-  );
 
-  incrementUpdated();
-
-  emit(
-    CHAT_EVENTS
-    .MESSAGE_UPDATED,
-    structuredClone(
-      message
-    )
-  );
-
-  return structuredClone(
-    message
-  );
-
-}
-
-
-
-// =====================================
-// DELETE MESSAGE
-// =====================================
-
-function deleteMessage(
-  messageId
-){
-
-  const message =
-  getStoredMessage(
-    messageId
-  );
+    chatMessageState
+    .messages
+    .get(messageId);
 
   if(
     !message
@@ -267,18 +152,9 @@ function deleteMessage(
     return false;
   }
 
-  removeMessage(
-    messageId
-  );
-
-  incrementDeleted();
-
-  emit(
-    CHAT_EVENTS
-    .MESSAGE_DELETED,
-    structuredClone(
-      message
-    )
+  Object.assign(
+    message,
+    updates
   );
 
   return true;
@@ -287,70 +163,106 @@ function deleteMessage(
 
 
 
-// =====================================
-// GET MESSAGE
-// =====================================
-
-function getMessage(
+function removeMessage(
   messageId
 ){
 
-  const message =
-  getStoredMessage(
+  if(
+    !hasMessage(
+      messageId
+    )
+  ){
+    return false;
+  }
+
+  chatMessageState
+  .messages
+  .delete(
     messageId
   );
 
+  const index =
+
+    chatMessageState
+    .messageOrder
+    .indexOf(
+      messageId
+    );
+
   if(
-    !message
+    index >= 0
   ){
-    return null;
+
+    chatMessageState
+    .messageOrder
+    .splice(
+      index,
+      1
+    );
+
   }
 
-  return structuredClone(
-    message
-  );
+  return true;
+
+}
+
+
+
+function clearMessages(){
+
+  chatMessageState
+  .messages
+  .clear();
+
+  chatMessageState
+  .messageOrder
+  .length = 0;
+
+  return true;
 
 }
 
 
 
 // =====================================
-// GET ALL MESSAGES
+// DIAGNOSTICS
 // =====================================
 
-function getMessages(){
+function incrementCreated(){
 
-  return getStoredMessages()
-  .map(
-
-    message =>
-
-    structuredClone(
-      message
-    )
-
-  );
+  chatMessageState
+  .diagnostics
+  .created++;
 
 }
 
 
 
-// =====================================
-// STATUS
-// =====================================
+function incrementUpdated(){
 
-function getStatus(){
+  chatMessageState
+  .diagnostics
+  .updated++;
 
-  return Object.freeze({
+}
 
-    initialized:
-    serviceState
-    .initialized,
 
-    messages:
-    getMessageCount()
 
-  });
+function incrementDeleted(){
+
+  chatMessageState
+  .diagnostics
+  .deleted++;
+
+}
+
+
+
+function incrementCleared(){
+
+  chatMessageState
+  .diagnostics
+  .cleared++;
 
 }
 
@@ -360,9 +272,81 @@ function getStatus(){
 // SNAPSHOT
 // =====================================
 
-function getSnapshot(){
+function getChatMessageSnapshot(){
 
-  return getChatMessageSnapshot();
+  return Object.freeze({
+
+    activeMessageId:
+    chatMessageState
+    .activeMessageId,
+
+    lastMessageId:
+    chatMessageState
+    .lastMessageId,
+
+    messageOrder:[
+      ...chatMessageState
+      .messageOrder
+    ],
+
+    messages:
+
+    Array.from(
+      chatMessageState
+      .messages
+      .values()
+    ).map(
+      message =>
+      structuredClone(
+        message
+      )
+    ),
+
+    diagnostics:
+    structuredClone(
+      chatMessageState
+      .diagnostics
+    )
+
+  });
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function resetChatMessageState(){
+
+  chatMessageState
+  .activeMessageId =
+  null;
+
+  chatMessageState
+  .lastMessageId =
+  null;
+
+  clearMessages();
+
+  chatMessageState
+  .diagnostics
+  .created = 0;
+
+  chatMessageState
+  .diagnostics
+  .updated = 0;
+
+  chatMessageState
+  .diagnostics
+  .deleted = 0;
+
+  chatMessageState
+  .diagnostics
+  .cleared = 0;
+
+  return true;
 
 }
 
@@ -372,35 +356,38 @@ function getSnapshot(){
 // PUBLIC API
 // =====================================
 
-const ChatMessageService =
+const ChatMessageState =
 Object.freeze({
 
-  initialize,
-
-  destroy,
-
-  reset,
-
-  status:
-  getStatus,
-
-  snapshot:
-  getSnapshot,
-
-  create:
-  createMessage,
-
-  update:
-  updateMessage,
-
-  delete:
-  deleteMessage,
-
-  get:
   getMessage,
 
-  getAll:
-  getMessages
+  getMessages,
+
+  hasMessage,
+
+  getMessageCount,
+
+  addMessage,
+
+  updateMessageRecord,
+
+  removeMessage,
+
+  clearMessages,
+
+  incrementCreated,
+
+  incrementUpdated,
+
+  incrementDeleted,
+
+  incrementCleared,
+
+  snapshot:
+  getChatMessageSnapshot,
+
+  reset:
+  resetChatMessageState
 
 });
 
@@ -412,29 +399,27 @@ Object.freeze({
 
 export {
 
-  initialize,
-
-  destroy,
-
-  reset,
-
-  createMessage,
-
-  updateMessage,
-
-  deleteMessage,
-
   getMessage,
-
   getMessages,
+  hasMessage,
+  getMessageCount,
 
-  getStatus,
+  addMessage,
+  updateMessageRecord,
+  removeMessage,
+  clearMessages,
 
-  getSnapshot,
+  incrementCreated,
+  incrementUpdated,
+  incrementDeleted,
+  incrementCleared,
 
-  ChatMessageService
+  getChatMessageSnapshot,
+  resetChatMessageState,
+
+  ChatMessageState
 
 };
 
 export default
-ChatMessageService;
+ChatMessageState;
