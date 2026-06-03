@@ -1,30 +1,97 @@
 // =====================================
 // RIGO AI
 // COMMUNICATION ABORT
+// ABORT CONTROLLER LAYER
 // =====================================
 
+import {
+
+  registerAbortController,
+
+  getAbortController,
+
+  removeAbortController
+
+}
+from "./communication-state.js";
+
+import {
+  COMMUNICATION_EVENTS
+}
+from "./communication-config.js";
+
+import {
+  emit
+}
+from "../chat-events/chat-events.js";
+
 
 
 // =====================================
-// ABORT MESSAGE
+// CREATE CONTROLLER
 // =====================================
 
-async function abortCommunicationMessage(
+function createAbortController(
+  requestId
+){
+
+  if(
+    !requestId
+  ){
+    return null;
+  }
+
+  const controller =
+  new AbortController();
+
+  registerAbortController(
+
+    requestId,
+
+    controller
+
+  );
+
+  return controller;
+
+}
+
+
+
+// =====================================
+// GET CONTROLLER
+// =====================================
+
+function getController(
+  requestId
+){
+
+  return getAbortController(
+    requestId
+  );
+
+}
+
+
+
+// =====================================
+// ABORT REQUEST
+// =====================================
+
+function abortRequest(
   requestId
 ){
 
   const controller =
 
-    communicationRuntimeState
-    .abortControllers
-    .get(
+    getAbortController(
       requestId
     );
 
-  if(!controller){
-
+  if(
+    !controller
+  ){
     return false;
-
   }
 
   try{
@@ -39,26 +106,14 @@ async function abortCommunicationMessage(
 
   }
 
-  communicationRuntimeState
-  .abortControllers
-  .delete(
+  removeAbortController(
     requestId
   );
 
-  communicationRuntimeState
-  .activeRequests
-  .delete(
-    requestId
-  );
+  emit(
 
-  communicationRuntimeState
-  .diagnostics
-  .aborted++;
-
-  await emitCommunicationEvent(
-
-    COMMUNICATION_RUNTIME_EVENTS
-    .MESSAGE_ABORTED,
+    COMMUNICATION_EVENTS
+    .REQUEST_ABORTED,
 
     {
 
@@ -78,41 +133,66 @@ async function abortCommunicationMessage(
 // ABORT ALL
 // =====================================
 
-function abortAllCommunicationMessages(){
+function abortAllRequests(){
 
-  communicationRuntimeState
-  .diagnostics
-  .aborted +=
+  const controllers =
 
-  communicationRuntimeState
-  .abortControllers
-  .size;
+    Array.from(
 
-  communicationRuntimeState
-  .abortControllers
-  .forEach((controller) => {
+      communicationState
+      .abortControllers
+      .keys()
 
-    try{
+    );
 
-      controller.abort();
+  for(
+    const requestId
+    of controllers
+  ){
 
-    }
+    abortRequest(
+      requestId
+    );
 
-    catch(error){
-
-    }
-
-  });
-
-  communicationRuntimeState
-  .abortControllers
-  .clear();
-
-  communicationRuntimeState
-  .activeRequests
-  .clear();
+  }
 
   return true;
+
+}
+
+
+
+// =====================================
+// CLEANUP
+// =====================================
+
+function cleanupAbortController(
+  requestId
+){
+
+  return removeAbortController(
+    requestId
+  );
+
+}
+
+
+
+// =====================================
+// STATUS
+// =====================================
+
+function getStatus(){
+
+  return Object.freeze({
+
+    activeControllers:
+
+      communicationState
+      .abortControllers
+      .size
+
+  });
 
 }
 
@@ -125,38 +205,44 @@ function abortAllCommunicationMessages(){
 const CommunicationAbort =
 Object.freeze({
 
-  abort:
-  abortCommunicationMessage,
+  createAbortController,
 
-  abortAll:
-  abortAllCommunicationMessages
+  getController,
+
+  abortRequest,
+
+  abortAllRequests,
+
+  cleanupAbortController,
+
+  status:
+  getStatus
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.CommunicationAbort =
-  CommunicationAbort;
+  createAbortController,
 
-}
+  getController,
 
+  abortRequest,
 
+  abortAllRequests,
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  cleanupAbortController,
 
-  globalThis.CommunicationAbort =
-  CommunicationAbort;
+  getStatus,
 
-}
+  CommunicationAbort
+
+};
+
+export default
+CommunicationAbort;
