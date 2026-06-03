@@ -202,9 +202,7 @@ function unregisterRequest(
   requestId
 ){
 
-  return
-
-  communicationState
+  return communicationState
   .activeRequests
   .delete(
     requestId
@@ -218,15 +216,17 @@ function getRequest(
   requestId
 ){
 
-  return
+  return (
 
-  communicationState
-  .activeRequests
-  .get(
-    requestId
-  )
+    communicationState
+    .activeRequests
+    .get(
+      requestId
+    )
 
-  ?? null;
+    ?? null
+
+  );
 
 }
 
@@ -267,15 +267,17 @@ function getAbortController(
   requestId
 ){
 
-  return
+  return (
 
-  communicationState
-  .abortControllers
-  .get(
-    requestId
-  )
+    communicationState
+    .abortControllers
+    .get(
+      requestId
+    )
 
-  ?? null;
+    ?? null
+
+  );
 
 }
 
@@ -285,9 +287,7 @@ function removeAbortController(
   requestId
 ){
 
-  return
-
-  communicationState
+  return communicationState
   .abortControllers
   .delete(
     requestId
@@ -358,9 +358,7 @@ function hasHash(
   hash
 ){
 
-  return
-
-  communicationState
+  return communicationState
   .processedHashes
   .has(
     hash
@@ -513,6 +511,23 @@ function getCommunicationSnapshot(){
 
 
 // =====================================
+// DIAGNOSTICS SNAPSHOT
+// =====================================
+
+function getCommunicationDiagnostics(){
+
+  return Object.freeze({
+
+    ...communicationState
+    .diagnostics
+
+  });
+
+}
+
+
+
+// =====================================
 // RESET
 // =====================================
 
@@ -636,6 +651,9 @@ Object.freeze({
   snapshot:
   getCommunicationSnapshot,
 
+  diagnostics:
+  getCommunicationDiagnostics,
+
   reset:
   resetCommunicationState
 
@@ -698,6 +716,8 @@ export {
   incrementCacheMisses,
 
   getCommunicationSnapshot,
+
+  getCommunicationDiagnostics,
 
   resetCommunicationState,
 
