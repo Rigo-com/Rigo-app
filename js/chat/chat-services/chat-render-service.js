@@ -80,13 +80,21 @@ function createRenderTaskId(){
 function cancelRenderFrame(){
 
   if(
+    renderRuntime.frameId ===
+    null
+  ){
+    return true;
+  }
+
+  if(
 
     typeof cancelAnimationFrame ===
     "function"
 
     &&
 
-    renderRuntime.frameId
+    typeof requestAnimationFrame ===
+    "function"
 
   ){
 
@@ -96,8 +104,18 @@ function cancelRenderFrame(){
 
   }
 
+  else{
+
+    clearTimeout(
+      renderRuntime.frameId
+    );
+
+  }
+
   renderRuntime.frameId =
   null;
+
+  return true;
 
 }
 
@@ -114,15 +132,34 @@ function scheduleRender(){
   renderRuntime.scheduled =
   true;
 
-  renderRuntime.frameId =
+  if(
+    typeof requestAnimationFrame ===
+    "function"
+  ){
 
-    requestAnimationFrame(
-      renderBatch
-    );
+    renderRuntime.frameId =
+
+      requestAnimationFrame(
+        renderBatch
+      );
+
+  }
+
+  else{
+
+    renderRuntime.frameId =
+
+      setTimeout(
+        renderBatch,
+        0
+      );
+
+  }
 
   return true;
 
 }
+
 
 
 
