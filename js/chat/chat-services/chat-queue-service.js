@@ -275,6 +275,13 @@ function complete(
   }
 
   incrementCompleted();
+  emit(
+  CHAT_EVENTS
+  .QUEUE_COMPLETED,
+  structuredClone(
+    item
+  )
+);
 
   return true;
 
@@ -302,6 +309,13 @@ function fail(
   }
 
   incrementFailed();
+  emit(
+  CHAT_EVENTS
+  .QUEUE_FAILED,
+  structuredClone(
+    item
+  )
+);
 
   return true;
 
@@ -370,6 +384,11 @@ function startProcessing(){
 
   setQueueProcessing(
     true
+  );
+
+  emit(
+    CHAT_EVENTS
+    .QUEUE_STARTED
   );
 
   return true;
