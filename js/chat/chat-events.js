@@ -76,7 +76,7 @@ export async function emitChatRuntimeEvent(
 
       normalizedEvent,
 
-      Object.freeze({
+      {
 
         source:
         "chat-runtime",
@@ -86,7 +86,7 @@ export async function emitChatRuntimeEvent(
 
         ...safePayload
 
-      })
+      }
 
     );
 
@@ -95,11 +95,6 @@ export async function emitChatRuntimeEvent(
   }
 
   catch(error){
-
-    console.error(
-      "CHAT EVENT ERROR:",
-      error
-    );
 
     return false;
 
