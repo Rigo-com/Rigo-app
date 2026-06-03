@@ -148,10 +148,6 @@ function resetChatDiagnostics(){
 
   chatState
   .diagnostics
-  .resets = 0;
-
-  chatState
-  .diagnostics
   .renders = 0;
 
   return true;
