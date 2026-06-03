@@ -54,7 +54,7 @@ function initializeChatStream(){
 // START STREAM
 // =====================================
 
-function startChatStreamTimers(
+function startChatStream(
   messageId
 ){
 
