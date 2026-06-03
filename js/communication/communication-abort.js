@@ -6,9 +6,13 @@
 
 import {
 
-  registerAbortController,
-
   getAbortController,
+
+  getAbortControllers,
+
+  getAbortControllerCount,
+
+  registerAbortController,
 
   removeAbortController
 
@@ -100,7 +104,7 @@ function abortRequest(
 
   }
 
-  catch(error){
+  catch{
 
     return false;
 
@@ -116,9 +120,7 @@ function abortRequest(
     .REQUEST_ABORTED,
 
     {
-
       requestId
-
     }
 
   );
@@ -137,16 +139,10 @@ function abortAllRequests(){
 
   const controllers =
 
-    Array.from(
-
-      communicationState
-      .abortControllers
-      .keys()
-
-    );
+    getAbortControllers();
 
   for(
-    const requestId
+    const [requestId]
     of controllers
   ){
 
@@ -188,9 +184,7 @@ function getStatus(){
 
     activeControllers:
 
-      communicationState
-      .abortControllers
-      .size
+    getAbortControllerCount()
 
   });
 
