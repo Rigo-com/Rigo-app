@@ -72,6 +72,49 @@ function wait(
 
 
 // =====================================
+// CREATE STREAM ID
+// =====================================
+
+function createStreamId(){
+
+  try{
+
+    if(
+      typeof crypto !==
+      "undefined"
+      &&
+      typeof crypto.randomUUID ===
+      "function"
+    ){
+
+      return (
+        "stream_" +
+        crypto.randomUUID()
+      );
+
+    }
+
+  }
+
+  catch(error){}
+
+  return [
+
+    "stream",
+
+    Date.now(),
+
+    Math.random()
+    .toString(36)
+    .slice(2,10)
+
+  ].join("_");
+
+}
+
+
+
+// =====================================
 // CREATE QUEUE ITEM
 // =====================================
 
@@ -203,6 +246,8 @@ Object.freeze({
 
   createQueueItem,
 
+  createStreamId,
+
   continueQueueProcessing
 
 });
@@ -220,6 +265,8 @@ export {
   wait,
 
   createQueueItem,
+
+  createStreamId,
 
   continueQueueProcessing,
 
