@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // CHAT EVENTS
-// EVENT BUS LAYER
+// EVENT BUS SERVICE
 // =====================================
 
 import {
@@ -12,28 +12,55 @@ from "../chat-config.js";
 
 
 // =====================================
-// EVENT LISTENERS
+// EVENT STATE
 // =====================================
 
-const eventListeners =
-new Map();
+const eventState =
+Object.seal({
+
+  initialized:false,
+
+  listeners:
+  new Map()
+
+});
 
 
 
 // =====================================
-// VALIDATION
+// INITIALIZE
 // =====================================
 
-function isValidEvent(
-  eventName
-){
+function initializeChatEvents(){
 
-  return (
-    typeof eventName ===
-    "string"
-    &&
-    eventName.length > 0
-  );
+  if(
+    eventState.initialized
+  ){
+    return true;
+  }
+
+  eventState.initialized =
+  true;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DESTROY
+// =====================================
+
+function destroyChatEvents(){
+
+  eventState.listeners
+  .clear();
+
+  eventState.initialized =
+  false;
+
+  return true;
 
 }
 
@@ -49,12 +76,6 @@ function on(
 ){
 
   if(
-    !isValidEvent(eventName)
-  ){
-    return false;
-  }
-
-  if(
     typeof listener !==
     "function"
   ){
@@ -62,19 +83,19 @@ function on(
   }
 
   if(
-    !eventListeners.has(
+    !eventState.listeners.has(
       eventName
     )
   ){
 
-    eventListeners.set(
+    eventState.listeners.set(
       eventName,
       new Set()
     );
 
   }
 
-  eventListeners
+  eventState.listeners
   .get(eventName)
   .add(listener);
 
@@ -94,7 +115,7 @@ function off(
 ){
 
   const listeners =
-  eventListeners.get(
+  eventState.listeners.get(
     eventName
   );
 
@@ -108,16 +129,6 @@ function off(
     listener
   );
 
-  if(
-    listeners.size <= 0
-  ){
-
-    eventListeners.delete(
-      eventName
-    );
-
-  }
-
   return true;
 
 }
@@ -125,7 +136,7 @@ function off(
 
 
 // =====================================
-// SUBSCRIBE ONCE
+// ONCE
 // =====================================
 
 function once(
@@ -167,7 +178,7 @@ function emit(
 ){
 
   const listeners =
-  eventListeners.get(
+  eventState.listeners.get(
     eventName
   );
 
@@ -193,7 +204,7 @@ function emit(
     catch(error){
 
       console.error(
-        "[RIGO CHAT EVENT]",
+        "[CHAT EVENT]",
         error
       );
 
@@ -208,16 +219,15 @@ function emit(
 
 
 // =====================================
-// CLEAR EVENT
+// CLEAR
 // =====================================
 
 function clearEvent(
   eventName
 ){
 
-  eventListeners.delete(
-    eventName
-  );
+  eventState.listeners
+  .delete(eventName);
 
   return true;
 
@@ -226,12 +236,13 @@ function clearEvent(
 
 
 // =====================================
-// CLEAR ALL EVENTS
+// CLEAR ALL
 // =====================================
 
 function clearAllEvents(){
 
-  eventListeners.clear();
+  eventState.listeners
+  .clear();
 
   return true;
 
@@ -240,7 +251,7 @@ function clearAllEvents(){
 
 
 // =====================================
-// EVENT STATS
+// STATS
 // =====================================
 
 function getEventStats(){
@@ -249,7 +260,7 @@ function getEventStats(){
 
   for(
     const listeners
-    of eventListeners.values()
+    of eventState.listeners.values()
   ){
 
     listenerCount +=
@@ -259,8 +270,11 @@ function getEventStats(){
 
   return Object.freeze({
 
+    initialized:
+    eventState.initialized,
+
     events:
-    eventListeners.size,
+    eventState.listeners.size,
 
     listeners:
     listenerCount
@@ -278,8 +292,11 @@ function getEventStats(){
 const ChatEvents =
 Object.freeze({
 
-  events:
-  CHAT_EVENTS,
+  initialize:
+  initializeChatEvents,
+
+  destroy:
+  destroyChatEvents,
 
   on,
 
@@ -296,7 +313,10 @@ Object.freeze({
   clearAllEvents,
 
   stats:
-  getEventStats
+  getEventStats,
+
+  events:
+  CHAT_EVENTS
 
 });
 
@@ -307,6 +327,10 @@ Object.freeze({
 // =====================================
 
 export {
+
+  initializeChatEvents,
+
+  destroyChatEvents,
 
   on,
 
