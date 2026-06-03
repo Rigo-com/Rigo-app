@@ -3,11 +3,6 @@
 // CHAT UTILS
 // =====================================
 
-import {
-  chatRuntimeState
-}
-from "./chat-state.js";
-
 
 
 // =====================================
@@ -85,11 +80,13 @@ export function createQueueItem(
 ){
 
   if(
-    !messageId
+    typeof messageId !==
+    "string"
+    &&
+    typeof messageId !==
+    "number"
   ){
-
     return null;
-
   }
 
   return Object.freeze({
@@ -103,5 +100,90 @@ export function createQueueItem(
     retries:0
 
   });
+
+}
+
+
+
+// =====================================
+// QUEUE SCHEDULER
+// =====================================
+
+let queueProcessingScheduled =
+false;
+
+export async function continueQueueProcessing(
+  processor,
+  runtimeState
+){
+
+  if(
+    !runtimeState ||
+    typeof runtimeState !==
+    "object"
+  ){
+    return false;
+  }
+  
+  if(
+    queueProcessingScheduled
+  ){
+    return false;
+  }
+
+  if(
+    runtimeState?.processing
+  ){
+    return false;
+  }
+
+  if(
+    runtimeState?.generating
+  ){
+    return false;
+  }
+
+  if(
+    !Array.isArray(
+      runtimeState?.queue
+    )
+    ||
+    runtimeState.queue.length <= 0
+  ){
+    return false;
+  }
+
+  if(
+    typeof processor !==
+    "function"
+  ){
+    return false;
+  }
+
+  queueProcessingScheduled =
+  true;
+
+  try{
+
+    await Promise.resolve();
+
+    await processor();
+
+    return true;
+
+  }
+
+  catch(error){
+
+    return false;
+
+  }
+
+  finally{
+
+    queueProcessingScheduled =
+    false;
+
+  }
 
 }
