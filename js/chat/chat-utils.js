@@ -1,8 +1,20 @@
 // =====================================
+// RIGO AI
+// CHAT UTILS
+// =====================================
+
+import {
+  chatRuntimeState
+}
+from "./chat-state.js";
+
+
+
+// =====================================
 // SAFE CHAT CLONE
 // =====================================
 
-function safeChatClone(
+export function safeChatClone(
   value
 ){
 
@@ -29,17 +41,6 @@ function safeChatClone(
 
   catch(error){
 
-    try{
-
-      console.error(
-        "SAFE CHAT CLONE ERROR:",
-        error
-      );
-
-    }
-
-    catch(logError){}
-
     return null;
 
   }
@@ -52,7 +53,7 @@ function safeChatClone(
 // WAIT
 // =====================================
 
-function wait(
+export function wait(
   duration = 0
 ){
 
@@ -79,7 +80,7 @@ function wait(
 // CREATE QUEUE ITEM
 // =====================================
 
-function createQueueItem(
+export function createQueueItem(
   messageId
 ){
 
@@ -102,108 +103,5 @@ function createQueueItem(
     retries:0
 
   });
-
-}
-
-
-
-// =====================================
-// CONTINUE QUEUE
-// =====================================
-
-let queueProcessingScheduled =
-false;
-
-async function continueQueueProcessing(){
-
-  if(
-    queueProcessingScheduled
-  ){
-
-    return false;
-
-  }
-
-  if(
-    chatRuntimeState.processing
-  ){
-
-    return false;
-
-  }
-
-  if(
-    chatRuntimeState.generating
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    !Array.isArray(
-      chatRuntimeState.queue
-    )
-
-    ||
-
-    chatRuntimeState.queue
-    .length <= 0
-
-  ){
-
-    return false;
-
-  }
-
-  queueProcessingScheduled =
-  true;
-
-  try{
-
-    await Promise.resolve();
-
-    if(
-      typeof processAIQueue !==
-      "function"
-    ){
-
-      return false;
-
-    }
-
-    await processAIQueue();
-
-    return true;
-
-  }
-
-  catch(error){
-
-    try{
-
-      console.error(
-
-        "QUEUE CONTINUE ERROR:",
-
-        error
-
-      );
-
-    }
-
-    catch(logError){}
-
-    return false;
-
-  }
-
-  finally{
-
-    queueProcessingScheduled =
-    false;
-
-  }
 
 }
