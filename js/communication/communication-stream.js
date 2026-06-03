@@ -1,202 +1,174 @@
 // =====================================
 // RIGO AI
 // COMMUNICATION STREAM
+// NETWORK STREAM LAYER
 // =====================================
 
+import {
+  COMMUNICATION_EVENTS
+}
+from "./communication-config.js";
+
+import {
+  emit
+}
+from "../chat-events/chat-events.js";
+
+import ChatStreamService
+from "../chat/chat-services/chat-stream-service.js";
+
 
 
 // =====================================
-// START STREAM
+// STREAM READER
 // =====================================
 
-async function startCommunicationStream(
-  streamId
+async function processStream(
+  response
 ){
 
   if(
-
-    typeof streamId !==
-    "string"
-
-    ||
-
-    streamId.trim()
-    .length === 0
-
+    !response
   ){
-
     return false;
-
   }
 
   if(
-
-    communicationRuntimeState
-    .activeStreams
-    .has(streamId)
-
+    !response.body
   ){
+    return false;
+  }
+
+  const reader =
+  response.body.getReader();
+
+  const decoder =
+  new TextDecoder();
+
+  emit(
+    COMMUNICATION_EVENTS
+    .STREAM_STARTED
+  );
+
+  try{
+
+    while(true){
+
+      const {
+
+        done,
+
+        value
+
+      } = await reader.read();
+
+      if(
+        done
+      ){
+        break;
+      }
+
+      const chunk =
+
+        decoder.decode(
+          value,
+          {
+            stream:true
+          }
+        );
+
+      if(
+        chunk
+      ){
+
+        ChatStreamService
+        .pushChunk(
+          chunk
+        );
+
+        emit(
+
+          COMMUNICATION_EVENTS
+          .STREAM_UPDATED,
+
+          {
+            chunk
+          }
+
+        );
+
+      }
+
+    }
+
+    ChatStreamService
+    .complete();
+
+    emit(
+      COMMUNICATION_EVENTS
+      .STREAM_COMPLETED
+    );
+
+    return true;
+
+  }
+
+  catch(error){
+
+    ChatStreamService
+    .fail(
+      error
+    );
+
+    emit(
+
+      COMMUNICATION_EVENTS
+      .STREAM_ABORTED,
+
+      {
+        error
+      }
+
+    );
 
     return false;
 
   }
-
-  communicationRuntimeState
-  .streaming =
-  true;
-
-  communicationRuntimeState
-  .activeStreams
-  .set(
-
-    streamId,
-
-    freezeCommunicationObject({
-
-      id:
-      String(streamId),
-
-      startedAt:
-      Date.now(),
-
-      status:
-      "active"
-
-    })
-
-  );
-
-  communicationRuntimeState
-  .diagnostics
-  .streams++;
-
-  setCommunicationState(
-
-    COMMUNICATION_RUNTIME_STATES
-    .STREAMING
-
-  );
-
-  await emitCommunicationEvent(
-
-    COMMUNICATION_RUNTIME_EVENTS
-    .STREAM_STARTED,
-
-    {
-
-      streamId:
-      String(streamId)
-
-    }
-
-  );
-
-  return true;
 
 }
 
 
 
 // =====================================
-// STOP STREAM
+// CANCEL STREAM
 // =====================================
 
-async function stopCommunicationStream(
-  streamId
+async function cancelStream(
+  reader
 ){
 
   if(
-
-    typeof streamId !==
-    "string"
-
-    ||
-
-    streamId.trim()
-    .length === 0
-
+    !reader
   ){
+    return false;
+  }
+
+  try{
+
+    await reader.cancel();
+
+    return true;
+
+  }
+
+  catch{
 
     return false;
 
   }
-
-  if(
-
-    !communicationRuntimeState
-    .activeStreams
-    .has(streamId)
-
-  ){
-
-    return false;
-
-  }
-
-  communicationRuntimeState
-  .activeStreams
-  .delete(
-    streamId
-  );
-
-  if(
-
-    communicationRuntimeState
-    .activeStreams
-    .size === 0
-
-  ){
-
-    communicationRuntimeState
-    .streaming =
-    false;
-
-    if(
-
-      communicationRuntimeState
-      .processing
-
-    ){
-
-      setCommunicationState(
-
-        COMMUNICATION_RUNTIME_STATES
-        .PROCESSING
-
-      );
-
-    }
-
-    else{
-
-      setCommunicationState(
-
-        COMMUNICATION_RUNTIME_STATES
-        .READY
-
-      );
-
-    }
-
-  }
-
-  await emitCommunicationEvent(
-
-    COMMUNICATION_RUNTIME_EVENTS
-    .STREAM_COMPLETED,
-
-    {
-
-      streamId:
-      String(streamId)
-
-    }
-
-  );
-
-  return true;
 
 }
+
 
 
 // =====================================
@@ -206,40 +178,27 @@ async function stopCommunicationStream(
 const CommunicationStream =
 Object.freeze({
 
-  start:
-  startCommunicationStream,
+  processStream,
 
-  stop:
-  stopCommunicationStream
+  cancelStream
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window
-  .CommunicationStream =
-  CommunicationStream;
+  processStream,
 
-}
+  cancelStream,
 
+  CommunicationStream
 
+};
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  globalThis
-  .CommunicationStream =
-  CommunicationStream;
-
-}
+export default
+CommunicationStream;
