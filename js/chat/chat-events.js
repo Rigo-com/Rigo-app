@@ -15,13 +15,21 @@ from "./chat-config.js";
 // =====================================
 
 async function emitChatRuntimeEvent(
+  emitter,
   eventName,
   payload = {}
 ){
 
   if(
     !CHAT_RUNTIME_CONFIG
-    ?.ENABLE_EVENTS
+    .ENABLE_EVENTS
+  ){
+    return false;
+  }
+
+  if(
+    typeof emitter !==
+    "function"
   ){
     return false;
   }
@@ -38,13 +46,6 @@ async function emitChatRuntimeEvent(
 
   if(
     normalizedEvent.length <= 0
-  ){
-    return false;
-  }
-
-  if(
-    typeof emitSystemEvent !==
-    "function"
   ){
     return false;
   }
@@ -72,7 +73,7 @@ async function emitChatRuntimeEvent(
 
   try{
 
-    await emitSystemEvent(
+    await emitter(
 
       normalizedEvent,
 
