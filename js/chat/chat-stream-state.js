@@ -1,9 +1,12 @@
 // =====================================
 // RIGO AI
 // CHAT STREAM STATE
-// ENTERPRISE STREAMING STATE SYSTEM
-// FINAL STABLE EDITION
 // =====================================
+
+import {
+  safeChatClone
+}
+from "./chat-utils.js";
 
 
 
@@ -150,81 +153,6 @@ Object.seal({
 
 
 // =====================================
-// SAFE CLONE
-// =====================================
-
-function safeStreamClone(
-  value
-){
-
-  try{
-
-    if(
-      typeof structuredClone ===
-      "function"
-    ){
-
-      return structuredClone(
-        value
-      );
-
-    }
-
-    return JSON.parse(
-      JSON.stringify(
-        value
-      )
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE FREEZE
-// =====================================
-
-function freezeStreamObject(
-  value
-){
-
-  if(
-    !value ||
-    typeof value !==
-    "object"
-  ){
-
-    return value;
-
-  }
-
-  try{
-
-    return Object.freeze(
-      value
-    );
-
-  }
-
-  catch(error){
-
-    return value;
-
-  }
-
-}
-
-
-
-// =====================================
 // CLEAR TIMERS
 // =====================================
 
@@ -236,10 +164,8 @@ function clearStreamTimers(){
   ){
 
     clearTimeout(
-
       chatStreamState
       .flushTimer
-
     );
 
   }
@@ -253,13 +179,12 @@ function clearStreamTimers(){
 
     chatStreamState
     .flushFrame
+
   ){
 
     cancelAnimationFrame(
-
       chatStreamState
       .flushFrame
-
     );
 
   }
@@ -279,7 +204,7 @@ function clearStreamTimers(){
 
 
 // =====================================
-// RESET STREAM DIAGNOSTICS
+// RESET DIAGNOSTICS
 // =====================================
 
 function resetStreamDiagnostics(){
@@ -473,7 +398,6 @@ function isStreamActive(){
 
     chatStreamState
     .status ===
-
     CHAT_STREAM_STATUS
     .STREAMING
 
@@ -484,27 +408,10 @@ function isStreamActive(){
 
 
 // =====================================
-// LIMIT STREAM HISTORY
+// INTERNAL HELPERS
 // =====================================
 
 function trimStreamHistory(){
-
-  if(
-
-    !Array.isArray(
-      chatStreamState
-      .streamHistory
-    )
-
-  ){
-
-    chatStreamState
-    .streamHistory =
-    [];
-
-    return false;
-
-  }
 
   while(
 
@@ -523,34 +430,11 @@ function trimStreamHistory(){
 
   }
 
-  return true;
-
 }
 
 
 
-// =====================================
-// LIMIT CHUNK QUEUE
-// =====================================
-
 function trimChunkQueue(){
-
-  if(
-
-    !Array.isArray(
-      chatStreamState
-      .chunkQueue
-    )
-
-  ){
-
-    chatStreamState
-    .chunkQueue =
-    [];
-
-    return false;
-
-  }
 
   while(
 
@@ -573,14 +457,12 @@ function trimChunkQueue(){
 
   }
 
-  return true;
-
 }
 
 
 
 // =====================================
-// STREAM STATUS SNAPSHOT
+// STREAM STATUS
 // =====================================
 
 function getChatStreamStatus(){
@@ -589,172 +471,68 @@ function getChatStreamStatus(){
 
   trimChunkQueue();
 
-  return freezeStreamObject({
+  return Object.freeze({
 
     initialized:
-    chatStreamState
-    .initialized,
+    chatStreamState.initialized,
 
     active:
-    chatStreamState
-    .active,
+    chatStreamState.active,
 
     paused:
-    chatStreamState
-    .paused,
+    chatStreamState.paused,
 
     aborted:
-    chatStreamState
-    .aborted,
+    chatStreamState.aborted,
 
     flushing:
-    chatStreamState
-    .flushing,
+    chatStreamState.flushing,
 
     rendering:
-    chatStreamState
-    .rendering,
+    chatStreamState.rendering,
 
     locked:
-    chatStreamState
-    .locked,
+    chatStreamState.locked,
 
     status:
-    chatStreamState
-    .status,
+    chatStreamState.status,
 
     activeStreamId:
-    chatStreamState
-    .activeStreamId,
+    chatStreamState.activeStreamId,
 
     activeMessageId:
-    chatStreamState
-    .activeMessageId,
+    chatStreamState.activeMessageId,
 
     partialLength:
     String(
-      chatStreamState
-      .partialContent || ""
+      chatStreamState.partialContent || ""
     ).length,
 
     bufferedLength:
     String(
-      chatStreamState
-      .bufferedContent || ""
+      chatStreamState.bufferedContent || ""
     ).length,
 
     queuedChunks:
-
-      Array.isArray(
-        chatStreamState
-        .chunkQueue
-      )
-
-      ?
-
-      chatStreamState
-      .chunkQueue
-      .length
-
-      :
-
-      0,
+    chatStreamState.chunkQueue.length,
 
     bufferedChunks:
-
-      Array.isArray(
-        chatStreamState
-        .chunkBuffer
-      )
-
-      ?
-
-      chatStreamState
-      .chunkBuffer
-      .length
-
-      :
-
-      0,
+    chatStreamState.chunkBuffer.length,
 
     queuedRenders:
-
-      Array.isArray(
-        chatStreamState
-        .renderQueue
-      )
-
-      ?
-
-      chatStreamState
-      .renderQueue
-      .length
-
-      :
-
-      0,
+    chatStreamState.renderQueue.length,
 
     streamHistory:
-
-      safeStreamClone(
-        chatStreamState
-        .streamHistory
-      ),
+    safeChatClone(
+      chatStreamState.streamHistory
+    ),
 
     diagnostics:
-
-      safeStreamClone(
-        chatStreamState
-        .diagnostics
-      )
+    safeChatClone(
+      chatStreamState.diagnostics
+    )
 
   });
-
-}
-
-
-
-// =====================================
-// INITIALIZE STREAM STATE
-// =====================================
-
-function initializeChatStreamState(){
-
-  if(
-    chatStreamState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  chatStreamState
-  .initialized =
-  true;
-
-  chatStreamState
-  .status =
-  CHAT_STREAM_STATUS
-  .IDLE;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLEANUP STREAM STATE
-// =====================================
-
-function cleanupChatStreamState(){
-
-  clearStreamTimers();
-
-  resetChatStreamState();
-
-  return true;
 
 }
 
@@ -770,23 +548,11 @@ Object.freeze({
   state:
   chatStreamState,
 
-  initialize:
-  initializeChatStreamState,
-
   reset:
   resetChatStreamState,
 
-  cleanup:
-  cleanupChatStreamState,
-
   clearTimers:
   clearStreamTimers,
-
-  trimHistory:
-  trimStreamHistory,
-
-  trimQueue:
-  trimChunkQueue,
 
   isReady:
   isStreamReady,
@@ -818,15 +584,7 @@ export {
 
   clearStreamTimers,
 
-  trimStreamHistory,
-
-  trimChunkQueue,
-
-  initializeChatStreamState,
-
   resetChatStreamState,
-
-  cleanupChatStreamState,
 
   isStreamReady,
 
