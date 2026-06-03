@@ -1,13 +1,12 @@
 // =====================================
 // RIGO AI
 // CHAT MESSAGE STATE
-// FOUNDATION STATE LAYER
 // =====================================
 
 
 
 // =====================================
-// MESSAGE STATE
+// STATE
 // =====================================
 
 const chatMessageState =
@@ -40,12 +39,242 @@ Object.seal({
 
 
 // =====================================
-// INTERNAL HELPERS
+// READ API
 // =====================================
 
-function createMessageSnapshot(){
+function getMessage(
+  messageId
+){
 
-  return {
+  return (
+    chatMessageState
+    .messages
+    .get(messageId)
+    ?? null
+  );
+
+}
+
+
+
+function getMessages(){
+
+  return Array.from(
+
+    chatMessageState
+    .messages
+    .values()
+
+  );
+
+}
+
+
+
+function hasMessage(
+  messageId
+){
+
+  return chatMessageState
+  .messages
+  .has(messageId);
+
+}
+
+
+
+function getMessageCount(){
+
+  return chatMessageState
+  .messages
+  .size;
+
+}
+
+
+
+// =====================================
+// WRITE API
+// =====================================
+
+function addMessage(
+  message
+){
+
+  if(
+    !message ||
+    !message.id
+  ){
+    return false;
+  }
+
+  chatMessageState
+  .messages
+  .set(
+    message.id,
+    message
+  );
+
+  chatMessageState
+  .messageOrder
+  .push(
+    message.id
+  );
+
+  chatMessageState
+  .activeMessageId =
+  message.id;
+
+  chatMessageState
+  .lastMessageId =
+  message.id;
+
+  return true;
+
+}
+
+
+
+function updateMessageRecord(
+  messageId,
+  updates = {}
+){
+
+  const message =
+
+    chatMessageState
+    .messages
+    .get(messageId);
+
+  if(
+    !message
+  ){
+    return false;
+  }
+
+  Object.assign(
+    message,
+    updates
+  );
+
+  return true;
+
+}
+
+
+
+function removeMessage(
+  messageId
+){
+
+  if(
+    !hasMessage(
+      messageId
+    )
+  ){
+    return false;
+  }
+
+  chatMessageState
+  .messages
+  .delete(
+    messageId
+  );
+
+  const index =
+
+    chatMessageState
+    .messageOrder
+    .indexOf(
+      messageId
+    );
+
+  if(
+    index >= 0
+  ){
+
+    chatMessageState
+    .messageOrder
+    .splice(
+      index,
+      1
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+function clearMessages(){
+
+  chatMessageState
+  .messages
+  .clear();
+
+  chatMessageState
+  .messageOrder
+  .length = 0;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function incrementCreated(){
+
+  chatMessageState
+  .diagnostics
+  .created++;
+
+}
+
+
+
+function incrementUpdated(){
+
+  chatMessageState
+  .diagnostics
+  .updated++;
+
+}
+
+
+
+function incrementDeleted(){
+
+  chatMessageState
+  .diagnostics
+  .deleted++;
+
+}
+
+
+
+function incrementCleared(){
+
+  chatMessageState
+  .diagnostics
+  .cleared++;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function getChatMessageSnapshot(){
+
+  return Object.freeze({
 
     activeMessageId:
     chatMessageState
@@ -61,10 +290,16 @@ function createMessageSnapshot(){
     ],
 
     messages:
+
     Array.from(
       chatMessageState
       .messages
-      .entries()
+      .values()
+    ).map(
+      message =>
+      structuredClone(
+        message
+      )
     ),
 
     diagnostics:
@@ -73,70 +308,27 @@ function createMessageSnapshot(){
       .diagnostics
     )
 
-  };
+  });
 
 }
 
 
 
 // =====================================
-// GET STATE
+// RESET
 // =====================================
 
-function getChatMessageState(){
+function resetChatMessageState(){
 
-  return chatMessageState;
+  chatMessageState
+  .activeMessageId =
+  null;
 
-}
+  chatMessageState
+  .lastMessageId =
+  null;
 
-
-
-// =====================================
-// GET SNAPSHOT
-// =====================================
-
-function getChatMessageSnapshot(){
-
-  return Object.freeze(
-    createMessageSnapshot()
-  );
-
-}
-
-
-
-// =====================================
-// UPDATE STATE
-// =====================================
-
-function updateChatMessageState(
-  updates = {}
-){
-
-  if(
-    !updates ||
-    typeof updates !==
-    "object"
-  ){
-    return false;
-  }
-
-  Object.assign(
-    chatMessageState,
-    updates
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RESET DIAGNOSTICS
-// =====================================
-
-function resetMessageDiagnostics(){
+  clearMessages();
 
   chatMessageState
   .diagnostics
@@ -161,56 +353,41 @@ function resetMessageDiagnostics(){
 
 
 // =====================================
-// RESET STATE
-// =====================================
-
-function resetChatMessageState(){
-
-  chatMessageState
-  .activeMessageId =
-  null;
-
-  chatMessageState
-  .lastMessageId =
-  null;
-
-  chatMessageState
-  .messageOrder
-  .length = 0;
-
-  chatMessageState
-  .messages
-  .clear();
-
-  resetMessageDiagnostics();
-
-  return true;
-
-}
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
 const ChatMessageState =
 Object.freeze({
 
-  get:
-  getChatMessageState,
+  getMessage,
+
+  getMessages,
+
+  hasMessage,
+
+  getMessageCount,
+
+  addMessage,
+
+  updateMessageRecord,
+
+  removeMessage,
+
+  clearMessages,
+
+  incrementCreated,
+
+  incrementUpdated,
+
+  incrementDeleted,
+
+  incrementCleared,
 
   snapshot:
   getChatMessageSnapshot,
 
-  update:
-  updateChatMessageState,
-
   reset:
-  resetChatMessageState,
-
-  resetDiagnostics:
-  resetMessageDiagnostics
+  resetChatMessageState
 
 });
 
@@ -222,15 +399,23 @@ Object.freeze({
 
 export {
 
-  getChatMessageState,
+  getMessage,
+  getMessages,
+  hasMessage,
+  getMessageCount,
+
+  addMessage,
+  updateMessageRecord,
+  removeMessage,
+  clearMessages,
+
+  incrementCreated,
+  incrementUpdated,
+  incrementDeleted,
+  incrementCleared,
 
   getChatMessageSnapshot,
-
-  updateChatMessageState,
-
   resetChatMessageState,
-
-  resetMessageDiagnostics,
 
   ChatMessageState
 
