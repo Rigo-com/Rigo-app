@@ -383,6 +383,38 @@ function clearHashes(){
 
 
 // =====================================
+// ABORT CONTROLLER READ API
+// =====================================
+
+function getAbortControllers(){
+
+  return Array.from(
+
+    communicationState
+    .abortControllers
+    .entries()
+
+  );
+
+}
+
+
+
+function getAbortControllerCount(){
+
+  return (
+
+    communicationState
+    .abortControllers
+    .size
+
+  );
+
+}
+
+
+
+// =====================================
 // DIAGNOSTICS
 // =====================================
 
@@ -575,6 +607,10 @@ Object.freeze({
 
   removeAbortController,
 
+  getAbortControllers,
+
+  getAbortControllerCount,
+
   registerHash,
 
   hasHash,
@@ -634,6 +670,10 @@ export {
   getAbortController,
 
   removeAbortController,
+
+  getAbortControllers,
+
+  getAbortControllerCount,
 
   registerHash,
 
