@@ -1,16 +1,20 @@
 // =====================================
 // RIGO AI
 // CHAT CONFIG
+// FOUNDATION LAYER
 // =====================================
 
 
 
 // =====================================
-// CHAT CONFIG
+// CHAT LIMITS
 // =====================================
 
-const CHAT_RUNTIME_CONFIG =
+const CHAT_LIMITS =
 Object.freeze({
+
+  MAX_MESSAGES:
+  1000,
 
   MAX_QUEUE_SIZE:
   100,
@@ -18,23 +22,66 @@ Object.freeze({
   MAX_RETRIES:
   3,
 
+  MAX_MESSAGE_LENGTH:
+  50000,
+
+  MAX_STREAM_BUFFER_SIZE:
+  10000,
+
+  MAX_STREAM_HISTORY:
+  100
+
+});
+
+
+
+// =====================================
+// CHAT TIMERS
+// =====================================
+
+const CHAT_TIMERS =
+Object.freeze({
+
   RETRY_DELAY:
   1000,
 
   SAVE_DEBOUNCE:
   300,
 
-  ENABLE_EVENTS:true,
+  STREAM_TIMEOUT:
+  60000,
 
-  ENABLE_DIAGNOSTICS:true,
+  STREAM_FLUSH_INTERVAL:
+  16
 
-  ENABLE_GENERATION_TRACKING:true,
+});
 
-  ENABLE_RUNTIME_SYNC:true,
 
-  ENABLE_STREAMING:true,
 
-  ENABLE_MARKDOWN:true
+// =====================================
+// CHAT FEATURES
+// =====================================
+
+const CHAT_FEATURES =
+Object.freeze({
+
+  ENABLE_EVENTS:
+  true,
+
+  ENABLE_STREAMING:
+  true,
+
+  ENABLE_MARKDOWN:
+  true,
+
+  ENABLE_DIAGNOSTICS:
+  true,
+
+  ENABLE_RUNTIME_SYNC:
+  true,
+
+  ENABLE_GENERATION_TRACKING:
+  true
 
 });
 
@@ -44,11 +91,29 @@ Object.freeze({
 // CHAT EVENTS
 // =====================================
 
-const CHAT_RUNTIME_EVENTS =
+const CHAT_EVENTS =
 Object.freeze({
+
+  CHAT_INITIALIZED:
+  "chat.initialized",
+
+  CHAT_DESTROYED:
+  "chat.destroyed",
+
+  CHAT_RESET:
+  "chat.reset",
+
+  STATE_CHANGED:
+  "chat.state.changed",
 
   MESSAGE_CREATED:
   "chat.message.created",
+
+  MESSAGE_UPDATED:
+  "chat.message.updated",
+
+  MESSAGE_DELETED:
+  "chat.message.deleted",
 
   MESSAGE_SENT:
   "chat.message.sent",
@@ -68,8 +133,26 @@ Object.freeze({
   GENERATION_ABORTED:
   "chat.generation.aborted",
 
-  CHAT_RESET:
-  "chat.reset"
+  STREAM_STARTED:
+  "chat.stream.started",
+
+  STREAM_UPDATED:
+  "chat.stream.updated",
+
+  STREAM_COMPLETED:
+  "chat.stream.completed",
+
+  STREAM_ABORTED:
+  "chat.stream.aborted",
+
+  QUEUE_ENQUEUED:
+  "chat.queue.enqueued",
+
+  QUEUE_DEQUEUED:
+  "chat.queue.dequeued",
+
+  QUEUE_CLEARED:
+  "chat.queue.cleared"
 
 });
 
@@ -82,11 +165,17 @@ Object.freeze({
 const ChatConfig =
 Object.freeze({
 
-  config:
-  CHAT_RUNTIME_CONFIG,
+  limits:
+  CHAT_LIMITS,
+
+  timers:
+  CHAT_TIMERS,
+
+  features:
+  CHAT_FEATURES,
 
   events:
-  CHAT_RUNTIME_EVENTS
+  CHAT_EVENTS
 
 });
 
@@ -98,9 +187,13 @@ Object.freeze({
 
 export {
 
-  CHAT_RUNTIME_CONFIG,
+  CHAT_LIMITS,
 
-  CHAT_RUNTIME_EVENTS,
+  CHAT_TIMERS,
+
+  CHAT_FEATURES,
+
+  CHAT_EVENTS,
 
   ChatConfig
 
