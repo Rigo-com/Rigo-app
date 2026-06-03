@@ -1,62 +1,79 @@
 // =====================================
 // RIGO AI
 // CHAT ACTIONS
-// ENTERPRISE CHAT ACTION SYSTEM
-// FINAL STABLE EDITION
 // =====================================
 
+import {
+  CHAT_RUNTIME_CONFIG,
+  CHAT_RUNTIME_EVENTS
+}
+from "./chat-config.js";
+
+import {
+  chatRuntimeState
+}
+from "./chat-state.js";
+
+import {
+  emitChatRuntimeEvent
+}
+from "./chat-events.js";
+
+import {
+  createQueueItem
+}
+from "./chat-utils.js";
+
+import {
+  ChatQueue
+}
+from "./chat-queue.js";
+
+import {
+  ChatStreamManager
+}
+from "./chat-stream-manager.js";
+
 
 
 // =====================================
-// SAFE CHAT LOGGER
+// MESSAGE ID
 // =====================================
 
-function safeChatActionError(
-  ...args
-){
+function createMessageId(){
 
   try{
 
     if(
-      typeof safeLogError ===
+      typeof crypto !==
+      "undefined"
+      &&
+      typeof crypto.randomUUID ===
       "function"
     ){
 
-      safeLogError(
-        ...args
+      return (
+        "msg_" +
+        crypto.randomUUID()
       );
-
-      return;
 
     }
 
-    console.error(...args);
-
   }
 
-  catch(error){
+  catch(error){}
 
-    console.error(error);
+  return [
 
-  }
+    "msg",
 
-}
+    Date.now(),
 
+    Math.random()
+    .toString(36)
+    .slice(2,10)
 
-
-// =====================================
-// SAFE MESSAGE INPUT
-// =====================================
-
-function getSafeMessageInput(){
-
-  return ChatElements
-  ?.getInput
-  ?.()
-
-  ||
-
-  null;
+  ].join("_");
 
 }
 
@@ -74,9 +91,7 @@ function validateOutgoingMessage(
     typeof text !==
     "string"
   ){
-
     return false;
-
   }
 
   const trimmed =
@@ -85,52 +100,13 @@ function validateOutgoingMessage(
   if(
     trimmed.length <= 0
   ){
-
     return false;
-
   }
-
-  const maxLength =
-
-    APP_CONFIG
-    ?.CHAT
-    ?.MAX_MESSAGE_LENGTH
-
-    ||
-
-    4000;
 
   return (
     trimmed.length <=
-    maxLength
+    4000
   );
-
-}
-
-
-
-// =====================================
-// ENSURE CHAT QUEUE
-// =====================================
-
-function ensureChatQueue(){
-
-  if(
-
-    !Array.isArray(
-      chatRuntimeState
-      ?.queue
-    )
-
-  ){
-
-    chatRuntimeState.queue =
-    [];
-
-  }
-
-  return chatRuntimeState
-  .queue;
 
 }
 
@@ -140,239 +116,83 @@ function ensureChatQueue(){
 // SEND MESSAGE
 // =====================================
 
-async function sendMessage(){
+async function sendMessage(
+  text,
+  generator
+){
 
   try{
 
     if(
-      chatRuntimeState
-      ?.destroyed
+      chatRuntimeState.generating
     ){
-
       return false;
-
     }
-
-    if(
-      chatRuntimeState
-      ?.generating
-    ){
-
-      return false;
-
-    }
-
-    const messageInput =
-    getSafeMessageInput();
-
-    if(!messageInput){
-
-      safeChatActionError(
-        "MESSAGE_INPUT_NOT_FOUND"
-      );
-
-      return false;
-
-    }
-
-    const text =
-    String(
-      messageInput.value || ""
-    )
-    .trim();
 
     if(
       !validateOutgoingMessage(
         text
       )
     ){
-
       return false;
-
     }
 
-    const queue =
-    ensureChatQueue();
+    if(
 
-    const maxQueue =
+      chatRuntimeState.queue
+      .length >=
 
       CHAT_RUNTIME_CONFIG
-      ?.MAX_QUEUE_SIZE
+      .MAX_QUEUE_SIZE
 
-      ||
-
-      10;
-
-    if(
-      queue.length >=
-      maxQueue
     ){
-
-      safeChatActionError(
-        "QUEUE_LIMIT"
-      );
-
       return false;
-
     }
 
     const messageId =
-
-      typeof createMessageId ===
-      "function"
-
-      ?
-
-      createMessageId()
-
-      :
-
-      String(Date.now());
-
-    const userMessage =
-    freezeChatObject({
-
-      id:
-      messageId,
-
-      role:"user",
-
-      content:text,
-
-      timestamp:
-      Date.now()
-
-    });
-
-
-
-    // =========================
-    // STORE MESSAGE
-    // =========================
-
-    const added =
-    addMessage(
-      userMessage
-    );
-
-    if(!added){
-
-      return false;
-
-    }
-
-
-
-    // =========================
-    // CREATE QUEUE ITEM
-    // =========================
+    createMessageId();
 
     const queueItem =
-
-      typeof createQueueItem ===
-      "function"
-
-      ?
-
-      createQueueItem(
-        messageId
-      )
-
-      :
-
-      {
-
-        id:
-        messageId,
-
-        retries:0,
-
-        createdAt:
-        Date.now()
-
-      };
-
-    if(!queueItem){
-
-      return false;
-
-    }
-
-    queue.push(
-      queueItem
+    createQueueItem(
+      messageId
     );
 
-
-
-    // =========================
-    // CLEAR INPUT
-    // =========================
-
-    messageInput.value =
-    "";
-
-
-
-    // =========================
-    // RESET HEIGHT
-    // =========================
-
     if(
-      messageInput.style
+      !queueItem
     ){
-
-      messageInput.style.height =
-      "58px";
+      return false;
     }
 
-
-
-    // =========================
-    // FOCUS INPUT
-    // =========================
-
-    try{
-
-      messageInput.focus();
-
-    }
-
-    catch(error){}
-
-
-
-    // =========================
-    // DIAGNOSTICS
-    // =========================
+    ChatQueue.enqueue(
+      queueItem
+    );
 
     chatRuntimeState
     .diagnostics
     .messages++;
 
+    await emitChatRuntimeEvent(
 
+      CHAT_RUNTIME_EVENTS
+      .MESSAGE_SENT,
 
-    // =========================
-    // PROCESS QUEUE
-    // =========================
+      {
 
-    continueQueueProcessing?.();
+        messageId,
 
-    return true;
+        text
+
+      }
+
+    );
+
+    return await ChatQueue.process(
+      generator
+    );
 
   }
 
   catch(error){
-
-    safeChatActionError(
-
-      "SEND_MESSAGE_ERROR:",
-
-      error
-
-    );
-
-    chatRuntimeState.generating =
-    false;
 
     return false;
 
@@ -388,12 +208,12 @@ async function sendMessage(){
 
 async function abortMessageGeneration(){
 
-  const controller =
-
-    chatRuntimeState
-    ?.generationController;
-
   try{
+
+    const controller =
+
+      chatRuntimeState
+      .generationController;
 
     if(
       controller &&
@@ -404,245 +224,48 @@ async function abortMessageGeneration(){
 
     }
 
-  }
-
-  catch(error){
-
-    safeChatActionError(
-      "ABORT ERROR:",
-      error
-    );
-
-  }
-
-  try{
-
     ChatStreamManager
-    ?.abort?.();
+    .abort();
 
-  }
+    chatRuntimeState
+    .processing =
+    false;
 
-  catch(error){
+    chatRuntimeState
+    .generating =
+    false;
 
-    safeChatActionError(error);
+    chatRuntimeState
+    .streaming =
+    false;
 
-  }
+    chatRuntimeState
+    .activeMessageId =
+    null;
 
-  try{
+    chatRuntimeState
+    .generationController =
+    null;
 
-    abortStreamingMessage?.();
+    await emitChatRuntimeEvent(
 
-  }
+      CHAT_RUNTIME_EVENTS
+      .GENERATION_ABORTED,
 
-  catch(error){
+      {
 
-    safeChatActionError(error);
+        timestamp:
+        Date.now()
 
-  }
-
-  chatRuntimeState.generating =
-  false;
-
-  chatRuntimeState.streaming =
-  false;
-
-  chatRuntimeState.processing =
-  false;
-
-  chatRuntimeState.activeMessageId =
-  null;
-
-  chatRuntimeState.generationController =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// ADD MESSAGE
-// =====================================
-
-function addMessage(
-  messageData
-){
-
-  try{
-
-    if(
-      !messageData
-    ){
-
-      return false;
-
-    }
-
-    const chatContainer =
-    ChatElements
-    ?.getContainer?.();
-
-    if(!chatContainer){
-
-      return false;
-
-    }
-
-    if(
-      !currentChat
-    ){
-
-      return false;
-
-    }
-
-    if(
-
-      !Array.isArray(
-        currentChat.messages
-      )
-    ){
-
-      currentChat.messages =
-      [];
-
-    }
-
-
-
-    // =========================
-    // DUPLICATE CHECK
-    // =========================
-
-    const duplicate =
-
-      currentChat.messages
-      .some((message) => {
-
-        return (
-          message?.id ===
-          messageData?.id
-        );
-
-      });
-
-    if(duplicate){
-
-      return false;
-
-    }
-
-
-
-    // =========================
-    // CREATE ELEMENT
-    // =========================
-
-    const messageElement =
-
-      typeof createMessageElement ===
-      "function"
-
-      ?
-
-      createMessageElement(
-        messageData
-      )
-
-      :
-
-      null;
-
-    if(!messageElement){
-
-      return false;
-
-    }
-
-
-
-    // =========================
-    // STORE
-    // =========================
-
-    currentChat.messages
-    .push(
-
-      freezeChatObject(
-        messageData
-      )
+      }
 
     );
-
-    currentChat.updatedAt =
-    Date.now();
-
-    currentChat.lastMessageAt =
-    Date.now();
-
-    currentChat.messageCount =
-    currentChat.messages.length;
-
-
-
-    // =========================
-    // RENDER
-    // =========================
-
-    const appended =
-    ChatElements.append(
-      messageElement
-    );
-
-    if(!appended){
-
-      return false;
-
-    }
-
-
-
-    // =========================
-    // AUTO SCROLL
-    // =========================
-
-    if(
-
-      typeof requestAnimationFrame ===
-      "function"
-
-    ){
-
-      requestAnimationFrame(() => {
-
-        scrollToBottom?.();
-
-      });
-
-    }
-
-    else{
-
-      scrollToBottom?.();
-
-    }
-
-    debouncedSaveCurrentChat?.();
 
     return true;
 
   }
 
   catch(error){
-
-    safeChatActionError(
-
-      "ADD_MESSAGE_ERROR:",
-
-      error
-
-    );
 
     return false;
 
@@ -662,64 +285,41 @@ async function resetCurrentChat(){
 
     await abortMessageGeneration();
 
-    if(chatRuntimeState){
+    chatRuntimeState
+    .queue =
+    [];
 
-      chatRuntimeState.queue =
-      [];
+    chatRuntimeState
+    .renderQueue =
+    [];
 
-      chatRuntimeState.renderQueue =
-      [];
+    chatRuntimeState
+    .processing =
+    false;
 
-      chatRuntimeState.processing =
-      false;
+    chatRuntimeState
+    .generating =
+    false;
 
-      chatRuntimeState.generating =
-      false;
+    chatRuntimeState
+    .streaming =
+    false;
 
-      chatRuntimeState.streaming =
-      false;
-    }
-
-    if(
-      typeof resetStreamingMessageState ===
-      "function"
-    ){
-
-      resetStreamingMessageState();
-
-    }
+    chatRuntimeState
+    .activeMessageId =
+    null;
 
     ChatStreamManager
-    ?.destroy?.();
-
-    ChatElements
-    ?.clear?.();
-
-    if(
-      currentChat
-    ){
-
-      currentChat.messages =
-      [];
-
-      currentChat.updatedAt =
-      Date.now();
-
-      currentChat.lastMessageAt =
-      null;
-
-      currentChat.messageCount =
-      0;
-    }
+    .destroy();
 
     chatRuntimeState
     .diagnostics
     .resets++;
 
-    await emitChatRuntimeEvent?.(
+    await emitChatRuntimeEvent(
 
       CHAT_RUNTIME_EVENTS
-      ?.CHAT_RESET,
+      .CHAT_RESET,
 
       {
 
@@ -736,14 +336,6 @@ async function resetCurrentChat(){
 
   catch(error){
 
-    safeChatActionError(
-
-      "RESET_CHAT_ERROR:",
-
-      error
-
-    );
-
     return false;
 
   }
@@ -753,11 +345,82 @@ async function resetCurrentChat(){
 
 
 // =====================================
-// SAVE DEBOUNCE
+// ACTION STATUS
 // =====================================
 
-function debouncedSaveCurrentChat(){
+function getChatActionStatus(){
 
-  return true;
+  return Object.freeze({
+
+    processing:
+    chatRuntimeState
+    .processing,
+
+    generating:
+    chatRuntimeState
+    .generating,
+
+    streaming:
+    chatRuntimeState
+    .streaming,
+
+    activeMessageId:
+    chatRuntimeState
+    .activeMessageId
+
+  });
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatActions =
+Object.freeze({
+
+  send:
+  sendMessage,
+
+  abort:
+  abortMessageGeneration,
+
+  reset:
+  resetCurrentChat,
+
+  status:
+  getChatActionStatus,
+
+  snapshot:
+  getChatActionStatus
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  ChatActions,
+
+  createMessageId,
+
+  validateOutgoingMessage,
+
+  sendMessage,
+
+  abortMessageGeneration,
+
+  resetCurrentChat,
+
+  getChatActionStatus
+
+};
+
+export default
+ChatActions;
