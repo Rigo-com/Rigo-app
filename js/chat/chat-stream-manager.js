@@ -7,149 +7,21 @@
 
 
 
-// =====================================
-// CREATE STREAM ID
-// =====================================
-
-function createStreamId(){
-
-  try{
-
-    if(
-      typeof crypto !==
-      "undefined"
-
-      &&
-
-      typeof crypto
-      .randomUUID ===
-      "function"
-    ){
-
-      return (
-        "stream_" +
-        crypto.randomUUID()
-      );
-
-    }
-
-  }
-
-  catch(error){}
-
-  return [
-
-    "stream",
-
-    Date.now(),
-
-    Math.random()
-    .toString(36)
-    .slice(2,10)
-
-  ].join("_");
-
+import {
+  createStreamId
 }
+from "./chat-utils.js";
 
-
-
-// =====================================
-// CLEAR STREAM TIMERS
-// =====================================
-
-function clearChatStreamTimers(){
-
-  if(
-    chatStreamState
-    .flushTimer
-  ){
-
-    clearTimeout(
-
-      chatStreamState
-      .flushTimer
-
-    );
-
-    chatStreamState
-    .flushTimer =
-    null;
-
-  }
-
-  if(
-
-    typeof cancelAnimationFrame ===
-    "function"
-
-    &&
-
-    chatStreamState
-    .flushFrame
-  ){
-
-    cancelAnimationFrame(
-
-      chatStreamState
-      .flushFrame
-
-    );
-
-    chatStreamState
-    .flushFrame =
-    null;
-
-  }
-
-  return true;
-
+import {
+  CHAT_STREAM_STATUS,
+  CHAT_STREAM_CONFIG,
+  chatStreamState,
+  clearStreamTimers,
+  trimStreamHistory,
+  resetChatStreamState,
+  getChatStreamStatus
 }
-
-
-
-// =====================================
-// LIMIT STREAM HISTORY
-// =====================================
-
-function trimChatStreamHistory(){
-
-  if(
-
-    !Array.isArray(
-      chatStreamState
-      .streamHistory
-    )
-
-  ){
-
-    chatStreamState
-    .streamHistory =
-    [];
-
-    return false;
-
-  }
-
-  while(
-
-    chatStreamState
-    .streamHistory
-    .length >
-
-    CHAT_STREAM_CONFIG
-    .MAX_STREAM_HISTORY
-
-  ){
-
-    chatStreamState
-    .streamHistory
-    .shift();
-
-  }
-
-  return true;
-
-}
+from "./chat-stream-state.js";
 
 
 
@@ -182,7 +54,7 @@ function initializeChatStream(){
 // START STREAM
 // =====================================
 
-function startChatStream(
+function startChatStreamTimers(
   messageId
 ){
 
@@ -204,7 +76,7 @@ function startChatStream(
 
   resetStreamingMessageState?.();
 
-  clearChatStreamTimers();
+  clearStreamTimers();
 
   const streamId =
   createStreamId();
@@ -460,7 +332,7 @@ function scheduleStreamFlush(){
   .flushing =
   true;
 
-  clearChatStreamTimers();
+  clearStreamTimers();
 
   chatStreamState
   .flushTimer =
@@ -794,9 +666,9 @@ function completeChatStream(){
 
   });
 
-  trimChatStreamHistory();
+  trimStreamHistory();
 
-  clearChatStreamTimers();
+  clearStreamTimers();
 
   chatStreamState
   .active =
@@ -850,7 +722,7 @@ function abortChatStream(){
 
   }
 
-  clearChatStreamTimers();
+  clearStreamTimers();
 
   abortStreamingMessage?.();
 
@@ -905,7 +777,7 @@ function failChatStream(
   error = null
 ){
 
-  clearChatStreamTimers();
+  clearStreamTimers();
 
   abortStreamingMessage?.();
 
@@ -1030,31 +902,32 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  ChatStreamManager,
 
-    window,
+  initializeChatStream,
 
-    "ChatStreamManager",
+  startChatStream,
 
-    {
+  pushStreamChunk,
 
-      value:
-      ChatStreamManager,
+  flushStreamChunks,
 
-      writable:false,
+  completeChatStream,
 
-      configurable:false
+  abortChatStream,
 
-    }
+  failChatStream,
 
-  );
+  destroyChatStream,
 
-}
+  getStreamDiagnostics
+
+};
+
+export default
+ChatStreamManager;
