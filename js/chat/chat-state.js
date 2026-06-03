@@ -1,75 +1,12 @@
 // =====================================
 // RIGO AI
 // CHAT STATE
-// ENTERPRISE CHAT STATE SYSTEM
-// FINAL STABLE PATCHED EDITION
 // =====================================
 
-
-
-// =====================================
-// CHAT CONFIG
-// =====================================
-
-const CHAT_RUNTIME_CONFIG =
-Object.freeze({
-
-  MAX_QUEUE_SIZE:
-  100,
-
-  MAX_RETRIES:
-  3,
-
-  RETRY_DELAY:
-  1000,
-
-  SAVE_DEBOUNCE:
-  300,
-
-  ENABLE_EVENTS:true,
-
-  ENABLE_DIAGNOSTICS:true,
-
-  ENABLE_GENERATION_TRACKING:true,
-
-  ENABLE_RUNTIME_SYNC:true
-
-});
-
-
-
-// =====================================
-// CHAT EVENTS
-// =====================================
-
-const CHAT_RUNTIME_EVENTS =
-Object.freeze({
-
-  MESSAGE_CREATED:
-  "chat.message.created",
-
-  MESSAGE_SENT:
-  "chat.message.sent",
-
-  MESSAGE_FAILED:
-  "chat.message.failed",
-
-  MESSAGE_RETRY:
-  "chat.message.retry",
-
-  GENERATION_STARTED:
-  "chat.generation.started",
-
-  GENERATION_COMPLETED:
-  "chat.generation.completed",
-
-  GENERATION_ABORTED:
-  "chat.generation.aborted",
-
-  CHAT_RESET:
-  "chat.reset"
-
-});
+import {
+  safeChatClone
+}
+from "./chat-utils.js";
 
 
 
@@ -77,12 +14,14 @@ Object.freeze({
 // CHAT RUNTIME STATE
 // =====================================
 
-const chatRuntimeState =
+export const chatRuntimeState =
 Object.seal({
 
   initialized:false,
 
   initializing:false,
+
+  destroyed:false,
 
   generating:false,
 
@@ -136,55 +75,10 @@ Object.seal({
 
 
 // =====================================
-// SAFE CLONE
-// =====================================
-
-function safeClone(
-  value
-){
-
-  try{
-
-    if(
-      typeof structuredClone ===
-      "function"
-    ){
-
-      return structuredClone(
-        value
-      );
-
-    }
-
-  }
-
-  catch(error){}
-
-  try{
-
-    return JSON.parse(
-      JSON.stringify(
-        value
-      )
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
 // RESET DIAGNOSTICS
 // =====================================
 
-function resetChatDiagnostics(){
+export function resetChatDiagnostics(){
 
   chatRuntimeState
   .diagnostics
@@ -220,7 +114,7 @@ function resetChatDiagnostics(){
 // RESET CHAT STATE
 // =====================================
 
-function resetChatState(){
+export function resetChatState(){
 
   chatRuntimeState
   .initialized =
@@ -228,6 +122,10 @@ function resetChatState(){
 
   chatRuntimeState
   .initializing =
+  false;
+
+  chatRuntimeState
+  .destroyed =
   false;
 
   chatRuntimeState
@@ -287,161 +185,60 @@ function resetChatState(){
 
 
 // =====================================
-// QUEUE HELPERS
-// =====================================
-
-function validateQueueLimit(
-  queue = []
-){
-
-  return (
-
-    Array.isArray(queue)
-
-    &&
-
-    queue.length <
-
-    CHAT_RUNTIME_CONFIG
-    .MAX_QUEUE_SIZE
-
-  );
-
-}
-
-
-
-function pushChatQueue(
-  item
-){
-
-  if(
-
-    !validateQueueLimit(
-      chatRuntimeState
-      .queue
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  chatRuntimeState
-  .queue
-  .push(item);
-
-  return true;
-
-}
-
-
-
-function shiftChatQueue(){
-
-  if(
-
-    !Array.isArray(
-      chatRuntimeState
-      .queue
-    )
-
-  ){
-
-    return null;
-
-  }
-
-  return chatRuntimeState
-  .queue
-  .shift() || null;
-
-}
-
-
-
-// =====================================
 // CHAT STATUS
 // =====================================
 
-function getChatRuntimeStatus(){
+export function getChatRuntimeStatus(){
 
   return Object.freeze({
 
     initialized:
-
-      chatRuntimeState
-      .initialized,
+    chatRuntimeState
+    .initialized,
 
     initializing:
+    chatRuntimeState
+    .initializing,
 
-      chatRuntimeState
-      .initializing,
+    destroyed:
+    chatRuntimeState
+    .destroyed,
 
     generating:
-
-      chatRuntimeState
-      .generating,
+    chatRuntimeState
+    .generating,
 
     streaming:
-
-      chatRuntimeState
-      .streaming,
+    chatRuntimeState
+    .streaming,
 
     syncing:
-
-      chatRuntimeState
-      .syncing,
+    chatRuntimeState
+    .syncing,
 
     processing:
-
-      chatRuntimeState
-      .processing,
+    chatRuntimeState
+    .processing,
 
     rendering:
-
-      chatRuntimeState
-      .rendering,
+    chatRuntimeState
+    .rendering,
 
     queueSize:
 
-      Array.isArray(
-        chatRuntimeState
-        .queue
-      )
-
-      ?
-
       chatRuntimeState
       .queue
-      .length
-
-      :
-
-      0,
+      .length,
 
     renderQueueSize:
 
-      Array.isArray(
-        chatRuntimeState
-        .renderQueue
-      )
-
-      ?
-
       chatRuntimeState
       .renderQueue
-      .length
-
-      :
-
-      0,
+      .length,
 
     activeMessageId:
-
-      chatRuntimeState
-      .activeMessageId,
+    chatRuntimeState
+    .activeMessageId,
 
     pendingOperations:
 
@@ -451,7 +248,7 @@ function getChatRuntimeStatus(){
 
     diagnostics:
 
-      safeClone(
+      safeChatClone(
 
         chatRuntimeState
         .diagnostics
@@ -459,66 +256,5 @@ function getChatRuntimeStatus(){
       )
 
   });
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const ChatState =
-Object.freeze({
-
-  state:
-  chatRuntimeState,
-
-  reset:
-  resetChatState,
-
-  diagnostics:
-  getChatRuntimeStatus,
-
-  snapshot:
-  getChatRuntimeStatus,
-
-  pushQueue:
-  pushChatQueue,
-
-  shiftQueue:
-  shiftChatQueue
-
-});
-
-
-
-// =====================================
-// GLOBAL EXPORT
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    window,
-
-    "ChatState",
-
-    {
-
-      value:
-      ChatState,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
 
 }
