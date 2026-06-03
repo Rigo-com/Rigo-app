@@ -4,10 +4,12 @@
 // =====================================
 
 import {
-  updateChatState,
-  getChatState
+  getChatMessageState,
+  getChatMessageSnapshot,
+  updateChatMessageState,
+  resetChatMessageState
 }
-from "../chat-state/chat-state.js";
+from "../chat-state/chat-message-state.js";
 
 import {
   emit
@@ -22,31 +24,99 @@ from "../chat-config.js";
 
 
 // =====================================
-// MESSAGE STORAGE
+// SERVICE STATE
 // =====================================
 
-const messages =
-new Map();
+const serviceState =
+Object.seal({
+
+  initialized:false
+
+});
 
 
-
-// =====================================
-// MESSAGE COUNTER
-// =====================================
 
 let messageCounter = 0;
 
 
 
 // =====================================
-// CREATE MESSAGE ID
+// HELPERS
 // =====================================
 
 function createMessageId(){
 
   messageCounter++;
 
-  return `msg_${Date.now()}_${messageCounter}`;
+  return (
+    "msg_" +
+    Date.now() +
+    "_" +
+    messageCounter
+  );
+
+}
+
+
+
+function getMessagesMap(){
+
+  return getChatMessageState()
+  .messages;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+function initialize(){
+
+  if(
+    serviceState.initialized
+  ){
+    return true;
+  }
+
+  serviceState.initialized =
+  true;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DESTROY
+// =====================================
+
+function destroy(){
+
+  reset();
+
+  serviceState.initialized =
+  false;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function reset(){
+
+  messageCounter = 0;
+
+  resetChatMessageState();
+
+  return true;
 
 }
 
@@ -59,6 +129,9 @@ function createMessageId(){
 function createMessage(
   payload = {}
 ){
+
+  const state =
+  getChatMessageState();
 
   const message = {
 
@@ -77,6 +150,10 @@ function createMessage(
       ""
     ),
 
+    metadata:
+    payload.metadata ||
+    {},
+
     createdAt:
     Date.now(),
 
@@ -85,15 +162,19 @@ function createMessage(
 
   };
 
-  messages.set(
+  state.messages.set(
     message.id,
     message
   );
 
-  const state =
-  getChatState();
+  state.messageOrder.push(
+    message.id
+  );
 
-  updateChatState({
+  updateChatMessageState({
+
+    activeMessageId:
+    message.id,
 
     lastMessageId:
     message.id
@@ -101,12 +182,14 @@ function createMessage(
   });
 
   state.diagnostics
-  .messagesCreated++;
+  .created++;
 
   emit(
     CHAT_EVENTS
     .MESSAGE_CREATED,
-    message
+    structuredClone(
+      message
+    )
   );
 
   return structuredClone(
@@ -126,8 +209,11 @@ function updateMessage(
   updates = {}
 ){
 
+  const state =
+  getChatMessageState();
+
   const message =
-  messages.get(
+  state.messages.get(
     messageId
   );
 
@@ -145,10 +231,15 @@ function updateMessage(
   message.updatedAt =
   Date.now();
 
+  state.diagnostics
+  .updated++;
+
   emit(
     CHAT_EVENTS
     .MESSAGE_UPDATED,
-    message
+    structuredClone(
+      message
+    )
   );
 
   return structuredClone(
@@ -167,8 +258,11 @@ function deleteMessage(
   messageId
 ){
 
+  const state =
+  getChatMessageState();
+
   const message =
-  messages.get(
+  state.messages.get(
     messageId
   );
 
@@ -178,14 +272,27 @@ function deleteMessage(
     return false;
   }
 
-  messages.delete(
+  state.messages.delete(
     messageId
   );
+
+  state.messageOrder =
+
+    state.messageOrder
+    .filter(
+      id =>
+      id !== messageId
+    );
+
+  state.diagnostics
+  .deleted++;
 
   emit(
     CHAT_EVENTS
     .MESSAGE_DELETED,
-    message
+    structuredClone(
+      message
+    )
   );
 
   return true;
@@ -203,9 +310,9 @@ function getMessage(
 ){
 
   const message =
-  messages.get(
-    messageId
-  );
+
+    getMessagesMap()
+    .get(messageId);
 
   if(
     !message
@@ -228,9 +335,13 @@ function getMessage(
 function getMessages(){
 
   return Array.from(
-    messages.values()
+    getMessagesMap()
+    .values()
   ).map(
-    structuredClone
+    message =>
+    structuredClone(
+      message
+    )
   );
 
 }
@@ -238,26 +349,37 @@ function getMessages(){
 
 
 // =====================================
-// CLEAR MESSAGES
+// STATUS
 // =====================================
 
-function clearMessages(){
+function getStatus(){
 
-  messages.clear();
+  const state =
+  getChatMessageState();
 
-  return true;
+  return Object.freeze({
+
+    initialized:
+    serviceState
+    .initialized,
+
+    messages:
+    state.messages
+    .size
+
+  });
 
 }
 
 
 
 // =====================================
-// MESSAGE COUNT
+// SNAPSHOT
 // =====================================
 
-function getMessageCount(){
+function getSnapshot(){
 
-  return messages.size;
+  return getChatMessageSnapshot();
 
 }
 
@@ -269,6 +391,18 @@ function getMessageCount(){
 
 const ChatMessageService =
 Object.freeze({
+
+  initialize,
+
+  destroy,
+
+  reset,
+
+  status:
+  getStatus,
+
+  snapshot:
+  getSnapshot,
 
   create:
   createMessage,
@@ -283,13 +417,7 @@ Object.freeze({
   getMessage,
 
   getAll:
-  getMessages,
-
-  clear:
-  clearMessages,
-
-  count:
-  getMessageCount
+  getMessages
 
 });
 
@@ -301,6 +429,12 @@ Object.freeze({
 
 export {
 
+  initialize,
+
+  destroy,
+
+  reset,
+
   createMessage,
 
   updateMessage,
@@ -311,9 +445,9 @@ export {
 
   getMessages,
 
-  clearMessages,
+  getStatus,
 
-  getMessageCount,
+  getSnapshot,
 
   ChatMessageService
 
