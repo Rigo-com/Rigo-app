@@ -1,8 +1,6 @@
 // =====================================
 // RIGO AI
 // CHAT ELEMENTS
-// ENTERPRISE CHAT DOM SYSTEM
-// FINAL STABLE PATCHED EDITION
 // =====================================
 
 
@@ -28,8 +26,6 @@ Object.seal({
 
     sendButton:null,
 
-    typingIndicator:null,
-
     scrollContainer:null
 
   })
@@ -50,24 +46,18 @@ function getChatElement(
     typeof document ===
     "undefined"
   ){
-
     return null;
-
   }
 
   if(
     typeof id !==
     "string"
   ){
-
     return null;
-
   }
 
   return document
-  .getElementById(
-    id
-  );
+  .getElementById(id);
 
 }
 
@@ -80,45 +70,31 @@ function getChatElement(
 function cacheChatElements(){
 
   if(
-    chatElementState
-    .cached
+    chatElementState.cached
   ){
-
     return true;
-
   }
 
   chatElementState
   .elements
   .container =
-
-    getChatElement(
-      "chatContainer"
-    );
+  getChatElement(
+    "chatContainer"
+  );
 
   chatElementState
   .elements
   .input =
-
-    getChatElement(
-      "messageInput"
-    );
-
-
-
-  // =========================
-  // SEND BUTTON
-  // =========================
+  getChatElement(
+    "messageInput"
+  );
 
   chatElementState
   .elements
   .sendButton =
-
-    getChatElement(
-      "sendBtn"
-    );
-
-
+  getChatElement(
+    "sendBtn"
+  );
 
   chatElementState
   .elements
@@ -134,8 +110,7 @@ function cacheChatElements(){
     .elements
     .container;
 
-  chatElementState
-  .cached =
+  chatElementState.cached =
   true;
 
   return true;
@@ -166,8 +141,7 @@ function validateChatElements(){
 
     !!elements.sendButton;
 
-  chatElementState
-  .validated =
+  chatElementState.validated =
   valid;
 
   return valid;
@@ -177,18 +151,15 @@ function validateChatElements(){
 
 
 // =====================================
-// INITIALIZE ELEMENTS
+// INITIALIZE
 // =====================================
 
 function initializeChatElements(){
 
   if(
-    chatElementState
-    .initialized
+    chatElementState.initialized
   ){
-
     return true;
-
   }
 
   cacheChatElements();
@@ -206,8 +177,7 @@ function initializeChatElements(){
 
   }
 
-  chatElementState
-  .initialized =
+  chatElementState.initialized =
   true;
 
   return true;
@@ -222,13 +192,9 @@ function initializeChatElements(){
 
 function getChatContainerElement(){
 
-  return (
-
-    chatElementState
-    .elements
-    .container
-
-  );
+  return chatElementState
+  .elements
+  .container;
 
 }
 
@@ -236,13 +202,9 @@ function getChatContainerElement(){
 
 function getMessageInputElement(){
 
-  return (
-
-    chatElementState
-    .elements
-    .input
-
-  );
+  return chatElementState
+  .elements
+  .input;
 
 }
 
@@ -250,13 +212,9 @@ function getMessageInputElement(){
 
 function getSendButtonElement(){
 
-  return (
-
-    chatElementState
-    .elements
-    .sendButton
-
-  );
+  return chatElementState
+  .elements
+  .sendButton;
 
 }
 
@@ -264,76 +222,16 @@ function getSendButtonElement(){
 
 function getScrollContainerElement(){
 
-  return (
-
-    chatElementState
-    .elements
-    .scrollContainer
-
-  );
-
-}
-
-
-
-function getTypingIndicatorElement(){
-
-  return (
-
-    chatElementState
-    .elements
-    .typingIndicator
-
-  );
-
-}
-
-
-
-// =====================================
-// SET TYPING INDICATOR
-// =====================================
-
-function setTypingIndicatorElement(
-  element
-){
-
-  if(
-    !element
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    typeof Element !==
-    "undefined"
-
-    &&
-
-    !(element instanceof Element)
-
-  ){
-
-    return false;
-
-  }
-
-  chatElementState
+  return chatElementState
   .elements
-  .typingIndicator =
-  element;
-
-  return true;
+  .scrollContainer;
 
 }
 
 
 
 // =====================================
-// CLEAR CHAT CONTAINER
+// CLEAR CONTAINER
 // =====================================
 
 function clearChatContainer(){
@@ -342,9 +240,7 @@ function clearChatContainer(){
   getChatContainerElement();
 
   if(!container){
-
     return false;
-
   }
 
   if(
@@ -370,11 +266,6 @@ function clearChatContainer(){
 
   }
 
-  chatElementState
-  .elements
-  .typingIndicator =
-  null;
-
   return true;
 
 }
@@ -382,7 +273,7 @@ function clearChatContainer(){
 
 
 // =====================================
-// APPEND CHAT ELEMENT
+// APPEND ELEMENT
 // =====================================
 
 function appendChatElement(
@@ -396,9 +287,7 @@ function appendChatElement(
     !container ||
     !element
   ){
-
     return false;
-
   }
 
   if(
@@ -411,17 +300,13 @@ function appendChatElement(
     !(element instanceof Element)
 
   ){
-
     return false;
-
   }
 
   if(
     !container.isConnected
   ){
-
     return false;
-
   }
 
   container.appendChild(
@@ -435,7 +320,7 @@ function appendChatElement(
 
 
 // =====================================
-// FOCUS MESSAGE INPUT
+// FOCUS INPUT
 // =====================================
 
 function focusMessageInput(){
@@ -444,17 +329,13 @@ function focusMessageInput(){
   getMessageInputElement();
 
   if(!input){
-
     return false;
-
   }
 
   try{
 
     input.focus({
-
       preventScroll:true
-
     });
 
     return true;
@@ -471,11 +352,7 @@ function focusMessageInput(){
 
     }
 
-    catch(fallbackError){
-
-      console.error(
-        fallbackError
-      );
+    catch{
 
       return false;
 
@@ -488,22 +365,15 @@ function focusMessageInput(){
 
 
 // =====================================
-// RESET ELEMENTS
+// RESET
 // =====================================
 
 function resetChatElements(){
 
-  chatElementState
-  .elements
-  .typingIndicator =
-  null;
-
-  chatElementState
-  .validated =
+  chatElementState.validated =
   false;
 
-  chatElementState
-  .cached =
+  chatElementState.cached =
   false;
 
   return true;
@@ -520,36 +390,31 @@ function cleanupChatElements(){
 
   resetChatElements();
 
-  chatElementState
-  .elements
-  .container =
-  null;
+  Object.assign(
 
-  chatElementState
-  .elements
-  .input =
-  null;
+    chatElementState.elements,
 
-  chatElementState
-  .elements
-  .sendButton =
-  null;
+    {
 
-  chatElementState
-  .elements
-  .scrollContainer =
-  null;
+      container:null,
 
-  chatElementState
-  .cached =
+      input:null,
+
+      sendButton:null,
+
+      scrollContainer:null
+
+    }
+
+  );
+
+  chatElementState.cached =
   false;
 
-  chatElementState
-  .validated =
+  chatElementState.validated =
   false;
 
-  chatElementState
-  .initialized =
+  chatElementState.initialized =
   false;
 
   return true;
@@ -567,43 +432,28 @@ function getChatElementDiagnostics(){
   return Object.freeze({
 
     initialized:
-
-      chatElementState
-      .initialized,
+    chatElementState.initialized,
 
     validated:
-
-      chatElementState
-      .validated,
+    chatElementState.validated,
 
     cached:
-
-      chatElementState
-      .cached,
+    chatElementState.cached,
 
     hasContainer:
-
-      !!chatElementState
-      .elements
-      .container,
+    !!chatElementState
+    .elements
+    .container,
 
     hasInput:
-
-      !!chatElementState
-      .elements
-      .input,
+    !!chatElementState
+    .elements
+    .input,
 
     hasSendButton:
-
-      !!chatElementState
-      .elements
-      .sendButton,
-
-    hasTypingIndicator:
-
-      !!chatElementState
-      .elements
-      .typingIndicator
+    !!chatElementState
+    .elements
+    .sendButton
 
   });
 
@@ -630,8 +480,6 @@ Object.freeze({
   reset:
   resetChatElements,
 
-
-
   getContainer:
   getChatContainerElement,
 
@@ -644,16 +492,6 @@ Object.freeze({
   getScrollContainer:
   getScrollContainerElement,
 
-  getTypingIndicator:
-  getTypingIndicatorElement,
-
-
-
-  setTypingIndicator:
-  setTypingIndicatorElement,
-
-
-
   clear:
   clearChatContainer,
 
@@ -662,8 +500,6 @@ Object.freeze({
 
   focusInput:
   focusMessageInput,
-
-
 
   diagnostics:
   getChatElementDiagnostics,
@@ -676,31 +512,38 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  ChatElements,
 
-    window,
+  initializeChatElements,
 
-    "ChatElements",
+  validateChatElements,
 
-    {
+  cleanupChatElements,
 
-      value:
-      ChatElements,
+  resetChatElements,
 
-      writable:false,
+  getChatContainerElement,
 
-      configurable:false
+  getMessageInputElement,
 
-    }
+  getSendButtonElement,
 
-  );
+  getScrollContainerElement,
 
-}
+  clearChatContainer,
+
+  appendChatElement,
+
+  focusMessageInput,
+
+  getChatElementDiagnostics
+
+};
+
+export default
+ChatElements;
