@@ -4,10 +4,31 @@
 // =====================================
 
 import {
-  getChatMessageState,
+
+  addMessage,
+
+  updateMessageRecord,
+
+  removeMessage,
+
+  getMessage as getStoredMessage,
+
+  getMessages as getStoredMessages,
+
+  hasMessage,
+
+  getMessageCount,
+
+  incrementCreated,
+
+  incrementUpdated,
+
+  incrementDeleted,
+
   getChatMessageSnapshot,
-  updateChatMessageState,
+
   resetChatMessageState
+
 }
 from "../chat-state/chat-message-state.js";
 
@@ -54,15 +75,6 @@ function createMessageId(){
     "_" +
     messageCounter
   );
-
-}
-
-
-
-function getMessagesMap(){
-
-  return getChatMessageState()
-  .messages;
 
 }
 
@@ -130,9 +142,6 @@ function createMessage(
   payload = {}
 ){
 
-  const state =
-  getChatMessageState();
-
   const message = {
 
     id:
@@ -162,27 +171,11 @@ function createMessage(
 
   };
 
-  state.messages.set(
-    message.id,
+  addMessage(
     message
   );
 
-  state.messageOrder.push(
-    message.id
-  );
-
-  updateChatMessageState({
-
-    activeMessageId:
-    message.id,
-
-    lastMessageId:
-    message.id
-
-  });
-
-  state.diagnostics
-  .created++;
+  incrementCreated();
 
   emit(
     CHAT_EVENTS
@@ -209,30 +202,35 @@ function updateMessage(
   updates = {}
 ){
 
-  const state =
-  getChatMessageState();
-
-  const message =
-  state.messages.get(
-    messageId
-  );
-
   if(
-    !message
+    !hasMessage(
+      messageId
+    )
   ){
     return null;
   }
 
-  Object.assign(
-    message,
-    updates
+  updateMessageRecord(
+
+    messageId,
+
+    {
+
+      ...updates,
+
+      updatedAt:
+      Date.now()
+
+    }
+
   );
 
-  message.updatedAt =
-  Date.now();
+  const message =
+  getStoredMessage(
+    messageId
+  );
 
-  state.diagnostics
-  .updated++;
+  incrementUpdated();
 
   emit(
     CHAT_EVENTS
@@ -258,11 +256,8 @@ function deleteMessage(
   messageId
 ){
 
-  const state =
-  getChatMessageState();
-
   const message =
-  state.messages.get(
+  getStoredMessage(
     messageId
   );
 
@@ -272,20 +267,11 @@ function deleteMessage(
     return false;
   }
 
-  state.messages.delete(
+  removeMessage(
     messageId
   );
 
-  state.messageOrder =
-
-    state.messageOrder
-    .filter(
-      id =>
-      id !== messageId
-    );
-
-  state.diagnostics
-  .deleted++;
+  incrementDeleted();
 
   emit(
     CHAT_EVENTS
@@ -310,9 +296,9 @@ function getMessage(
 ){
 
   const message =
-
-    getMessagesMap()
-    .get(messageId);
+  getStoredMessage(
+    messageId
+  );
 
   if(
     !message
@@ -334,14 +320,15 @@ function getMessage(
 
 function getMessages(){
 
-  return Array.from(
-    getMessagesMap()
-    .values()
-  ).map(
+  return getStoredMessages()
+  .map(
+
     message =>
+
     structuredClone(
       message
     )
+
   );
 
 }
@@ -354,9 +341,6 @@ function getMessages(){
 
 function getStatus(){
 
-  const state =
-  getChatMessageState();
-
   return Object.freeze({
 
     initialized:
@@ -364,8 +348,7 @@ function getStatus(){
     .initialized,
 
     messages:
-    state.messages
-    .size
+    getMessageCount()
 
   });
 
