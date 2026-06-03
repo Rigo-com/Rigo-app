@@ -1,8 +1,6 @@
 // =====================================
 // RIGO AI
 // CHAT RENDERER
-// ENTERPRISE CHAT RENDER SYSTEM
-// FINAL STABLE EDITION
 // =====================================
 
 
@@ -27,93 +25,6 @@ Object.seal({
 
 
 // =====================================
-// SERVICE ACCESS
-// =====================================
-
-function getChatRendererService(
-  serviceName
-){
-
-  try{
-
-    if(
-      typeof ServiceRegistry ===
-      "undefined"
-    ){
-
-      return null;
-
-    }
-
-    if(
-      typeof ServiceRegistry.get !==
-      "function"
-    ){
-
-      return null;
-
-    }
-
-    return ServiceRegistry.get(
-      serviceName
-    );
-
-  }
-
-  catch(error){
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE LOGGER
-// =====================================
-
-function safeRendererLogError(
-  ...args
-){
-
-  try{
-
-    const diagnostics =
-    getChatRendererService(
-      "diagnostics"
-    );
-
-    if(
-      diagnostics &&
-      typeof diagnostics.error ===
-      "function"
-    ){
-
-      diagnostics.error(
-        ...args
-      );
-
-      return;
-
-    }
-
-    console.error(...args);
-
-  }
-
-  catch(error){
-
-    console.error(error);
-
-  }
-
-}
-
-
-
-// =====================================
 // MARKDOWN RENDER
 // =====================================
 
@@ -125,59 +36,15 @@ function renderMarkdownContent(
   if(
     !element
   ){
-
     return false;
-
   }
 
-  const safeContent =
-  String(content || "");
+  element.textContent =
+  String(
+    content || ""
+  );
 
-  try{
-
-    const markdownRenderer =
-    getChatRendererService(
-      "markdown-renderer"
-    );
-
-    if(
-      markdownRenderer &&
-      typeof markdownRenderer
-      .render ===
-      "function"
-    ){
-
-      markdownRenderer.render(
-        element,
-        safeContent
-      );
-
-    }
-
-    else{
-
-      element.textContent =
-      safeContent;
-
-    }
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeRendererLogError(
-      "MARKDOWN RENDER ERROR:",
-      error
-    );
-
-    element.textContent =
-    safeContent;
-
-    return false;
-
-  }
+  return true;
 
 }
 
@@ -193,9 +60,7 @@ function createStreamingMessageElement(){
     typeof document ===
     "undefined"
   ){
-
     return null;
-
   }
 
   const wrapper =
@@ -262,126 +127,6 @@ function resetStreamingMessageState(){
 
 
 // =====================================
-// SHOW TYPING
-// =====================================
-
-function showTypingIndicator(){
-
-  const chatElements =
-  window.ChatElements;
-
-  if(
-    !chatElements
-  ){
-
-    return false;
-
-  }
-
-  const chatContainer =
-  chatElements.getContainer();
-
-  if(!chatContainer){
-
-    return false;
-
-  }
-
-  let typingIndicator =
-
-    chatElements
-    .getTypingIndicator();
-
-  if(!typingIndicator){
-
-    if(
-      typeof createTypingIndicatorElement !==
-      "function"
-    ){
-
-      return false;
-
-    }
-
-    typingIndicator =
-    createTypingIndicatorElement();
-
-    if(!typingIndicator){
-
-      return false;
-
-    }
-
-    chatElements
-    .setTypingIndicator(
-      typingIndicator
-    );
-
-  }
-
-  if(
-    typeof removeTypingIndicator ===
-    "function"
-  ){
-
-    removeTypingIndicator(
-      false
-    );
-
-  }
-
-  typingIndicator
-  .textContent =
-
-    typeof isRTLLayout ===
-    "function"
-
-    &&
-
-    isRTLLayout()
-
-    ?
-
-    "RIGO AI يكتب..."
-
-    :
-
-    "RIGO AI is typing...";
-
-  if(
-    !typingIndicator
-    .isConnected
-  ){
-
-    const appended =
-    chatElements.append(
-      typingIndicator
-    );
-
-    if(!appended){
-
-      return false;
-
-    }
-
-  }
-
-  if(
-    typeof scrollToBottom ===
-    "function"
-  ){
-
-    scrollToBottom();
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
 // STREAM RENDER
 // =====================================
 
@@ -393,57 +138,39 @@ function renderStreamingMessage(
     typeof chunk !==
     "string"
   ){
-
     return false;
-
   }
 
   if(
     chunk.length <= 0
   ){
-
     return false;
-
-  }
-
-  const chatElements =
-  window.ChatElements;
-
-  if(
-    !chatElements
-  ){
-
-    return false;
-
-  }
-
-  const chatContainer =
-  chatElements.getContainer();
-
-  if(!chatContainer){
-
-    return false;
-
   }
 
   if(
-    typeof removeTypingIndicator ===
-    "function"
+    typeof ChatElements ===
+    "undefined"
   ){
+    return false;
+  }
 
-    removeTypingIndicator();
+  const container =
+  ChatElements
+  .getContainer();
 
+  if(
+    !container
+  ){
+    return false;
   }
 
   let messageElement =
-
-    streamingMessageState
-    .activeElement;
+  streamingMessageState
+  .activeElement;
 
   let contentElement =
-
-    streamingMessageState
-    .activeContentElement;
+  streamingMessageState
+  .activeContentElement;
 
   if(
     messageElement &&
@@ -461,22 +188,17 @@ function renderStreamingMessage(
   }
 
   if(
-
-    !messageElement
-
-    ||
-
+    !messageElement ||
     !contentElement
-
   ){
 
     const created =
     createStreamingMessageElement();
 
-    if(!created){
-
+    if(
+      !created
+    ){
       return false;
-
     }
 
     messageElement =
@@ -493,31 +215,21 @@ function renderStreamingMessage(
     .activeContentElement =
     contentElement;
 
-    if(
-      typeof createMessageId ===
-      "function"
-    ){
-
-      streamingMessageState
-      .activeMessageId =
-      createMessageId();
-
-    }
-
-    else{
-
-      streamingMessageState
-      .activeMessageId =
-      String(Date.now());
-
-    }
+    streamingMessageState
+    .activeMessageId =
+    String(
+      Date.now()
+    );
 
     const appended =
-    chatElements.append(
+    ChatElements
+    .append(
       messageElement
     );
 
-    if(!appended){
+    if(
+      !appended
+    ){
 
       resetStreamingMessageState();
 
@@ -544,15 +256,6 @@ function renderStreamingMessage(
   .streaming =
   "true";
 
-  if(
-    typeof scrollToBottom ===
-    "function"
-  ){
-
-    scrollToBottom();
-
-  }
-
   return true;
 
 }
@@ -560,7 +263,7 @@ function renderStreamingMessage(
 
 
 // =====================================
-// COMPLETE STREAM MESSAGE
+// FINALIZE STREAM
 // =====================================
 
 function finalizeStreamingMessage(){
@@ -579,9 +282,7 @@ function finalizeStreamingMessage(){
     !element ||
     !contentElement
   ){
-
     return false;
-
   }
 
   const finalContent =
@@ -594,7 +295,9 @@ function finalizeStreamingMessage(){
     )
     .trim();
 
-  if(!finalContent){
+  if(
+    !finalContent
+  ){
 
     abortStreamingMessage();
 
@@ -615,101 +318,6 @@ function finalizeStreamingMessage(){
     finalContent
   );
 
-  const finalMessage =
-
-    typeof freezeChatObject ===
-    "function"
-
-    ?
-
-    freezeChatObject({
-
-      id:
-
-        streamingMessageState
-        .activeMessageId
-
-        ||
-
-        String(Date.now()),
-
-      role:"assistant",
-
-      content:
-      finalContent,
-
-      timestamp:
-      Date.now(),
-
-      metadata:{
-
-        streaming:true,
-
-        completed:true
-
-      }
-
-    })
-
-    :
-
-    {
-
-      id:
-      String(Date.now()),
-
-      role:"assistant",
-
-      content:
-      finalContent,
-
-      timestamp:
-      Date.now()
-
-    };
-
-  if(
-
-    typeof currentChat !==
-    "undefined"
-
-    &&
-
-    currentChat
-
-    &&
-
-    Array.isArray(
-      currentChat.messages
-    )
-
-  ){
-
-    currentChat.messages
-    .push(
-      finalMessage
-    );
-
-    currentChat.updatedAt =
-    Date.now();
-
-    currentChat.lastMessageAt =
-    finalMessage.timestamp;
-
-    currentChat.messageCount =
-    currentChat.messages.length;
-
-  }
-
-  if(
-    typeof debouncedSaveCurrentChat ===
-    "function"
-  ){
-
-    debouncedSaveCurrentChat();
-
-  }
-
   resetStreamingMessageState();
 
   return true;
@@ -719,7 +327,7 @@ function finalizeStreamingMessage(){
 
 
 // =====================================
-// ABORT STREAM MESSAGE
+// ABORT STREAM
 // =====================================
 
 function abortStreamingMessage(){
@@ -729,7 +337,9 @@ function abortStreamingMessage(){
     streamingMessageState
     .activeElement;
 
-  if(element){
+  if(
+    element
+  ){
 
     element.classList.remove(
       "streaming-message"
@@ -742,6 +352,7 @@ function abortStreamingMessage(){
     element.dataset
     .streaming =
     "aborted";
+
   }
 
   resetStreamingMessageState();
@@ -789,9 +400,6 @@ function getChatRendererDiagnostics(){
 const ChatRenderer =
 Object.freeze({
 
-  showTyping:
-  showTypingIndicator,
-
   renderStream:
   renderStreamingMessage,
 
@@ -815,31 +423,24 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  Object.defineProperty(
+  ChatRenderer,
 
-    window,
+  renderStreamingMessage,
 
-    "ChatRenderer",
+  finalizeStreamingMessage,
 
-    {
+  abortStreamingMessage,
 
-      value:
-      ChatRenderer,
+  resetStreamingMessageState,
 
-      writable:false,
+  getChatRendererDiagnostics
 
-      configurable:false
+};
 
-    }
-
-  );
-
-}
+export default
+ChatRenderer;
