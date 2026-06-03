@@ -132,7 +132,7 @@ function createQueueItem(
     return null;
   }
 
-  return {
+  return Object.freeze({
 
     id:
     String(messageId),
@@ -142,92 +142,7 @@ function createQueueItem(
 
     retries:0
 
-  };
-
-}
-
-
-
-// =====================================
-// QUEUE SCHEDULER
-// =====================================
-
-let queueProcessingScheduled =
-false;
-
-async function continueQueueProcessing(
-  processor,
-  runtimeState
-){
-
-  if(
-    !runtimeState ||
-    typeof runtimeState !==
-    "object"
-  ){
-    return false;
-  }
-
-  if(
-    queueProcessingScheduled
-  ){
-    return false;
-  }
-
-  if(
-    runtimeState.processing
-  ){
-    return false;
-  }
-
-  if(
-    runtimeState.generating
-  ){
-    return false;
-  }
-
-  if(
-    !Array.isArray(
-      runtimeState.queue
-    )
-    ||
-    runtimeState.queue.length <= 0
-  ){
-    return false;
-  }
-
-  if(
-    typeof processor !==
-    "function"
-  ){
-    return false;
-  }
-
-  queueProcessingScheduled =
-  true;
-
-  try{
-
-    await Promise.resolve();
-
-    await processor();
-
-    return true;
-
-  }
-
-  catch(error){
-
-    return false;
-
-  }
-
-  finally{
-
-    queueProcessingScheduled =
-    false;
-
-  }
+  });
 
 }
 
@@ -246,9 +161,7 @@ Object.freeze({
 
   createQueueItem,
 
-  createStreamId,
-
-  continueQueueProcessing
+  createStreamId
 
 });
 
@@ -267,8 +180,6 @@ export {
   createQueueItem,
 
   createStreamId,
-
-  continueQueueProcessing,
 
   ChatUtils
 
