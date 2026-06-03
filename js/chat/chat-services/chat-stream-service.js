@@ -22,7 +22,6 @@ import {
   setStreamActive,
   setStreamPaused,
   setStreamAborted,
-  setStreamRendering,
 
   setStreamStatus,
 
@@ -32,6 +31,8 @@ import {
   setCurrentChunk,
   setPartialContent,
   setBufferedContent,
+
+  getStreamStartAt,
 
   setStreamStartAt,
   setStreamEndAt,
@@ -489,8 +490,7 @@ function complete(){
     getActiveMessageId(),
 
     startedAt:
-    getChatStreamSnapshot()
-    .streamStartAt,
+    getStreamStartAt(),
 
     endedAt:
     Date.now(),
