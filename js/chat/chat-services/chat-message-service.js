@@ -160,7 +160,7 @@ function createMessage(
     ),
 
     metadata:
-    payload.metadata ||
+    payload.metadata ??
     {},
 
     createdAt:
