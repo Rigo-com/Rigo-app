@@ -14,7 +14,7 @@ from "./chat-config.js";
 // EMIT CHAT EVENT
 // =====================================
 
-export async function emitChatRuntimeEvent(
+async function emitChatRuntimeEvent(
   eventName,
   payload = {}
 ){
@@ -101,3 +101,34 @@ export async function emitChatRuntimeEvent(
   }
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const ChatEvents =
+Object.freeze({
+
+  emit:
+  emitChatRuntimeEvent
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  emitChatRuntimeEvent,
+
+  ChatEvents
+
+};
+
+export default
+ChatEvents;
