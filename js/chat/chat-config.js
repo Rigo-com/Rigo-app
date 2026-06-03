@@ -145,11 +145,23 @@ Object.freeze({
   STREAM_ABORTED:
   "chat.stream.aborted",
 
+  STREAM_FAILED:
+  "chat.stream.failed",
+
   QUEUE_ENQUEUED:
   "chat.queue.enqueued",
 
   QUEUE_DEQUEUED:
   "chat.queue.dequeued",
+
+  QUEUE_STARTED:
+  "chat.queue.started",
+
+  QUEUE_COMPLETED:
+  "chat.queue.completed",
+
+  QUEUE_FAILED:
+  "chat.queue.failed",
 
   QUEUE_CLEARED:
   "chat.queue.cleared"
