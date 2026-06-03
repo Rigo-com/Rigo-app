@@ -21,8 +21,6 @@ Object.seal({
 
   initializing:false,
 
-  destroyed:false,
-
   generating:false,
 
   streaming:false,
@@ -125,10 +123,6 @@ export function resetChatState(){
   false;
 
   chatRuntimeState
-  .destroyed =
-  false;
-
-  chatRuntimeState
   .generating =
   false;
 
@@ -162,19 +156,24 @@ export function resetChatState(){
   chatRuntimeState
   .renderQueue.length = 0;
 
-  chatRuntimeState
-  .pendingOperations
-  .clear();
+  if(
+    chatRuntimeState
+    .pendingOperations
+  ){
+    chatRuntimeState
+    .pendingOperations
+    .clear();
+  }
 
   chatRuntimeState
   .cache
-  .messages
-  .clear();
+  ?.messages
+  ?.clear();
 
   chatRuntimeState
   .cache
-  .rendered
-  .clear();
+  ?.rendered
+  ?.clear();
 
   resetChatDiagnostics();
 
@@ -200,10 +199,6 @@ export function getChatRuntimeStatus(){
     chatRuntimeState
     .initializing,
 
-    destroyed:
-    chatRuntimeState
-    .destroyed,
-
     generating:
     chatRuntimeState
     .generating,
@@ -226,15 +221,37 @@ export function getChatRuntimeStatus(){
 
     queueSize:
 
+      Array.isArray(
+        chatRuntimeState
+        .queue
+      )
+
+      ?
+
       chatRuntimeState
       .queue
-      .length,
+      .length
+
+      :
+
+      0,
 
     renderQueueSize:
 
+      Array.isArray(
+        chatRuntimeState
+        .renderQueue
+      )
+
+      ?
+
       chatRuntimeState
       .renderQueue
-      .length,
+      .length
+
+      :
+
+      0,
 
     activeMessageId:
     chatRuntimeState
@@ -258,3 +275,35 @@ export function getChatRuntimeStatus(){
   });
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+export const ChatState =
+Object.freeze({
+
+  state:
+  chatRuntimeState,
+
+  reset:
+  resetChatState,
+
+  diagnostics:
+  getChatRuntimeStatus,
+
+  snapshot:
+  getChatRuntimeStatus
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export default
+ChatState;
