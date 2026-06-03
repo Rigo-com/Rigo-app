@@ -164,8 +164,20 @@ Object.freeze({
   "chat.queue.failed",
 
   QUEUE_CLEARED:
-  "chat.queue.cleared"
+  "chat.queue.cleared",
 
+  RENDER_ENQUEUED:
+  "chat.render.enqueued",
+
+  RENDER_STARTED:
+  "chat.render.started",
+
+  RENDER_COMPLETED:
+  "chat.render.completed",
+
+  RENDER_CLEARED:
+  "chat.render.cleared"
+  
 });
 
 
