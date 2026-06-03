@@ -522,6 +522,77 @@ function resetChatStreamState(){
 
 
 // =====================================
+// READ API
+// =====================================
+
+function getStreamStatus(){
+
+  return chatStreamState
+  .status;
+
+}
+
+
+
+function getActiveStreamId(){
+
+  return chatStreamState
+  .activeStreamId;
+
+}
+
+
+
+function getActiveMessageId(){
+
+  return chatStreamState
+  .activeMessageId;
+
+}
+
+
+
+function getCurrentChunk(){
+
+  return chatStreamState
+  .currentChunk;
+
+}
+
+
+
+function getPartialContent(){
+
+  return chatStreamState
+  .partialContent;
+
+}
+
+
+
+function getBufferedContent(){
+
+  return chatStreamState
+  .bufferedContent;
+
+}
+
+
+
+function getStreamHistory(){
+
+  return structuredClone(
+
+    chatStreamState
+    .streamHistory
+
+  );
+
+}
+
+
+
+// =====================================
 // PUBLIC API
 // =====================================
 
