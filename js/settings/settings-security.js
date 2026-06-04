@@ -1,30 +1,198 @@
 // =====================================
 // RIGO AI
 // SETTINGS SECURITY
-// ENTERPRISE ULTRA FINAL
+// SECURITY LAYER
 // =====================================
 
 
 
-function sanitizeSettingsObject(
+// =====================================
+// DANGEROUS KEYS
+// =====================================
+
+const BLOCKED_KEYS =
+Object.freeze([
+
+  "__proto__",
+
+  "prototype",
+
+  "constructor"
+
+]);
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isObject(
+  value
+){
+
+  return (
+
+    value !== null
+
+    &&
+
+    typeof value ===
+    "object"
+
+  );
+
+}
+
+
+
+// =====================================
+// SANITIZE
+// =====================================
+
+function sanitizeSettings(
+  settings
+){
+
+  if(
+    !isObject(
+      settings
+    )
+  ){
+
+    return {};
+  }
+
+  const sanitized =
+  {};
+
+  for(
+    const [
+
+      key,
+
+      value
+
+    ]
+
+    of Object.entries(
+      settings
+    )
+  ){
+
+    if(
+      BLOCKED_KEYS
+      .includes(
+        key
+      )
+    ){
+      continue;
+    }
+
+    if(
+      isObject(
+        value
+      )
+    ){
+
+      sanitized[key] =
+
+        sanitizeSettings(
+          value
+        );
+
+      continue;
+
+    }
+
+    sanitized[key] =
+    value;
+
+  }
+
+  return sanitized;
+
+}
+
+
+
+// =====================================
+// INTEGRITY
+// =====================================
+
+function verifyIntegrity(
   settings
 ){
 
   try{
 
-    return JSON.parse(
+    sanitizeSettings(
+      settings
+    );
 
-      JSON.stringify(
-        settings
-      )
+    return true;
 
+  }
+
+  catch{
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// EXPORT SAFETY
+// =====================================
+
+function createSafeExport(
+  settings
+){
+
+  return JSON.stringify(
+
+    sanitizeSettings(
+      settings
+    ),
+
+    null,
+
+    2
+
+  );
+
+}
+
+
+
+// =====================================
+// IMPORT SAFETY
+// =====================================
+
+function createSafeImport(
+  rawData
+){
+
+  try{
+
+    const parsed =
+
+      JSON.parse(
+        rawData
+      );
+
+    return sanitizeSettings(
+      parsed
     );
 
   }
 
-  catch(error){
+  catch{
 
-    return createSettingsObject();
+    return null;
 
   }
 
@@ -32,45 +200,44 @@ function sanitizeSettingsObject(
 
 
 
-function createSettingsBackup(){
+// =====================================
+// PUBLIC API
+// =====================================
 
-  settingsState
-  .backupSettings =
-  cloneMemoryObject(
+const SettingsSecurity =
+Object.freeze({
 
-    settingsState
-    .runtimeSettings
+  sanitizeSettings,
 
-  );
+  verifyIntegrity,
 
-  return true;
+  createSafeExport,
 
-}
+  createSafeImport
+
+});
 
 
 
-function restoreSettingsBackup(){
+// =====================================
+// EXPORTS
+// =====================================
 
-  if(
+export {
 
-    !settingsState
-    .backupSettings
+  BLOCKED_KEYS,
 
-  ){
+  sanitizeSettings,
 
-    return false;
-  }
+  verifyIntegrity,
 
-  settingsState
-  .runtimeSettings =
+  createSafeExport,
 
-  cloneMemoryObject(
+  createSafeImport,
 
-    settingsState
-    .backupSettings
+  SettingsSecurity
 
-  );
+};
 
-  return true;
-
-}
+export default
+SettingsSecurity;
