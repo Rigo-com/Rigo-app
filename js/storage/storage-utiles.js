@@ -1,79 +1,139 @@
 // =====================================
-// HOST OBJECT DETECTION
+// RIGO AI
+// STORAGE UTILS
+// UTILITY LAYER
 // =====================================
 
-function isHostStorageObject(
+import {
+  STORAGE_KEYS,
+  STORAGE_NAMESPACES
+}
+from "./storage-config.js";
+
+
+
+// =====================================
+// IDS
+// =====================================
+
+function createStorageId(
+  prefix = "storage"
+){
+
+  return (
+
+    String(prefix)
+
+    + "_"
+
+    + Date.now()
+
+    + "_"
+
+    + Math.random()
+    .toString(36)
+    .slice(2,10)
+
+  );
+
+}
+
+
+
+// =====================================
+// TYPE HELPERS
+// =====================================
+
+function isObject(
   value
 ){
 
-  if(
-    !value ||
+  return (
 
-    typeof value !==
+    value !== null
+
+    &&
+
+    typeof value ===
     "object"
-  ){
 
-    return false;
+    &&
 
-  }
+    !Array.isArray(
+      value
+    )
+
+  );
+
+}
+
+
+
+function isString(
+  value
+){
+
+  return typeof value ===
+  "string";
+
+}
+
+
+
+function isValidKey(
+  key
+){
+
+  return (
+
+    isString(key)
+
+    &&
+
+    key.trim()
+    .length > 0
+
+  );
+
+}
+
+
+
+// =====================================
+// CLONE
+// =====================================
+
+function deepClone(
+  value
+){
+
+  return structuredClone(
+    value
+  );
+
+}
+
+
+
+// =====================================
+// SERIALIZATION
+// =====================================
+
+function serialize(
+  value
+){
 
   try{
 
-    return (
-
-      (
-        typeof Element !==
-        "undefined"
-
-        &&
-
-        value instanceof
-        Element
-      )
-
-      ||
-
-      (
-        typeof Node !==
-        "undefined"
-
-        &&
-
-        value instanceof
-        Node
-      )
-
-      ||
-
-      (
-        typeof Window !==
-        "undefined"
-
-        &&
-
-        value instanceof
-        Window
-      )
-
-      ||
-
-      (
-        typeof Document !==
-        "undefined"
-
-        &&
-
-        value instanceof
-        Document
-      )
-
+    return JSON.stringify(
+      value
     );
 
   }
 
-  catch(error){
+  catch{
 
-    return false;
+    return null;
 
   }
 
@@ -81,44 +141,9 @@ function isHostStorageObject(
 
 
 
-// =====================================
-// SAFE JSON PARSE
-// =====================================
-
-function safeJSONParse(
-  value,
-  fallback = null
+function deserialize(
+  value
 ){
-
-  if(
-    typeof value !==
-    "string"
-  ){
-
-    return fallback;
-
-  }
-
-  if(
-    value.length <= 0
-  ){
-
-    return fallback;
-
-  }
-
-  if(
-
-    value.length >
-
-    STORAGE_RUNTIME_CONFIG
-    .MAX_STORAGE_SIZE
-
-  ){
-
-    return fallback;
-
-  }
 
   try{
 
@@ -128,9 +153,9 @@ function safeJSONParse(
 
   }
 
-  catch(error){
+  catch{
 
-    return fallback;
+    return null;
 
   }
 
@@ -139,208 +164,179 @@ function safeJSONParse(
 
 
 // =====================================
-// SAFE SERIALIZE
+// STORAGE KEYS
 // =====================================
 
-function safeStorageSerialize(
+function createStorageKey(
+
+  namespace,
+
+  key
+
+){
+
+  return (
+
+    String(namespace)
+
+    + ":"
+
+    + String(key)
+
+  );
+
+}
+
+
+
+function isValidNamespace(
+  namespace
+){
+
+  return Object.values(
+
+    STORAGE_NAMESPACES
+
+  )
+  .includes(
+    namespace
+  );
+
+}
+
+
+
+function getStorageRootKey(
+  namespace
+){
+
+  switch(namespace){
+
+    case
+    STORAGE_NAMESPACES.CHAT:
+
+      return STORAGE_KEYS
+      .CHATS;
+
+    case
+    STORAGE_NAMESPACES.MEMORY:
+
+      return STORAGE_KEYS
+      .MEMORY;
+
+    case
+    STORAGE_NAMESPACES.SETTINGS:
+
+      return STORAGE_KEYS
+      .SETTINGS;
+
+    case
+    STORAGE_NAMESPACES.RUNTIME:
+
+      return STORAGE_KEYS
+      .RUNTIME;
+
+    default:
+
+      return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SIZE HELPERS
+// =====================================
+
+function getSerializedSize(
   value
 ){
 
-  try{
+  const serialized =
 
-    const visited =
-    new WeakSet();
-
-    const serialized =
-    JSON.stringify(
-
-      value,
-
-      (key,nestedValue) => {
-
-        if(
-          typeof nestedValue ===
-          "function"
-        ){
-
-          return undefined;
-
-        }
-
-        if(
-          typeof nestedValue ===
-          "symbol"
-        ){
-
-          return undefined;
-
-        }
-
-        if(
-          typeof nestedValue ===
-          "bigint"
-        ){
-
-          return String(
-            nestedValue
-          );
-
-        }
-
-        if(
-          isHostStorageObject(
-            nestedValue
-          )
-        ){
-
-          return undefined;
-
-        }
-
-        if(
-
-          key === "__proto__"
-
-          ||
-
-          key === "prototype"
-
-          ||
-
-          key === "constructor"
-
-        ){
-
-          return undefined;
-
-        }
-
-        if(
-
-          nestedValue &&
-
-          typeof nestedValue ===
-          "object"
-
-        ){
-
-          if(
-            visited.has(
-              nestedValue
-            )
-          ){
-
-            return undefined;
-
-          }
-
-          visited.add(
-            nestedValue
-          );
-
-        }
-
-        return nestedValue;
-
-      }
-
+    serialize(
+      value
     );
 
-    if(
-      typeof serialized !==
-      "string"
-    ){
-
-      return null;
-
-    }
-
-    if(
-
-      serialized.length >
-
-      STORAGE_RUNTIME_CONFIG
-      .MAX_STORAGE_SIZE
-
-    ){
-
-      return null;
-
-    }
-
-    return serialized;
-
+  if(
+    !serialized
+  ){
+    return 0;
   }
 
-  catch(error){
-
-    return null;
-
-  }
+  return serialized
+  .length;
 
 }
 
 
 
 // =====================================
-// SAFE DEEP CLONE
+// PUBLIC API
 // =====================================
 
-function deepClone(data){
+const StorageUtils =
+Object.freeze({
 
-  if(
-    isHostStorageObject(
-      data
-    )
-  ){
+  createStorageId,
 
-    return null;
+  isObject,
 
-  }
+  isString,
 
-  if(
-    typeof structuredClone ===
-    "function"
-  ){
+  isValidKey,
 
-    try{
+  deepClone,
 
-      return structuredClone(
-        data
-      );
+  serialize,
 
-    }
+  deserialize,
 
-    catch(error){}
+  createStorageKey,
 
-  }
+  isValidNamespace,
 
-  try{
+  getStorageRootKey,
 
-    const serialized =
-    safeStorageSerialize(
-      data
-    );
+  getSerializedSize
 
-    if(
-      !serialized
-    ){
+});
 
-      return null;
 
-    }
 
-    return safeJSONParse(
-      serialized,
-      null
-    );
+// =====================================
+// EXPORTS
+// =====================================
 
-  }
+export {
 
-  catch(error){
+  createStorageId,
 
-    return null;
+  isObject,
 
-  }
+  isString,
 
-}
+  isValidKey,
+
+  deepClone,
+
+  serialize,
+
+  deserialize,
+
+  createStorageKey,
+
+  isValidNamespace,
+
+  getStorageRootKey,
+
+  getSerializedSize,
+
+  StorageUtils
+
+};
+
+export default
+StorageUtils;
