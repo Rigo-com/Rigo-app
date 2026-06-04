@@ -13,11 +13,6 @@ import {
 }
 from "./communication-state.js";
 
-import {
-  COMMUNICATION_STATES
-}
-from "./communication-config.js";
-
 
 
 // =====================================
@@ -34,15 +29,6 @@ function getHealthStatus(){
   "healthy";
 
   if(
-    state.destroyed
-  ){
-
-    status =
-    "destroyed";
-
-  }
-
-  else if(
     !state.initialized
   ){
 
@@ -52,23 +38,29 @@ function getHealthStatus(){
   }
 
   else if(
-    state.state ===
-
-    COMMUNICATION_STATES
-    .FAILED
+    !state.healthy
   ){
 
     status =
-    "failed";
+    "unhealthy";
 
   }
 
   else if(
-    state.recovering
+    state.processing
   ){
 
     status =
-    "recovering";
+    "processing";
+
+  }
+
+  else if(
+    state.streaming
+  ){
+
+    status =
+    "streaming";
 
   }
 
@@ -79,20 +71,20 @@ function getHealthStatus(){
     initialized:
     state.initialized,
 
+    healthy:
+    state.healthy,
+
     processing:
     state.processing,
 
     streaming:
     state.streaming,
 
-    recovering:
-    state.recovering,
+    activeRequests:
+    state.activeRequests,
 
-    typing:
-    state.typing,
-
-    runtimeState:
-    state.state
+    abortControllers:
+    state.abortControllers
 
   });
 
@@ -145,14 +137,10 @@ function getHealthReport(){
 
 function isHealthy(){
 
-  const health =
-
-    getHealthStatus();
-
   return (
 
-    health.status ===
-    "healthy"
+    getCommunicationSnapshot()
+    .healthy === true
 
   );
 
