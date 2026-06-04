@@ -1,304 +1,8 @@
 // =====================================
 // RIGO AI
 // MEMORY CONSTANTS
-// ENTERPRISE GOD FINAL
+// MEMORY FOUNDATION CONFIG
 // =====================================
-
-
-
-// =====================================
-// SAFE FREEZE
-// =====================================
-
-const freeze =
-typeof deepFreeze ===
-"function"
-
-? deepFreeze
-
-: Object.freeze;
-
-
-
-// =====================================
-// MEMORY VERSION
-// =====================================
-
-const MEMORY_VERSION =
-"1.0.0";
-
-
-
-// =====================================
-// NORMALIZE VALUE
-// =====================================
-
-function normalizeMemoryValue(
-  value
-){
-
-  return String(
-    value ?? ""
-  )
-  .trim()
-  .toLowerCase();
-
-}
-
-
-
-// =====================================
-// IMMUTABLE SET
-// =====================================
-
-function createImmutableSet(
-  values = []
-){
-
-  const internalSet =
-  new Set(values);
-
-  return Object.freeze({
-
-    has(value){
-
-      return internalSet.has(
-        value
-      );
-
-    },
-
-    values(){
-
-      return [
-        ...internalSet.values()
-      ];
-
-    },
-
-    get size(){
-
-      return internalSet.size;
-
-    }
-
-  });
-
-}
-
-
-
-// =====================================
-// MEMORY TYPES
-// =====================================
-
-const MEMORY_TYPES =
-freeze([
-
-  "conversation",
-
-  "summary",
-
-  "project",
-
-  "preference",
-
-  "personality",
-
-  "goal",
-
-  "task",
-
-  "temporary",
-
-  "session",
-
-  "system",
-
-  "knowledge",
-
-  "fact",
-
-  "profile"
-
-]);
-
-
-
-const MEMORY_TYPE_SET =
-createImmutableSet(
-  MEMORY_TYPES
-);
-
-
-
-// =====================================
-// MEMORY PRIORITIES
-// =====================================
-
-const MEMORY_PRIORITIES =
-freeze({
-
-  LOW:
-  "low",
-
-  NORMAL:
-  "normal",
-
-  HIGH:
-  "high",
-
-  CRITICAL:
-  "critical"
-
-});
-
-
-
-const MEMORY_PRIORITY_SET =
-createImmutableSet(
-
-  Object.values(
-    MEMORY_PRIORITIES
-  )
-
-);
-
-
-
-// =====================================
-// MEMORY PRIORITY WEIGHTS
-// =====================================
-
-const MEMORY_PRIORITY_WEIGHTS =
-freeze({
-
-  low:
-  0.2,
-
-  normal:
-  0.4,
-
-  high:
-  0.7,
-
-  critical:
-  1.0
-
-});
-
-
-
-// =====================================
-// MEMORY EXPIRATION TYPES
-// =====================================
-
-const MEMORY_EXPIRATION =
-freeze({
-
-  SESSION:
-  "session",
-
-  DAILY:
-  "daily",
-
-  WEEKLY:
-  "weekly",
-
-  MONTHLY:
-  "monthly",
-
-  PERMANENT:
-  "permanent"
-
-});
-
-
-
-const MEMORY_EXPIRATION_SET =
-createImmutableSet(
-
-  Object.values(
-    MEMORY_EXPIRATION
-  )
-
-);
-
-
-
-// =====================================
-// MEMORY SCORE WEIGHTS
-// =====================================
-
-const MEMORY_SCORE_WEIGHTS =
-freeze({
-
-  PINNED:
-  1.0,
-
-  CRITICAL_PRIORITY:
-  0.9,
-
-  HIGH_PRIORITY:
-  0.7,
-
-  NORMAL_PRIORITY:
-  0.4,
-
-  LOW_PRIORITY:
-  0.2,
-
-  RECENT_ACCESS:
-  0.5,
-
-  FREQUENT_ACCESS:
-  0.4,
-
-  RECENT_UPDATE:
-  0.3,
-
-  SUMMARY:
-  0.2
-
-});
-
-
-
-// =====================================
-// MEMORY DEFAULTS
-// =====================================
-
-const MEMORY_DEFAULTS =
-freeze({
-
-  TYPE:
-  "conversation",
-
-  PRIORITY:
-  MEMORY_PRIORITIES.NORMAL,
-
-  CATEGORY:
-  "chat",
-
-  STATE:
-  "active",
-
-  EXPIRATION:
-  MEMORY_EXPIRATION.PERMANENT,
-
-  PINNED:
-  false,
-
-  ARCHIVED:
-  false,
-
-  TAGS:
-  [],
-
-  METADATA:
-  {}
-
-});
 
 
 
@@ -307,275 +11,85 @@ freeze({
 // =====================================
 
 const MEMORY_LIMITS =
-freeze({
+Object.freeze({
 
-  MAX_TOTAL_MEMORIES:
-  5000,
-
-  MAX_PINNED_MEMORIES:
-  100,
-
-  MAX_SESSION_MEMORIES:
-  500,
-
-  MIN_CONTENT_LENGTH:
-  1,
-
-  MAX_CONTENT_LENGTH:
+  MAX_MEMORIES:
   10000,
 
-  MAX_SUMMARY_LENGTH:
-  2000,
-
-  MAX_TITLE_LENGTH:
-  120,
-
-  MAX_METADATA_SIZE:
-  5000,
-
-  MAX_TAGS:
-  20,
-
-  MAX_TAG_LENGTH:
-  40,
-
-  MAX_CONTEXT_MEMORIES:
+  MAX_CONTEXT_ITEMS:
   50,
 
-  MAX_CONTEXT_CHARACTERS:
-  50000,
-
-  MAX_CONTEXT_TOKENS:
-  12000,
+  MAX_SUMMARY_LENGTH:
+  5000,
 
   MAX_SEARCH_RESULTS:
   100,
 
-  MAX_EXPORT_SIZE:
-  10 * 1024 * 1024,
+  MAX_EMBEDDINGS:
+  10000,
 
-  MAX_IMPORT_ITEMS:
-  5000,
+  MAX_TAGS:
+  25,
 
-  AUTO_SAVE_DELAY:
-  300,
-
-  MAX_CACHE_MEMORY_SIZE:
-  5 * 1024 * 1024,
-
-  CLEANUP_BATCH_SIZE:
-  100,
-
-  MAX_MEMORY_AGE_DAYS:
-  3650,
-
-  MAX_UNUSED_DAYS:
-  365
+  MAX_IMPORT_SIZE:
+  5 * 1024 * 1024
 
 });
 
 
 
 // =====================================
-// MEMORY STORAGE
+// MEMORY TIMERS
 // =====================================
 
-const MEMORY_STORAGE_KEYS =
-freeze({
+const MEMORY_TIMERS =
+Object.freeze({
 
-  MEMORIES:
-  "rigo_memories",
+  AUTO_SAVE_INTERVAL:
+  30000,
 
-  INDEX:
-  "rigo_memory_index",
+  AUTO_SUMMARY_INTERVAL:
+  300000,
 
-  SETTINGS:
-  "rigo_memory_settings",
+  CLEANUP_INTERVAL:
+  600000,
 
-  CACHE:
-  "rigo_memory_cache",
+  INDEXING_INTERVAL:
+  60000,
 
-  BACKUP:
-  "rigo_memory_backup",
-
-  STATS:
-  "rigo_memory_stats",
-
-  VERSION:
-  "rigo_memory_version"
+  CLOUD_SYNC_INTERVAL:
+  300000
 
 });
 
 
 
 // =====================================
-// MEMORY STATES
+// MEMORY FEATURES
 // =====================================
 
-const MEMORY_STATES =
-freeze([
+const MEMORY_FEATURES =
+Object.freeze({
 
-  "active",
-
-  "archived",
-
-  "deleted"
-
-]);
-
-
-
-const MEMORY_STATE_SET =
-createImmutableSet(
-  MEMORY_STATES
-);
-
-
-
-// =====================================
-// MEMORY CATEGORIES
-// =====================================
-
-const MEMORY_CATEGORIES =
-freeze([
-
-  "chat",
-
-  "user",
-
-  "assistant",
-
-  "project",
-
-  "system",
-
-  "settings",
-
-  "context",
-
-  "history",
-
-  "memory",
-
-  "analytics"
-
-]);
-
-
-
-const MEMORY_CATEGORY_SET =
-createImmutableSet(
-  MEMORY_CATEGORIES
-);
-
-
-
-// =====================================
-// MEMORY TAGS
-// =====================================
-
-const RESERVED_MEMORY_TAGS =
-freeze([
-
-  "pinned",
-
-  "favorite",
-
-  "recent",
-
-  "important",
-
-  "system",
-
-  "temporary"
-
-]);
-
-
-
-const RESERVED_MEMORY_TAG_SET =
-createImmutableSet(
-  RESERVED_MEMORY_TAGS
-);
-
-
-
-// =====================================
-// MEMORY SORT OPTIONS
-// =====================================
-
-const MEMORY_SORT_OPTIONS =
-freeze([
-
-  "createdAt",
-
-  "updatedAt",
-
-  "lastAccessedAt",
-
-  "score",
-
-  "priority",
-
-  "accessCount"
-
-]);
-
-
-
-const MEMORY_SORT_OPTION_SET =
-createImmutableSet(
-  MEMORY_SORT_OPTIONS
-);
-
-
-
-// =====================================
-// MEMORY SEARCH MODES
-// =====================================
-
-const MEMORY_SEARCH_MODES =
-freeze([
-
-  "exact",
-
-  "partial",
-
-  "tag",
-
-  "category"
-
-]);
-
-
-
-const MEMORY_SEARCH_MODE_SET =
-createImmutableSet(
-  MEMORY_SEARCH_MODES
-);
-
-
-
-// =====================================
-// MEMORY CLEANUP RULES
-// =====================================
-
-const MEMORY_CLEANUP_RULES =
-freeze({
-
-  REMOVE_EXPIRED:
+  ENABLE_SEARCH:
   true,
 
-  REMOVE_DUPLICATES:
+  ENABLE_EMBEDDINGS:
   true,
 
-  REMOVE_EMPTY:
+  ENABLE_SUMMARIES:
   true,
 
-  REMOVE_UNUSED:
+  ENABLE_INDEXING:
   true,
 
-  COMPRESS_SUMMARIES:
+  ENABLE_CLOUD_SYNC:
+  true,
+
+  ENABLE_EXPORT:
+  true,
+
+  ENABLE_DIAGNOSTICS:
   true
 
 });
@@ -583,249 +97,76 @@ freeze({
 
 
 // =====================================
-// MEMORY DEBUG
+// MEMORY EVENTS
 // =====================================
 
-const MEMORY_DEBUG =
-freeze({
+const MEMORY_EVENTS =
+Object.freeze({
 
-  ENABLE_LOGS:
-  false,
+  INITIALIZED:
+  "memory.initialized",
 
-  ENABLE_WARNINGS:
-  true,
+  DESTROYED:
+  "memory.destroyed",
 
-  ENABLE_PERFORMANCE:
-  false,
+  CREATED:
+  "memory.created",
 
-  ENABLE_DEV_TOOLS:
-  false,
+  UPDATED:
+  "memory.updated",
 
-  ENABLE_MEMORY_TRACE:
-  false,
+  REMOVED:
+  "memory.removed",
 
-  ENABLE_STRICT_VALIDATION:
-  true
+  SEARCHED:
+  "memory.searched",
+
+  INDEXED:
+  "memory.indexed",
+
+  SUMMARIZED:
+  "memory.summarized",
+
+  SYNCED:
+  "memory.synced",
+
+  IMPORTED:
+  "memory.imported",
+
+  EXPORTED:
+  "memory.exported",
+
+  FAILED:
+  "memory.failed"
 
 });
 
 
 
 // =====================================
-// MEMORY CACHE
+// MEMORY NAMESPACES
 // =====================================
 
-const MEMORY_CACHE =
-freeze({
+const MEMORY_NAMESPACES =
+Object.freeze({
 
-  ENABLED:
-  true,
+  SHORT_TERM:
+  "short_term",
 
-  ENABLE_MEMORY_PRELOAD:
-  true,
-
-  ENABLE_CONTEXT_CACHE:
-  true,
-
-  MAX_CACHE_ITEMS:
-  1000,
-
-  CACHE_TTL:
-  5 * 60 * 1000
-
-});
-
-
-
-// =====================================
-// MEMORY CONTEXT
-// =====================================
-
-const MEMORY_CONTEXT =
-freeze({
-
-  ENABLE_SMART_SELECTION:
-  true,
-
-  ENABLE_PRIORITY_BOOST:
-  true,
-
-  ENABLE_RELEVANCE_SCORING:
-  true,
-
-  ENABLE_SUMMARIZATION:
-  true,
-
-  ENABLE_CONTEXT_CACHE:
-  true,
-
-  MIN_RELEVANCE_SCORE:
-  0.3
-
-});
-
-
-
-// =====================================
-// MEMORY EXPORT FORMATS
-// =====================================
-
-const MEMORY_EXPORT_FORMATS =
-freeze([
-
-  "json",
-
-  "txt"
-
-]);
-
-
-
-const MEMORY_EXPORT_FORMAT_SET =
-createImmutableSet(
-  MEMORY_EXPORT_FORMATS
-);
-
-
-
-// =====================================
-// LOOKUP HELPERS
-// =====================================
-
-function isValidMemoryType(type){
-
-  return MEMORY_TYPE_SET.has(
-    normalizeMemoryValue(type)
-  );
-
-}
-
-
-
-function isValidMemoryPriority(priority){
-
-  return MEMORY_PRIORITY_SET.has(
-    normalizeMemoryValue(priority)
-  );
-
-}
-
-
-
-function isValidMemoryExpiration(expiration){
-
-  return MEMORY_EXPIRATION_SET.has(
-    normalizeMemoryValue(expiration)
-  );
-
-}
-
-
-
-function isValidMemoryState(state){
-
-  return MEMORY_STATE_SET.has(
-    normalizeMemoryValue(state)
-  );
-
-}
-
-
-
-function isValidMemoryCategory(category){
-
-  return MEMORY_CATEGORY_SET.has(
-    normalizeMemoryValue(category)
-  );
-
-}
-
-
-
-function isValidMemorySearchMode(mode){
-
-  return MEMORY_SEARCH_MODE_SET.has(
-    normalizeMemoryValue(mode)
-  );
-
-}
-
-
-
-function isValidMemorySortOption(option){
-
-  return MEMORY_SORT_OPTION_SET.has(
-    normalizeMemoryValue(option)
-  );
-
-}
-
-
-
-function isValidMemoryExportFormat(format){
-
-  return MEMORY_EXPORT_FORMAT_SET.has(
-    normalizeMemoryValue(format)
-  );
-
-}
-
-
-
-// =====================================
-// MEMORY MAIN CONFIG
-// =====================================
-
-const MEMORY_CONFIG =
-freeze({
-
-  VERSION:
-  MEMORY_VERSION,
-
-  TYPES:
-  [...MEMORY_TYPES],
-
-  PRIORITIES:
-  MEMORY_PRIORITIES,
-
-  PRIORITY_WEIGHTS:
-  MEMORY_PRIORITY_WEIGHTS,
-
-  EXPIRATION:
-  MEMORY_EXPIRATION,
-
-  DEFAULTS:
-  MEMORY_DEFAULTS,
-
-  LIMITS:
-  MEMORY_LIMITS,
-
-  STORAGE:
-  MEMORY_STORAGE_KEYS,
-
-  CACHE:
-  MEMORY_CACHE,
+  LONG_TERM:
+  "long_term",
 
   CONTEXT:
-  MEMORY_CONTEXT,
+  "context",
 
-  DEBUG:
-  MEMORY_DEBUG,
+  SUMMARY:
+  "summary",
 
-  CLEANUP:
-  MEMORY_CLEANUP_RULES,
+  EMBEDDINGS:
+  "embeddings",
 
-  STATES:
-  [...MEMORY_STATES],
-
-  CATEGORIES:
-  [...MEMORY_CATEGORIES],
-
-  SEARCH_MODES:
-  [...MEMORY_SEARCH_MODES],
-
-  EXPORT_FORMATS:
-  [...MEMORY_EXPORT_FORMATS]
+  INDEX:
+  "index"
 
 });
 
@@ -838,146 +179,44 @@ freeze({
 const MemoryConstants =
 Object.freeze({
 
-  VERSION:
-  MEMORY_VERSION,
-
-  TYPES:
-  MEMORY_TYPES,
-
-  TYPE_SET:
-  MEMORY_TYPE_SET,
-
-  PRIORITIES:
-  MEMORY_PRIORITIES,
-
-  PRIORITY_SET:
-  MEMORY_PRIORITY_SET,
-
-  PRIORITY_WEIGHTS:
-  MEMORY_PRIORITY_WEIGHTS,
-
-  EXPIRATION:
-  MEMORY_EXPIRATION,
-
-  EXPIRATION_SET:
-  MEMORY_EXPIRATION_SET,
-
-  SCORE_WEIGHTS:
-  MEMORY_SCORE_WEIGHTS,
-
-  DEFAULTS:
-  MEMORY_DEFAULTS,
-
-  LIMITS:
+  limits:
   MEMORY_LIMITS,
 
-  STORAGE_KEYS:
-  MEMORY_STORAGE_KEYS,
+  timers:
+  MEMORY_TIMERS,
 
-  STATES:
-  MEMORY_STATES,
+  features:
+  MEMORY_FEATURES,
 
-  STATE_SET:
-  MEMORY_STATE_SET,
+  events:
+  MEMORY_EVENTS,
 
-  CATEGORIES:
-  MEMORY_CATEGORIES,
-
-  CATEGORY_SET:
-  MEMORY_CATEGORY_SET,
-
-  RESERVED_TAGS:
-  RESERVED_MEMORY_TAGS,
-
-  RESERVED_TAG_SET:
-  RESERVED_MEMORY_TAG_SET,
-
-  SORT_OPTIONS:
-  MEMORY_SORT_OPTIONS,
-
-  SORT_OPTION_SET:
-  MEMORY_SORT_OPTION_SET,
-
-  SEARCH_MODES:
-  MEMORY_SEARCH_MODES,
-
-  SEARCH_MODE_SET:
-  MEMORY_SEARCH_MODE_SET,
-
-  CLEANUP_RULES:
-  MEMORY_CLEANUP_RULES,
-
-  DEBUG:
-  MEMORY_DEBUG,
-
-  CACHE:
-  MEMORY_CACHE,
-
-  CONTEXT:
-  MEMORY_CONTEXT,
-
-  EXPORT_FORMATS:
-  MEMORY_EXPORT_FORMATS,
-
-  EXPORT_FORMAT_SET:
-  MEMORY_EXPORT_FORMAT_SET,
-
-  CONFIG:
-  MEMORY_CONFIG,
-
-  normalize:
-  normalizeMemoryValue,
-
-  isValidType:
-  isValidMemoryType,
-
-  isValidPriority:
-  isValidMemoryPriority,
-
-  isValidExpiration:
-  isValidMemoryExpiration,
-
-  isValidState:
-  isValidMemoryState,
-
-  isValidCategory:
-  isValidMemoryCategory,
-
-  isValidSearchMode:
-  isValidMemorySearchMode,
-
-  isValidSortOption:
-  isValidMemorySortOption,
-
-  isValidExportFormat:
-  isValidMemoryExportFormat
+  namespaces:
+  MEMORY_NAMESPACES
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.MemoryConstants =
-  MemoryConstants;
+  MEMORY_LIMITS,
 
-}
+  MEMORY_TIMERS,
 
+  MEMORY_FEATURES,
 
+  MEMORY_EVENTS,
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  MEMORY_NAMESPACES,
 
-  globalThis.MemoryConstants =
-  MemoryConstants;
+  MemoryConstants
 
-}
+};
+
+export default
+MemoryConstants;
