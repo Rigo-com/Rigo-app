@@ -14,7 +14,9 @@ import {
 
   registerAbortController,
 
-  removeAbortController
+  removeAbortController,
+
+  incrementAborted
 
 }
 from "./communication-state.js";
@@ -27,7 +29,7 @@ from "./communication-config.js";
 import {
   emit
 }
-from "../chat-events/chat-events.js";
+from "./communication-events.js";
 
 
 
@@ -113,6 +115,8 @@ function abortRequest(
   removeAbortController(
     requestId
   );
+
+  incrementAborted();
 
   emit(
 
