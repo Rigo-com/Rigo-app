@@ -1,46 +1,174 @@
 // =====================================
 // RIGO AI
 // SETTINGS SYNC
-// ENTERPRISE ULTRA FINAL
+// SYNCHRONIZATION LAYER
 // =====================================
 
+import {
+  loadSettings,
+  saveSettings
+}
+from "./settings-storage.js";
+
+import {
+  validateSettings
+}
+from "./settings-validation.js";
+
+import {
+  sanitizeSettings
+}
+from "./settings-security.js";
+
+import {
+  migrateSettings
+}
+from "./settings-migrations.js";
 
 
-async function syncSettingsSystem(){
 
-  settingsState.syncing =
-  true;
+// =====================================
+// LOAD & SYNC
+// =====================================
+
+function syncFromStorage(){
 
   try{
 
-    await saveSettingsToStorage();
+    let settings =
+    loadSettings();
 
-    settingsState
-    .lastSyncedAt =
-    Date.now();
+    settings =
+    migrateSettings(
+      settings
+    );
 
-    return true;
+    settings =
+    sanitizeSettings(
+      settings
+    );
+
+    settings =
+    validateSettings(
+      settings
+    );
+
+    return settings;
 
   }
 
-  catch(error){
+  catch{
 
-    settingsState
-    .lastError =
-    error;
+    return null;
+
+  }
+
+}
+
+
+
+// =====================================
+// SAVE & SYNC
+// =====================================
+
+function syncToStorage(
+  settings
+){
+
+  try{
+
+    const sanitized =
+
+      sanitizeSettings(
+        settings
+      );
+
+    const validated =
+
+      validateSettings(
+        sanitized
+      );
+
+    return saveSettings(
+      validated
+    );
+
+  }
+
+  catch{
 
     return false;
 
   }
 
-  finally{
+}
 
-    settingsState.syncing =
-    false;
 
-    settingsState.currentState =
-    SETTINGS_STATES.READY;
+
+// =====================================
+// FULL SYNC
+// =====================================
+
+function synchronizeSettings(
+  settings
+){
+
+  const synchronized =
+
+    syncFromStorage();
+
+  if(
+    !synchronized
+  ){
+
+    return false;
 
   }
 
+  return syncToStorage(
+
+    settings ??
+
+    synchronized
+
+  );
+
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsSync =
+Object.freeze({
+
+  syncFromStorage,
+
+  syncToStorage,
+
+  synchronizeSettings
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  syncFromStorage,
+
+  syncToStorage,
+
+  synchronizeSettings,
+
+  SettingsSync
+
+};
+
+export default
+SettingsSync;
