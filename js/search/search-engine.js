@@ -1,109 +1,94 @@
 // =====================================
 // RIGO AI
 // SEARCH ENGINE
-// OPTIMIZED FINAL
+// SEARCH EXECUTION LAYER
 // =====================================
 
+import {
+  startSearch,
+  completeSearch,
+  failSearch
+}
+from "./search-core.js";
+
+import {
+  getCache,
+  setCache,
+  addHistory
+}
+from "./search-storage.js";
+
+import {
+  SEARCH_FEATURES
+}
+from "./search-config.js";
+
+import {
+  createCacheKey,
+  createSearchResult,
+  createSnippet,
+  isValidQuery
+}
+from "./search-helpers.js";
+
+import {
+  calculateScore,
+  filterResults,
+  rankResults
+}
+from "./search-ranking.js";
+
 
 
 // =====================================
-// SEARCH SOURCES
+// INDEXED SEARCH
 // =====================================
 
 function executeIndexedSearch(
-  query
-){
-
-  return searchIndexedMemories(
-    query
-  )
-  .map((memory) => {
-
-    const score =
-    calculateSearchRanking(
-      memory,
-      query
-    );
-
-    if(score <= 0){
-
-      return null;
-
-    }
-
-    return createSearchResult(
-
-      memory,
-
-      score,
-
-      {
-        source:"indexed",
-
-        snippet:
-        createSearchSnippet(
-
-          memory.content,
-
-          query
-
-        )
-
-      }
-
-    );
-
-  })
-  .filter(Boolean);
-
-}
-
-
-
-async function executeSemanticSearch(
   query,
-  options = {}
+  items = []
 ){
 
-  if(
+  const results = [];
 
-    !SEARCH_CONFIG
-    .ENABLE_SEMANTIC_SEARCH
-
-    ||
-
-    typeof semanticMemorySearch !==
-    "function"
-
+  for(
+    const item
+    of items
   ){
 
-    return [];
+    const score =
 
-  }
+      calculateScore(
 
-  try{
+        item?.content ?? "",
 
-    const results =
-    await semanticMemorySearch(
-      query,
-      options
-    );
+        query
 
-    return results.map((item) => {
+      );
 
-      return createSearchResult(
+    if(
+      score <= 0
+    ){
+      continue;
+    }
 
-        item.memory,
+    results.push(
 
-        item.similarity,
+      createSearchResult(
+
+        item,
+
+        score,
 
         {
-          source:"semantic",
+
+          source:
+          "indexed",
 
           snippet:
-          createSearchSnippet(
+          createSnippet(
 
-            item.memory?.content,
+            item?.content,
 
             query
 
@@ -111,107 +96,68 @@ async function executeSemanticSearch(
 
         }
 
-      );
+      )
 
-    });
+    );
 
   }
 
-  catch(error){
+  return results;
+
+}
+
+
+
+// =====================================
+// SEMANTIC SEARCH
+// =====================================
+
+async function executeSemanticSearch(
+
+  query,
+
+  provider = null
+
+){
+
+  if(
+    !SEARCH_FEATURES
+    .ENABLE_SEMANTIC_SEARCH
+  ){
+    return [];
+  }
+
+  if(
+    typeof provider !==
+    "function"
+  ){
+    return [];
+  }
+
+  try{
+
+    return await provider(
+      query
+    );
+
+  }
+
+  catch{
 
     return [];
-
   }
 
 }
 
 
 
-function executeFuzzySearch(
-  query
-){
+// =====================================
+// FUZZY SEARCH
+// =====================================
 
-  if(
+function executeFuzzySearch(){
 
-    !SEARCH_CONFIG
-    .ENABLE_FUZZY_SEARCH
-
-  ){
-
-    return [];
-
-  }
-
-  const results = [];
-
-  const fuzzyTokens =
-  findFuzzyTokens(
-    normalizeSearchQuery(
-      query
-    )
-  );
-
-  fuzzyTokens.forEach((item) => {
-
-    const indexed =
-
-      searchIndexState
-      .tokenIndex
-      .get(
-        item.token
-      );
-
-    if(!indexed){
-
-      return;
-
-    }
-
-    indexed.forEach((id) => {
-
-      const memory =
-      getMemoryById(id);
-
-      if(!memory){
-
-        return;
-
-      }
-
-      results.push(
-
-        createSearchResult(
-
-          memory,
-
-          item.score * 0.5,
-
-          {
-            source:"fuzzy",
-
-            fuzzyToken:
-            item.token,
-
-            snippet:
-            createSearchSnippet(
-
-              memory.content,
-
-              query
-
-            )
-
-          }
-
-        )
-
-      );
-
-    });
-
-  });
-
-  return results;
+  return [];
 
 }
 
@@ -221,13 +167,16 @@ function executeFuzzySearch(
 // SEARCH ENGINE
 // =====================================
 
-async function executeMemorySearch(
+async function executeSearch(
+
   query,
+
   options = {}
+
 ){
 
   if(
-    !isValidSearchQuery(
+    !isValidQuery(
       query
     )
   ){
@@ -236,30 +185,21 @@ async function executeMemorySearch(
 
   }
 
-  const startedAt =
-  performance.now();
-
-  searchState.searching =
-  true;
-
-  searchState.currentState =
-  SEARCH_STATES.SEARCHING;
-
-  searchState.activeSearches++;
+  startSearch(
+    query
+  );
 
   try{
 
-    const searchQuery =
-    createSearchQuery(
-      query,
-      options
-    );
-
     const cacheKey =
-    await createSearchCacheKey(
-      query,
-      options
-    );
+
+      createCacheKey(
+
+        query,
+
+        options
+
+      );
 
 
 
@@ -268,16 +208,19 @@ async function executeMemorySearch(
     // ================================
 
     if(
-      SEARCH_CONFIG
+      SEARCH_FEATURES
       .ENABLE_CACHE
     ){
 
       const cached =
-      getCachedSearch(
-        cacheKey
-      );
 
-      if(cached){
+        getCache(
+          cacheKey
+        );
+
+      if(
+        cached
+      ){
 
         return cached;
 
@@ -288,93 +231,66 @@ async function executeMemorySearch(
 
 
     // ================================
-    // SEARCH SOURCES
+    // SOURCES
     // ================================
 
     let results = [
 
       ...executeIndexedSearch(
-        query
+
+        query,
+
+        options.items ?? []
+
       ),
 
       ...await executeSemanticSearch(
+
         query,
-        options
+
+        options.semanticProvider
+
       ),
 
-      ...executeFuzzySearch(
-        query
-      )
+      ...executeFuzzySearch()
 
     ];
 
 
 
     // ================================
-    // FILTERS
+    // RANKING
     // ================================
 
     results =
-    filterSearchResults(
 
-      results,
-
-      searchQuery.filters
-
-    );
-
-
-
-    // ================================
-    // DEDUPLICATION
-    // ================================
+      filterResults(
+        results
+      );
 
     results =
-    deduplicateSearchResults(
-      results
-    );
+
+      rankResults(
+        results
+      );
 
 
 
     // ================================
-    // SORTING
-    // ================================
-
-    results =
-    sortMemoriesByScore(
-      results
-    );
-
-
-
-    // ================================
-    // PAGINATION
-    // ================================
-
-    results =
-    results.slice(
-
-      searchQuery.offset,
-
-      searchQuery.offset +
-      searchQuery.limit
-
-    );
-
-
-
-    // ================================
-    // CACHE STORE
+    // CACHE
     // ================================
 
     if(
-      SEARCH_CONFIG
+      SEARCH_FEATURES
       .ENABLE_CACHE
     ){
 
-      setCachedSearch(
+      setCache(
+
         cacheKey,
+
         results
+
       );
 
     }
@@ -385,63 +301,28 @@ async function executeMemorySearch(
     // HISTORY
     // ================================
 
-    storeSearchHistory(
+    addHistory(
+
       query,
-      results.length > 0
+
+      {
+
+        results:
+        results.length
+
+      }
+
     );
 
 
 
-    // ================================
-    // LATENCY
-    // ================================
+    completeSearch(
 
-    const latency =
-    performance.now() -
-    startedAt;
+      query,
 
-    searchState
-    .lastSearchLatency =
-    latency;
+      results
 
-    searchState
-    .averageSearchLatency =
-
-      searchState
-      .totalSearches <= 0
-
-      ?
-
-      latency
-
-      :
-
-      (
-        searchState
-        .averageSearchLatency +
-
-        latency
-      ) / 2;
-
-
-
-    // ================================
-    // STATE
-    // ================================
-
-    searchState
-    .lastQuery = query;
-
-    searchState
-    .lastSearchAt =
-    Date.now();
-
-    searchState
-    .totalSearches++;
-
-    searchState
-    .currentState =
-    SEARCH_STATES.READY;
+    );
 
     return results;
 
@@ -449,42 +330,38 @@ async function executeMemorySearch(
 
   catch(error){
 
-    searchState
-    .failedSearches++;
+    failSearch(
 
-    searchState
-    .currentState =
-    SEARCH_STATES.FAILED;
-
-    storeSearchHistory(
       query,
-      false
+
+      error
+
     );
 
     return [];
 
   }
 
-  finally{
-
-    searchState
-    .searching = false;
-
-    searchState
-    .activeSearches =
-
-    Math.max(
-
-      0,
-
-      searchState
-      .activeSearches - 1
-
-    );
-
-  }
-
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SearchEngine =
+Object.freeze({
+
+  executeIndexedSearch,
+
+  executeSemanticSearch,
+
+  executeFuzzySearch,
+
+  executeSearch
+
+});
 
 
 
@@ -500,6 +377,11 @@ export {
 
   executeFuzzySearch,
 
-  executeMemorySearch
+  executeSearch,
+
+  SearchEngine
 
 };
+
+export default
+SearchEngine;
