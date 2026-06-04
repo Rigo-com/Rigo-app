@@ -1,118 +1,264 @@
 // =====================================
-// INITIALIZE STORAGE
+// RIGO AI
+// STORAGE RUNTIME
+// ORCHESTRATION LAYER
 // =====================================
 
-function initializeStorageRuntime(){
+import {
+  STORAGE_EVENTS
+}
+from "./storage-config.js";
+
+import {
+  setInitialized,
+  setLoading,
+  setSaving,
+  incrementLoads,
+  incrementSaves,
+  incrementFailures,
+  getStorageSnapshot,
+  getStorageDiagnostics,
+  resetStorageState
+}
+from "./storage-state.js";
+
+import {
+  saveItem,
+  loadItem,
+  removeItem,
+  clearStorage
+}
+from "./storage-engine.js";
+
+import {
+  enqueueOperation,
+  dequeueOperation,
+  isQueueEmpty
+}
+from "./storage-queue.js";
+
+
+
+// =====================================
+// EVENTS
+// =====================================
+
+const listeners =
+new Map();
+
+
+
+function emit(
+  eventName,
+  payload = null
+){
+
+  const handlers =
+
+    listeners.get(
+      eventName
+    );
 
   if(
-    storageState.destroyed
+    !handlers
   ){
-
-    storageState.destroyed =
-    false;
-
-  }
-
-  if(
-    storageState.initialized
-  ){
-
     return true;
+  }
 
+  for(
+    const handler
+    of handlers
+  ){
+
+    try{
+
+      handler(
+        payload
+      );
+
+    }
+
+    catch{}
+
+  }
+
+  return true;
+
+}
+
+
+
+function on(
+  eventName,
+  callback
+){
+
+  if(
+    typeof callback !==
+    "function"
+  ){
+    return false;
   }
 
   if(
-    storageState.pendingHydration
+    !listeners.has(
+      eventName
+    )
   ){
 
-    return false;
+    listeners.set(
+
+      eventName,
+
+      new Set()
+
+    );
 
   }
 
-  storageState.pendingHydration =
-  true;
+  listeners
+  .get(
+    eventName
+  )
+  .add(
+    callback
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+function initialize(){
+
+  setInitialized(
+    true
+  );
+
+  emit(
+    STORAGE_EVENTS
+    .INITIALIZED
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// LOAD
+// =====================================
+
+function load(
+  key
+){
 
   try{
 
-    const available =
-    isStorageAvailable();
+    setLoading(
+      true
+    );
 
-    if(
-      !available
-    ){
+    const value =
 
-      storageState.initialized =
-      false;
-
-      return false;
-
-    }
-
-    const hydrated =
-    hydrateStorageCache();
-
-    if(
-      !hydrated
-    ){
-
-      storageState.cache.chats =
-      deepFreeze(
-        []
+      loadItem(
+        key
       );
 
-      storageState.cache.memory =
-      deepFreezeMemory(
-        {}
-      );
+    incrementLoads();
 
-      storageState.initialized =
-      false;
+    emit(
 
-      storageState.hydrated =
-      false;
+      STORAGE_EVENTS
+      .LOADED,
 
-      return false;
+      {
+        key
+      }
 
-    }
+    );
 
-    storageState.initialized =
-    true;
-
-    storageState.hydrated =
-    true;
-
-    storageState.destroyed =
-    false;
-
-    storageState.lastSyncAt =
-    Date.now();
-
-    return true;
+    return value;
 
   }
 
-  catch(error){
+  catch{
 
-    handleStorageError(
-      "STORAGE_INITIALIZATION_ERROR",
-      error
+    incrementFailures();
+
+    return null;
+
+  }
+
+  finally{
+
+    setLoading(
+      false
     );
 
-    storageState.cache.chats =
-    deepFreeze(
-      []
+  }
+
+}
+
+
+
+// =====================================
+// SAVE
+// =====================================
+
+function save(
+  key,
+  value
+){
+
+  try{
+
+    setSaving(
+      true
     );
 
-    storageState.cache.memory =
-    deepFreezeMemory(
-      {}
-    );
+    const result =
 
-    storageState.initialized =
-    false;
+      saveItem(
 
-    storageState.hydrated =
-    false;
+        key,
+
+        value
+
+      );
+
+    if(
+      result
+    ){
+
+      incrementSaves();
+
+      emit(
+
+        STORAGE_EVENTS
+        .SAVED,
+
+        {
+          key
+        }
+
+      );
+
+    }
+
+    return result;
+
+  }
+
+  catch{
+
+    incrementFailures();
 
     return false;
 
@@ -120,8 +266,9 @@ function initializeStorageRuntime(){
 
   finally{
 
-    storageState.pendingHydration =
-    false;
+    setSaving(
+      false
+    );
 
   }
 
@@ -130,159 +277,230 @@ function initializeStorageRuntime(){
 
 
 // =====================================
-// DESTROY STORAGE
+// REMOVE
 // =====================================
 
-function destroyStorageRuntime(){
+function remove(
+  key
+){
+
+  const result =
+
+    removeItem(
+      key
+    );
 
   if(
-    storageState.destroyed
+    result
   ){
 
-    return true;
+    emit(
+
+      STORAGE_EVENTS
+      .REMOVED,
+
+      {
+        key
+      }
+
+    );
 
   }
 
-  try{
+  return result;
+
+}
+
+
+
+// =====================================
+// CLEAR
+// =====================================
+
+function clear(){
+
+  const result =
+  clearStorage();
+
+  if(
+    result
+  ){
+
+    emit(
+      STORAGE_EVENTS
+      .CLEARED
+    );
+
+  }
+
+  return result;
+
+}
+
+
+
+// =====================================
+// QUEUE
+// =====================================
+
+function queueSave(
+  key,
+  value
+){
+
+  return enqueueOperation({
+
+    type:"save",
+
+    key,
+
+    value
+
+  });
+
+}
+
+
+
+function flushQueue(){
+
+  while(
+
+    !isQueueEmpty()
+
+  ){
+
+    const operation =
+
+      dequeueOperation();
 
     if(
-      storageState.writeTimer
+      !operation
+    ){
+      continue;
+    }
+
+    if(
+      operation.type ===
+      "save"
     ){
 
-      clearTimeout(
-        storageState.writeTimer
+      save(
+
+        operation.key,
+
+        operation.value
+
       );
 
     }
 
-    storageState
-    .writeQueue
-    .length = 0;
-
-    storageState.writeTimer =
-    null;
-
-    storageState.available =
-    null;
-
-    storageState.lastSyncAt =
-    null;
-
-    storageState.lastWriteAt =
-    null;
-
-    storageState.lastMemoryWriteVersion =
-    null;
-
-    storageState.pendingHydration =
-    false;
-
-    storageState.destroyed =
-    true;
-
-    storageState.initialized =
-    false;
-
-    storageState.hydrated =
-    false;
-
-    storageState.writing =
-    false;
-
-    storageState.cache.chats =
-    deepFreeze(
-      []
-    );
-
-    storageState.cache.memory =
-    deepFreezeMemory(
-      {}
-    );
-
-    return true;
-
   }
 
-  catch(error){
-
-    handleStorageError(
-      "DESTROY_STORAGE_ERROR",
-      error
-    );
-
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// HYDRATE CACHE
+// HEALTH
 // =====================================
 
-function hydrateStorageCache(){
+function health(){
 
-  if(
-    storageState.destroyed
-  ){
+  return Object.freeze({
 
-    return false;
+    ...getStorageSnapshot(),
 
-  }
+    diagnostics:
+    getStorageDiagnostics()
 
-  try{
-
-    const chats =
-    loadChatsFromStorage();
-
-    const memory =
-    loadMemoryFromStorage();
-
-    const safeChats =
-    deepClone(
-      chats
-    ) || [];
-
-    const safeMemory =
-    deepClone(
-      memory
-    ) || {};
-
-    storageState.cache.chats =
-    deepFreeze(
-      safeChats
-    );
-
-    storageState.cache.memory =
-    deepFreezeMemory(
-      safeMemory
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    handleStorageError(
-      "HYDRATE_STORAGE_CACHE_ERROR",
-      error
-    );
-
-    storageState.cache.chats =
-    deepFreeze(
-      []
-    );
-
-    storageState.cache.memory =
-    deepFreezeMemory(
-      {}
-    );
-
-    return false;
-
-  }
+  });
 
 }
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function destroy(){
+
+  resetStorageState();
+
+  emit(
+    STORAGE_EVENTS
+    .DESTROYED
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const StorageRuntime =
+Object.freeze({
+
+  on,
+
+  initialize,
+
+  load,
+
+  save,
+
+  remove,
+
+  clear,
+
+  queueSave,
+
+  flushQueue,
+
+  health,
+
+  destroy
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  on,
+
+  initialize,
+
+  load,
+
+  save,
+
+  remove,
+
+  clear,
+
+  queueSave,
+
+  flushQueue,
+
+  health,
+
+  destroy,
+
+  StorageRuntime
+
+};
+
+export default
+StorageRuntime;
