@@ -1,74 +1,132 @@
 // =====================================
 // RIGO AI
 // SETTINGS DEBUG
-// ENTERPRISE FINAL
+// DIAGNOSTICS LAYER
 // =====================================
 
+import {
+  getSettingsSnapshot,
+  getSettingsDiagnostics
+}
+from "./settings-state.js";
 
 
-function getSettingsDiagnostics(){
 
-  return {
+// =====================================
+// SNAPSHOT
+// =====================================
 
-    initialized:
-    settingsState
-    .initialized,
+function createDebugSnapshot(){
 
-    loading:
-    settingsState
-    .loading,
+  return Object.freeze(
 
-    saving:
-    settingsState
-    .saving,
+    getSettingsSnapshot()
 
-    syncing:
-    settingsState
-    .syncing,
-
-    dirty:
-    settingsState
-    .dirty,
-
-    corrupted:
-    settingsState
-    .corrupted,
-
-    totalLoads:
-    settingsState
-    .totalLoads,
-
-    totalSaves:
-    settingsState
-    .totalSaves,
-
-    failedLoads:
-    settingsState
-    .failedLoads,
-
-    failedSaves:
-    settingsState
-    .failedSaves,
-
-    lastLoadedAt:
-    settingsState
-    .lastLoadedAt,
-
-    lastSavedAt:
-    settingsState
-    .lastSavedAt,
-
-    lastSyncedAt:
-    settingsState
-    .lastSyncedAt,
-
-    currentState:
-    settingsState
-    .currentState,
-
-    settingsVersion:
-    SETTINGS_VERSION
-
-  };
+  );
 
 }
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function getDebugDiagnostics(){
+
+  return Object.freeze(
+
+    getSettingsDiagnostics()
+
+  );
+
+}
+
+
+
+// =====================================
+// REPORT
+// =====================================
+
+function createDebugReport(){
+
+  return Object.freeze({
+
+    timestamp:
+    Date.now(),
+
+    snapshot:
+    getSettingsSnapshot(),
+
+    diagnostics:
+    getSettingsDiagnostics()
+
+  });
+
+}
+
+
+
+// =====================================
+// EXPORT
+// =====================================
+
+function exportDebugReport(){
+
+  return JSON.stringify(
+
+    createDebugReport(),
+
+    null,
+
+    2
+
+  );
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsDebug =
+Object.freeze({
+
+  snapshot:
+  createDebugSnapshot,
+
+  diagnostics:
+  getDebugDiagnostics,
+
+  report:
+  createDebugReport,
+
+  exportReport:
+  exportDebugReport
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  createDebugSnapshot,
+
+  getDebugDiagnostics,
+
+  createDebugReport,
+
+  exportDebugReport,
+
+  SettingsDebug
+
+};
+
+export default
+SettingsDebug;
