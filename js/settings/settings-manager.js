@@ -1,35 +1,87 @@
 // =====================================
 // RIGO AI
 // SETTINGS MANAGER
-// ENTERPRISE ULTRA FINAL
+// ORCHESTRATION LAYER
 // =====================================
 
+import {
+  SettingsState
+}
+from "./settings-state.js";
+
+import {
+  SETTINGS_EVENTS,
+  emit
+}
+from "./settings-events.js";
+
+import {
+  loadSettings,
+  saveSettings,
+  createBackup
+}
+from "./settings-storage.js";
+
+import {
+  validateSettings
+}
+from "./settings-validation.js";
+
+import {
+  sanitizeSettings
+}
+from "./settings-security.js";
+
+import {
+  migrateSettings
+}
+from "./settings-migrations.js";
+
+import {
+  syncFromStorage,
+  syncToStorage
+}
+from "./settings-sync.js";
 
 
-async function initializeSettingsSystem(){
+
+// =====================================
+// INITIALIZE
+// =====================================
+
+function initialize(){
 
   if(
-    settingsState.initialized
+    SettingsState
+    .snapshot()
+    .initialized
   ){
-
     return true;
   }
 
-  const loaded =
-  await loadSettingsFromStorage();
+  const settings =
+  syncFromStorage();
 
-  if(!loaded){
+  if(
+    settings
+  ){
 
-    settingsState
-    .runtimeSettings =
-    createSettingsObject();
-
-    await saveSettingsToStorage();
+    SettingsState
+    .setSettings(
+      settings
+    );
 
   }
 
-  settingsState
-  .initialized = true;
+  SettingsState
+  .setInitialized(
+    true
+  );
+
+  emit(
+    SETTINGS_EVENTS
+    .INITIALIZED
+  );
 
   return true;
 
@@ -37,110 +89,73 @@ async function initializeSettingsSystem(){
 
 
 
-function getSetting(
-  path,
-  fallback = null
-){
+// =====================================
+// LOAD
+// =====================================
 
-  const value =
-  getNestedSetting(
-
-    settingsState
-    .runtimeSettings
-    .settings,
-
-    path
-
-  );
-
-  return value ?? fallback;
-
-}
-
-
-
-async function updateSetting(
-  path,
-  value
-){
+function load(){
 
   try{
 
-    if(
-      !validateSettingPath(
-        path
-      )
-    ){
-
-      return false;
-    }
-
-    createSettingsBackup();
-
-    const safeValue =
-    safeSettingValue(
-      value
+    SettingsState
+    .setLoading(
+      true
     );
 
-    if(
-      safeValue === undefined
-    ){
+    let settings =
+    loadSettings();
 
-      return false;
-    }
+    settings =
+    migrateSettings(
+      settings
+    );
 
-    settingsState.currentState =
-    SETTINGS_STATES.SAVING;
+    settings =
+    sanitizeSettings(
+      settings
+    );
 
-    setNestedSetting(
+    settings =
+    validateSettings(
+      settings
+    );
 
-      settingsState
-      .runtimeSettings
-      .settings,
+    SettingsState
+    .setSettings(
+      settings
+    );
 
-      path,
+    SettingsState
+    .incrementLoads();
 
-      safeValue
+    emit(
+
+      SETTINGS_EVENTS
+      .LOADED,
+
+      settings
 
     );
 
-    settingsState
-    .runtimeSettings
-    .updatedAt =
-    Date.now();
-
-    settingsState.dirty =
-    true;
-
-    await syncSettingsSystem();
-
-    settingsState.dirty =
-    false;
-
-    settingsState.currentState =
-    SETTINGS_STATES.READY;
-
-    await emitSettingsEvent(
-      "updated",
-      {
-        path,
-        value:safeValue
-      }
-    );
-
-    return true;
+    return settings;
 
   }
 
   catch(error){
 
-    settingsState.currentState =
-    SETTINGS_STATES.FAILED;
+    SettingsState
+    .incrementFailedLoads();
 
-    settingsState.lastError =
-    error;
+    return null;
 
-    return false;
+  }
+
+  finally{
+
+    SettingsState
+    .setLoading(
+      false
+    );
 
   }
 
@@ -148,18 +163,209 @@ async function updateSetting(
 
 
 
-async function resetSettingsSystem(){
+// =====================================
+// SAVE
+// =====================================
 
-  settingsState
-  .runtimeSettings =
-  createSettingsObject();
+function save(){
 
-  settingsState
-  .backupSettings =
-  null;
+  try{
 
-  await syncSettingsSystem();
+    SettingsState
+    .setSaving(
+      true
+    );
+
+    const settings =
+
+      SettingsState
+      .getSettings();
+
+    createBackup(
+      settings
+    );
+
+    const result =
+
+      syncToStorage(
+        settings
+      );
+
+    if(
+      result
+    ){
+
+      SettingsState
+      .incrementSaves();
+
+      emit(
+
+        SETTINGS_EVENTS
+        .SAVED,
+
+        settings
+
+      );
+
+    }
+
+    return result;
+
+  }
+
+  catch{
+
+    SettingsState
+    .incrementFailedSaves();
+
+    return false;
+
+  }
+
+  finally{
+
+    SettingsState
+    .setSaving(
+      false
+    );
+
+  }
+
+}
+
+
+
+// =====================================
+// UPDATE
+// =====================================
+
+function update(
+  updates = {}
+){
+
+  SettingsState
+  .updateSettings(
+    updates
+  );
+
+  emit(
+
+    SETTINGS_EVENTS
+    .UPDATED,
+
+    updates
+
+  );
 
   return true;
 
 }
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function reset(){
+
+  SettingsState
+  .reset();
+
+  emit(
+    SETTINGS_EVENTS
+    .RESET
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GET SETTINGS
+// =====================================
+
+function getSettings(){
+
+  return SettingsState
+  .getSettings();
+
+}
+
+
+
+// =====================================
+// HEALTH
+// =====================================
+
+function health(){
+
+  return Object.freeze({
+
+    ...SettingsState
+    .snapshot(),
+
+    diagnostics:
+
+    SettingsState
+    .diagnostics()
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsManager =
+Object.freeze({
+
+  initialize,
+
+  load,
+
+  save,
+
+  update,
+
+  reset,
+
+  getSettings,
+
+  health
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  initialize,
+
+  load,
+
+  save,
+
+  update,
+
+  reset,
+
+  getSettings,
+
+  health,
+
+  SettingsManager
+
+};
+
+export default
+SettingsManager;
