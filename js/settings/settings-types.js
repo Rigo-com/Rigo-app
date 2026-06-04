@@ -1,79 +1,8 @@
 // =====================================
 // RIGO AI
 // SETTINGS TYPES
-// ENTERPRISE ULTRA FINAL
+// TYPE DEFINITIONS LAYER
 // =====================================
-
-
-
-// =====================================
-// SETTINGS VERSION
-// =====================================
-
-const SETTINGS_VERSION =
-"1.0.0";
-
-
-
-// =====================================
-// SETTINGS CONFIG
-// =====================================
-
-const SETTINGS_CONFIG =
-Object.freeze({
-
-  MAX_KEY_LENGTH:100,
-
-  MAX_VALUE_SIZE:
-  1024 * 100,
-
-  MAX_SETTINGS_SIZE:
-  1024 * 1024 * 5,
-
-  ENABLE_ENCRYPTION:true,
-
-  ENABLE_SYNC:true,
-
-  ENABLE_EVENTS:true,
-
-  ENABLE_VALIDATION:true,
-
-  ENABLE_BACKUPS:true
-
-});
-
-
-
-// =====================================
-// SETTINGS CATEGORIES
-// =====================================
-
-const SETTINGS_CATEGORIES =
-Object.freeze({
-
-  GENERAL:"general",
-
-  AI:"ai",
-
-  MEMORY:"memory",
-
-  SEARCH:"search",
-
-  VOICE:"voice",
-
-  UI:"ui",
-
-  SECURITY:"security",
-
-  NOTIFICATIONS:"notifications",
-
-  AGENTS:"agents",
-
-  SYSTEM:"system",
-
-  DEVELOPER:"developer"
-
-});
 
 
 
@@ -84,40 +13,155 @@ Object.freeze({
 const SETTINGS_STATES =
 Object.freeze({
 
-  READY:"ready",
+  READY:
+  "ready",
 
-  LOADING:"loading",
+  LOADING:
+  "loading",
 
-  SAVING:"saving",
+  SAVING:
+  "saving",
 
-  FAILED:"failed"
+  SYNCING:
+  "syncing",
+
+  ERROR:
+  "error"
 
 });
 
 
 
 // =====================================
-// CREATE SETTINGS OBJECT
+// SETTINGS SECTIONS
 // =====================================
 
-function createSettingsObject(){
+const SETTINGS_SECTIONS =
+Object.freeze({
 
-  return {
+  GENERAL:
+  "general",
 
-    version:
-    SETTINGS_VERSION,
+  AI:
+  "ai",
 
-    settings:
-    cloneMemoryObject(
-      SETTINGS_DEFAULTS
-    ),
+  MEMORY:
+  "memory",
 
-    createdAt:
-    Date.now(),
+  SEARCH:
+  "search",
 
-    updatedAt:
-    Date.now()
+  VOICE:
+  "voice",
 
-  };
+  UI:
+  "ui",
 
-}
+  SECURITY:
+  "security",
+
+  NOTIFICATIONS:
+  "notifications",
+
+  AGENTS:
+  "agents",
+
+  DEVELOPER:
+  "developer"
+
+});
+
+
+
+// =====================================
+// SETTINGS OPERATIONS
+// =====================================
+
+const SETTINGS_OPERATIONS =
+Object.freeze({
+
+  LOAD:
+  "load",
+
+  SAVE:
+  "save",
+
+  SYNC:
+  "sync",
+
+  RESET:
+  "reset",
+
+  IMPORT:
+  "import",
+
+  EXPORT:
+  "export"
+
+});
+
+
+
+// =====================================
+// SETTINGS STATUS
+// =====================================
+
+const SETTINGS_STATUS =
+Object.freeze({
+
+  SUCCESS:
+  "success",
+
+  FAILED:
+  "failed",
+
+  PENDING:
+  "pending"
+
+});
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsTypes =
+Object.freeze({
+
+  states:
+  SETTINGS_STATES,
+
+  sections:
+  SETTINGS_SECTIONS,
+
+  operations:
+  SETTINGS_OPERATIONS,
+
+  status:
+  SETTINGS_STATUS
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SETTINGS_STATES,
+
+  SETTINGS_SECTIONS,
+
+  SETTINGS_OPERATIONS,
+
+  SETTINGS_STATUS,
+
+  SettingsTypes
+
+};
+
+export default
+SettingsTypes;
