@@ -1,39 +1,185 @@
 // =====================================
 // RIGO AI
 // SETTINGS MIGRATIONS
-// ENTERPRISE FINAL
+// MIGRATION LAYER
 // =====================================
 
+import SETTINGS_DEFAULTS
+from "./settings-defaults.js";
 
 
-function migrateSettingsObject(
+
+// =====================================
+// VERSION
+// =====================================
+
+const SETTINGS_VERSION =
+"1.0.0";
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function getSettingsVersion(
   settings
 ){
 
-  if(!settings){
+  return (
 
-    return createSettingsObject();
-  }
+    settings?.version
 
-  const version =
-  normalizeMemoryString(
-    settings.version
+    ??
+
+    "0.0.0"
+
   );
 
+}
 
 
-  // ===================================
-  // FUTURE MIGRATIONS
-  // ===================================
 
-  switch(version){
+// =====================================
+// MIGRATIONS
+// =====================================
 
-    case "1.0.0":
+const migrations =
+Object.freeze({
 
-    default:
+  "0.0.0":
 
-      return settings;
+  function migrateTo100(
+    settings
+  ){
+
+    return {
+
+      version:
+      SETTINGS_VERSION,
+
+      ...structuredClone(
+        SETTINGS_DEFAULTS
+      ),
+
+      ...settings
+
+    };
 
   }
 
+});
+
+
+
+// =====================================
+// MIGRATE
+// =====================================
+
+function migrateSettings(
+  settings = {}
+){
+
+  const version =
+
+    getSettingsVersion(
+      settings
+    );
+
+  const migration =
+
+    migrations[
+      version
+    ];
+
+  if(
+    typeof migration !==
+    "function"
+  ){
+
+    return {
+
+      version:
+      SETTINGS_VERSION,
+
+      ...structuredClone(
+        SETTINGS_DEFAULTS
+      ),
+
+      ...settings
+
+    };
+
+  }
+
+  return migration(
+    settings
+  );
+
 }
+
+
+
+// =====================================
+// VERSION CHECK
+// =====================================
+
+function isLatestVersion(
+  settings
+){
+
+  return (
+
+    getSettingsVersion(
+      settings
+    )
+
+    ===
+
+    SETTINGS_VERSION
+
+  );
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsMigrations =
+Object.freeze({
+
+  SETTINGS_VERSION,
+
+  getSettingsVersion,
+
+  migrateSettings,
+
+  isLatestVersion
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SETTINGS_VERSION,
+
+  getSettingsVersion,
+
+  migrateSettings,
+
+  isLatestVersion,
+
+  SettingsMigrations
+
+};
+
+export default
+SettingsMigrations;
