@@ -1,100 +1,73 @@
 // =====================================
 // RIGO AI
 // SEARCH RANKING
-// OPTIMIZED FINAL
+// RANKING LAYER
 // =====================================
 
 
 
 // =====================================
-// RANKING CONFIG
+// SCORE
 // =====================================
 
-const SEARCH_RANKING_CONFIG =
-Object.freeze({
-
-  EXACT_MATCH_BOOST:3,
-
-  TITLE_BOOST:2,
-
-  TAG_BOOST:1.5,
-
-  SUMMARY_BOOST:1.2,
-
-  CONTENT_BOOST:1,
-
-  PINNED_BOOST:0.5,
-
-  FAVORITE_BOOST:0.35,
-
-  RECENCY_BOOST:1,
-
-  USAGE_BOOST:0.5,
-
-  MAX_RECENCY_DAYS:30,
-
-  MAX_USAGE_COUNT:100
-
-});
-
-
-
-// =====================================
-// NORMALIZE SEARCH TEXT
-// =====================================
-
-function normalizeRankingText(
-  value
+function calculateScore(
+  content = "",
+  query = ""
 ){
 
-  return normalizeMemoryString?.(
-    value
-  )
-  .toLowerCase();
+  const normalizedContent =
 
-}
+    String(content)
+    .toLowerCase();
 
+  const normalizedQuery =
 
-
-// =====================================
-// TOKEN SCORE
-// =====================================
-
-function calculateTokenMatchScore(
-  text,
-  tokens = [],
-  weight = 1
-){
+    String(query)
+    .toLowerCase()
+    .trim();
 
   if(
-    !text ||
-    tokens.length <= 0
+    !normalizedQuery
   ){
-
     return 0;
-
   }
 
-  const normalized =
-  normalizeRankingText(
-    text
-  );
+  if(
+    normalizedContent ===
+    normalizedQuery
+  ){
+    return 100;
+  }
+
+  if(
+    normalizedContent.includes(
+      normalizedQuery
+    )
+  ){
+    return 50;
+  }
+
+  const words =
+  normalizedQuery
+  .split(/\s+/);
 
   let score = 0;
 
-  tokens.forEach((token) => {
+  for(
+    const word
+    of words
+  ){
 
     if(
-      normalized.includes(
-        token
-      )
+      normalizedContent
+      .includes(word)
     ){
 
-      score += weight;
+      score += 10;
 
     }
 
-  });
+  }
 
   return score;
 
@@ -103,37 +76,122 @@ function calculateTokenMatchScore(
 
 
 // =====================================
-// RECENCY SCORE
+// SORT
 // =====================================
 
-function calculateRecencyScore(
-  updatedAt
+function sortResults(
+  results = []
 ){
 
-  const daysOld =
-  getDaysBetweenDates?.(
+  return [
 
-    updatedAt,
-    Date.now()
+    ...results
 
-  ) || 0;
+  ]
 
-  return Math.max(
-
-    0,
-
-    SEARCH_RANKING_CONFIG
-    .RECENCY_BOOST *
+  .sort(
 
     (
-      1 -
+      a,
+      b
+    ) =>
 
-      (
-        daysOld /
+      (b.score || 0)
 
-        SEARCH_RANKING_CONFIG
-        .MAX_RECENCY_DAYS
-      )
+      -
+
+      (a.score || 0)
+
+  );
+
+}
+
+
+
+// =====================================
+// FILTER
+// =====================================
+
+function filterResults(
+  results = [],
+  minimumScore = 1
+){
+
+  return results.filter(
+
+    result =>
+
+      (result?.score || 0)
+
+      >=
+
+      minimumScore
+
+  );
+
+}
+
+
+
+// =====================================
+// DEDUPLICATION
+// =====================================
+
+function deduplicateResults(
+  results = []
+){
+
+  const seen =
+  new Set();
+
+  return results.filter(
+
+    result => {
+
+      const key =
+
+        result?.item?.id
+
+        ??
+
+        JSON.stringify(
+          result
+        );
+
+      if(
+        seen.has(
+          key
+        )
+      ){
+        return false;
+      }
+
+      seen.add(
+        key
+      );
+
+      return true;
+
+    }
+
+  );
+
+}
+
+
+
+// =====================================
+// PIPELINE
+// =====================================
+
+function rankResults(
+  results = []
+){
+
+  return sortResults(
+
+    deduplicateResults(
+      results
     )
 
   );
@@ -143,314 +201,23 @@ function calculateRecencyScore(
 
 
 // =====================================
-// USAGE SCORE
+// PUBLIC API
 // =====================================
 
-function calculateUsageScore(
-  usageCount = 0
-){
+const SearchRanking =
+Object.freeze({
 
-  const normalizedUsage =
-  Math.min(
+  calculateScore,
 
-    Number(usageCount) || 0,
+  sortResults,
 
-    SEARCH_RANKING_CONFIG
-    .MAX_USAGE_COUNT
+  filterResults,
 
-  );
+  deduplicateResults,
 
-  return (
+  rankResults
 
-    normalizedUsage /
-
-    SEARCH_RANKING_CONFIG
-    .MAX_USAGE_COUNT
-
-  )
-
-  *
-
-  SEARCH_RANKING_CONFIG
-  .USAGE_BOOST;
-
-}
-
-
-
-// =====================================
-// MAIN RANKING
-// =====================================
-
-function calculateSearchRanking(
-  memory,
-  query
-){
-
-  try{
-
-    if(
-      !memory
-    ){
-
-      return 0;
-
-    }
-
-    const normalizedQuery =
-    normalizeRankingText(
-      query
-    );
-
-    if(
-      !normalizedQuery
-    ){
-
-      return 0;
-
-    }
-
-    const queryTokens =
-    tokenizeSearchContent(
-      normalizedQuery
-    );
-
-
-
-    // ================================
-    // NORMALIZED FIELDS
-    // ================================
-
-    const title =
-    normalizeRankingText(
-      memory.title
-    );
-
-    const summary =
-    normalizeRankingText(
-      memory.summary
-    );
-
-    const content =
-    normalizeRankingText(
-      memory.content
-    );
-
-    const tags =
-
-      Array.isArray(
-        memory.tags
-      )
-
-      ? memory.tags
-
-      : [];
-
-
-
-    // ================================
-    // SCORE
-    // ================================
-
-    let score = 0;
-
-
-
-    // ================================
-    // EXACT MATCH
-    // ================================
-
-    if(
-      title === normalizedQuery
-    ){
-
-      score +=
-
-      SEARCH_RANKING_CONFIG
-      .EXACT_MATCH_BOOST;
-
-    }
-
-
-
-    // ================================
-    // TITLE
-    // ================================
-
-    score +=
-    calculateTokenMatchScore(
-
-      title,
-
-      queryTokens,
-
-      SEARCH_RANKING_CONFIG
-      .TITLE_BOOST
-
-    );
-
-
-
-    // ================================
-    // SUMMARY
-    // ================================
-
-    score +=
-    calculateTokenMatchScore(
-
-      summary,
-
-      queryTokens,
-
-      SEARCH_RANKING_CONFIG
-      .SUMMARY_BOOST
-
-    );
-
-
-
-    // ================================
-    // CONTENT
-    // ================================
-
-    score +=
-    calculateTokenMatchScore(
-
-      content,
-
-      queryTokens,
-
-      SEARCH_RANKING_CONFIG
-      .CONTENT_BOOST
-
-    );
-
-
-
-    // ================================
-    // TAGS
-    // ================================
-
-    tags.forEach((tag) => {
-
-      score +=
-      calculateTokenMatchScore(
-
-        tag,
-
-        queryTokens,
-
-        SEARCH_RANKING_CONFIG
-        .TAG_BOOST
-
-      );
-
-    });
-
-
-
-    // ================================
-    // PINNED
-    // ================================
-
-    if(
-      memory.flags?.pinned
-    ){
-
-      score +=
-
-      SEARCH_RANKING_CONFIG
-      .PINNED_BOOST;
-
-    }
-
-
-
-    // ================================
-    // FAVORITE
-    // ================================
-
-    if(
-      memory.flags?.favorite
-    ){
-
-      score +=
-
-      SEARCH_RANKING_CONFIG
-      .FAVORITE_BOOST;
-
-    }
-
-
-
-    // ================================
-    // RECENCY
-    // ================================
-
-    score +=
-    calculateRecencyScore(
-      memory.updatedAt
-    );
-
-
-
-    // ================================
-    // USAGE
-    // ================================
-
-    score +=
-    calculateUsageScore(
-
-      memory.stats
-      ?.usageCount
-
-    );
-
-    return normalizeMemoryScore?.(
-      score
-    ) || score;
-
-  }
-
-  catch(error){
-
-    return 0;
-
-  }
-
-}
-
-
-
-// =====================================
-// SORT RESULTS
-// =====================================
-
-function rankSearchResults(
-  results = []
-){
-
-  if(
-    !Array.isArray(results)
-  ){
-
-    return [];
-  }
-
-  return [...results]
-  .sort((a,b) => {
-
-    return (
-
-      (b?.score || 0) -
-
-      (a?.score || 0)
-
-    );
-
-  });
-
-}
+});
 
 
 
@@ -460,16 +227,19 @@ function rankSearchResults(
 
 export {
 
-  SEARCH_RANKING_CONFIG,
+  calculateScore,
 
-  calculateTokenMatchScore,
+  sortResults,
 
-  calculateRecencyScore,
+  filterResults,
 
-  calculateUsageScore,
+  deduplicateResults,
 
-  calculateSearchRanking,
+  rankResults,
 
-  rankSearchResults
+  SearchRanking
 
 };
+
+export default
+SearchRanking;
