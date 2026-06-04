@@ -1,416 +1,313 @@
 // =====================================
-// DEEP FREEZE MEMORY
+// RIGO AI
+// STORAGE MEMORY
+// IN-MEMORY STORAGE LAYER
 // =====================================
 
-function deepFreezeMemory(
-  value,
-  visited = new WeakSet()
+import {
+  STORAGE_LIMITS
+}
+from "./storage-config.js";
+
+import {
+  deepClone
+}
+from "./storage-utils.js";
+
+
+
+// =====================================
+// MEMORY STORE
+// =====================================
+
+const memoryStore =
+new Map();
+
+
+
+// =====================================
+// SET
+// =====================================
+
+function setMemoryItem(
+  key,
+  value
 ){
 
   if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
+    !key
   ){
-
-    return value;
-
+    return false;
   }
 
-  if(
-    visited.has(value)
-  ){
+  memoryStore.set(
 
-    return value;
+    key,
 
-  }
-
-  if(
-    Object.isFrozen(
+    deepClone(
       value
     )
+
+  );
+
+  while(
+
+    memoryStore.size >
+
+    STORAGE_LIMITS
+    .MAX_CACHE_ITEMS
+
   ){
 
-    return value;
+    const oldestKey =
+
+      memoryStore
+      .keys()
+      .next()
+      .value;
+
+    memoryStore.delete(
+      oldestKey
+    );
 
   }
 
-  visited.add(
+  return true;
+
+}
+
+
+
+// =====================================
+// GET
+// =====================================
+
+function getMemoryItem(
+  key
+){
+
+  const value =
+
+    memoryStore.get(
+      key
+    );
+
+  if(
+    value === undefined
+  ){
+    return null;
+  }
+
+  return deepClone(
     value
   );
 
-  Reflect
-  .ownKeys(value)
-  .forEach((key) => {
+}
 
-    deepFreezeMemory(
 
-      value[key],
 
-      visited
+// =====================================
+// HAS
+// =====================================
 
-    );
+function hasMemoryItem(
+  key
+){
+
+  return memoryStore.has(
+    key
+  );
+
+}
+
+
+
+// =====================================
+// REMOVE
+// =====================================
+
+function removeMemoryItem(
+  key
+){
+
+  return memoryStore.delete(
+    key
+  );
+
+}
+
+
+
+// =====================================
+// CLEAR
+// =====================================
+
+function clearMemoryStore(){
+
+  memoryStore.clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// KEYS
+// =====================================
+
+function getMemoryKeys(){
+
+  return Array.from(
+
+    memoryStore
+    .keys()
+
+  );
+
+}
+
+
+
+// =====================================
+// VALUES
+// =====================================
+
+function getMemoryValues(){
+
+  return Array.from(
+
+    memoryStore
+    .values()
+
+  )
+  .map(
+    deepClone
+  );
+
+}
+
+
+
+// =====================================
+// ENTRIES
+// =====================================
+
+function getMemoryEntries(){
+
+  return Array.from(
+
+    memoryStore
+    .entries()
+
+  )
+  .map(([
+    key,
+    value
+  ]) => [
+
+    key,
+
+    deepClone(
+      value
+    )
+
+  ]);
+
+}
+
+
+
+// =====================================
+// SIZE
+// =====================================
+
+function getMemorySize(){
+
+  return memoryStore
+  .size;
+
+}
+
+
+
+// =====================================
+// STATS
+// =====================================
+
+function getMemoryStats(){
+
+  return Object.freeze({
+
+    items:
+    memoryStore.size
 
   });
 
-  return Object.freeze(
-    value
-  );
-
 }
 
 
 
 // =====================================
-// SAVE MEMORY
+// PUBLIC API
 // =====================================
 
-function saveMemory(memory){
+const StorageMemory =
+Object.freeze({
 
-  if(
+  setMemoryItem,
 
-    storageState.destroyed ||
+  getMemoryItem,
 
-    !storageState.initialized
+  hasMemoryItem,
 
-  ){
+  removeMemoryItem,
 
-    return false;
+  clearMemoryStore,
 
-  }
+  getMemoryKeys,
 
-  const validationResult =
-  validateMemoryObject(
-    memory
-  );
+  getMemoryValues,
 
-  if(
-    !validationResult?.valid
-  ){
+  getMemoryEntries,
 
-    return false;
+  getMemorySize,
 
-  }
+  getMemoryStats
 
-  try{
-
-    const safeMemory =
-    deepClone(memory);
-
-    if(
-      !safeMemory
-    ){
-
-      return false;
-
-    }
-
-    const serialized =
-    safeStorageSerialize(
-      safeMemory
-    );
-
-    if(
-      !serialized
-    ){
-
-      handleStorageError(
-        "MEMORY_SERIALIZATION_FAILED"
-      );
-
-      return false;
-
-    }
-
-    if(
-
-      serialized.length >
-
-      STORAGE_RUNTIME_CONFIG
-      .MAX_STORAGE_SIZE
-
-    ){
-
-      handleStorageError(
-        "MEMORY_STORAGE_LIMIT_EXCEEDED"
-      );
-
-      return false;
-
-    }
-
-    const currentSerialized =
-    safeStorageSerialize(
-
-      storageState
-      .cache
-      .memory
-
-    );
-
-    if(
-      serialized ===
-      currentSerialized
-    ){
-
-      return true;
-
-    }
-
-    storageState.cache.memory =
-    deepFreezeMemory(
-      safeMemory
-    );
-
-    const writeVersion =
-    Date.now();
-
-    storageState
-    .lastMemoryWriteVersion =
-    writeVersion;
-
-    enqueueStorageWrite(
-      () => {
-
-        if(
-          storageState.destroyed
-        ){
-
-          return false;
-
-        }
-
-        if(
-
-          storageState
-          .lastMemoryWriteVersion !==
-          writeVersion
-
-        ){
-
-          return false;
-
-        }
-
-        return storageEngine.set(
-
-          STORAGE_KEYS.MEMORY,
-
-          serialized
-
-        );
-
-      }
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    handleStorageError(
-      "SAVE_MEMORY_ERROR",
-      error
-    );
-
-    return false;
-
-  }
-
-}
+});
 
 
 
 // =====================================
-// LOAD MEMORY
+// EXPORTS
 // =====================================
 
-function loadMemory(){
+export {
 
-  if(
-    storageState.destroyed
-  ){
+  setMemoryItem,
 
-    return {};
+  getMemoryItem,
 
-  }
+  hasMemoryItem,
 
-  try{
+  removeMemoryItem,
 
-    const cachedMemory =
+  clearMemoryStore,
 
-      storageState
-      ?.cache
-      ?.memory;
+  getMemoryKeys,
 
-    if(
+  getMemoryValues,
 
-      cachedMemory
+  getMemoryEntries,
 
-      &&
+  getMemorySize,
 
-      typeof cachedMemory ===
-      "object"
+  getMemoryStats,
 
-      &&
+  StorageMemory
 
-      Reflect
-      .ownKeys(
-        cachedMemory
-      )
-      .length > 0
+};
 
-    ){
-
-      return (
-
-        deepClone(
-          cachedMemory
-        ) || {}
-
-      );
-
-    }
-
-    const memory =
-    loadMemoryFromStorage();
-
-    const clonedMemory =
-    deepClone(
-      memory
-    );
-
-    if(
-      !clonedMemory
-    ){
-
-      return {};
-
-    }
-
-    storageState.cache.memory =
-    deepFreezeMemory(
-      clonedMemory
-    );
-
-    return (
-
-      deepClone(
-        clonedMemory
-      ) || {}
-
-    );
-
-  }
-
-  catch(error){
-
-    handleStorageError(
-      "LOAD_MEMORY_RUNTIME_ERROR",
-      error
-    );
-
-    return {};
-
-  }
-
-}
-
-
-
-// =====================================
-// LOAD MEMORY STORAGE
-// =====================================
-
-function loadMemoryFromStorage(){
-
-  if(
-    storageState.destroyed
-  ){
-
-    return {};
-
-  }
-
-  if(
-    !isStorageAvailable()
-  ){
-
-    return {};
-
-  }
-
-  try{
-
-    const data =
-    storageEngine.get(
-
-      STORAGE_KEYS.MEMORY
-
-    );
-
-    if(
-      !data
-    ){
-
-      return {};
-
-    }
-
-    const parsedData =
-    safeJsonParse(
-      data,
-      {}
-    );
-
-    const validationResult =
-    validateMemoryObject(
-      parsedData
-    );
-
-    if(
-      !validationResult?.valid
-    ){
-
-      if(
-        typeof clearCorruptedMemory ===
-        "function"
-      ){
-
-        clearCorruptedMemory();
-
-      }
-
-      return {};
-
-    }
-
-    return parsedData;
-
-  }
-
-  catch(error){
-
-    if(
-      typeof clearCorruptedMemory ===
-      "function"
-    ){
-
-      clearCorruptedMemory();
-
-    }
-
-    handleStorageError(
-      "LOAD_MEMORY_ERROR",
-      error
-    );
-
-    return {};
-
-  }
-
-}
+export default
+StorageMemory;
