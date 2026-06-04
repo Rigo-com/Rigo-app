@@ -1,179 +1,298 @@
 // =====================================
 // RIGO AI
 // COMMUNICATION INDEX
-// FINAL HARDENED EDITION
+// PUBLIC ENTRY POINT
 // =====================================
 
+export {
 
+  COMMUNICATION_LIMITS,
 
-// =====================================
-// IMPORTS
-// =====================================
+  COMMUNICATION_TIMERS,
 
-import "./communication-abort.js";
-import "./communication-core.js";
-import "./communication-health.js";
-import "./communication-helpers.js";
-import "./communication-queue.js";
-import "./communication-storage.js";
-import "./communication-stream.js";
-import "./communication-typing.js";
+  COMMUNICATION_FEATURES,
 
+  COMMUNICATION_EVENTS,
 
-
-// =====================================
-// VALIDATION
-// =====================================
-
-function validateCommunicationLayer(){
-
-  return (
-
-    typeof CommunicationCore !==
-    "undefined"
-
-    &&
-
-    typeof CommunicationQueue !==
-    "undefined"
-
-    &&
-
-    typeof CommunicationStream !==
-    "undefined"
-
-    &&
-
-    typeof CommunicationTyping !==
-    "undefined"
-
-    &&
-
-    typeof CommunicationStorage !==
-    "undefined"
-
-    &&
-
-    typeof CommunicationAbort !==
-    "undefined"
-
-    &&
-
-    typeof CommunicationHelpers !==
-    "undefined"
-
-    &&
-
-    typeof CommunicationHealth !==
-    "undefined"
-
-  );
+  CommunicationConfig
 
 }
+from "./communication-config.js";
+
+
+
+export {
+
+  communicationState,
+
+  setInitialized,
+
+  setProcessing,
+
+  setStreaming,
+
+  setHealthy,
+
+  registerRequest,
+
+  unregisterRequest,
+
+  getRequest,
+
+  registerAbortController,
+
+  getAbortController,
+
+  removeAbortController,
+
+  getAbortControllers,
+
+  getAbortControllerCount,
+
+  incrementRequests,
+
+  incrementCompleted,
+
+  incrementFailed,
+
+  incrementAborted,
+
+  incrementStreams,
+
+  incrementRetries,
+
+  incrementCacheHits,
+
+  incrementCacheMisses,
+
+  getCommunicationSnapshot,
+
+  getCommunicationDiagnostics,
+
+  resetCommunicationState,
+
+  CommunicationState
+
+}
+from "./communication-state.js";
+
+
+
+export {
+
+  initialize,
+
+  destroy,
+
+  startRequest,
+
+  completeRequest,
+
+  failRequest,
+
+  health,
+
+  CommunicationCore
+
+}
+from "./communication-core.js";
+
+
+
+export {
+
+  registerHash,
+
+  hasHash,
+
+  clearHashes,
+
+  setCache,
+
+  getCache,
+
+  removeCache,
+
+  clearCache,
+
+  cleanupExpiredHashes,
+
+  cleanupExpiredCache,
+
+  getStorageStats,
+
+  resetStorage,
+
+  CommunicationStorage
+
+}
+from "./communication-storage.js";
+
+
+
+export {
+
+  processStream,
+
+  cancelStream,
+
+  CommunicationStream
+
+}
+from "./communication-stream.js";
+
+
+
+export {
+
+  createAbortController,
+
+  getController,
+
+  abortRequest,
+
+  abortAllRequests,
+
+  cleanupAbortController,
+
+  getStatus,
+
+  CommunicationAbort
+
+}
+from "./communication-abort.js";
+
+
+
+export {
+
+  getHealthStatus,
+
+  getDiagnostics,
+
+  getHealthReport,
+
+  isHealthy,
+
+  CommunicationHealth
+
+}
+from "./communication-health.js";
+
+
+
+export {
+
+  on,
+
+  off,
+
+  once,
+
+  emit,
+
+  clear,
+
+  listenerCount,
+
+  CommunicationEvents
+
+}
+from "./communication-events.js";
+
+
+
+export {
+
+  createCommunicationId,
+
+  waitCommunication,
+
+  createMessageHash,
+
+  isValidRequestId,
+
+  isValidPayload,
+
+  isValidUrl,
+
+  isSuccessResponse,
+
+  normalizeError,
+
+  CommunicationHelpers
+
+}
+from "./communication-helpers.js";
 
 
 
 // =====================================
-// PUBLIC API
+// DEFAULT EXPORT
 // =====================================
 
-const RIGOCommunicationRuntime =
+import CommunicationConfig
+from "./communication-config.js";
+
+import CommunicationState
+from "./communication-state.js";
+
+import CommunicationCore
+from "./communication-core.js";
+
+import CommunicationStorage
+from "./communication-storage.js";
+
+import CommunicationStream
+from "./communication-stream.js";
+
+import CommunicationAbort
+from "./communication-abort.js";
+
+import CommunicationHealth
+from "./communication-health.js";
+
+import CommunicationEvents
+from "./communication-events.js";
+
+import CommunicationHelpers
+from "./communication-helpers.js";
+
+
+
+const Communication =
 Object.freeze({
+
+  config:
+  CommunicationConfig,
+
+  state:
+  CommunicationState,
 
   core:
   CommunicationCore,
 
-  queue:
-  CommunicationQueue,
+  storage:
+  CommunicationStorage,
 
   stream:
   CommunicationStream,
 
-  typing:
-  CommunicationTyping,
-
-  storage:
-  CommunicationStorage,
-
   abort:
   CommunicationAbort,
 
-  helpers:
-  CommunicationHelpers,
-
   health:
-  CommunicationHealth
+  CommunicationHealth,
+
+  events:
+  CommunicationEvents,
+
+  helpers:
+  CommunicationHelpers
 
 });
 
 
 
-// =====================================
-// SAFE ACCESS
-// =====================================
-
-function getCommunicationLayer(){
-
-  if(
-    !validateCommunicationLayer()
-  ){
-
-    return null;
-
-  }
-
-  return RIGOCommunicationRuntime;
-
-}
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  validateCommunicationLayer,
-
-  getCommunicationLayer,
-
-  RIGOCommunicationRuntime
-
-};
-
 export default
-RIGOCommunicationRuntime;
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOCommunicationRuntime",
-
-    {
-
-      value:
-      RIGOCommunicationRuntime,
-
-      writable:
-      false,
-
-      configurable:
-      false
-
-    }
-
-  );
-}
+Communication;
