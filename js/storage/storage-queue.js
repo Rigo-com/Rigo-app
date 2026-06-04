@@ -1,66 +1,62 @@
 // =====================================
-// STORAGE QUEUE CONFIG
+// RIGO AI
+// STORAGE QUEUE
+// OPERATION QUEUE LAYER
 // =====================================
 
-const MAX_STORAGE_QUEUE_SIZE =
-1000;
-
-const MAX_STORAGE_BATCH_SIZE =
-50;
+import {
+  STORAGE_LIMITS
+}
+from "./storage-config.js";
 
 
 
 // =====================================
-// STORAGE WRITE QUEUE
+// QUEUE
 // =====================================
 
-function enqueueStorageWrite(
-  callback
+const operationQueue =
+[];
+
+
+
+// =====================================
+// ENQUEUE
+// =====================================
+
+function enqueueOperation(
+  operation
 ){
 
   if(
-    storageState.destroyed
+    !operation
   ){
-
     return false;
-
-  }
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-
-    return false;
-
   }
 
   if(
 
-    storageState
-    .writeQueue
+    operationQueue
     .length >=
 
-    MAX_STORAGE_QUEUE_SIZE
+    STORAGE_LIMITS
+    .MAX_QUEUE_SIZE
 
   ){
 
-    storageState
-    .failedWrites++;
-
-    handleStorageError(
-      "STORAGE_QUEUE_LIMIT_EXCEEDED"
-    );
-
-    return false;
+    operationQueue
+    .shift();
 
   }
 
-  storageState
-  .writeQueue
-  .push(callback);
+  operationQueue.push({
 
-  processStorageQueue();
+    ...operation,
+
+    queuedAt:
+    Date.now()
+
+  });
 
   return true;
 
@@ -69,31 +65,55 @@ function enqueueStorageWrite(
 
 
 // =====================================
-// CLEAR STORAGE QUEUE
+// DEQUEUE
 // =====================================
 
-function clearStorageQueue(){
+function dequeueOperation(){
 
-  storageState
-  .writeQueue
+  return (
+
+    operationQueue
+    .shift()
+
+    ??
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// PEEK
+// =====================================
+
+function peekOperation(){
+
+  return (
+
+    operationQueue[0]
+
+    ??
+
+    null
+
+  );
+
+}
+
+
+
+// =====================================
+// CLEAR
+// =====================================
+
+function clearQueue(){
+
+  operationQueue
   .length = 0;
 
-  if(
-    storageState.writeTimer
-  ){
-
-    clearTimeout(
-      storageState.writeTimer
-    );
-
-    storageState.writeTimer =
-    null;
-
-  }
-
-  storageState.writing =
-  false;
-
   return true;
 
 }
@@ -101,178 +121,127 @@ function clearStorageQueue(){
 
 
 // =====================================
-// PROCESS STORAGE QUEUE
+// STATUS
 // =====================================
 
-function processStorageQueue(){
+function isQueueEmpty(){
 
-  if(
-    storageState.destroyed
-  ){
+  return (
 
-    clearStorageQueue();
+    operationQueue
+    .length === 0
 
-    return;
-
-  }
-
-  if(
-    storageState.writing
-  ){
-
-    return;
-
-  }
-
-  if(
-    storageState.writeTimer
-  ){
-
-    return;
-
-  }
-
-  storageState.writeTimer =
-  setTimeout(async () => {
-
-    storageState.writeTimer =
-    null;
-
-    if(
-      storageState.destroyed
-    ){
-
-      clearStorageQueue();
-
-      return;
-
-    }
-
-    if(
-      storageState.writing
-    ){
-
-      return;
-
-    }
-
-    storageState.writing =
-    true;
-
-    try{
-
-      let processed =
-      0;
-
-      while(
-
-        storageState
-        .writeQueue
-        .length > 0
-
-      ){
-
-        if(
-          storageState.destroyed
-        ){
-
-          clearStorageQueue();
-
-          break;
-
-        }
-
-        if(
-
-          processed >=
-          MAX_STORAGE_BATCH_SIZE
-
-        ){
-
-          break;
-
-        }
-
-        const callback =
-
-          storageState
-          .writeQueue
-          .shift();
-
-        if(
-          typeof callback !==
-          "function"
-        ){
-
-          continue;
-
-        }
-
-        try{
-
-          const result =
-          await Promise.resolve(
-            callback()
-          );
-
-          if(
-            result === false
-          ){
-
-            storageState
-            .failedWrites++;
-
-          }
-
-        }
-
-        catch(error){
-
-          storageState
-          .failedWrites++;
-
-          handleStorageError(
-            "STORAGE_QUEUE_ERROR",
-            error
-          );
-
-        }
-
-        processed++;
-
-      }
-
-      storageState.lastSyncAt =
-      Date.now();
-
-    }
-
-    finally{
-
-      storageState.writing =
-      false;
-
-      if(
-
-        !storageState.destroyed
-
-        &&
-
-        storageState
-        .writeQueue
-        .length > 0
-
-      ){
-
-        processStorageQueue();
-
-      }
-
-    }
-
-  },
-
-  STORAGE_RUNTIME_CONFIG
-  .WRITE_DEBOUNCE_MS);
+  );
 
 }
+
+
+
+function getQueueSize(){
+
+  return operationQueue
+  .length;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function getQueueSnapshot(){
+
+  return Object.freeze(
+
+    operationQueue.map(
+
+      operation => ({
+
+        ...operation
+
+      })
+
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// STATS
+// =====================================
+
+function getQueueStats(){
+
+  return Object.freeze({
+
+    size:
+    operationQueue.length,
+
+    empty:
+    isQueueEmpty()
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const StorageQueue =
+Object.freeze({
+
+  enqueueOperation,
+
+  dequeueOperation,
+
+  peekOperation,
+
+  clearQueue,
+
+  isQueueEmpty,
+
+  getQueueSize,
+
+  getQueueSnapshot,
+
+  getQueueStats
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  enqueueOperation,
+
+  dequeueOperation,
+
+  peekOperation,
+
+  clearQueue,
+
+  isQueueEmpty,
+
+  getQueueSize,
+
+  getQueueSnapshot,
+
+  getQueueStats,
+
+  StorageQueue
+
+};
+
+export default
+StorageQueue;
