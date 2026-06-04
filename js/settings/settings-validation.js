@@ -1,83 +1,255 @@
 // =====================================
 // RIGO AI
 // SETTINGS VALIDATION
-// ENTERPRISE ULTRA FINAL
+// VALIDATION LAYER
 // =====================================
 
+import SETTINGS_DEFAULTS
+from "./settings-defaults.js";
 
 
-function validateSettingsObject(
+
+// =====================================
+// HELPERS
+// =====================================
+
+function isObject(
+  value
+){
+
+  return (
+
+    value !== null
+
+    &&
+
+    typeof value ===
+    "object"
+
+    &&
+
+    !Array.isArray(
+      value
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// SECTION VALIDATION
+// =====================================
+
+function validateSection(
+
+  section,
+
+  defaults
+
+){
+
+  if(
+    !isObject(
+      section
+    )
+  ){
+
+    return structuredClone(
+      defaults
+    );
+
+  }
+
+  const result =
+
+    structuredClone(
+      defaults
+    );
+
+  for(
+    const key
+    of Object.keys(
+      defaults
+    )
+  ){
+
+    const defaultValue =
+
+      defaults[key];
+
+    const currentValue =
+
+      section[key];
+
+
+
+    if(
+      typeof currentValue ===
+
+      typeof defaultValue
+    ){
+
+      result[key] =
+      currentValue;
+
+    }
+
+  }
+
+  return result;
+
+}
+
+
+
+// =====================================
+// SETTINGS VALIDATION
+// =====================================
+
+function validateSettings(
   settings
 ){
 
   if(
-
-    !settings ||
-
-    typeof settings !==
-    "object"
-
-  ){
-
-    return false;
-  }
-
-  if(
-    typeof settings.version !==
-    "string"
-  ){
-
-    return false;
-  }
-
-  if(
-
-    !settings.settings ||
-
-    typeof settings.settings !==
-    "object"
-
-  ){
-
-    return false;
-  }
-
-  try{
-
-    const serialized =
-    JSON.stringify(
+    !isObject(
       settings
-    );
+    )
+  ){
 
-    return (
-
-      serialized.length <=
-
-      SETTINGS_CONFIG
-      .MAX_SETTINGS_SIZE
-
+    return structuredClone(
+      SETTINGS_DEFAULTS
     );
 
   }
 
-  catch(error){
+  const validated =
+  {};
 
-    return false;
+  for(
+    const section
+    of Object.keys(
+      SETTINGS_DEFAULTS
+    )
+  ){
+
+    validated[section] =
+
+      validateSection(
+
+        settings[section],
+
+        SETTINGS_DEFAULTS[
+          section
+        ]
+
+      );
 
   }
+
+  return validated;
 
 }
 
 
 
-function validateSettingPath(
-  path
+// =====================================
+// SETTINGS CHECK
+// =====================================
+
+function isValidSettings(
+  settings
 ){
 
-  return Boolean(
-    normalizeSettingKey(
-      path
+  if(
+    !isObject(
+      settings
     )
+  ){
+
+    return false;
+  }
+
+  for(
+    const section
+    of Object.keys(
+      SETTINGS_DEFAULTS
+    )
+  ){
+
+    if(
+      !isObject(
+        settings[
+          section
+        ]
+      )
+    ){
+
+      return false;
+
+    }
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// REPAIR
+// =====================================
+
+function repairSettings(
+  settings
+){
+
+  return validateSettings(
+    settings
   );
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsValidation =
+Object.freeze({
+
+  validateSettings,
+
+  validateSection,
+
+  isValidSettings,
+
+  repairSettings
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  validateSettings,
+
+  validateSection,
+
+  isValidSettings,
+
+  repairSettings,
+
+  SettingsValidation
+
+};
+
+export default
+SettingsValidation;
