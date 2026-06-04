@@ -1,422 +1,287 @@
 // =====================================
-// VALIDATION LIMITS
+// RIGO AI
+// STORAGE VALIDATORS
+// VALIDATION LAYER
 // =====================================
 
-const STORAGE_VALIDATION_LIMITS =
+import {
+  STORAGE_LIMITS,
+  STORAGE_NAMESPACES
+}
+from "./storage-config.js";
+
+import {
+  isObject,
+  isString,
+  isValidKey,
+  getSerializedSize,
+  isValidNamespace
+}
+from "./storage-utils.js";
+
+
+
+// =====================================
+// KEY VALIDATION
+// =====================================
+
+function validateStorageKey(
+  key
+){
+
+  return isValidKey(
+    key
+  );
+
+}
+
+
+
+// =====================================
+// VALUE VALIDATION
+// =====================================
+
+function validateStorageValue(
+  value
+){
+
+  if(
+    value === undefined
+  ){
+    return false;
+  }
+
+  const size =
+
+    getSerializedSize(
+      value
+    );
+
+  return (
+
+    size > 0
+
+    &&
+
+    size <=
+    STORAGE_LIMITS
+    .MAX_STORAGE_SIZE
+
+  );
+
+}
+
+
+
+// =====================================
+// NAMESPACE VALIDATION
+// =====================================
+
+function validateNamespace(
+  namespace
+){
+
+  return isValidNamespace(
+    namespace
+  );
+
+}
+
+
+
+// =====================================
+// RECORD VALIDATION
+// =====================================
+
+function validateStorageRecord(
+
+  key,
+
+  value
+
+){
+
+  return (
+
+    validateStorageKey(
+      key
+    )
+
+    &&
+
+    validateStorageValue(
+      value
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// CHAT VALIDATION
+// =====================================
+
+function validateChatRecord(
+  chat
+){
+
+  if(
+    !isObject(
+      chat
+    )
+  ){
+    return false;
+  }
+
+  return (
+
+    isString(
+      chat.id
+    )
+
+    &&
+
+    Array.isArray(
+      chat.messages
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// MEMORY VALIDATION
+// =====================================
+
+function validateMemoryRecord(
+  memory
+){
+
+  if(
+    !isObject(
+      memory
+    )
+  ){
+    return false;
+  }
+
+  return (
+
+    isString(
+      memory.id
+    )
+
+    &&
+
+    memory.content !==
+    undefined
+
+  );
+
+}
+
+
+
+// =====================================
+// BATCH VALIDATION
+// =====================================
+
+function validateBatch(
+  records = []
+){
+
+  return Array.isArray(
+    records
+  );
+
+}
+
+
+
+// =====================================
+// STORAGE HEALTH
+// =====================================
+
+function validateStorageHealth(
+  snapshot
+){
+
+  if(
+    !isObject(
+      snapshot
+    )
+  ){
+    return false;
+  }
+
+  return (
+
+    typeof snapshot
+    .healthy ===
+    "boolean"
+
+  );
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const StorageValidators =
 Object.freeze({
 
-  MAX_CHAT_TITLE_LENGTH:
-  200,
+  validateStorageKey,
 
-  MAX_CHAT_MESSAGES:
-  1000,
+  validateStorageValue,
 
-  MAX_MEMORY_KEYS:
-  1000,
+  validateNamespace,
 
-  MAX_MEMORY_DEPTH:
-  10,
+  validateStorageRecord,
 
-  MAX_STRING_LENGTH:
-  50000,
+  validateChatRecord,
 
-  MAX_TIMESTAMP:
-  9999999999999
+  validateMemoryRecord,
+
+  validateBatch,
+
+  validateStorageHealth
 
 });
 
 
 
 // =====================================
-// PLAIN OBJECT VALIDATION
+// EXPORTS
 // =====================================
 
-function isPlainStorageObject(
-  value
-){
+export {
 
-  if(
-    !value ||
+  validateStorageKey,
 
-    typeof value !==
-    "object"
-  ){
+  validateStorageValue,
 
-    return false;
+  validateNamespace,
 
-  }
+  validateStorageRecord,
 
-  if(
-    Array.isArray(value)
-  ){
+  validateChatRecord,
 
-    return false;
+  validateMemoryRecord,
 
-  }
+  validateBatch,
 
-  const prototype =
-  Object.getPrototypeOf(
-    value
-  );
+  validateStorageHealth,
 
-  return (
+  StorageValidators
 
-    prototype ===
-    Object.prototype
+};
 
-    ||
-
-    prototype === null
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE TIMESTAMP VALIDATION
-// =====================================
-
-function isValidTimestamp(
-  value
-){
-
-  return (
-
-    typeof value ===
-    "number"
-
-    &&
-
-    Number.isFinite(
-      value
-    )
-
-    &&
-
-    value > 0
-
-    &&
-
-    value <=
-
-    STORAGE_VALIDATION_LIMITS
-    .MAX_TIMESTAMP
-
-  );
-
-}
-
-
-
-// =====================================
-// MEMORY DEPTH VALIDATION
-// =====================================
-
-function validateMemoryDepth(
-  value,
-  depth = 0,
-  visited = new WeakSet()
-){
-
-  if(
-
-    depth >
-
-    STORAGE_VALIDATION_LIMITS
-    .MAX_MEMORY_DEPTH
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    value == null
-  ){
-
-    return true;
-
-  }
-
-  if(
-    typeof value ===
-    "string"
-  ){
-
-    return (
-
-      value.length <=
-
-      STORAGE_VALIDATION_LIMITS
-      .MAX_STRING_LENGTH
-
-    );
-
-  }
-
-  if(
-    typeof value !==
-    "object"
-  ){
-
-    return true;
-
-  }
-
-  if(
-    Array.isArray(value)
-  ){
-
-    return value.every((item) => {
-
-      return validateMemoryDepth(
-
-        item,
-
-        depth + 1,
-
-        visited
-
-      );
-
-    });
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return false;
-
-  }
-
-  visited.add(value);
-
-  const keys =
-  Object.keys(value);
-
-  const polluted =
-  keys.some((key) => {
-
-    return (
-
-      key === "__proto__"
-
-      ||
-
-      key === "prototype"
-
-      ||
-
-      key === "constructor"
-
-    );
-
-  });
-
-  if(
-    polluted
-  ){
-
-    return false;
-
-  }
-
-  return keys.every((key) => {
-
-    return validateMemoryDepth(
-
-      value[key],
-
-      depth + 1,
-
-      visited
-
-    );
-
-  });
-
-}
-
-
-
-// =====================================
-// VALIDATE CHAT
-// =====================================
-
-function validateChatObject(
-  chat
-){
-
-  if(
-    !isPlainStorageObject(
-      chat
-    )
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof chat.id !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  const normalizedId =
-  chat.id.trim();
-
-  if(
-    normalizedId.length <= 0
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof chat.title !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  const normalizedTitle =
-  chat.title.trim();
-
-  if(
-    normalizedTitle.length <= 0
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    normalizedTitle.length >
-
-    STORAGE_VALIDATION_LIMITS
-    .MAX_CHAT_TITLE_LENGTH
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !Array.isArray(
-      chat.messages
-    )
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    chat.messages.length >
-
-    STORAGE_VALIDATION_LIMITS
-    .MAX_CHAT_MESSAGES
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    typeof validateMessageObject ===
-    "function"
-
-    &&
-
-    !chat.messages.every(
-      validateMessageObject
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !isValidTimestamp(
-      chat.createdAt
-    )
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !isValidTimestamp(
-      chat.updatedAt
-    )
-  ){
-
-    return false;
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// VALIDATE MEMORY
-// =====================================
-
-function validateMemoryObject(
-  memory
-){
-
-  if(
-    !isPlainStorageObject(
-      memory
-    )
-  ){
-
-    return false;
-
-  }
-
-  const keys =
-  Object.keys(memory);
-
-  if(
-
-    keys.length >
-
-    STORAGE_VALIDATION_LIMITS
-    .MAX_MEMORY_KEYS
-
-  ){
-
-    return false;
-
-  }
-
-  return validateMemoryDepth(
-    memory
-  );
-
-}
+export default
+StorageValidators;
