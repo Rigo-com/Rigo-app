@@ -1,105 +1,95 @@
 // =====================================
 // RIGO AI
 // SETTINGS STORAGE
-// ENTERPRISE ULTRA FINAL
+// STORAGE LAYER
 // =====================================
 
-
-
-const SETTINGS_STORAGE_KEY =
-"rigo_settings";
+import SETTINGS_DEFAULTS
+from "./settings-defaults.js";
 
 
 
-function isSettingsStorageAvailable(){
+// =====================================
+// STORAGE KEYS
+// =====================================
 
-  return (
+const SETTINGS_KEY =
+"rigo.settings";
 
-    typeof localStorage !==
-    "undefined"
+const BACKUP_KEY =
+"rigo.settings.backup";
 
-  );
+
+
+// =====================================
+// LOAD
+// =====================================
+
+function loadSettings(){
+
+  try{
+
+    const raw =
+
+      localStorage.getItem(
+        SETTINGS_KEY
+      );
+
+    if(
+      !raw
+    ){
+
+      return structuredClone(
+        SETTINGS_DEFAULTS
+      );
+
+    }
+
+    return JSON.parse(
+      raw
+    );
+
+  }
+
+  catch{
+
+    return structuredClone(
+      SETTINGS_DEFAULTS
+    );
+
+  }
 
 }
 
 
 
-async function saveSettingsToStorage(){
+// =====================================
+// SAVE
+// =====================================
+
+function saveSettings(
+  settings
+){
 
   try{
-
-    if(
-      !isSettingsStorageAvailable()
-    ){
-
-      return false;
-    }
-
-    settingsState.saving =
-    true;
-
-    const settings =
-    settingsState
-    .runtimeSettings;
-
-    if(
-
-      !validateSettingsObject(
-        settings
-      )
-
-    ){
-
-      return false;
-    }
-
-    const serialized =
-    safeJsonStringify(
-      settings,
-      ""
-    );
-
-    if(!serialized){
-
-      return false;
-    }
 
     localStorage.setItem(
 
-      SETTINGS_STORAGE_KEY,
+      SETTINGS_KEY,
 
-      serialized
+      JSON.stringify(
+        settings
+      )
 
     );
-
-    settingsState
-    .lastSavedAt =
-    Date.now();
-
-    settingsState
-    .totalSaves++;
 
     return true;
 
   }
 
-  catch(error){
-
-    settingsState
-    .failedSaves++;
-
-    settingsState
-    .lastError =
-    error;
+  catch{
 
     return false;
-
-  }
-
-  finally{
-
-    settingsState.saving =
-    false;
 
   }
 
@@ -107,93 +97,219 @@ async function saveSettingsToStorage(){
 
 
 
-async function loadSettingsFromStorage(){
+// =====================================
+// BACKUP
+// =====================================
+
+function createBackup(
+  settings
+){
 
   try{
 
-    if(
-      !isSettingsStorageAvailable()
-    ){
+    localStorage.setItem(
 
-      return false;
-    }
+      BACKUP_KEY,
 
-    settingsState.loading =
-    true;
-
-    const raw =
-    localStorage.getItem(
-
-      SETTINGS_STORAGE_KEY
-
-    );
-
-    if(
-
-      typeof raw !==
-      "string"
-
-      ||
-
-      !raw.trim()
-
-    ){
-
-      return false;
-    }
-
-    const parsed =
-    JSON.parse(raw);
-
-    const migrated =
-    migrateSettingsObject(
-      parsed
-    );
-
-    if(
-
-      !validateSettingsObject(
-        migrated
+      JSON.stringify(
+        settings
       )
 
-    ){
-
-      return false;
-    }
-
-    settingsState
-    .runtimeSettings =
-    migrated;
-
-    settingsState
-    .lastLoadedAt =
-    Date.now();
-
-    settingsState
-    .totalLoads++;
+    );
 
     return true;
 
   }
 
-  catch(error){
-
-    settingsState
-    .failedLoads++;
-
-    settingsState
-    .lastError =
-    error;
+  catch{
 
     return false;
 
   }
 
-  finally{
+}
 
-    settingsState.loading =
-    false;
+
+
+function loadBackup(){
+
+  try{
+
+    const raw =
+
+      localStorage.getItem(
+        BACKUP_KEY
+      );
+
+    if(
+      !raw
+    ){
+      return null;
+    }
+
+    return JSON.parse(
+      raw
+    );
+
+  }
+
+  catch{
+
+    return null;
 
   }
 
 }
+
+
+
+// =====================================
+// REMOVE
+// =====================================
+
+function removeSettings(){
+
+  try{
+
+    localStorage.removeItem(
+      SETTINGS_KEY
+    );
+
+    return true;
+
+  }
+
+  catch{
+
+    return false;
+
+  }
+
+}
+
+
+
+function removeBackup(){
+
+  try{
+
+    localStorage.removeItem(
+      BACKUP_KEY
+    );
+
+    return true;
+
+  }
+
+  catch{
+
+    return false;
+
+  }
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function resetStorage(){
+
+  removeSettings();
+
+  removeBackup();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STORAGE STATUS
+// =====================================
+
+function getStorageStatus(){
+
+  return Object.freeze({
+
+    hasSettings:
+
+    localStorage.getItem(
+      SETTINGS_KEY
+    ) !== null,
+
+    hasBackup:
+
+    localStorage.getItem(
+      BACKUP_KEY
+    ) !== null
+
+  });
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsStorage =
+Object.freeze({
+
+  loadSettings,
+
+  saveSettings,
+
+  createBackup,
+
+  loadBackup,
+
+  removeSettings,
+
+  removeBackup,
+
+  resetStorage,
+
+  status:
+  getStorageStatus
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SETTINGS_KEY,
+
+  BACKUP_KEY,
+
+  loadSettings,
+
+  saveSettings,
+
+  createBackup,
+
+  loadBackup,
+
+  removeSettings,
+
+  removeBackup,
+
+  resetStorage,
+
+  getStorageStatus,
+
+  SettingsStorage
+
+};
+
+export default
+SettingsStorage;
