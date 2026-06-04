@@ -4,11 +4,6 @@
 // FOUNDATION STATE LAYER
 // =====================================
 
-import {
-  COMMUNICATION_LIMITS
-}
-from "./communication-config.js";
-
 
 
 // =====================================
@@ -30,9 +25,6 @@ Object.seal({
   new Map(),
 
   abortControllers:
-  new Map(),
-
-  processedHashes:
   new Map(),
 
   diagnostics:
@@ -94,12 +86,6 @@ function createSnapshot(){
 
       communicationState
       .abortControllers
-      .size,
-
-    processedHashes:
-
-      communicationState
-      .processedHashes
       .size,
 
     diagnostics:{
@@ -298,89 +284,6 @@ function removeAbortController(
 
 
 // =====================================
-// HASH CACHE
-// =====================================
-
-function registerHash(
-  hash
-){
-
-  if(
-    !hash
-  ){
-    return false;
-  }
-
-  communicationState
-  .processedHashes
-  .set(
-
-    hash,
-
-    Date.now()
-
-  );
-
-  while(
-
-    communicationState
-    .processedHashes
-    .size >
-
-    COMMUNICATION_LIMITS
-    .MAX_HASH_CACHE
-
-  ){
-
-    const oldest =
-
-      communicationState
-      .processedHashes
-      .keys()
-      .next()
-      .value;
-
-    communicationState
-    .processedHashes
-    .delete(
-      oldest
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-function hasHash(
-  hash
-){
-
-  return communicationState
-  .processedHashes
-  .has(
-    hash
-  );
-
-}
-
-
-
-function clearHashes(){
-
-  communicationState
-  .processedHashes
-  .clear();
-
-  return true;
-
-}
-
-
-
-// =====================================
 // ABORT CONTROLLER READ API
 // =====================================
 
@@ -554,10 +457,6 @@ function resetCommunicationState(){
   .clear();
 
   communicationState
-  .processedHashes
-  .clear();
-
-  communicationState
   .diagnostics
   .requests = 0;
 
@@ -626,12 +525,6 @@ Object.freeze({
 
   getAbortControllerCount,
 
-  registerHash,
-
-  hasHash,
-
-  clearHashes,
-
   incrementRequests,
 
   incrementCompleted,
@@ -692,12 +585,6 @@ export {
   getAbortControllers,
 
   getAbortControllerCount,
-
-  registerHash,
-
-  hasHash,
-
-  clearHashes,
 
   incrementRequests,
 
