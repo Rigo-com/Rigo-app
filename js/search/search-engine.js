@@ -222,10 +222,18 @@ async function executeSearch(
         cached
       ){
 
+        completeSearch(
+
+          query,
+
+          cached
+
+        );
+
         return cached;
 
       }
-
+      
     }
 
 
