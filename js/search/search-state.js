@@ -1,10 +1,14 @@
 // =====================================
 // RIGO AI
 // SEARCH STATE
-// OPTIMIZED FINAL EDITION
+// FOUNDATION STATE LAYER
 // =====================================
 
 
+
+// =====================================
+// SEARCH STATE
+// =====================================
 
 const searchState =
 Object.seal({
@@ -13,185 +17,36 @@ Object.seal({
 
   searching:false,
 
-  currentState:
-  "idle",
+  healthy:true,
 
-  lastQuery:null,
+  activeSearches:0,
 
-  lastSearchAt:null,
+  diagnostics:
+  Object.seal({
 
-  activeSearchToken:null,
+    searches:0,
 
+    completed:0,
 
+    failed:0,
 
-  // ===================================
-  // METRICS
-  // ===================================
+    aborted:0,
 
-  metrics:
-  {
+    cacheHits:0,
 
-    totalSearches:0,
+    cacheMisses:0
 
-    failedSearches:0,
-
-    cachedHits:0,
-
-    abortedSearches:0,
-
-    averageLatency:0,
-
-    lastLatency:0
-
-  },
-
-
-
-  // ===================================
-  // RUNTIME
-  // ===================================
-
-  runtime:
-  {
-
-    activeSearches:0,
-
-    pendingSearches:0
-
-  }
+  })
 
 });
 
 
 
 // =====================================
-// SEARCH STATE HELPERS
+// HELPERS
 // =====================================
 
-function resetSearchState(){
-
-  searchState.searching =
-  false;
-
-  searchState.currentState =
-  "idle";
-
-  searchState.lastQuery =
-  null;
-
-  searchState.activeSearchToken =
-  null;
-
-  searchState.runtime
-  .activeSearches = 0;
-
-  searchState.runtime
-  .pendingSearches = 0;
-
-  return true;
-
-}
-
-
-
-function incrementSearchCount(){
-
-  searchState.metrics
-  .totalSearches++;
-
-  return true;
-
-}
-
-
-
-function incrementFailedSearches(){
-
-  searchState.metrics
-  .failedSearches++;
-
-  return true;
-
-}
-
-
-
-function incrementCachedHits(){
-
-  searchState.metrics
-  .cachedHits++;
-
-  return true;
-
-}
-
-
-
-function incrementAbortedSearches(){
-
-  searchState.metrics
-  .abortedSearches++;
-
-  return true;
-
-}
-
-
-
-function updateSearchLatency(
-  latency = 0
-){
-
-  const normalizedLatency =
-  Math.max(
-    0,
-    Number(latency) || 0
-  );
-
-  searchState.metrics
-  .lastLatency =
-  normalizedLatency;
-
-  const total =
-  searchState.metrics
-  .totalSearches;
-
-  const currentAverage =
-  searchState.metrics
-  .averageLatency;
-
-  searchState.metrics
-  .averageLatency =
-
-    total <= 1
-
-    ? normalizedLatency
-
-    :
-
-    (
-      (
-        currentAverage *
-        (total - 1)
-      )
-
-      +
-
-      normalizedLatency
-
-    ) / total;
-
-  return normalizedLatency;
-
-}
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
-
-function getSearchStateDiagnostics(){
+function createSnapshot(){
 
   return {
 
@@ -203,27 +58,18 @@ function getSearchStateDiagnostics(){
     searchState
     .searching,
 
-    currentState:
+    healthy:
     searchState
-    .currentState,
+    .healthy,
 
-    lastSearchAt:
+    activeSearches:
     searchState
-    .lastSearchAt,
+    .activeSearches,
 
-    metrics:
-    {
+    diagnostics:{
 
       ...searchState
-      .metrics
-
-    },
-
-    runtime:
-    {
-
-      ...searchState
-      .runtime
+      .diagnostics
 
     }
 
@@ -234,15 +80,262 @@ function getSearchStateDiagnostics(){
 
 
 // =====================================
-// GLOBAL EXPORTS
+// FLAGS
 // =====================================
 
-if(typeof globalThis === "object"){
+function setInitialized(
+  value
+){
 
-  globalThis.searchState =
-  searchState;
+  searchState
+  .initialized =
+  Boolean(value);
 
 }
+
+
+
+function setSearching(
+  value
+){
+
+  searchState
+  .searching =
+  Boolean(value);
+
+}
+
+
+
+function setHealthy(
+  value
+){
+
+  searchState
+  .healthy =
+  Boolean(value);
+
+}
+
+
+
+// =====================================
+// ACTIVE SEARCHES
+// =====================================
+
+function incrementActiveSearches(){
+
+  searchState
+  .activeSearches++;
+
+  return true;
+
+}
+
+
+
+function decrementActiveSearches(){
+
+  searchState
+  .activeSearches =
+
+  Math.max(
+
+    0,
+
+    searchState
+    .activeSearches - 1
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS
+// =====================================
+
+function incrementSearches(){
+
+  searchState
+  .diagnostics
+  .searches++;
+
+}
+
+
+
+function incrementCompleted(){
+
+  searchState
+  .diagnostics
+  .completed++;
+
+}
+
+
+
+function incrementFailed(){
+
+  searchState
+  .diagnostics
+  .failed++;
+
+}
+
+
+
+function incrementAborted(){
+
+  searchState
+  .diagnostics
+  .aborted++;
+
+}
+
+
+
+function incrementCacheHits(){
+
+  searchState
+  .diagnostics
+  .cacheHits++;
+
+}
+
+
+
+function incrementCacheMisses(){
+
+  searchState
+  .diagnostics
+  .cacheMisses++;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function getSearchSnapshot(){
+
+  return Object.freeze(
+    createSnapshot()
+  );
+
+}
+
+
+
+// =====================================
+// DIAGNOSTICS SNAPSHOT
+// =====================================
+
+function getSearchDiagnostics(){
+
+  return Object.freeze({
+
+    ...searchState
+    .diagnostics
+
+  });
+
+}
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function resetSearchState(){
+
+  searchState
+  .initialized = false;
+
+  searchState
+  .searching = false;
+
+  searchState
+  .healthy = true;
+
+  searchState
+  .activeSearches = 0;
+
+  searchState
+  .diagnostics
+  .searches = 0;
+
+  searchState
+  .diagnostics
+  .completed = 0;
+
+  searchState
+  .diagnostics
+  .failed = 0;
+
+  searchState
+  .diagnostics
+  .aborted = 0;
+
+  searchState
+  .diagnostics
+  .cacheHits = 0;
+
+  searchState
+  .diagnostics
+  .cacheMisses = 0;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SearchState =
+Object.freeze({
+
+  setInitialized,
+
+  setSearching,
+
+  setHealthy,
+
+  incrementActiveSearches,
+
+  decrementActiveSearches,
+
+  incrementSearches,
+
+  incrementCompleted,
+
+  incrementFailed,
+
+  incrementAborted,
+
+  incrementCacheHits,
+
+  incrementCacheMisses,
+
+  snapshot:
+  getSearchSnapshot,
+
+  diagnostics:
+  getSearchDiagnostics,
+
+  reset:
+  resetSearchState
+
+});
 
 
 
@@ -254,26 +347,37 @@ export {
 
   searchState,
 
+  setInitialized,
+
+  setSearching,
+
+  setHealthy,
+
+  incrementActiveSearches,
+
+  decrementActiveSearches,
+
+  incrementSearches,
+
+  incrementCompleted,
+
+  incrementFailed,
+
+  incrementAborted,
+
+  incrementCacheHits,
+
+  incrementCacheMisses,
+
+  getSearchSnapshot,
+
+  getSearchDiagnostics,
+
   resetSearchState,
 
-  incrementSearchCount,
-
-  incrementFailedSearches,
-
-  incrementCachedHits,
-
-  incrementAbortedSearches,
-
-  updateSearchLatency,
-
-  getSearchStateDiagnostics
+  SearchState
 
 };
 
-
-
-// =====================================
-// DEFAULT EXPORT
-// =====================================
-
-export default searchState;
+export default
+SearchState;
