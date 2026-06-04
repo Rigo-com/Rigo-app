@@ -1,6 +1,6 @@
 // =====================================
 // RIGO AI
-// COMMUNICATION RUNTIME
+// COMMUNICATION CORE
 // ORCHESTRATION LAYER
 // =====================================
 
@@ -201,7 +201,7 @@ function health(){
 // PUBLIC API
 // =====================================
 
-const CommunicationRuntime =
+const CommunicationCore =
 Object.freeze({
 
   initialize,
@@ -238,9 +238,9 @@ export {
 
   health,
 
-  CommunicationRuntime
+  CommunicationCore
 
 };
 
 export default
-CommunicationRuntime;
+CommunicationCore;
