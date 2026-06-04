@@ -12,10 +12,7 @@ from "./communication-config.js";
 import {
   emit
 }
-from "../chat-events/chat-events.js";
-
-import ChatStreamService
-from "../chat/chat-services/chat-stream-service.js";
+from "./communication-events.js";
 
 
 
@@ -81,11 +78,6 @@ async function processStream(
         chunk
       ){
 
-        ChatStreamService
-        .pushChunk(
-          chunk
-        );
-
         emit(
 
           COMMUNICATION_EVENTS
@@ -101,9 +93,6 @@ async function processStream(
 
     }
 
-    ChatStreamService
-    .complete();
-
     emit(
       COMMUNICATION_EVENTS
       .STREAM_COMPLETED
@@ -114,11 +103,6 @@ async function processStream(
   }
 
   catch(error){
-
-    ChatStreamService
-    .fail(
-      error
-    );
 
     emit(
 
