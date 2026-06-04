@@ -12,8 +12,6 @@ import {
 
   removeMemoryItem,
 
-  getMemoryEntries
-
 }
 from "./storage-memory.js";
 
