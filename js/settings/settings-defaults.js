@@ -104,3 +104,12 @@ Object.freeze({
   }
 
 });
+
+
+
+export {
+  SETTINGS_DEFAULTS
+};
+
+export default
+SETTINGS_DEFAULTS;
