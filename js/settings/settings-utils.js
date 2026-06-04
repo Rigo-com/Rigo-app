@@ -1,24 +1,37 @@
 // =====================================
 // RIGO AI
 // SETTINGS UTILS
-// ENTERPRISE ULTRA FINAL
+// UTILITY LAYER
 // =====================================
 
+import {
+  SETTINGS_SECTIONS
+}
+from "./settings-types.js";
 
 
-function normalizeSettingKey(
-  key
+
+// =====================================
+// IDS
+// =====================================
+
+function createSettingsId(
+  prefix = "settings"
 ){
 
-  return normalizeMemoryString(
-    key
-  )
-  .slice(
+  return (
 
-    0,
+    String(prefix)
 
-    SETTINGS_CONFIG
-    .MAX_KEY_LENGTH
+    + "_"
+
+    + Date.now()
+
+    + "_"
+
+    + Math.random()
+    .toString(36)
+    .slice(2,10)
 
   );
 
@@ -26,77 +39,231 @@ function normalizeSettingKey(
 
 
 
-function safeSettingValue(
+// =====================================
+// TYPE HELPERS
+// =====================================
+
+function isObject(
   value
 ){
 
-  try{
+  return (
+
+    value !== null
+
+    &&
+
+    typeof value ===
+    "object"
+
+    &&
+
+    !Array.isArray(
+      value
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// CLONE
+// =====================================
+
+function deepClone(
+  value
+){
+
+  return structuredClone(
+    value
+  );
+
+}
+
+
+
+// =====================================
+// MERGE
+// =====================================
+
+function deepMerge(
+  target = {},
+  source = {}
+){
+
+  const result =
+  deepClone(
+    target
+  );
+
+  for(
+    const [
+
+      key,
+
+      value
+
+    ]
+
+    of Object.entries(
+      source
+    )
+  ){
 
     if(
 
-      value == null ||
+      isObject(
+        value
+      )
 
-      typeof value !==
-      "object"
+      &&
+
+      isObject(
+        result[key]
+      )
 
     ){
 
-      return value;
+      result[key] =
+
+        deepMerge(
+
+          result[key],
+
+          value
+
+        );
+
+      continue;
+
     }
 
-    return cloneMemoryObject(
+    result[key] =
+    deepClone(
       value
     );
 
   }
 
-  catch(error){
-
-    return undefined;
-
-  }
+  return result;
 
 }
 
 
 
-function getNestedSetting(
-  object,
+// =====================================
+// SETTINGS HELPERS
+// =====================================
+
+function isSettingsSection(
+  section
+){
+
+  return Object.values(
+
+    SETTINGS_SECTIONS
+
+  )
+  .includes(
+    section
+  );
+
+}
+
+
+
+function normalizeSettings(
+  settings = {}
+){
+
+  if(
+    !isObject(
+      settings
+    )
+  ){
+
+    return {};
+  }
+
+  return deepClone(
+    settings
+  );
+
+}
+
+
+
+// =====================================
+// PATH HELPERS
+// =====================================
+
+function getSettingValue(
+  settings,
   path
 ){
 
-  return normalizeMemoryString(
-    path
-  )
+  if(
+    !isObject(
+      settings
+    )
+  ){
+    return undefined;
+  }
 
+  if(
+    typeof path !==
+    "string"
+  ){
+    return undefined;
+  }
+
+  return path
   .split(".")
+  .reduce(
 
-  .reduce((current,key) => {
+    (
+      current,
+      key
+    ) =>
 
-    return current?.[key];
+      current?.[
+        key
+      ],
 
-  },
+    settings
 
-  object);
+  );
 
 }
 
 
 
-function setNestedSetting(
-  object,
+function setSettingValue(
+
+  settings,
+
   path,
+
   value
+
 ){
 
+  if(
+    !isObject(
+      settings
+    )
+  ){
+    return false;
+  }
+
   const keys =
-  normalizeMemoryString(
-    path
-  )
+  String(path)
   .split(".");
 
   let current =
-  object;
+  settings;
 
   while(
     keys.length > 1
@@ -106,15 +273,13 @@ function setNestedSetting(
     keys.shift();
 
     if(
-
-      !current[key] ||
-
-      typeof current[key] !==
-      "object"
-
+      !isObject(
+        current[key]
+      )
     ){
 
-      current[key] = {};
+      current[key] =
+      {};
 
     }
 
@@ -123,9 +288,68 @@ function setNestedSetting(
 
   }
 
-  current[keys[0]] =
-  value;
+  current[
+    keys[0]
+  ] = value;
 
   return true;
 
 }
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SettingsUtils =
+Object.freeze({
+
+  createSettingsId,
+
+  isObject,
+
+  deepClone,
+
+  deepMerge,
+
+  isSettingsSection,
+
+  normalizeSettings,
+
+  getSettingValue,
+
+  setSettingValue
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  createSettingsId,
+
+  isObject,
+
+  deepClone,
+
+  deepMerge,
+
+  isSettingsSection,
+
+  normalizeSettings,
+
+  getSettingValue,
+
+  setSettingValue,
+
+  SettingsUtils
+
+};
+
+export default
+SettingsUtils;
