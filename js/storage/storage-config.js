@@ -1,138 +1,80 @@
 // =====================================
 // RIGO AI
 // STORAGE CONFIG
-// ENTERPRISE STORAGE FOUNDATION
+// FOUNDATION CONFIG LAYER
 // =====================================
 
 
 
 // =====================================
-// STORAGE CONFIG
+// STORAGE LIMITS
 // =====================================
 
-const STORAGE_RUNTIME_CONFIG =
+const STORAGE_LIMITS =
 Object.freeze({
-
-  VERSION:
-  "1.0.0",
-
-
-
-  // ================================
-  // STORAGE LIMITS
-  // ================================
 
   MAX_STORAGE_SIZE:
   5 * 1024 * 1024,
 
-  MAX_CACHE_CHATS:
-  200,
+  MAX_CACHE_ITEMS:
+  1000,
 
+  MAX_QUEUE_SIZE:
+  500,
 
+  MAX_CHAT_RECORDS:
+  5000,
 
-  // ================================
-  // PERFORMANCE
-  // ================================
-
-  WRITE_DEBOUNCE_MS:
-  120,
-
-
-
-  // ================================
-  // FEATURES
-  // ================================
-
-  ENABLE_ENCRYPTION:false,
-
-  ENABLE_COMPRESSION:false,
-
-  ENABLE_CACHE:true,
-
-  ENABLE_RECOVERY:true,
-
-  ENABLE_DIAGNOSTICS:true
+  MAX_MEMORY_RECORDS:
+  10000
 
 });
 
 
 
 // =====================================
-// SAFE APP CONFIG ACCESS
+// STORAGE TIMERS
 // =====================================
 
-function getStorageConfigValue(
-  key,
-  fallback
-){
+const STORAGE_TIMERS =
+Object.freeze({
 
-  try{
+  WRITE_DEBOUNCE:
+  100,
 
-    if(
+  FLUSH_INTERVAL:
+  5000,
 
-      typeof APP_CONFIG ===
-      "undefined"
+  CLEANUP_INTERVAL:
+  60000
 
-      ||
+});
 
-      !APP_CONFIG
 
-      ||
 
-      typeof APP_CONFIG !==
-      "object"
+// =====================================
+// STORAGE FEATURES
+// =====================================
 
-    ){
+const STORAGE_FEATURES =
+Object.freeze({
 
-      return fallback;
+  ENABLE_CACHE:
+  true,
 
-    }
+  ENABLE_QUEUE:
+  true,
 
-    const storageConfig =
-    APP_CONFIG.STORAGE;
+  ENABLE_RECOVERY:
+  true,
 
-    if(
+  ENABLE_DIAGNOSTICS:
+  true,
 
-      !storageConfig ||
+  ENABLE_BACKUPS:
+  true
 
-      typeof storageConfig !==
-      "object"
-
-    ){
-
-      return fallback;
-
-    }
-
-    const value =
-    storageConfig[key];
-
-    if(
-      typeof value !==
-      "string"
-    ){
-
-      return fallback;
-
-    }
-
-    const normalized =
-    value.trim();
-
-    return (
-      normalized ||
-      fallback
-    );
-
-  }
-
-  catch(error){
-
-    return fallback;
-
-  }
-
-}
+});
 
 
 
@@ -144,46 +86,51 @@ const STORAGE_KEYS =
 Object.freeze({
 
   CHATS:
-  getStorageConfigValue(
-
-    "CHAT_KEY",
-
-    "rigo-ai:v1:chat-data"
-
-  ),
-
-
+  "rigo.storage.chats",
 
   MEMORY:
-  getStorageConfigValue(
-
-    "APP_KEY",
-
-    "rigo-ai:v1:memory"
-
-  ),
-
-
+  "rigo.storage.memory",
 
   SETTINGS:
-  getStorageConfigValue(
+  "rigo.storage.settings",
 
-    "SETTINGS_KEY",
+  RUNTIME:
+  "rigo.storage.runtime",
 
-    "rigo-ai:v1:settings"
+  BACKUP:
+  "rigo.storage.backup"
 
-  ),
+});
 
 
 
-  VERSION:
-  getStorageConfigValue(
+// =====================================
+// STORAGE EVENTS
+// =====================================
 
-    "VERSION_KEY",
+const STORAGE_EVENTS =
+Object.freeze({
 
-    "rigo-ai:v1:version"
+  INITIALIZED:
+  "storage.initialized",
 
-  )
+  DESTROYED:
+  "storage.destroyed",
+
+  SAVED:
+  "storage.saved",
+
+  LOADED:
+  "storage.loaded",
+
+  REMOVED:
+  "storage.removed",
+
+  CLEARED:
+  "storage.cleared",
+
+  FAILED:
+  "storage.failed"
 
 });
 
@@ -196,14 +143,75 @@ Object.freeze({
 const STORAGE_NAMESPACES =
 Object.freeze({
 
-  CHAT:"chat",
+  CHAT:
+  "chat",
 
-  MEMORY:"memory",
+  MEMORY:
+  "memory",
 
-  SETTINGS:"settings",
+  SETTINGS:
+  "settings",
 
-  CACHE:"cache",
+  CACHE:
+  "cache",
 
-  RUNTIME:"runtime"
+  RUNTIME:
+  "runtime"
 
 });
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const StorageConfig =
+Object.freeze({
+
+  limits:
+  STORAGE_LIMITS,
+
+  timers:
+  STORAGE_TIMERS,
+
+  features:
+  STORAGE_FEATURES,
+
+  keys:
+  STORAGE_KEYS,
+
+  events:
+  STORAGE_EVENTS,
+
+  namespaces:
+  STORAGE_NAMESPACES
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  STORAGE_LIMITS,
+
+  STORAGE_TIMERS,
+
+  STORAGE_FEATURES,
+
+  STORAGE_KEYS,
+
+  STORAGE_EVENTS,
+
+  STORAGE_NAMESPACES,
+
+  StorageConfig
+
+};
+
+export default
+StorageConfig;
