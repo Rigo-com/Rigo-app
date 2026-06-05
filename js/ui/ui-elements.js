@@ -1,254 +1,33 @@
 // =====================================
 // RIGO AI
 // UI ELEMENTS
-// ENTERPRISE DOM REGISTRY
+// DOM ELEMENT REGISTRY
 // =====================================
 
-
-
-// =====================================
-// UI SELECTORS
-// =====================================
-
-const UI_SELECTORS =
-Object.freeze({
-
-  app:
-  "#app",
-
-  sidebar:
-  "#sidebar",
-
-  chatContainer:
-  "#chat-container",
-
-  messagesContainer:
-  "#messages-container",
-
-  input:
-  "#message-input",
-
-  sendButton:
-  "#send-button",
-
-  toastContainer:
-  "#toast-container",
-
-  modalContainer:
-  "#modal-container"
-
-});
-
-
-
-// =====================================
-// SAFE ELEMENT CACHE
-// =====================================
-
-function cacheUIElement(
-  key,
-  selector
-){
-
-  if(
-    typeof key !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  const element =
-  safeQuerySelector(
-    selector
-  );
-
-  uiElements[key] =
-  element || null;
-
-  if(
-    element
-  ){
-
-    uiState
-    .mountedNodes
-    .add(
-      element
-    );
-
-    uiState
-    .trackedElements
-    .set(
-      key,
-      element
-    );
-  }
-
-  return Boolean(
-    element
-  );
-
+import {
+  setElement,
+  getElement
 }
+from "./ui-state.js";
 
 
 
 // =====================================
-// CACHE UI ELEMENTS
+// REGISTER
 // =====================================
 
-function cacheUIElements(){
-
-  Object.entries(
-    UI_SELECTORS
-  )
-  .forEach(([key,selector]) => {
-
-    cacheUIElement(
-      key,
-      selector
-    );
-
-  });
-
-  return true;
-
-}
-
-
-
-// =====================================
-// REQUIRED ELEMENTS
-// =====================================
-
-function getRequiredUIElements(){
-
-  return [
-
-    "app",
-
-    "chatContainer",
-
-    "messagesContainer"
-
-  ];
-
-}
-
-
-
-// =====================================
-// VALIDATE UI ELEMENTS
-// =====================================
-
-function validateUIElements(){
-
-  const required =
-  getRequiredUIElements();
-
-  return required.every((key) => {
-
-    return isValidElement(
-      uiElements[key]
-    );
-
-  });
-
-}
-
-
-
-// =====================================
-// GET UI ELEMENT
-// =====================================
-
-function getUIElement(
-  key
-){
-
-  if(
-    typeof key !==
-    "string"
-  ){
-
-    return null;
-
-  }
-
-  const element =
-  uiElements[key];
-
-  if(
-    !isValidElement(
-      element
-    )
-  ){
-
-    return null;
-
-  }
-
-  return element;
-
-}
-
-
-
-// =====================================
-// TRACK UI ELEMENT
-// =====================================
-
-function trackUIElement(
+function registerElement(
   key,
   element
 ){
 
   if(
-    typeof key !==
-    "string"
+    !key
   ){
-
     return false;
-
   }
 
-  if(
-    !isValidElement(
-      element
-    )
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    uiState
-    .trackedElements
-    .size >=
-
-    UI_CONFIG
-    .MAX_DOM_REFERENCES
-
-  ){
-
-    return false;
-
-  }
-
-  uiElements[key] =
-  element;
-
-  uiState
-  .mountedNodes
-  .add(
-    element
-  );
-
-  uiState
-  .trackedElements
-  .set(
+  setElement(
     key,
     element
   );
@@ -260,36 +39,83 @@ function trackUIElement(
 
 
 // =====================================
-// UNTRACK UI ELEMENT
+// REGISTER MANY
 // =====================================
 
-function untrackUIElement(
+function registerElements(
+  elements = {}
+){
+
+  Object.entries(
+    elements
+  )
+  .forEach(
+
+    ([key, element]) => {
+
+      registerElement(
+        key,
+        element
+      );
+
+    }
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GET
+// =====================================
+
+function getUiElement(
   key
 ){
 
-  if(
-    typeof key !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  uiState
-  .trackedElements
-  .delete(
+  return getElement(
     key
   );
 
-  if(
-    key in uiElements
-  ){
+}
 
-    uiElements[key] =
-    null;
 
-  }
+
+// =====================================
+// EXISTS
+// =====================================
+
+function hasElement(
+  key
+){
+
+  return Boolean(
+
+    getElement(
+      key
+    )
+
+  );
+
+}
+
+
+
+// =====================================
+// REMOVE
+// =====================================
+
+function removeElement(
+  key
+){
+
+  setElement(
+    key,
+    null
+  );
 
   return true;
 
@@ -298,88 +124,63 @@ function untrackUIElement(
 
 
 // =====================================
-// CLEAN DETACHED ELEMENTS
+// COMMON ELEMENTS
 // =====================================
 
-function cleanupDetachedUIElements(){
+function getApp(){
 
-  uiState
-  .trackedElements
-  .forEach((element,key) => {
-
-    if(
-      !isValidElement(
-        element
-      )
-    ){
-
-      untrackUIElement(
-        key
-      );
-
-      return;
-    }
-
-    if(
-      !document.body.contains(
-        element
-      )
-    ){
-
-      untrackUIElement(
-        key
-      );
-
-    }
-
-  });
-
-  return true;
+  return getElement(
+    "app"
+  );
 
 }
 
 
 
-// =====================================
-// TOAST CONTAINER
-// =====================================
+function getInput(){
 
-function initializeToastContainer(){
-
-  if(
-    isValidElement(
-      uiElements
-      .toastContainer
-    )
-  ){
-
-    return true;
-
-  }
-
-  const container =
-  safeCreateElement(
-    "div",
-    ["toast-container"]
+  return getElement(
+    "input"
   );
 
-  if(!container){
+}
 
-    return false;
 
-  }
 
-  container.id =
-  "toast-container";
+function getMessagesContainer(){
 
-  document.body
-  .appendChild(
-    container
+  return getElement(
+    "messagesContainer"
   );
 
-  return trackUIElement(
-    "toastContainer",
-    container
+}
+
+
+
+function getSendButton(){
+
+  return getElement(
+    "sendButton"
+  );
+
+}
+
+
+
+function getModalContainer(){
+
+  return getElement(
+    "modalContainer"
+  );
+
+}
+
+
+
+function getToastContainer(){
+
+  return getElement(
+    "toastContainer"
   );
 
 }
@@ -387,106 +188,27 @@ function initializeToastContainer(){
 
 
 // =====================================
-// MODAL CONTAINER
+// VALIDATION
 // =====================================
 
-function initializeModalContainer(){
-
-  if(
-    isValidElement(
-      uiElements
-      .modalContainer
-    )
-  ){
-
-    return true;
-
-  }
-
-  const container =
-  safeCreateElement(
-    "div",
-    ["modal-container"]
-  );
-
-  if(!container){
-
-    return false;
-
-  }
-
-  container.id =
-  "modal-container";
-
-  document.body
-  .appendChild(
-    container
-  );
-
-  return trackUIElement(
-    "modalContainer",
-    container
-  );
-
-}
-
-
-
-// =====================================
-// CLEAR MODAL CONTAINER
-// =====================================
-
-function clearModalContainer(){
-
-  const container =
-  uiElements
-  .modalContainer;
-
-  if(
-    !isValidElement(
-      container
-    )
-  ){
-
-    return false;
-
-  }
-
-  container.innerHTML =
-  "";
-
-  return true;
-
-}
-
-
-
-// =====================================
-// ELEMENT DIAGNOSTICS
-// =====================================
-
-function getUIElementDiagnostics(){
+function validateElements(){
 
   return Object.freeze({
 
-    tracked:
+    app:
+    hasElement(
+      "app"
+    ),
 
-      uiState
-      .trackedElements
-      .size,
+    input:
+    hasElement(
+      "input"
+    ),
 
-    mountedReferences:
-
-      Object.keys(
-        uiElements
-      )
-      .filter((key) => {
-
-        return isValidElement(
-          uiElements[key]
-        );
-
-      })
+    messagesContainer:
+    hasElement(
+      "messagesContainer"
+    )
 
   });
 
@@ -498,37 +220,70 @@ function getUIElementDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const UIElements =
+const UiElements =
 Object.freeze({
 
-  cache:
-  cacheUIElements,
+  registerElement,
 
-  validate:
-  validateUIElements,
+  registerElements,
 
-  get:
-  getUIElement,
+  getUiElement,
 
-  track:
-  trackUIElement,
+  hasElement,
 
-  untrack:
-  untrackUIElement,
+  removeElement,
 
-  cleanup:
-  cleanupDetachedUIElements,
+  getApp,
 
-  initializeToast:
-  initializeToastContainer,
+  getInput,
 
-  initializeModal:
-  initializeModalContainer,
+  getMessagesContainer,
 
-  clearModal:
-  clearModalContainer,
+  getSendButton,
 
-  diagnostics:
-  getUIElementDiagnostics
+  getModalContainer,
+
+  getToastContainer,
+
+  validateElements
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  registerElement,
+
+  registerElements,
+
+  getUiElement,
+
+  hasElement,
+
+  removeElement,
+
+  getApp,
+
+  getInput,
+
+  getMessagesContainer,
+
+  getSendButton,
+
+  getModalContainer,
+
+  getToastContainer,
+
+  validateElements,
+
+  UiElements
+
+};
+
+export default
+UiElements;
