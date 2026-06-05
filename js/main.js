@@ -6,6 +6,12 @@
 import BootstrapManager
 from "./bootstrap/index.js";
 
+document.body.innerHTML += `
+<h2 style="color:green">
+MAIN FILE EXECUTED
+</h2>
+`;
+
 
 
 // =====================================
