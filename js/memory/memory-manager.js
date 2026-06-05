@@ -170,6 +170,16 @@ function addContext(
 
 }
 
+function removeContext(
+  id
+){
+
+  return MemoryContext
+  .removeContextItem(
+    id
+  );
+
+}
 
 
 function getContext(){
@@ -261,6 +271,8 @@ Object.freeze({
 
   addContext,
 
+  removeContext,
+
   getContext,
 
   clearContext,
@@ -298,6 +310,8 @@ export {
   searchOne,
 
   addContext,
+
+  removeContext,
 
   getContext,
 
