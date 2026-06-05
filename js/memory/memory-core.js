@@ -71,6 +71,9 @@ function initialize(){
   const memories =
   loadMemories();
 
+  MemoryState
+  .clearMemories();
+
   for(
     const memory
     of memories
@@ -224,6 +227,8 @@ function updateMemory(
 
   );
 
+  buildIndex();
+  
   MemoryState
   .incrementUpdated();
 
@@ -273,6 +278,8 @@ function deleteMemory(
     memoryId
   );
 
+  buildIndex();
+  
   MemoryState
   .incrementDeleted();
 
