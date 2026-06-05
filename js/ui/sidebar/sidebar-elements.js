@@ -1,37 +1,160 @@
 // =====================================
 // RIGO AI
 // SIDEBAR ELEMENTS
-// ENTERPRISE SIDEBAR DOM LAYER
+// DOM REFERENCES LAYER
 // =====================================
 
+import {
+  SidebarState
+}
+from "./sidebar-state.js";
+
 
 
 // =====================================
-// SIDEBAR ELEMENT IDS
+// SIDEBAR ELEMENTS
 // =====================================
 
-const SIDEBAR_ELEMENT_IDS =
-Object.freeze({
+const sidebarElements =
+Object.seal({
 
-  CONTAINER:
-  "sidebar",
+  sidebar:null,
 
-  HISTORY_LIST:
-  "chatHistoryList",
+  overlay:null,
 
-  NEW_CHAT_BUTTON:
-  "newChatButton"
+  toggleButton:null,
+
+  closeButton:null,
+
+  content:null,
+
+  header:null,
+
+  body:null,
+
+  footer:null,
+
+  navigation:null,
+
+  search:null
 
 });
 
 
 
 // =====================================
-// SAFE ELEMENT
+// SETTERS
 // =====================================
 
-function getSidebarElement(
-  elementId
+function setElement(
+  key,
+  element
+){
+
+  if(
+    !(key in sidebarElements)
+  ){
+
+    return false;
+
+  }
+
+  sidebarElements[
+    key
+  ] = element;
+
+  SidebarState
+  .setElement(
+    key,
+    element
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GETTERS
+// =====================================
+
+function getElement(
+  key
+){
+
+  return (
+
+    sidebarElements[
+      key
+    ]
+
+    ??
+
+    null
+
+  );
+
+}
+
+
+
+function hasElement(
+  key
+){
+
+  return Boolean(
+    getElement(key)
+  );
+
+}
+
+
+
+// =====================================
+// BULK
+// =====================================
+
+function registerElements(
+  elements = {}
+){
+
+  Object.entries(
+    elements
+  )
+  .forEach(([key,value]) => {
+
+    setElement(
+      key,
+      value
+    );
+
+  });
+
+  return true;
+
+}
+
+
+
+function getAllElements(){
+
+  return Object.freeze({
+
+    ...sidebarElements
+
+  });
+
+}
+
+
+
+// =====================================
+// QUERY HELPERS
+// =====================================
+
+function queryElement(
+  selector
 ){
 
   if(
@@ -43,456 +166,58 @@ function getSidebarElement(
 
   }
 
-  if(
-    typeof elementId !==
-    "string"
-  ){
-
-    return null;
-
-  }
-
-  try{
-
-    return document
-    .getElementById(
-      elementId
-    );
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "SIDEBAR ELEMENT ERROR",
-      error
-    );
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// CACHE ELEMENTS
-// =====================================
-
-function initializeSidebarElements(){
-
-  if(
-    sidebarRuntimeState
-    .destroyed
-  ){
-
-    return false;
-
-  }
-
-  sidebarElementState
-  .sidebarContainer =
-
-    getSidebarElement(
-
-      SIDEBAR_ELEMENT_IDS
-      .CONTAINER
-
-    );
-
-  sidebarElementState
-  .chatHistoryList =
-
-    getSidebarElement(
-
-      SIDEBAR_ELEMENT_IDS
-      .HISTORY_LIST
-
-    );
-
-  sidebarElementState
-  .newChatButton =
-
-    getSidebarElement(
-
-      SIDEBAR_ELEMENT_IDS
-      .NEW_CHAT_BUTTON
-
-    );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// VALIDATE ELEMENT
-// =====================================
-
-function validateSidebarElement(
-  element
-){
-
-  return (
-
-    element instanceof
-    HTMLElement
-
+  return document
+  .querySelector(
+    selector
   );
 
 }
 
 
 
-// =====================================
-// VALIDATE ELEMENTS
-// =====================================
+function queryElements(
+  selector
+){
 
-function validateSidebarElements(){
+  if(
+    typeof document ===
+    "undefined"
+  ){
 
-  const requiredElements = [
+    return [];
+  }
 
-    sidebarElementState
-    .chatHistoryList,
+  return [
 
-    sidebarElementState
-    .newChatButton
+    ...document
+    .querySelectorAll(
+      selector
+    )
 
   ];
 
-  const valid =
-  requiredElements.every(
-    validateSidebarElement
-  );
-
-  if(!valid){
-
-    safeLogError(
-      "SIDEBAR VALIDATION FAILED"
-    );
-
-    return false;
-
-  }
-
-  return true;
-
 }
 
 
 
 // =====================================
-// GET HISTORY LIST
+// RESET
 // =====================================
 
-function getSidebarHistoryList(){
-
-  return (
-
-    sidebarElementState
-    .chatHistoryList
-
-    ||
-
-    null
-
-  );
-
-}
-
-
-
-// =====================================
-// GET NEW CHAT BUTTON
-// =====================================
-
-function getSidebarNewChatButton(){
-
-  return (
-
-    sidebarElementState
-    .newChatButton
-
-    ||
-
-    null
-
-  );
-
-}
-
-
-
-// =====================================
-// GET SIDEBAR CONTAINER
-// =====================================
-
-function getSidebarContainer(){
-
-  return (
-
-    sidebarElementState
-    .sidebarContainer
-
-    ||
-
-    null
-
-  );
-
-}
-
-
-
-// =====================================
-// SET ACTIVE HISTORY ITEM
-// =====================================
-
-function setActiveHistoryItem(
-  element
-){
-
-  if(
-    !validateSidebarElement(
-      element
-    )
-  ){
-
-    return false;
-
-  }
-
-  const previous =
-
-    sidebarElementState
-    .activeHistoryItem;
-
-  if(previous){
-
-    previous.classList.remove(
-      "active-history-item"
-    );
-
-    previous.removeAttribute(
-      "aria-current"
-    );
-
-    previous.setAttribute(
-      "aria-selected",
-      "false"
-    );
-
-  }
-
-  element.classList.add(
-    "active-history-item"
-  );
-
-  element.setAttribute(
-    "aria-current",
-    "true"
-  );
-
-  element.setAttribute(
-    "aria-selected",
-    "true"
-  );
-
-  sidebarElementState
-  .activeHistoryItem =
-  element;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLEAR ACTIVE HISTORY ITEM
-// =====================================
-
-function clearActiveHistoryItem(){
-
-  const activeItem =
-
-    sidebarElementState
-    .activeHistoryItem;
-
-  if(!activeItem){
-
-    return true;
-
-  }
-
-  activeItem.classList.remove(
-    "active-history-item"
-  );
-
-  activeItem.removeAttribute(
-    "aria-current"
-  );
-
-  activeItem.setAttribute(
-    "aria-selected",
-    "false"
-  );
-
-  sidebarElementState
-  .activeHistoryItem =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLEAR HISTORY CONTAINER
-// =====================================
-
-function clearSidebarHistoryContainer(){
-
-  const historyList =
-  getSidebarHistoryList();
-
-  if(!historyList){
-
-    return false;
-
-  }
-
-  historyList.replaceChildren();
-
-  sidebarCacheState
-  .historyElements
-  .clear();
-
-  clearActiveHistoryItem();
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SAFE FOCUS INPUT
-// =====================================
-
-function focusSidebarInput(){
-
-  if(
-
-    !SIDEBAR_CONFIG
-    .AUTO_FOCUS_INPUT
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof messageInput ===
-    "undefined"
-
-    ||
-
-    !messageInput
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    messageInput.focus();
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "SIDEBAR FOCUS ERROR",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// CLEANUP ELEMENTS
-// =====================================
-
-function cleanupSidebarElements(){
-
-  clearSidebarHistoryContainer();
-
-  resetSidebarElements();
-
-  return true;
-
-}
-
-
-
-// =====================================
-// ELEMENT DIAGNOSTICS
-// =====================================
-
-function getSidebarElementDiagnostics(){
-
-  return Object.freeze({
-
-    container:
-
-      Boolean(
-
-        sidebarElementState
-        .sidebarContainer
-
-      ),
-
-    historyList:
-
-      Boolean(
-
-        sidebarElementState
-        .chatHistoryList
-
-      ),
-
-    newChatButton:
-
-      Boolean(
-
-        sidebarElementState
-        .newChatButton
-
-      ),
-
-    activeHistoryItem:
-
-      Boolean(
-
-        sidebarElementState
-        .activeHistoryItem
-
-      )
+function resetElements(){
+
+  Object.keys(
+    sidebarElements
+  )
+  .forEach(key => {
+
+    sidebarElements[
+      key
+    ] = null;
 
   });
+
+  return true;
 
 }
 
@@ -505,37 +230,34 @@ function getSidebarElementDiagnostics(){
 const SidebarElements =
 Object.freeze({
 
-  initialize:
-  initializeSidebarElements,
+  setElement,
+  getElement,
+  hasElement,
 
-  validate:
-  validateSidebarElements,
+  registerElements,
+  getAllElements,
 
-  cleanup:
-  cleanupSidebarElements,
+  queryElement,
+  queryElements,
 
-  clearHistory:
-  clearSidebarHistoryContainer,
-
-  focusInput:
-  focusSidebarInput,
-
-  getContainer:
-  getSidebarContainer,
-
-  getHistoryList:
-  getSidebarHistoryList,
-
-  getNewChatButton:
-  getSidebarNewChatButton,
-
-  setActiveItem:
-  setActiveHistoryItem,
-
-  clearActiveItem:
-  clearActiveHistoryItem,
-
-  diagnostics:
-  getSidebarElementDiagnostics
+  reset:
+  resetElements
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  sidebarElements,
+
+  SidebarElements
+
+};
+
+export default
+SidebarElements;
