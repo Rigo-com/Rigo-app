@@ -11,6 +11,8 @@
 // =====================================
 
 export * from "./ai/index.js";
+export { default as AI }
+from "./ai/index.js";
 
 
 
@@ -19,6 +21,8 @@ export * from "./ai/index.js";
 // =====================================
 
 export * from "./api/index.js";
+export { default as API }
+from "./api/index.js";
 
 
 
@@ -27,6 +31,8 @@ export * from "./api/index.js";
 // =====================================
 
 export * from "./auth/index.js";
+export { default as Auth }
+from "./auth/index.js";
 
 
 
@@ -35,6 +41,8 @@ export * from "./auth/index.js";
 // =====================================
 
 export * from "./bootstrap/index.js";
+export { default as Bootstrap }
+from "./bootstrap/index.js";
 
 
 
@@ -43,6 +51,8 @@ export * from "./bootstrap/index.js";
 // =====================================
 
 export * from "./chat/index.js";
+export { default as Chat }
+from "./chat/index.js";
 
 
 
@@ -51,6 +61,8 @@ export * from "./chat/index.js";
 // =====================================
 
 export * from "./communication/index.js";
+export { default as Communication }
+from "./communication/index.js";
 
 
 
@@ -59,6 +71,8 @@ export * from "./communication/index.js";
 // =====================================
 
 export * from "./core/index.js";
+export { default as Core }
+from "./core/index.js";
 
 
 
@@ -67,6 +81,8 @@ export * from "./core/index.js";
 // =====================================
 
 export * from "./memory/index.js";
+export { default as Memory }
+from "./memory/index.js";
 
 
 
@@ -75,6 +91,8 @@ export * from "./memory/index.js";
 // =====================================
 
 export * from "./search/index.js";
+export { default as Search }
+from "./search/index.js";
 
 
 
@@ -91,6 +109,8 @@ export * from "./security/index.js";
 // =====================================
 
 export * from "./services/index.js";
+export { default as Services }
+from "./services/index.js";
 
 
 
@@ -99,6 +119,8 @@ export * from "./services/index.js";
 // =====================================
 
 export * from "./settings/index.js";
+export { default as Settings }
+from "./settings/index.js";
 
 
 
@@ -107,6 +129,8 @@ export * from "./settings/index.js";
 // =====================================
 
 export * from "./shared/index.js";
+export { default as Shared }
+from "./shared/index.js";
 
 
 
@@ -115,6 +139,8 @@ export * from "./shared/index.js";
 // =====================================
 
 export * from "./storage/index.js";
+export { default as Storage }
+from "./storage/index.js";
 
 
 
@@ -123,6 +149,8 @@ export * from "./storage/index.js";
 // =====================================
 
 export * from "./ui/index.js";
+export { default as UI }
+from "./ui/index.js";
 
 
 
@@ -131,3 +159,5 @@ export * from "./ui/index.js";
 // =====================================
 
 export * from "./voice/index.js";
+export { default as Voice }
+from "./voice/index.js";
