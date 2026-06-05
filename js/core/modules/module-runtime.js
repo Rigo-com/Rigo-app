@@ -16,6 +16,9 @@ from "./module-registry.js";
 import ModuleActivation
 from "./module-activation.js";
 
+import registerCoreModules
+from "./module-setup.js";
+
 
 
 // =====================================
@@ -81,6 +84,8 @@ async function initializeModuleRuntime(){
 
   }
 
+  registerCoreModules();
+  
   moduleRuntimeState
   .initialized =
   true;
