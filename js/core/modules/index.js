@@ -38,6 +38,17 @@ async function initializeModules(){
 
 
 // =====================================
+// SETUP
+// =====================================
+
+export {
+  registerCoreModules
+}
+from "./module-setup.js";
+
+
+
+// =====================================
 // BOOT
 // =====================================
 
@@ -123,6 +134,9 @@ Object.freeze({
   runtime:
   ModuleRuntime,
 
+  register:
+  registerCoreModules,
+  
   initialize:
   initializeModules,
 
@@ -156,6 +170,8 @@ export {
 
   ModuleRuntime,
 
+  registerCoreModules,
+  
   initializeModules,
 
   bootModules,
