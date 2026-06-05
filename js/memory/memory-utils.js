@@ -1,140 +1,38 @@
 // =====================================
 // RIGO AI
 // MEMORY UTILS
-// ENTERPRISE INFINITY ULTRA FINAL
-// PATCHED + STABILIZED
+// UTILITY LAYER
 // =====================================
 
-
-
-// =====================================
-// UTILS CONFIG
-// =====================================
-
-const MEMORY_UTILS_CONFIG =
-Object.freeze({
-
-  HASH_LENGTH:64,
-
-  MAX_TEXT_LENGTH:50000,
-
-  MAX_ARRAY_LENGTH:10000,
-
-  MAX_RETRY_COUNT:5,
-
-  DEFAULT_DEBOUNCE:300,
-
-  DEFAULT_THROTTLE:300,
-
-  DEFAULT_RETRY_DELAY:300,
-
-  MAX_RETRY_DELAY:5000
-
-});
-
-
-
-// =====================================
-// STOP WORDS
-// =====================================
-
-const MEMORY_STOP_WORDS =
-new Set([
-
-  "a","an","and","are","as","at",
-
-  "be","by","for","from","has","he",
-
-  "in","is","it","its","of","on",
-
-  "that","the","to","was","were",
-
-  "will","with","this","these",
-
-  "those","you","your","they",
-
-  "them","their","or","if","then",
-
-  "than","so","but","not"
-
-]);
-
-
-
-// =====================================
-// SAFE STRING
-// =====================================
-
-function safeMemoryString(
-  value,
-  fallback = ""
-){
-
-  try{
-
-    return String(
-      value ?? fallback
-    );
-
-  }
-
-  catch(error){
-
-    return String(
-      fallback
-    );
-
-  }
-
+import {
+  MEMORY_TYPES,
+  MEMORY_PRIORITIES
 }
+from "./memory-types.js";
 
 
 
 // =====================================
-// SAFE NUMBER
+// IDS
 // =====================================
 
-function safeMemoryNumber(
-  value,
-  fallback = 0
+function createMemoryId(
+  prefix = "memory"
 ){
 
-  const number =
-  Number(value);
+  return (
 
-  return Number.isFinite(
-    number
-  )
+    String(prefix)
 
-  ? number
+    + "_"
 
-  : fallback;
+    + Date.now()
 
-}
+    + "_"
 
-
-
-// =====================================
-// SAFE ARRAY
-// =====================================
-
-function safeMemoryArray(
-  value
-){
-
-  if(
-    !Array.isArray(value)
-  ){
-
-    return [];
-  }
-
-  return value.slice(
-
-    0,
-
-    MEMORY_UTILS_CONFIG
-    .MAX_ARRAY_LENGTH
+    + Math.random()
+    .toString(36)
+    .slice(2,10)
 
   );
 
@@ -143,240 +41,66 @@ function safeMemoryArray(
 
 
 // =====================================
-// SAFE OBJECT
+// TYPE HELPERS
 // =====================================
 
-function safeMemoryObject(
+function isObject(
   value
 ){
 
-  if(
+  return (
 
-    !value ||
+    value !== null
 
-    typeof value !==
-    "object" ||
+    &&
 
-    Array.isArray(value)
-
-  ){
-
-    return {};
-
-  }
-
-  return value;
-
-}
-
-
-
-// =====================================
-// SAFE BOOLEAN
-// =====================================
-
-function safeMemoryBoolean(
-  value,
-  fallback = false
-){
-
-  if(
     typeof value ===
-    "boolean"
-  ){
+    "object"
 
-    return value;
+    &&
 
-  }
+    !Array.isArray(
+      value
+    )
 
-  return fallback;
-
-}
-
-
-
-// =====================================
-// NORMALIZE TEXT
-// =====================================
-
-function normalizeMemoryText(
-  text
-){
-
-  if(
-    typeof normalizeMemoryString ===
-    "function"
-  ){
-
-    return normalizeMemoryString(
-      text
-    );
-  }
-
-  return safeMemoryString(
-    text
-  )
-
-  .normalize("NFKC")
-
-  .replace(
-    /[\u0000-\u001F\u007F]/g,
-    " "
-  )
-
-  .replace(
-    /\s+/g,
-    " "
-  )
-
-  .trim();
+  );
 
 }
 
 
 
-// =====================================
-// LOWERCASE TEXT
-// =====================================
-
-function normalizeMemoryTextLower(
-  text
-){
-
-  return normalizeMemoryText(
-    text
-  )
-  .toLowerCase();
-
-}
-
-
-
-// =====================================
-// TOKEN COUNTS
-// =====================================
-
-function countMemoryTokens(
-  text
-){
-
-  if(
-    typeof tokenizeMemoryText !==
-    "function"
-  ){
-
-    return 0;
-  }
-
-  return tokenizeMemoryText(
-    text
-  )
-  .length;
-
-}
-
-
-
-// =====================================
-// CONTENT HASH
-// =====================================
-
-function createUtilityMemoryHash(
+function isString(
   value
 ){
 
-  const normalizedValue =
-  normalizeMemoryText(
+  return typeof value ===
+  "string";
+
+}
+
+
+
+// =====================================
+// CLONE
+// =====================================
+
+function deepClone(
+  value
+){
+
+  return structuredClone(
     value
   );
 
-  let hash1 =
-  5381;
-
-  let hash2 =
-  52711;
-
-  for(
-
-    let index = 0;
-
-    index <
-    normalizedValue.length;
-
-    index++
-
-  ){
-
-    const charCode =
-
-      normalizedValue
-      .charCodeAt(index);
-
-    hash1 =
-
-      (
-        (hash1 << 5)
-        + hash1
-      )
-
-      ^
-
-      charCode;
-
-    hash2 =
-
-      (
-        (hash2 << 5)
-        + hash2
-      )
-
-      ^
-
-      charCode;
-
-  }
-
-  const combinedHash =
-
-    (
-      hash1 >>> 0
-    )
-    .toString(16)
-
-    +
-
-    (
-      hash2 >>> 0
-    )
-    .toString(16);
-
-  return combinedHash
-  .padStart(
-
-    MEMORY_UTILS_CONFIG
-    .HASH_LENGTH,
-
-    "0"
-
-  )
-  .slice(
-
-    0,
-
-    MEMORY_UTILS_CONFIG
-    .HASH_LENGTH
-
-  );
-
 }
 
 
 
 // =====================================
-// DATE HELPERS
+// TIMESTAMPS
 // =====================================
 
-function getCurrentTimestamp(){
+function createTimestamp(){
 
   return Date.now();
 
@@ -384,914 +108,128 @@ function getCurrentTimestamp(){
 
 
 
-function isExpiredTimestamp(
-  timestamp
-){
+function createIsoTimestamp(){
 
-  const normalizedTimestamp =
-  safeMemoryNumber(
-    timestamp,
-    0
-  );
-
-  if(
-    normalizedTimestamp <= 0
-  ){
-
-    return false;
-
-  }
-
-  return (
-
-    Date.now() >
-
-    normalizedTimestamp
-
-  );
-
-}
-
-
-
-function getDaysBetweenDates(
-  firstDate,
-  secondDate
-){
-
-  const first =
-  safeMemoryNumber(
-    firstDate
-  );
-
-  const second =
-  safeMemoryNumber(
-    secondDate
-  );
-
-  return Math.floor(
-
-    Math.abs(
-      second - first
-    ) /
-
-    86400000
-
-  );
+  return new Date()
+  .toISOString();
 
 }
 
 
 
 // =====================================
-// ARRAY DEDUPLICATION
+// MEMORY FACTORY
 // =====================================
 
-function deduplicateMemoryArray(
-  values = []
+function createMemoryRecord(
+  content,
+  options = {}
 ){
 
-  return [
+  return {
 
-    ...new Set(
+    id:
 
-      safeMemoryArray(
-        values
-      )
+    options.id ??
 
-    )
+    createMemoryId(),
 
-  ];
+    content:
 
-}
-
-
-
-// =====================================
-// SAFE BATCHING
-// =====================================
-
-function chunkMemoryArray(
-  values = [],
-  chunkSize = 100
-){
-
-  const safeValues =
-  safeMemoryArray(
-    values
-  );
-
-  const normalizedChunkSize =
-  Math.max(
-    1,
-    safeMemoryNumber(
-      chunkSize,
-      100
-    )
-  );
-
-  const chunks = [];
-
-  for(
-
-    let index = 0;
-
-    index <
-    safeValues.length;
-
-    index += normalizedChunkSize
-
-  ){
-
-    chunks.push(
-
-      safeValues.slice(
-        index,
-        index + normalizedChunkSize
-      )
-
-    );
-
-  }
-
-  return chunks;
-
-}
-
-
-
-// =====================================
-// SORT HELPERS
-// =====================================
-
-function sortMemoriesByDate(
-  memories = [],
-  field = "updatedAt",
-  direction = "desc"
-){
-
-  return [
-
-    ...safeMemoryArray(
-      memories
-    )
-
-  ]
-  .sort((a,b) => {
-
-    const valueA =
-    safeMemoryNumber(
-      a?.[field]
-    );
-
-    const valueB =
-    safeMemoryNumber(
-      b?.[field]
-    );
-
-    if(
-      valueA === valueB
-    ){
-
-      return String(
-        a?.id || ""
-      )
-      .localeCompare(
-        String(
-          b?.id || ""
-        )
-      );
-
-    }
-
-    return direction ===
-    "asc"
-
-    ? valueA - valueB
-
-    : valueB - valueA;
-
-  });
-
-}
-
-
-
-function sortMemoriesByScore(
-  results = []
-){
-
-  return [
-
-    ...safeMemoryArray(
-      results
-    )
-
-  ]
-  .sort((a,b) => {
-
-    return (
-
-      safeMemoryNumber(
-        b?.score
-      )
-
-      -
-
-      safeMemoryNumber(
-        a?.score
-      )
-
-    );
-
-  });
-
-}
-
-
-
-// =====================================
-// CLAMP HELPERS
-// =====================================
-
-function clampMemoryNumber(
-  value,
-  min,
-  max
-){
-
-  const number =
-  safeMemoryNumber(
-    value,
-    min
-  );
-
-  return Math.min(
-
-    max,
-
-    Math.max(
-      min,
-      number
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE JSON
-// =====================================
-
-function safeJsonParse(
-  value,
-  fallback = null
-){
-
-  try{
-
-    return JSON.parse(
-      value
-    );
-
-  }
-
-  catch(error){
-
-    return fallback;
-
-  }
-
-}
-
-
-
-function safeJsonStringify(
-  value,
-  fallback = ""
-){
-
-  try{
-
-    const visited =
-    new WeakSet();
-
-    return JSON.stringify(
-      value,
-      (key,nestedValue) => {
-
-        if(
-          typeof nestedValue ===
-          "bigint"
-        ){
-
-          return nestedValue
-          .toString();
-        }
-
-        if(
-          nestedValue instanceof Map
-        ){
-
-          return {
-            __type:"Map",
-            value:[
-              ...nestedValue.entries()
-            ]
-          };
-        }
-
-        if(
-          nestedValue instanceof Set
-        ){
-
-          return {
-            __type:"Set",
-            value:[
-              ...nestedValue.values()
-            ]
-          };
-        }
-
-        if(
-          nestedValue instanceof Uint8Array
-        ){
-
-          return {
-            __type:"Uint8Array",
-            value:[
-              ...nestedValue
-            ]
-          };
-        }
-
-        if(
-
-          nestedValue &&
-
-          typeof nestedValue ===
-          "object"
-
-        ){
-
-          if(
-            visited.has(
-              nestedValue
-            )
-          ){
-
-            return "[Circular]";
-          }
-
-          visited.add(
-            nestedValue
-          );
-
-        }
-
-        return nestedValue;
-
-      }
-    );
-
-  }
-
-  catch(error){
-
-    return fallback;
-
-  }
-
-}
-
-
-
-// =====================================
-// DEEP CLONE
-// =====================================
-
-function deepClone(
-  value
-){
-
-  try{
-
-    if(
-
-      typeof structuredClone ===
-      "function"
-
-    ){
-
-      return structuredClone(
-        value
-      );
-
-    }
-
-  }
-
-  catch(error){}
-
-  return safeJsonParse(
-
-    safeJsonStringify(
-      value,
-      "null"
+    String(
+      content ?? ""
     ),
 
-    null
+    type:
 
-  );
+    options.type ??
+
+    MEMORY_TYPES
+    .SHORT_TERM,
+
+    priority:
+
+    options.priority ??
+
+    MEMORY_PRIORITIES
+    .NORMAL,
+
+    tags:
+
+    Array.isArray(
+      options.tags
+    )
+
+    ? [...options.tags]
+
+    : [],
+
+    createdAt:
+    createTimestamp(),
+
+    updatedAt:
+    createTimestamp()
+
+  };
 
 }
 
 
 
 // =====================================
-// IMMUTABLE FREEZE
+// TEXT HELPERS
 // =====================================
 
-function deepFreeze(
-  value,
-  visited = new WeakSet()
+function normalizeText(
+  value = ""
 ){
 
-  if(
-
-    !value ||
-
-    typeof value !==
-    "object"
-
-  ){
-
-    return value;
-
-  }
-
-  if(
-    visited.has(value)
-  ){
-
-    return value;
-
-  }
-
-  visited.add(
-    value
-  );
-
-  Object.freeze(
-    value
-  );
-
-  Object.values(
+  return String(
     value
   )
-  .forEach((nestedValue) => {
-
-    if(
-
-      nestedValue &&
-
-      typeof nestedValue ===
-      "object"
-
-    ){
-
-      deepFreeze(
-        nestedValue,
-        visited
-      );
-
-    }
-
-  });
-
-  return value;
+  .trim()
+  .toLowerCase();
 
 }
 
 
 
-// =====================================
-// MEMORY SIZE
-// =====================================
-
-function calculateMemorySize(
-  value
+function tokenizeText(
+  value = ""
 ){
 
-  const serialized =
-  safeJsonStringify(
-    value,
-    ""
-  );
-
-  return serialized.length;
-
-}
-
-
-
-// =====================================
-// TEXT TRUNCATION
-// =====================================
-
-function truncateMemoryText(
-  text,
-  maxLength = 500
-){
-
-  const normalizedText =
-  normalizeMemoryText(
-    text
-  );
-
-  const normalizedMaxLength =
-  Math.max(
-    1,
-    safeMemoryNumber(
-      maxLength,
-      500
-    )
-  );
-
-  if(
-    normalizedText.length <=
-    normalizedMaxLength
-  ){
-
-    return normalizedText;
-
-  }
-
-  return (
-
-    normalizedText.slice(
-
-      0,
-
-      normalizedMaxLength
-
-    )
-
-    +
-
-    "..."
-
-  );
-
-}
-
-
-
-// =====================================
-// CONTENT COMPRESSION
-// =====================================
-
-function compressMemoryText(
-  text
-){
-
-  return normalizeMemoryText(
-    text
+  return normalizeText(
+    value
   )
-  .replace(
-    /\s+/g,
-    " "
-  );
+  .split(/\s+/)
+  .filter(Boolean);
 
 }
 
 
 
 // =====================================
-// MEMORY RELEVANCE
+// MEMORY HELPERS
 // =====================================
 
-function calculateMemoryRelevance(
-  text,
-  query
-){
-
-  const normalizedText =
-  normalizeMemoryTextLower(
-    text
-  );
-
-  const normalizedQuery =
-  normalizeMemoryTextLower(
-    query
-  );
-
-  if(
-
-    !normalizedText ||
-
-    !normalizedQuery
-
-  ){
-
-    return 0;
-
-  }
-
-  if(
-    normalizedText ===
-    normalizedQuery
-  ){
-
-    return 1;
-  }
-
-  if(
-
-    normalizedText.includes(
-      normalizedQuery
-    )
-
-  ){
-
-    return 0.85;
-  }
-
-  if(
-    typeof tokenizeMemoryText !==
-    "function"
-  ){
-
-    return 0;
-  }
-
-  const textTokens =
-  tokenizeMemoryText(
-    normalizedText
-  );
-
-  const queryTokens =
-  tokenizeMemoryText(
-    normalizedQuery
-  );
-
-  if(
-    queryTokens.length <= 0
-  ){
-
-    return 0;
-  }
-
-  const tokenSet =
-  new Set(
-    textTokens
-  );
-
-  let matches = 0;
-
-  queryTokens.forEach((token) => {
-
-    if(
-      tokenSet.has(
-        token
-      )
-    ){
-
-      matches++;
-
-    }
-
-  });
-
-  return normalizeMemoryScore(
-    matches /
-    queryTokens.length
-  );
-
-}
-
-
-
-// =====================================
-// SAFE COMPARE
-// =====================================
-
-function areMemoryValuesEqual(
-  firstValue,
-  secondValue
-){
-
-  return (
-
-    safeJsonStringify(
-      firstValue
-    )
-
-    ===
-
-    safeJsonStringify(
-      secondValue
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// MEMORY OBJECT VALIDATION
-// =====================================
-
-function isValidMemoryObject(
+function updateMemoryTimestamp(
   memory
 ){
 
-  return (
-
-    memory &&
-
-    typeof memory ===
-    "object"
-
-    &&
-
-    typeof memory.id ===
-    "string"
-
-    &&
-
-    typeof memory.type ===
-    "string"
-
-  );
-
-}
-
-
-
-// =====================================
-// MEMORY SCORE NORMALIZATION
-// =====================================
-
-function normalizeMemoryScore(
-  score
-){
-
-  return clampMemoryNumber(
-    score,
-    0,
-    1
-  );
-
-}
-
-
-
-// =====================================
-// RETRY DELAY
-// =====================================
-
-function waitMemoryRetryDelay(
-  delay
-){
-
-  return new Promise((resolve) => {
-
-    setTimeout(
-      resolve,
-      delay
-    );
-
-  });
-
-}
-
-
-
-// =====================================
-// RETRY HELPER
-// =====================================
-
-async function retryMemoryOperation(
-  operation,
-  retries =
-  MEMORY_UTILS_CONFIG
-  .MAX_RETRY_COUNT
-){
-
-  let lastError = null;
-
-  const normalizedRetries =
-  Math.max(
-    0,
-    safeMemoryNumber(
-      retries,
-      MEMORY_UTILS_CONFIG
-      .MAX_RETRY_COUNT
+  if(
+    !isObject(
+      memory
     )
-  );
-
-  for(
-
-    let attempt = 0;
-
-    attempt <= normalizedRetries;
-
-    attempt++
-
   ){
-
-    try{
-
-      return await operation();
-
-    }
-
-    catch(error){
-
-      lastError = error;
-
-      if(
-        attempt >=
-        normalizedRetries
-      ){
-
-        break;
-      }
-
-      const retryDelay =
-      Math.min(
-
-        MEMORY_UTILS_CONFIG
-        .DEFAULT_RETRY_DELAY *
-
-        Math.pow(
-          2,
-          attempt
-        ),
-
-        MEMORY_UTILS_CONFIG
-        .MAX_RETRY_DELAY
-
-      );
-
-      await waitMemoryRetryDelay(
-        retryDelay
-      );
-
-    }
-
+    return memory;
   }
 
-  throw lastError;
+  return {
 
-}
+    ...memory,
 
-
-
-// =====================================
-// DEBOUNCE
-// =====================================
-
-function debounceMemoryFunction(
-  callback,
-  delay =
-  MEMORY_UTILS_CONFIG
-  .DEFAULT_DEBOUNCE
-){
-
-  let timer = null;
-
-  return function(...args){
-
-    clearTimeout(
-      timer
-    );
-
-    timer = setTimeout(() => {
-
-      try{
-
-        callback.apply(
-          this,
-          args
-        );
-
-      }
-
-      catch(error){
-
-        console.error(
-          "[RIGO MEMORY DEBOUNCE ERROR]",
-          error
-        );
-
-      }
-
-    },delay);
+    updatedAt:
+    createTimestamp()
 
   };
 
@@ -1299,53 +237,15 @@ function debounceMemoryFunction(
 
 
 
-// =====================================
-// THROTTLE
-// =====================================
-
-function throttleMemoryFunction(
-  callback,
-  delay =
-  MEMORY_UTILS_CONFIG
-  .DEFAULT_THROTTLE
+function hasMemoryContent(
+  memory
 ){
 
-  let waiting = false;
+  return Boolean(
 
-  return function(...args){
+    memory?.content
 
-    if(waiting){
-
-      return;
-    }
-
-    waiting = true;
-
-    try{
-
-      callback.apply(
-        this,
-        args
-      );
-
-    }
-
-    catch(error){
-
-      console.error(
-        "[RIGO MEMORY THROTTLE ERROR]",
-        error
-      );
-
-    }
-
-    setTimeout(() => {
-
-      waiting = false;
-
-    },delay);
-
-  };
+  );
 
 }
 
@@ -1358,79 +258,63 @@ function throttleMemoryFunction(
 const MemoryUtils =
 Object.freeze({
 
-  safeMemoryString,
-  safeMemoryNumber,
-  safeMemoryArray,
-  safeMemoryObject,
-  safeMemoryBoolean,
+  createMemoryId,
 
-  normalizeMemoryText,
-  normalizeMemoryTextLower,
+  isObject,
 
-  countMemoryTokens,
-
-  createUtilityMemoryHash,
-
-  getCurrentTimestamp,
-  isExpiredTimestamp,
-  getDaysBetweenDates,
-
-  deduplicateMemoryArray,
-  chunkMemoryArray,
-
-  sortMemoriesByDate,
-  sortMemoriesByScore,
-
-  clampMemoryNumber,
-
-  safeJsonParse,
-  safeJsonStringify,
+  isString,
 
   deepClone,
-  deepFreeze,
 
-  calculateMemorySize,
-  truncateMemoryText,
-  compressMemoryText,
+  createTimestamp,
 
-  calculateMemoryRelevance,
-  areMemoryValuesEqual,
+  createIsoTimestamp,
 
-  isValidMemoryObject,
-  normalizeMemoryScore,
+  createMemoryRecord,
 
-  waitMemoryRetryDelay,
-  retryMemoryOperation,
+  normalizeText,
 
-  debounceMemoryFunction,
-  throttleMemoryFunction
+  tokenizeText,
+
+  updateMemoryTimestamp,
+
+  hasMemoryContent
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.MemoryUtils =
-  MemoryUtils;
+  createMemoryId,
 
-}
+  isObject,
 
+  isString,
 
+  deepClone,
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
+  createTimestamp,
 
-  globalThis.MemoryUtils =
-  MemoryUtils;
+  createIsoTimestamp,
 
-}
+  createMemoryRecord,
+
+  normalizeText,
+
+  tokenizeText,
+
+  updateMemoryTimestamp,
+
+  hasMemoryContent,
+
+  MemoryUtils
+
+};
+
+export default
+MemoryUtils;
