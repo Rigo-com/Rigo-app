@@ -42,12 +42,23 @@ async function startApplication(){
 
   catch(error){
 
-    console.error(
-      "RIGO STARTUP ERROR",
-      error
-    );
+  console.error(
+    "RIGO STARTUP ERROR",
+    error
+  );
 
-  }
+  document.body.innerHTML = `
+<pre style="
+color:red;
+padding:20px;
+white-space:pre-wrap;
+font-size:14px;
+">
+${error?.stack || error?.message || String(error)}
+</pre>
+`;
+
+}
 
 }
 
