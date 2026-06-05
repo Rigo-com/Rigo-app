@@ -1,185 +1,60 @@
 // =====================================
 // RIGO AI
 // SIDEBAR ACTIONS
-// ENTERPRISE SIDEBAR BUSINESS LOGIC
+// SIDEBAR OPERATIONS
 // =====================================
 
+import {
+  SidebarState
+}
+from "./sidebar-state.js";
+
+import {
+  SIDEBAR_EVENTS,
+  emit
+}
+from "./sidebar-events.js";
+
 
 
 // =====================================
-// SIDEBAR OPERATION LOCK
+// OPEN
 // =====================================
 
-async function executeSidebarOperation(
-  operation,
-  callback
-){
+function openSidebar(){
 
   if(
-    typeof callback !==
-    "function"
+    SidebarState
+    .snapshot()
+    .open
   ){
-
-    return false;
-
-  }
-
-  const operationId =
-  createSidebarOperationId();
-
-  trackSidebarOperation(
-    operationId
-  );
-
-  sidebarRuntimeState[
-    operation
-  ] = true;
-
-  sidebarRuntimeState
-  .lastActionAt =
-  Date.now();
-
-  try{
-
-    return await callback(
-      operationId
-    );
-
-  }
-
-  catch(error){
-
-    sidebarRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-      "SIDEBAR ACTION ERROR",
-      error
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    completeSidebarOperation(
-      operationId
-    );
-
-    sidebarRuntimeState[
-      operation
-    ] = false;
-
-  }
-
-}
-
-
-
-// =====================================
-// ABORT ACTIVE GENERATION
-// =====================================
-
-async function abortSidebarGeneration(){
-
-  try{
-
-    if(
-      typeof abortMessageGeneration ===
-      "function"
-    ){
-
-      await abortMessageGeneration();
-
-    }
 
     return true;
 
   }
 
-  catch(error){
-
-    safeLogError(
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAVE ACTIVE CHAT
-// =====================================
-
-async function saveSidebarActiveChat(){
-
-  try{
-
-    const hasMessages =
-
-      Array.isArray(
-        currentChat?.messages
-      )
-
-      &&
-
-      currentChat.messages
-      .length > 0;
-
-    if(!hasMessages){
-
-      return true;
-
-    }
-
-    return await Promise.resolve(
-      saveCurrentChat()
-    );
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// RESET CHAT SESSION
-// =====================================
-
-async function resetSidebarChatSession(){
-
-  clearTypingIndicator();
-
-  await Promise.resolve(
-    resetCurrentChat()
+  SidebarState
+  .setOpen(
+    true
   );
 
-  SidebarRenderer
-  .renderMessages();
+  emit(
 
-  SidebarRenderer
-  .renderHistory();
+    SIDEBAR_EVENTS
+    .OPENED
 
-  SidebarElements
-  .focusInput();
+  );
 
-  clearSidebarActiveChat();
+  emit(
+
+    SIDEBAR_EVENTS
+    .TOGGLED,
+
+    {
+      open:true
+    }
+
+  );
 
   return true;
 
@@ -188,289 +63,43 @@ async function resetSidebarChatSession(){
 
 
 // =====================================
-// CREATE NEW CHAT
+// CLOSE
 // =====================================
 
-async function createNewChat(){
-
-  return executeSidebarOperation(
-    "creating",
-    async () => {
-
-      await abortSidebarGeneration();
-
-      await saveSidebarActiveChat();
-
-      await resetSidebarChatSession();
-
-      safeLogInfo(
-        "NEW CHAT CREATED"
-      );
-
-      return true;
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// LOAD CHAT
-// =====================================
-
-async function loadChat(
-  chatId
-){
+function closeSidebar(){
 
   if(
-    typeof chatId !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  if(
-    currentChat?.id ===
-    chatId
+    !SidebarState
+    .snapshot()
+    .open
   ){
 
     return true;
 
   }
 
-  return executeSidebarOperation(
-    "loading",
-    async () => {
-
-      await abortSidebarGeneration();
-
-      await saveSidebarActiveChat();
-
-      clearTypingIndicator();
-
-      const chats =
-      getAllChats();
-
-      if(
-        !Array.isArray(
-          chats
-        )
-      ){
-
-        return false;
-
-      }
-
-      const selectedChat =
-      chats.find((chat) => {
-
-        return (
-          chat?.id ===
-          chatId
-        );
-
-      });
-
-      if(!selectedChat){
-
-        return false;
-
-      }
-
-      const clonedChat =
-      deepClone(
-        selectedChat
-      );
-
-      if(!clonedChat){
-
-        return false;
-
-      }
-
-      currentChat =
-      clonedChat;
-
-      setSidebarActiveChat(
-        chatId
-      );
-
-      SidebarRenderer
-      .renderMessages();
-
-      SidebarRenderer
-      .renderHistory();
-
-      SidebarElements
-      .focusInput();
-
-      safeLogInfo(
-        "CHAT LOADED"
-      );
-
-      return true;
-
-    }
+  SidebarState
+  .setOpen(
+    false
   );
 
-}
+  emit(
 
+    SIDEBAR_EVENTS
+    .CLOSED
 
-
-// =====================================
-// DELETE CHAT
-// =====================================
-
-async function deleteChat(
-  chatId
-){
-
-  if(
-    typeof chatId !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  return executeSidebarOperation(
-    "deleting",
-    async () => {
-
-      await abortSidebarGeneration();
-
-      const chats =
-      getAllChats();
-
-      if(
-        !Array.isArray(
-          chats
-        )
-      ){
-
-        return false;
-
-      }
-
-      const filteredChats =
-      chats.filter((chat) => {
-
-        return (
-          chat?.id !==
-          chatId
-        );
-
-      });
-
-      const saved =
-      saveAllChats(
-        filteredChats
-      );
-
-      if(!saved){
-
-        return false;
-
-      }
-
-      sidebarCacheState
-      .historyElements
-      .delete(
-        chatId
-      );
-
-      sidebarCacheState
-      .renderedChats
-      .delete(
-        chatId
-      );
-
-      const deletingCurrentChat =
-
-        currentChat?.id ===
-        chatId;
-
-      if(
-        deletingCurrentChat
-      ){
-
-        clearTypingIndicator();
-
-        const nextChat =
-        filteredChats[0];
-
-        if(nextChat){
-
-          const clonedChat =
-          deepClone(
-            nextChat
-          );
-
-          if(!clonedChat){
-
-            return false;
-
-          }
-
-          currentChat =
-          clonedChat;
-
-          setSidebarActiveChat(
-            clonedChat.id
-          );
-
-        }
-
-        else{
-
-          await Promise.resolve(
-            resetCurrentChat()
-          );
-
-          clearSidebarActiveChat();
-
-        }
-
-      }
-
-      SidebarRenderer
-      .renderHistory();
-
-      SidebarRenderer
-      .renderMessages();
-
-      SidebarElements
-      .focusInput();
-
-      safeLogInfo(
-        "CHAT DELETED"
-      );
-
-      return true;
-
-    }
   );
 
-}
+  emit(
 
+    SIDEBAR_EVENTS
+    .TOGGLED,
 
+    {
+      open:false
+    }
 
-// =====================================
-// REFRESH SIDEBAR
-// =====================================
-
-function refreshSidebar(){
-
-  SidebarRenderer
-  .renderHistory();
-
-  SidebarRenderer
-  .renderMessages();
+  );
 
   return true;
 
@@ -479,40 +108,104 @@ function refreshSidebar(){
 
 
 // =====================================
-// SIDEBAR ACTION DIAGNOSTICS
+// TOGGLE
 // =====================================
 
-function getSidebarActionDiagnostics(){
+function toggleSidebar(){
 
-  return Object.freeze({
+  const isOpen =
 
-    activeChatId:
+    SidebarState
+    .snapshot()
+    .open;
 
-      sidebarRuntimeState
-      .activeChatId,
+  return isOpen
 
-    pendingOperations:
+    ?
 
-      sidebarCacheState
-      .pendingOperations
-      .size,
+    closeSidebar()
 
-    creating:
+    :
 
-      sidebarRuntimeState
-      .creating,
+    openSidebar();
 
-    loading:
+}
 
-      sidebarRuntimeState
-      .loading,
 
-    deleting:
 
-      sidebarRuntimeState
-      .deleting
+// =====================================
+// COLLAPSE
+// =====================================
 
-  });
+function collapseSidebar(){
+
+  SidebarState
+  .setCollapsed(
+    true
+  );
+
+  emit(
+
+    SIDEBAR_EVENTS
+    .COLLAPSED
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// EXPAND
+// =====================================
+
+function expandSidebar(){
+
+  SidebarState
+  .setCollapsed(
+    false
+  );
+
+  emit(
+
+    SIDEBAR_EVENTS
+    .EXPANDED
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SELECT ITEM
+// =====================================
+
+function selectSidebarItem(
+  item
+){
+
+  SidebarState
+  .setActiveItem(
+    item
+  );
+
+  emit(
+
+    SIDEBAR_EVENTS
+    .ITEM_SELECTED,
+
+    {
+      item
+    }
+
+  );
+
+  return true;
 
 }
 
@@ -525,20 +218,49 @@ function getSidebarActionDiagnostics(){
 const SidebarActions =
 Object.freeze({
 
-  createChat:
-  createNewChat,
+  open:
+  openSidebar,
 
-  loadChat,
+  close:
+  closeSidebar,
 
-  deleteChat,
+  toggle:
+  toggleSidebar,
 
-  refresh:
-  refreshSidebar,
+  collapse:
+  collapseSidebar,
 
-  abortGeneration:
-  abortSidebarGeneration,
+  expand:
+  expandSidebar,
 
-  diagnostics:
-  getSidebarActionDiagnostics
+  select:
+  selectSidebarItem
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  openSidebar,
+
+  closeSidebar,
+
+  toggleSidebar,
+
+  collapseSidebar,
+
+  expandSidebar,
+
+  selectSidebarItem,
+
+  SidebarActions
+
+};
+
+export default
+SidebarActions;
