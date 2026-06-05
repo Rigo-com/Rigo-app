@@ -1,97 +1,71 @@
 // =====================================
 // RIGO AI
-// MEMORY INDEX
-// FINAL ROOT EXPORT
-// HARDENED INTEGRATED EDITION
+// MEMORY
+// PUBLIC EXPORTS
 // =====================================
 
 
 
 // =====================================
-// IMPORTS
+// CONSTANTS
 // =====================================
 
-import "./memory-core.js";
-import "./memory-state.js";
-import "./memory-types.js";
-import "./memory-constants.js";
-import "./memory-utils.js";
+export {
 
-import "./memory-storage.js";
+  MEMORY_LIMITS,
 
-import "./memory-context.js";
+  MEMORY_TIMERS,
 
-import "./memory-search.js";
-import "./memory-ranking.js";
-import "./memory-indexing.js";
+  MEMORY_FEATURES,
 
-import "./memory-security.js";
+  MEMORY_EVENTS,
 
-import "./memory-events.js";
+  MEMORY_NAMESPACES,
 
-import "./memory-validation.js";
+  MemoryConstants
 
-import "./memory-summary.js";
-
-import "./memory-embeddings.js";
-
-import "./memory-cleanup.js";
-
-import "./memory-sync-cloud.js";
-
-import "./memory-export.js";
-
-import "./memory-debug.js";
-
-import "./memory-manager.js";
-
-import "./memory-subsystem.js";
+}
+from "./memory-constants.js";
 
 
 
 // =====================================
-// CORE
+// TYPES
 // =====================================
 
-export * from "./memory-core.js";
-export * from "./memory-state.js";
-export * from "./memory-types.js";
-export * from "./memory-constants.js";
-export * from "./memory-utils.js";
+export {
 
+  MEMORY_STATES,
 
+  MEMORY_TYPES,
 
-// =====================================
-// STORAGE
-// =====================================
+  MEMORY_PRIORITIES,
 
-export * from "./memory-storage.js";
+  MEMORY_STATUS,
 
+  MEMORY_SEARCH_MODES,
 
+  MEMORY_INDEX_STATUS,
 
-// =====================================
-// CONTEXT
-// =====================================
+  MemoryTypes
 
-export * from "./memory-context.js";
+}
+from "./memory-types.js";
 
 
 
 // =====================================
-// SEARCH
+// STATE
 // =====================================
 
-export * from "./memory-search.js";
-export * from "./memory-ranking.js";
-export * from "./memory-indexing.js";
+export {
 
+  memoryState,
 
+  MemoryState
 
-// =====================================
-// SECURITY
-// =====================================
-
-export * from "./memory-security.js";
+}
+from "./memory-state.js";
 
 
 
@@ -99,7 +73,25 @@ export * from "./memory-security.js";
 // EVENTS
 // =====================================
 
-export * from "./memory-events.js";
+export {
+
+  MemoryEvents
+
+}
+from "./memory-events.js";
+
+
+
+// =====================================
+// UTILS
+// =====================================
+
+export {
+
+  MemoryUtils
+
+}
+from "./memory-utils.js";
 
 
 
@@ -107,15 +99,51 @@ export * from "./memory-events.js";
 // VALIDATION
 // =====================================
 
-export * from "./memory-validation.js";
+export {
+
+  MemoryValidation
+
+}
+from "./memory-validation.js";
 
 
 
 // =====================================
-// SUMMARY
+// SECURITY
 // =====================================
 
-export * from "./memory-summary.js";
+export {
+
+  MemorySecurity
+
+}
+from "./memory-security.js";
+
+
+
+// =====================================
+// STORAGE
+// =====================================
+
+export {
+
+  MemoryStorage
+
+}
+from "./memory-storage.js";
+
+
+
+// =====================================
+// CONTEXT
+// =====================================
+
+export {
+
+  MemoryContext
+
+}
+from "./memory-context.js";
 
 
 
@@ -123,7 +151,64 @@ export * from "./memory-summary.js";
 // EMBEDDINGS
 // =====================================
 
-export * from "./memory-embeddings.js";
+export {
+
+  MemoryEmbeddings
+
+}
+from "./memory-embeddings.js";
+
+
+
+// =====================================
+// INDEXING
+// =====================================
+
+export {
+
+  MemoryIndexing
+
+}
+from "./memory-indexing.js";
+
+
+
+// =====================================
+// RANKING
+// =====================================
+
+export {
+
+  MemoryRanking
+
+}
+from "./memory-ranking.js";
+
+
+
+// =====================================
+// SEARCH
+// =====================================
+
+export {
+
+  MemorySearch
+
+}
+from "./memory-search.js";
+
+
+
+// =====================================
+// SUMMARY
+// =====================================
+
+export {
+
+  MemorySummary
+
+}
+from "./memory-summary.js";
 
 
 
@@ -131,15 +216,12 @@ export * from "./memory-embeddings.js";
 // CLEANUP
 // =====================================
 
-export * from "./memory-cleanup.js";
+export {
 
+  MemoryCleanup
 
-
-// =====================================
-// CLOUD SYNC
-// =====================================
-
-export * from "./memory-sync-cloud.js";
+}
+from "./memory-cleanup.js";
 
 
 
@@ -147,7 +229,25 @@ export * from "./memory-sync-cloud.js";
 // EXPORT
 // =====================================
 
-export * from "./memory-export.js";
+export {
+
+  MemoryExport
+
+}
+from "./memory-export.js";
+
+
+
+// =====================================
+// CLOUD SYNC
+// =====================================
+
+export {
+
+  MemorySyncCloud
+
+}
+from "./memory-sync-cloud.js";
 
 
 
@@ -155,15 +255,25 @@ export * from "./memory-export.js";
 // DEBUG
 // =====================================
 
-export * from "./memory-debug.js";
+export {
+
+  MemoryDebug
+
+}
+from "./memory-debug.js";
 
 
 
 // =====================================
-// MANAGER
+// CORE
 // =====================================
 
-export * from "./memory-manager.js";
+export {
+
+  MemoryCore
+
+}
+from "./memory-core.js";
 
 
 
@@ -171,60 +281,25 @@ export * from "./memory-manager.js";
 // SUBSYSTEM
 // =====================================
 
-export * from "./memory-subsystem.js";
+export {
 
+  MemorySubsystem
 
-
-// =====================================
-// MEMORY API
-// =====================================
-
-import RIGOMemory
+}
 from "./memory-subsystem.js";
 
 
 
 // =====================================
-// EXPORTS
+// MANAGER
 // =====================================
 
 export {
 
-  RIGOMemory
-
-};
-
-
-
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof globalThis ===
-  "object"
-){
-
-  Object.defineProperty(
-
-    globalThis,
-
-    "RIGOMemory",
-
-    {
-
-      value:
-      RIGOMemory,
-
-      writable:false,
-
-      configurable:false
-
-    }
-
-  );
+  MemoryManager
 
 }
+from "./memory-manager.js";
 
 
 
@@ -232,5 +307,9 @@ if(
 // DEFAULT EXPORT
 // =====================================
 
-export default
-RIGOMemory;
+export {
+
+  MemoryManager as default
+
+}
+from "./memory-manager.js";
