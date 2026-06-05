@@ -1,625 +1,283 @@
 // =====================================
 // RIGO AI
 // SIDEBAR RUNTIME
-// ENTERPRISE SIDEBAR ORCHESTRATOR
+// SIDEBAR SYSTEM RUNTIME
 // =====================================
 
+import {
+  SidebarState,
+  SIDEBAR_CONFIG
+}
+from "./sidebar-state.js";
 
+import {
+  SidebarElements
+}
+from "./sidebar-elements.js";
 
-// =====================================
-// SIDEBAR MODULES
-// =====================================
+import {
+  SidebarActions
+}
+from "./sidebar-actions.js";
 
-const SIDEBAR_RUNTIME_MODULES =
-Object.freeze([
+import {
+  SidebarRenderer
+}
+from "./sidebar-renderer.js";
 
-  {
-
-    name:"elements",
-
-    required:true,
-
-    initialize(){
-
-      return (
-
-        typeof SidebarElements !==
-        "undefined"
-
-        &&
-
-        SidebarElements
-        .initialize()
-
-        &&
-
-        SidebarElements
-        .validate()
-
-      );
-
-    }
-
-  },
-
-
-
-  {
-
-    name:"events",
-
-    required:true,
-
-    initialize(){
-
-      return (
-
-        typeof SidebarEvents !==
-        "undefined"
-
-        &&
-
-        SidebarEvents
-        .bind()
-
-      );
-
-    }
-
-  },
-
-
-
-  {
-
-    name:"renderer",
-
-    required:true,
-
-    initialize(){
-
-      return (
-        typeof SidebarRenderer !==
-        "undefined"
-      );
-
-    }
-
-  },
-
-
-
-  {
-
-    name:"actions",
-
-    required:true,
-
-    initialize(){
-
-      return (
-        typeof SidebarActions !==
-        "undefined"
-      );
-
-    }
-
-  }
-
-]);
+import {
+  SIDEBAR_EVENTS,
+  emit
+}
+from "./sidebar-events.js";
 
 
 
 // =====================================
-// VALIDATE ENVIRONMENT
+// MOBILE
 // =====================================
 
-function validateSidebarEnvironment(){
+function detectMobile(){
 
-  return (
+  return window.innerWidth <=
 
-    typeof window !==
-    "undefined"
+    SIDEBAR_CONFIG
+    .MOBILE_BREAKPOINT;
 
-    &&
+}
 
-    typeof document !==
-    "undefined"
+
+
+// =====================================
+// RESIZE
+// =====================================
+
+function handleResize(){
+
+  SidebarState
+  .setMobile(
+
+    detectMobile()
 
   );
 
-}
+  SidebarRenderer
+  .renderSidebar();
 
-
-
-// =====================================
-// INITIALIZE MODULES
-// =====================================
-
-function initializeSidebarModules(){
-
-  return SIDEBAR_RUNTIME_MODULES
-  .every((module) => {
-
-    try{
-
-      const initialized =
-      module.initialize();
-
-      if(
-        !initialized
-      ){
-
-        if(
-          module.required
-        ){
-
-          return false;
-
-        }
-
-      }
-
-      return true;
-
-    }
-
-    catch(error){
-
-      sidebarRuntimeState
-      .lastError =
-      error;
-
-      safeLogError(
-
-        "SIDEBAR MODULE INIT FAILED",
-
-        module.name,
-
-        error
-
-      );
-
-      if(
-        module.required
-      ){
-
-        return false;
-
-      }
-
-      return true;
-
-    }
-
-  });
+  return true;
 
 }
 
 
 
 // =====================================
-// HYDRATE SIDEBAR
+// EVENTS
 // =====================================
 
-function hydrateSidebarRuntime(){
+function bindEvents(){
 
-  try{
+  const toggleButton =
 
-    SidebarRenderer
-    .renderHistory();
-
-    sidebarRuntimeState
-    .hydrated =
-    true;
-
-    return true;
-
-  }
-
-  catch(error){
-
-    sidebarRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-      "SIDEBAR HYDRATION FAILED",
-      error
+    SidebarElements
+    .getElement(
+      "toggleButton"
     );
 
-    return false;
+  const closeButton =
+
+    SidebarElements
+    .getElement(
+      "closeButton"
+    );
+
+  const overlay =
+
+    SidebarElements
+    .getElement(
+      "overlay"
+    );
+
+  if(
+    toggleButton
+  ){
+
+    toggleButton
+    .addEventListener(
+
+      "click",
+
+      SidebarActions
+      .toggle
+
+    );
 
   }
+
+  if(
+    closeButton
+  ){
+
+    closeButton
+    .addEventListener(
+
+      "click",
+
+      SidebarActions
+      .close
+
+    );
+
+  }
+
+  if(
+    overlay
+  ){
+
+    overlay
+    .addEventListener(
+
+      "click",
+
+      SidebarActions
+      .close
+
+    );
+
+  }
+
+  window.addEventListener(
+
+    "resize",
+
+    handleResize
+
+  );
+
+  return true;
 
 }
 
 
 
 // =====================================
-// INITIALIZE SIDEBAR
+// UNBIND
+// =====================================
+
+function unbindEvents(){
+
+  window.removeEventListener(
+
+    "resize",
+
+    handleResize
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INITIALIZE
 // =====================================
 
 function initializeSidebar(){
 
   if(
-    sidebarRuntimeState
+
+    SidebarState
+    .snapshot()
     .initialized
+
   ){
 
     return true;
 
   }
 
-  if(
-    sidebarRuntimeState
-    .destroyed ===
-    false
+  SidebarState
+  .setMobile(
 
-    &&
+    detectMobile()
 
-    isSidebarBusy()
-  ){
+  );
 
-    return false;
+  SidebarState
+  .setInitialized(
+    true
+  );
 
-  }
+  bindEvents();
 
-  try{
+  SidebarRenderer
+  .renderSidebar();
 
-    const environmentValid =
-    validateSidebarEnvironment();
+  emit(
 
-    if(
-      !environmentValid
-    ){
+    SIDEBAR_EVENTS
+    .INITIALIZED
 
-      return false;
+  );
 
-    }
-
-    const modulesReady =
-    initializeSidebarModules();
-
-    if(
-      !modulesReady
-    ){
-
-      return false;
-
-    }
-
-    const hydrated =
-    hydrateSidebarRuntime();
-
-    if(
-      !hydrated
-    ){
-
-      return false;
-
-    }
-
-    sidebarRuntimeState
-    .initialized =
-    true;
-
-    sidebarRuntimeState
-    .destroyed =
-    false;
-
-    sidebarRuntimeState
-    .initializedAt =
-    Date.now();
-
-    safeLogInfo(
-      "SIDEBAR READY"
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    sidebarRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-
-      "SIDEBAR INITIALIZATION FAILED",
-
-      error
-
-    );
-
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// RESET SIDEBAR
+// REFRESH
 // =====================================
 
-function resetSidebar(){
+function refreshSidebar(){
 
-  try{
+  SidebarRenderer
+  .renderSidebar();
 
-    SidebarRenderer
-    ?.cancel();
-
-    SidebarRenderer
-    ?.clearQueue();
-
-    SidebarElements
-    ?.clearHistory();
-
-    resetSidebarCache();
-
-    sidebarRuntimeState
-    .rendering =
-    false;
-
-    sidebarRuntimeState
-    .loading =
-    false;
-
-    sidebarRuntimeState
-    .deleting =
-    false;
-
-    sidebarRuntimeState
-    .creating =
-    false;
-
-    sidebarRuntimeState
-    .activeChatId =
-    null;
-
-    return true;
-
-  }
-
-  catch(error){
-
-    sidebarRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-      "SIDEBAR RESET FAILED",
-      error
-    );
-
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// DESTROY SIDEBAR
+// STATUS
+// =====================================
+
+function getSidebarStatus(){
+
+  return Object.freeze({
+
+    ...SidebarState
+    .snapshot()
+
+  });
+
+}
+
+
+
+// =====================================
+// DESTROY
 // =====================================
 
 function destroySidebar(){
 
-  if(
-    sidebarRuntimeState
-    .destroyed
-  ){
+  unbindEvents();
 
-    return true;
+  SidebarState
+  .reset();
 
-  }
+  emit(
 
-  try{
-
-    resetSidebar();
-
-    SidebarEvents
-    ?.unbind();
-
-    SidebarRenderer
-    ?.cancel();
-
-    SidebarRenderer
-    ?.clearQueue();
-
-    SidebarElements
-    ?.cleanup();
-
-    resetSidebarCache();
-
-    resetSidebarElements();
-
-    sidebarRuntimeState
-    .destroyed =
-    true;
-
-    sidebarRuntimeState
-    .initialized =
-    false;
-
-    sidebarRuntimeState
-    .hydrated =
-    false;
-
-    sidebarRuntimeState
-    .listenersAttached =
-    false;
-
-    sidebarRuntimeState
-    .destroyedAt =
-    Date.now();
-
-    safeLogInfo(
-      "SIDEBAR DESTROYED"
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    sidebarRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-      "SIDEBAR DESTROY FAILED",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SIDEBAR READY
-// =====================================
-
-function isSidebarRuntimeReady(){
-
-  return (
-
-    sidebarRuntimeState
-    .initialized ===
-    true
-
-    &&
-
-    sidebarRuntimeState
-    .destroyed ===
-    false
+    SIDEBAR_EVENTS
+    .DESTROYED
 
   );
 
-}
-
-
-
-// =====================================
-// SIDEBAR DIAGNOSTICS
-// =====================================
-
-function getSidebarRuntimeDiagnostics(){
-
-  return Object.freeze({
-
-    runtime:
-
-      typeof getSidebarDiagnostics ===
-      "function"
-
-      ?
-
-      getSidebarDiagnostics()
-
-      :
-
-      null,
-
-
-
-    renderer:
-
-      typeof SidebarRenderer !==
-      "undefined"
-
-      &&
-
-      typeof SidebarRenderer
-      .diagnostics ===
-      "function"
-
-      ?
-
-      SidebarRenderer
-      .diagnostics()
-
-      :
-
-      null,
-
-
-
-    events:
-
-      typeof SidebarEvents !==
-      "undefined"
-
-      &&
-
-      typeof SidebarEvents
-      .diagnostics ===
-      "function"
-
-      ?
-
-      SidebarEvents
-      .diagnostics()
-
-      :
-
-      null,
-
-
-
-    actions:
-
-      typeof SidebarActions !==
-      "undefined"
-
-      &&
-
-      typeof SidebarActions
-      .diagnostics ===
-      "function"
-
-      ?
-
-      SidebarActions
-      .diagnostics()
-
-      :
-
-      null,
-
-
-
-    elements:
-
-      typeof SidebarElements !==
-      "undefined"
-
-      &&
-
-      typeof SidebarElements
-      .diagnostics ===
-      "function"
-
-      ?
-
-      SidebarElements
-      .diagnostics()
-
-      :
-
-      null
-
-  });
+  return true;
 
 }
 
@@ -635,16 +293,36 @@ Object.freeze({
   initialize:
   initializeSidebar,
 
-  reset:
-  resetSidebar,
+  refresh:
+  refreshSidebar,
+
+  status:
+  getSidebarStatus,
 
   destroy:
-  destroySidebar,
-
-  isReady:
-  isSidebarRuntimeReady,
-
-  diagnostics:
-  getSidebarRuntimeDiagnostics
+  destroySidebar
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  initializeSidebar,
+
+  refreshSidebar,
+
+  getSidebarStatus,
+
+  destroySidebar,
+
+  SidebarRuntime
+
+};
+
+export default
+SidebarRuntime;
