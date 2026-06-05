@@ -1,7 +1,7 @@
-import "./core/events/index.js";
+import "./core/state/index.js";
 
 document.body.innerHTML = `
 <h1 style="color:green">
-events OK
+STATE OK
 </h1>
 `;
