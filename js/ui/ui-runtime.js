@@ -1,324 +1,45 @@
 // =====================================
 // RIGO AI
 // UI RUNTIME
-// ENTERPRISE UI ORCHESTRATOR
+// UI SYSTEM RUNTIME
 // =====================================
 
-
-
-// =====================================
-// UI RUNTIME STATE
-// =====================================
-
-const uiRuntimeState =
-Object.seal({
-
-  initialized:false,
-
-  initializing:false,
-
-  destroying:false,
-
-  crashed:false,
-
-  initializedAt:null,
-
-  destroyedAt:null,
-
-  lastError:null
-
-});
-
-
-
-// =====================================
-// UI MODULES
-// =====================================
-
-const UI_RUNTIME_MODULES =
-Object.freeze([
-
-  {
-
-    name:"elements",
-
-    required:true,
-
-    initialize(){
-
-      return (
-
-        typeof UIElements !==
-        "undefined"
-
-        &&
-
-        UIElements
-        .cache()
-
-        &&
-
-        UIElements
-        .validate()
-
-      );
-
-    }
-
-  },
-
-
-
-  {
-
-    name:"events",
-
-    required:true,
-
-    initialize(){
-
-      return (
-
-        typeof UIEvents !==
-        "undefined"
-
-        &&
-
-        UIEvents
-        .bind()
-
-      );
-
-    }
-
-  },
-
-
-
-  {
-
-    name:"renderer",
-
-    required:true,
-
-    initialize(){
-
-      return (
-        typeof UIRenderer !==
-        "undefined"
-      );
-
-    }
-
-  }
-
-]);
-
-
-
-// =====================================
-// VALIDATE DOM
-// =====================================
-
-function validateUIRuntimeEnvironment(){
-
-  return (
-
-    typeof window !==
-    "undefined"
-
-    &&
-
-    typeof document !==
-    "undefined"
-
-  );
-
+import {
+  UiState
 }
+from "./ui-state.js";
 
-
-
-// =====================================
-// INITIALIZE RESPONSIVE UI
-// =====================================
-
-function initializeResponsiveUI(){
-
-  try{
-
-    if(
-      typeof detectMobileMode ===
-      "function"
-    ){
-
-      detectMobileMode();
-
-    }
-
-    if(
-      typeof updateResponsiveUI ===
-      "function"
-    ){
-
-      updateResponsiveUI();
-
-    }
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      error
-    );
-
-    return false;
-
-  }
-
+import {
+  UiElements
 }
+from "./ui-elements.js";
 
-
-
-// =====================================
-// INITIALIZE THEME
-// =====================================
-
-function initializeUITheme(){
-
-  try{
-
-    if(
-      typeof initializeTheme ===
-      "function"
-    ){
-
-      return initializeTheme();
-
-    }
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      error
-    );
-
-    return false;
-
-  }
-
+import {
+  UiEvents
 }
+from "./ui-events.js";
+
+import {
+  UiRenderer
+}
+from "./ui-renderer.js";
+
+import {
+  isMobileDevice
+}
+from "./ui-utils.js";
 
 
 
 // =====================================
-// INITIALIZE CONTAINERS
+// INITIALIZE
 // =====================================
 
-function initializeUIContainers(){
+function initializeUi(){
 
   if(
-    typeof UIElements ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
-
-  const toastReady =
-  UIElements
-  .initializeToast();
-
-  const modalReady =
-  UIElements
-  .initializeModal();
-
-  return (
-    toastReady &&
-    modalReady
-  );
-
-}
-
-
-
-// =====================================
-// INITIALIZE MODULES
-// =====================================
-
-function initializeUIModules(){
-
-  return UI_RUNTIME_MODULES
-  .every((module) => {
-
-    try{
-
-      const initialized =
-      module.initialize();
-
-      if(
-        !initialized
-      ){
-
-        if(
-          module.required
-        ){
-
-          return false;
-
-        }
-
-      }
-
-      return true;
-
-    }
-
-    catch(error){
-
-      safeLogError(
-
-        "UI MODULE INIT FAILED",
-
-        module.name,
-
-        error
-
-      );
-
-      if(
-        module.required
-      ){
-
-        return false;
-
-      }
-
-      return true;
-
-    }
-
-  });
-
-}
-
-
-
-// =====================================
-// INITIALIZE UI
-// =====================================
-
-function initializeUI(){
-
-  if(
-    uiRuntimeState
+    UiState
+    .snapshot()
     .initialized
   ){
 
@@ -326,368 +47,201 @@ function initializeUI(){
 
   }
 
-  if(
-    uiRuntimeState
-    .initializing
-  ){
+  UiState
+  .setMobile(
 
-    return false;
+    isMobileDevice()
 
-  }
+  );
 
-  uiRuntimeState
-  .initializing =
-  true;
+  UiState
+  .setInitialized(
+    true
+  );
 
-  try{
-
-    const environmentValid =
-    validateUIRuntimeEnvironment();
-
-    if(
-      !environmentValid
-    ){
-
-      return false;
-
-    }
-
-    const modulesReady =
-    initializeUIModules();
-
-    if(
-      !modulesReady
-    ){
-
-      return false;
-
-    }
-
-    const containersReady =
-    initializeUIContainers();
-
-    if(
-      !containersReady
-    ){
-
-      return false;
-
-    }
-
-    initializeResponsiveUI();
-
-    initializeUITheme();
-
-    uiState.initialized =
-    true;
-
-    uiState.destroyed =
-    false;
-
-    uiState.hydrated =
-    true;
-
-    uiState.initializedAt =
-    Date.now();
-
-    uiRuntimeState
-    .initialized =
-    true;
-
-    uiRuntimeState
-    .initializedAt =
-    Date.now();
-
-    safeLogInfo(
-      "UI SYSTEM READY"
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    uiRuntimeState
-    .crashed =
-    true;
-
-    uiRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-
-      "UI INITIALIZATION FAILED",
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    uiRuntimeState
-    .initializing =
-    false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// RESET UI
+// DOM REGISTRATION
 // =====================================
 
-function resetUIState(){
+function registerUiElements(
+  elements = {}
+){
 
-  try{
+  UiElements
+  .registerElements(
+    elements
+  );
 
-    if(
-      typeof UIRenderer !==
-      "undefined"
-    ){
-
-      UIRenderer
-      .cancelFrame();
-
-      UIRenderer
-      .clearQueue();
-    }
-
-    if(
-      typeof closeSidebar ===
-      "function"
-    ){
-
-      closeSidebar();
-
-    }
-
-    if(
-      typeof closeModal ===
-      "function"
-    ){
-
-      closeModal();
-
-    }
-
-    if(
-      typeof hideLoadingScreen ===
-      "function"
-    ){
-
-      hideLoadingScreen();
-
-    }
-
-    if(
-      typeof clearAllToasts ===
-      "function"
-    ){
-
-      clearAllToasts();
-
-    }
-
-    uiState.loading =
-    false;
-
-    uiState.rendering =
-    false;
-
-    uiState.typing =
-    false;
-
-    uiState.resizing =
-    false;
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "UI RESET FAILED",
-      error
-    );
-
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// DESTROY UI
+// RENDER
 // =====================================
 
-function destroyUI(){
+function render(
+  callback
+){
 
-  if(
-    uiRuntimeState
-    .destroying
-  ){
+  UiRenderer
+  .enqueueRender(
+    callback
+  );
 
-    return false;
+  UiRenderer
+  .renderFrame();
 
-  }
-
-  uiRuntimeState
-  .destroying =
-  true;
-
-  try{
-
-    resetUIState();
-
-    if(
-      typeof UIEvents !==
-      "undefined"
-    ){
-
-      UIEvents
-      .unbind();
-
-    }
-
-    if(
-      typeof UIElements !==
-      "undefined"
-    ){
-
-      UIElements
-      .cleanup();
-
-      UIElements
-      .clearModal();
-    }
-
-    uiState.initialized =
-    false;
-
-    uiState.destroyed =
-    true;
-
-    uiState.hydrated =
-    false;
-
-    uiState.destroyedAt =
-    Date.now();
-
-    uiRuntimeState
-    .initialized =
-    false;
-
-    uiRuntimeState
-    .destroyedAt =
-    Date.now();
-
-    safeLogInfo(
-      "UI DESTROYED"
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    uiRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-      "UI DESTROY FAILED",
-      error
-    );
-
-    return false;
-
-  }
-
-  finally{
-
-    uiRuntimeState
-    .destroying =
-    false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// UI DIAGNOSTICS
+// REFRESH
 // =====================================
 
-function getUIRuntimeDiagnostics(){
+function refresh(){
+
+  UiRenderer
+  .renderFrame();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// RESIZE
+// =====================================
+
+function handleResize(){
+
+  UiState
+  .setMobile(
+
+    isMobileDevice()
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// START LISTENERS
+// =====================================
+
+function startListeners(){
+
+  UiEvents
+  .addListener(
+
+    window,
+
+    "resize",
+
+    handleResize
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STOP LISTENERS
+// =====================================
+
+function stopListeners(){
+
+  UiEvents
+  .removeAllListeners();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// STATUS
+// =====================================
+
+function getRuntimeStatus(){
 
   return Object.freeze({
 
-    initialized:
-    uiRuntimeState
-    .initialized,
+    ui:
+    UiState
+    .snapshot(),
 
-    initializing:
-    uiRuntimeState
-    .initializing,
+    renderer:
+    UiRenderer
+    .getRenderStats(),
 
-    destroying:
-    uiRuntimeState
-    .destroying,
+    listeners:
 
-    crashed:
-    uiRuntimeState
-    .crashed,
-
-    initializedAt:
-    uiRuntimeState
-    .initializedAt,
-
-    destroyedAt:
-    uiRuntimeState
-    .destroyedAt,
-
-    lastError:
-
-      uiRuntimeState
-      .lastError
-
-      ?
-
-      String(
-        uiRuntimeState
-        .lastError
-      )
-
-      :
-
-      null,
-
-    trackedElements:
-
-      uiState
-      .trackedElements
-      .size,
-
-    activeListeners:
-
-      uiState
-      .activeListeners
-      .size
+    UiEvents
+    .getListenerCount()
 
   });
+
+}
+
+
+
+// =====================================
+// DESTROY
+// =====================================
+
+function destroyUi(){
+
+  stopListeners();
+
+  UiRenderer
+  .clearRenderQueue();
+
+  UiState
+  .reset();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// BOOTSTRAP
+// =====================================
+
+function bootstrapUi(
+  elements = {}
+){
+
+  initializeUi();
+
+  registerUiElements(
+    elements
+  );
+
+  startListeners();
+
+  return true;
 
 }
 
@@ -697,19 +251,62 @@ function getUIRuntimeDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const UIRuntime =
+const UiRuntime =
 Object.freeze({
 
-  initialize:
-  initializeUI,
+  initializeUi,
 
-  reset:
-  resetUIState,
+  registerUiElements,
 
-  destroy:
-  destroyUI,
+  render,
 
-  diagnostics:
-  getUIRuntimeDiagnostics
+  refresh,
+
+  handleResize,
+
+  startListeners,
+
+  stopListeners,
+
+  getRuntimeStatus,
+
+  destroyUi,
+
+  bootstrapUi
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  initializeUi,
+
+  registerUiElements,
+
+  render,
+
+  refresh,
+
+  handleResize,
+
+  startListeners,
+
+  stopListeners,
+
+  getRuntimeStatus,
+
+  destroyUi,
+
+  bootstrapUi,
+
+  UiRuntime
+
+};
+
+export default
+UiRuntime;
