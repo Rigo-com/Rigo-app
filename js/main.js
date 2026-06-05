@@ -1,7 +1,7 @@
-import "./bootstrap/bootstrap-manager.js";
+import "./bootstrap/bootstrap-setup.js";
 
 document.body.innerHTML = `
 <h1 style="color:green">
-BOOTSTRAP MANAGER OK
+BOOTSTRAP SETUP OK
 </h1>
 `;
