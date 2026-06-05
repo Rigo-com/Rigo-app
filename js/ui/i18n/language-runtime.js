@@ -136,7 +136,7 @@ const TRANSLATIONS = {
       "رفع ملف"
     }
 
-  }
+    }
 
 };
 
@@ -911,6 +911,18 @@ async function registerTranslations(
 
   }
 
+  if(
+  !TRANSLATIONS[
+    normalizedLanguage
+  ]
+){
+
+  TRANSLATIONS[
+    normalizedLanguage
+  ] = {};
+
+}
+  
   TRANSLATIONS[
     normalizedLanguage
   ] = {
@@ -1200,15 +1212,34 @@ Object.freeze({
 
 
 // =====================================
-// GLOBAL EXPORTS
+// EXPORTS
 // =====================================
 
-if(
-  typeof window !==
-  "undefined"
-){
+export {
 
-  window.LanguageRuntime =
-  LanguageRuntime;
+  LANGUAGE_CONFIG,
 
-}
+  LANGUAGE_RUNTIME_EVENTS,
+
+  initializeLanguageRuntime,
+
+  resetLanguageRuntime,
+
+  setLanguage,
+
+  getCurrentLanguage,
+
+  getTranslation,
+
+  registerTranslations,
+
+  formatNumber,
+
+  formatDate,
+
+  LanguageRuntime
+
+};
+
+export default
+LanguageRuntime;
