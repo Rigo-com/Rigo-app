@@ -1588,3 +1588,18 @@ Object.freeze({
   getVoiceRuntimeStatus
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  VoiceRuntime
+
+};
+
+export default
+VoiceRuntime;
