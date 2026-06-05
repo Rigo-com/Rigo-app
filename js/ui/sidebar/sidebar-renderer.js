@@ -1,801 +1,85 @@
 // =====================================
 // RIGO AI
 // SIDEBAR RENDERER
-// ENTERPRISE SIDEBAR RENDER SYSTEM
+// UI RENDERING LAYER
 // =====================================
 
+import {
+  SidebarState
+}
+from "./sidebar-state.js";
+
+import {
+  SidebarElements
+}
+from "./sidebar-elements.js";
+
 
 
 // =====================================
-// SIDEBAR RENDER STATE
+// CSS CLASSES
 // =====================================
 
-const sidebarRenderState =
-Object.seal({
+const SIDEBAR_CLASSES =
+Object.freeze({
 
-  scheduled:false,
+  OPEN:
+  "sidebar-open",
 
-  rendering:false,
+  CLOSED:
+  "sidebar-closed",
 
-  pendingFrame:null,
+  COLLAPSED:
+  "sidebar-collapsed",
 
-  renderQueue:[],
-
-  completedRenders:0,
-
-  failedRenders:0,
-
-  lastRenderDuration:0
+  MOBILE:
+  "sidebar-mobile"
 
 });
 
 
 
 // =====================================
-// VALIDATE CHAT
+// RENDER OPEN STATE
 // =====================================
 
-function validateSidebarChat(
-  chat
-){
+function renderOpenState(){
 
-  return (
-
-    chat
-
-    &&
-
-    typeof chat ===
-    "object"
-
-    &&
-
-    typeof chat.id ===
-    "string"
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE RENDER EXECUTION
-// =====================================
-
-function safelyExecuteSidebarRender(
-  callback
-){
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  const startedAt =
-  performance.now();
-
-  try{
-
-    callback();
-
-    sidebarRenderState
-    .completedRenders++;
-
-    sidebarRuntimeState
-    .lastRenderAt =
-    Date.now();
-
-    sidebarRenderState
-    .lastRenderDuration =
-
-      performance.now() -
-      startedAt;
-
-    return true;
-
-  }
-
-  catch(error){
-
-    sidebarRenderState
-    .failedRenders++;
-
-    sidebarRuntimeState
-    .lastError =
-    error;
-
-    safeLogError(
-      "SIDEBAR RENDER ERROR",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// PROCESS RENDER QUEUE
-// =====================================
-
-function processSidebarRenderQueue(){
-
-  if(
-    sidebarRenderState
-    .rendering
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    sidebarRenderState
-    .renderQueue
-    .length <= 0
-
-  ){
-
-    sidebarRenderState
-    .scheduled =
-    false;
-
-    return true;
-
-  }
-
-  sidebarRenderState
-  .rendering =
-  true;
-
-  sidebarRuntimeState
-  .rendering =
-  true;
-
-  const executeQueue = () => {
-
-    try{
-
-      while(
-
-        sidebarRenderState
-        .renderQueue
-        .length > 0
-
-      ){
-
-        const callback =
-
-          sidebarRenderState
-          .renderQueue
-          .shift();
-
-        safelyExecuteSidebarRender(
-          callback
-        );
-
-      }
-
-    }
-
-    finally{
-
-      sidebarRenderState
-      .rendering =
-      false;
-
-      sidebarRuntimeState
-      .rendering =
-      false;
-
-      sidebarRenderState
-      .scheduled =
-      false;
-
-      sidebarRenderState
-      .pendingFrame =
-      null;
-
-    }
-
-  };
-
-  if(
-
-    typeof requestAnimationFrame !==
-    "function"
-
-  ){
-
-    executeQueue();
-
-    return true;
-
-  }
-
-  sidebarRenderState
-  .pendingFrame =
-
-  requestAnimationFrame(
-    executeQueue
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// QUEUE RENDER
-// =====================================
-
-function queueSidebarRender(
-  callback
-){
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  sidebarRenderState
-  .renderQueue
-  .push(
-    callback
-  );
-
-  if(
-    !sidebarRenderState
-    .scheduled
-  ){
-
-    sidebarRenderState
-    .scheduled =
-    true;
-
-    processSidebarRenderQueue();
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// GET SORTED CHATS
-// =====================================
-
-function getSortedChats(){
-
-  const chats =
-  getAllChats();
-
-  if(
-    !Array.isArray(chats)
-  ){
-
-    return [];
-
-  }
-
-  return [...chats]
-
-  .filter(
-    validateSidebarChat
-  )
-
-  .sort((a,b) => {
-
-    return (
-
-      (b.updatedAt || 0)
-
-      -
-
-      (a.updatedAt || 0)
-
-    );
-
-  })
-
-  .slice(
-
-    0,
-
-    SIDEBAR_CONFIG
-    .MAX_HISTORY_ITEMS
-
-  );
-
-}
-
-
-
-// =====================================
-// CHAT TITLE
-// =====================================
-
-function getSidebarChatTitle(
-  chat
-){
-
-  if(
-
-    chat
-
-    &&
-
-    typeof chat.title ===
-    "string"
-
-    &&
-
-    chat.title.trim()
-
-  ){
-
-    return chat.title;
-
-  }
-
-  return (
-
-    document.body.dir ===
-    "rtl"
-
-    ?
-
-    "محادثة جديدة"
-
-    :
-
-    "New Chat"
-
-  );
-
-}
-
-
-
-// =====================================
-// EMPTY HISTORY
-// =====================================
-
-function renderEmptySidebarHistory(){
-
-  const historyList =
-  SidebarElements
-  .getHistoryList();
-
-  if(!historyList){
-
-    return false;
-
-  }
-
-  const empty =
-  document.createElement(
-    "div"
-  );
-
-  empty.classList.add(
-    "empty-history"
-  );
-
-  empty.textContent =
-
-    document.body.dir ===
-    "rtl"
-
-    ?
-
-    "لا توجد محادثات"
-
-    :
-
-    "No chats yet";
-
-  historyList
-  .appendChild(
-    empty
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// HISTORY ACTIONS
-// =====================================
-
-function createSidebarHistoryActions(
-  chatId
-){
-
-  const wrapper =
-  document.createElement(
-    "div"
-  );
-
-  wrapper.classList.add(
-    "history-actions"
-  );
-
-  const deleteButton =
-  document.createElement(
-    "button"
-  );
-
-  deleteButton.type =
-  "button";
-
-  deleteButton.classList.add(
-    "delete-chat-button"
-  );
-
-  deleteButton.dataset
-  .chatId =
-  chatId;
-
-  deleteButton.textContent =
-  "×";
-
-  deleteButton.setAttribute(
-    "aria-label",
-    "Delete chat"
-  );
-
-  wrapper.appendChild(
-    deleteButton
-  );
-
-  return wrapper;
-
-}
-
-
-
-// =====================================
-// HISTORY ITEM
-// =====================================
-
-function createSidebarHistoryItem(
-  chat
-){
-
-  if(
-    !validateSidebarChat(
-      chat
-    )
-  ){
-
-    return null;
-
-  }
-
-  const item =
-  document.createElement(
-    "div"
-  );
-
-  const isActive =
-
-    currentChat?.id ===
-    chat.id;
-
-  item.classList.add(
-    "history-item"
-  );
-
-  if(isActive){
-
-    item.classList.add(
-      "active-history-item"
-    );
-
-  }
-
-  item.dataset.chatId =
-  chat.id;
-
-  item.setAttribute(
-    "role",
-    "button"
-  );
-
-  item.setAttribute(
-    "tabindex",
-    "0"
-  );
-
-  item.setAttribute(
-    "aria-selected",
-    String(isActive)
-  );
-
-  const title =
-  document.createElement(
-    "div"
-  );
-
-  title.classList.add(
-    "history-title"
-  );
-
-  title.textContent =
-  getSidebarChatTitle(
-    chat
-  );
-
-  item.appendChild(
-    title
-  );
-
-  item.appendChild(
-
-    createSidebarHistoryActions(
-      chat.id
-    )
-
-  );
-
-  if(isActive){
+  const sidebar =
 
     SidebarElements
-    .setActiveItem(
-      item
+    .getElement(
+      "sidebar"
     );
-
-  }
-
-  sidebarCacheState
-  .historyElements
-  .set(
-    chat.id,
-    item
-  );
-
-  sidebarCacheState
-  .renderedChats
-  .set(
-    chat.id,
-    chat
-  );
-
-  return item;
-
-}
-
-
-
-// =====================================
-// RENDER HISTORY
-// =====================================
-
-function renderSidebarHistory(){
-
-  return queueSidebarRender(
-    () => {
-
-      const historyList =
-      SidebarElements
-      .getHistoryList();
-
-      if(!historyList){
-
-        return false;
-
-      }
-
-      SidebarElements
-      .clearHistory();
-
-      const chats =
-      getSortedChats();
-
-      if(
-        chats.length <= 0
-      ){
-
-        return renderEmptySidebarHistory();
-
-      }
-
-      const fragment =
-      document.createDocumentFragment();
-
-      chats.forEach((chat) => {
-
-        const item =
-        createSidebarHistoryItem(
-          chat
-        );
-
-        if(item){
-
-          fragment.appendChild(
-            item
-          );
-
-        }
-
-      });
-
-      historyList
-      .appendChild(
-        fragment
-      );
-
-      return true;
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// RENDER MESSAGES
-// =====================================
-
-function renderSidebarMessages(){
-
-  return queueSidebarRender(
-    () => {
-
-      if(
-        !chatContainer
-      ){
-
-        return false;
-
-      }
-
-      clearTypingIndicator();
-
-      chatContainer
-      .replaceChildren();
-
-      if(
-
-        !Array.isArray(
-          currentChat
-          ?.messages
-        )
-
-      ){
-
-        return false;
-
-      }
-
-      const fragment =
-      document.createDocumentFragment();
-
-      currentChat.messages
-      .forEach((message) => {
-
-        if(
-          typeof validateMessage ===
-          "function"
-
-          &&
-
-          !validateMessage(
-            message
-          )
-        ){
-
-          return;
-        }
-
-        const element =
-        createMessageElement(
-          message
-        );
-
-        if(element){
-
-          fragment.appendChild(
-            element
-          );
-
-        }
-
-      });
-
-      chatContainer
-      .appendChild(
-        fragment
-      );
-
-      if(
-        typeof scrollToBottom ===
-        "function"
-      ){
-
-        scrollToBottom();
-
-      }
-
-      return true;
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// CANCEL RENDER
-// =====================================
-
-function cancelSidebarRender(){
 
   if(
-
-    typeof cancelAnimationFrame ===
-    "function"
-
-    &&
-
-    sidebarRenderState
-    .pendingFrame
-
+    !sidebar
   ){
 
-    cancelAnimationFrame(
-
-      sidebarRenderState
-      .pendingFrame
-
-    );
+    return false;
 
   }
 
-  sidebarRenderState
-  .pendingFrame =
-  null;
+  const snapshot =
 
-  sidebarRenderState
-  .scheduled =
-  false;
+    SidebarState
+    .snapshot();
 
-  return true;
+  sidebar.classList.toggle(
 
-}
+    SIDEBAR_CLASSES.OPEN,
 
+    snapshot.open
 
+  );
 
-// =====================================
-// CLEAR RENDER QUEUE
-// =====================================
+  sidebar.classList.toggle(
 
-function clearSidebarRenderQueue(){
+    SIDEBAR_CLASSES.CLOSED,
 
-  sidebarRenderState
-  .renderQueue
-  .length = 0;
+    !snapshot.open
+
+  );
 
   return true;
 
@@ -804,45 +88,167 @@ function clearSidebarRenderQueue(){
 
 
 // =====================================
-// RENDER DIAGNOSTICS
+// RENDER COLLAPSED
 // =====================================
 
-function getSidebarRenderDiagnostics(){
+function renderCollapsedState(){
 
-  return Object.freeze({
+  const sidebar =
 
-    scheduled:
+    SidebarElements
+    .getElement(
+      "sidebar"
+    );
 
-      sidebarRenderState
-      .scheduled,
+  if(
+    !sidebar
+  ){
 
-    rendering:
+    return false;
 
-      sidebarRenderState
-      .rendering,
+  }
 
-    queueSize:
+  sidebar.classList.toggle(
 
-      sidebarRenderState
-      .renderQueue
-      .length,
+    SIDEBAR_CLASSES.COLLAPSED,
 
-    completedRenders:
+    SidebarState
+    .snapshot()
+    .collapsed
 
-      sidebarRenderState
-      .completedRenders,
+  );
 
-    failedRenders:
+  return true;
 
-      sidebarRenderState
-      .failedRenders,
+}
 
-    lastRenderDuration:
 
-      sidebarRenderState
-      .lastRenderDuration
+
+// =====================================
+// RENDER MOBILE
+// =====================================
+
+function renderMobileState(){
+
+  const sidebar =
+
+    SidebarElements
+    .getElement(
+      "sidebar"
+    );
+
+  if(
+    !sidebar
+  ){
+
+    return false;
+
+  }
+
+  sidebar.classList.toggle(
+
+    SIDEBAR_CLASSES.MOBILE,
+
+    SidebarState
+    .snapshot()
+    .mobile
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// RENDER ACTIVE ITEM
+// =====================================
+
+function renderActiveItem(){
+
+  const navigation =
+
+    SidebarElements
+    .getElement(
+      "navigation"
+    );
+
+  if(
+    !navigation
+  ){
+
+    return false;
+
+  }
+
+  const activeItem =
+
+    SidebarState
+    .snapshot()
+    .activeItem;
+
+  navigation
+  .querySelectorAll(
+    "[data-sidebar-item]"
+  )
+  .forEach(item => {
+
+    item.classList.toggle(
+
+      "active",
+
+      item.dataset
+      .sidebarItem ===
+      String(activeItem)
+
+    );
 
   });
+
+  return true;
+
+}
+
+
+
+// =====================================
+// RENDER ALL
+// =====================================
+
+function renderSidebar(){
+
+  SidebarState
+  .setRendering(
+    true
+  );
+
+  renderOpenState();
+
+  renderCollapsedState();
+
+  renderMobileState();
+
+  renderActiveItem();
+
+  SidebarState
+  .setRendering(
+    false
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// FORCE RENDER
+// =====================================
+
+function forceRender(){
+
+  return renderSidebar();
 
 }
 
@@ -855,22 +261,45 @@ function getSidebarRenderDiagnostics(){
 const SidebarRenderer =
 Object.freeze({
 
-  renderHistory:
-  renderSidebarHistory,
+  renderOpenState,
 
-  renderMessages:
-  renderSidebarMessages,
+  renderCollapsedState,
 
-  queue:
-  queueSidebarRender,
+  renderMobileState,
 
-  cancel:
-  cancelSidebarRender,
+  renderActiveItem,
 
-  clearQueue:
-  clearSidebarRenderQueue,
+  renderSidebar,
 
-  diagnostics:
-  getSidebarRenderDiagnostics
+  forceRender
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SIDEBAR_CLASSES,
+
+  renderOpenState,
+
+  renderCollapsedState,
+
+  renderMobileState,
+
+  renderActiveItem,
+
+  renderSidebar,
+
+  forceRender,
+
+  SidebarRenderer
+
+};
+
+export default
+SidebarRenderer;
