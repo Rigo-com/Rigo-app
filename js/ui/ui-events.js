@@ -1,51 +1,43 @@
 // =====================================
 // RIGO AI
 // UI EVENTS
-// ENTERPRISE EVENT SYSTEM
+// UI EVENT MANAGEMENT
 // =====================================
 
-
-
-// =====================================
-// UI EVENT STATE
-// =====================================
-
-const uiEventState =
-Object.seal({
-
-  eventsBound:false,
-
-  resizeTimeout:null,
-
-  toastTimeouts:
-  new WeakMap()
-
-});
+import {
+  uiState
+}
+from "./ui-state.js";
 
 
 
 // =====================================
-// SAFE EVENT TARGET
+// EVENT STORE
 // =====================================
 
-function isValidEventTarget(
-  target
+const eventListeners =
+new Map();
+
+
+
+// =====================================
+// HELPERS
+// =====================================
+
+function createEventKey(
+  event,
+  handler
 ){
 
   return (
 
-    target instanceof
-    EventTarget
+    event +
 
-    ||
+    ":" +
 
-    target ===
-    window
-
-    ||
-
-    target ===
-    document
+    String(
+      handler
+    )
 
   );
 
@@ -54,36 +46,24 @@ function isValidEventTarget(
 
 
 // =====================================
-// TRACK EVENT LISTENER
+// ADD LISTENER
 // =====================================
 
-function trackUIListener(
-  target,
-  type,
+function addListener(
+
+  element,
+
+  event,
+
   handler,
-  options = false
+
+  options
+
 ){
 
   if(
-    !isValidEventTarget(
-      target
-    )
-  ){
-
-    return false;
-
-  }
-
-  if(
-    typeof type !==
-    "string"
-  ){
-
-    return false;
-
-  }
-
-  if(
+    !element
+    ||
     typeof handler !==
     "function"
   ){
@@ -92,314 +72,108 @@ function trackUIListener(
 
   }
 
-  try{
+  element
+  .addEventListener(
 
-    target.addEventListener(
+    event,
 
-      type,
+    handler,
 
-      handler,
+    options
 
-      options
-
-    );
-
-    uiState
-    .activeListeners
-    .add({
-
-      target,
-      type,
-      handler,
-      options
-
-    });
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-
-      "TRACK EVENT LISTENER ERROR",
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// REMOVE EVENT LISTENER
-// =====================================
-
-function removeTrackedUIListener(
-  listenerObject
-){
-
-  if(
-    !listenerObject
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    listenerObject
-    .target
-    ?.removeEventListener(
-
-      listenerObject.type,
-
-      listenerObject.handler,
-
-      listenerObject.options
-
-    );
-
-    uiState
-    .activeListeners
-    .delete(
-      listenerObject
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-
-      "REMOVE EVENT LISTENER ERROR",
-
-      error
-
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// REMOVE ALL EVENT LISTENERS
-// =====================================
-
-function removeAllUIListeners(){
-
-  [
-
-    ...uiState
-    .activeListeners
-
-  ]
-  .forEach((listener) => {
-
-    removeTrackedUIListener(
-      listener
-    );
-
-  });
-
-  return true;
-
-}
-
-
-
-// =====================================
-// WINDOW RESIZE HANDLER
-// =====================================
-
-function handleWindowResize(){
-
-  uiState.resizing =
-  true;
-
-  uiState.lastResizeAt =
-  Date.now();
-
-  clearTimeout(
-    uiEventState
-    .resizeTimeout
   );
 
-  uiEventState
-  .resizeTimeout =
-  setTimeout(() => {
+  const key =
 
-    requestUIAnimationFrame(
-      () => {
+    createEventKey(
 
-        try{
+      event,
 
-          if(
-            typeof detectMobileMode ===
-            "function"
-          ){
+      handler
 
-            detectMobileMode();
-
-          }
-
-          if(
-            typeof updateResponsiveUI ===
-            "function"
-          ){
-
-            updateResponsiveUI();
-
-          }
-
-        }
-
-        catch(error){
-
-          safeLogError(
-            error
-          );
-
-        }
-
-        finally{
-
-          uiState.resizing =
-          false;
-
-          uiEventState
-          .resizeTimeout =
-          null;
-
-        }
-
-      }
     );
 
-  },
+  eventListeners
+  .set(
 
-  UI_CONFIG
-  .RESIZE_DELAY);
-
-}
-
-
-
-// =====================================
-// RESIZE EVENTS
-// =====================================
-
-function bindResizeEvents(){
-
-  if(
-    typeof window ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
-
-  return trackUIListener(
-
-    window,
-
-    "resize",
-
-    handleWindowResize,
+    key,
 
     {
 
-      passive:true
+      element,
+
+      event,
+
+      handler,
+
+      options
 
     }
 
   );
+
+  uiState
+  .listeners
+  .add(key);
+
+  return true;
 
 }
 
 
 
 // =====================================
-// GLOBAL KEYBOARD
+// REMOVE LISTENER
 // =====================================
 
-function handleGlobalKeyboard(
-  event
+function removeListener(
+
+  event,
+
+  handler
+
 ){
 
+  const key =
+
+    createEventKey(
+
+      event,
+
+      handler
+
+    );
+
+  const listener =
+
+    eventListeners
+    .get(key);
+
   if(
-    !event
+    !listener
   ){
 
     return false;
 
   }
 
-  const activeElement =
-  document.activeElement;
+  listener.element
+  .removeEventListener(
 
-  const typingTarget =
+    listener.event,
 
-    activeElement?.tagName ===
-    "INPUT"
+    listener.handler,
 
-    ||
+    listener.options
 
-    activeElement?.tagName ===
-    "TEXTAREA"
+  );
 
-    ||
+  eventListeners
+  .delete(key);
 
-    activeElement
-    ?.isContentEditable ===
-    true;
-
-  if(
-    typingTarget
-  ){
-
-    return false;
-
-  }
-
-  if(
-    event.key ===
-    "Escape"
-  ){
-
-    if(
-      typeof closeModal ===
-      "function"
-    ){
-
-      closeModal();
-
-    }
-
-    if(
-      typeof closeSidebar ===
-      "function"
-    ){
-
-      closeSidebar();
-
-    }
-
-  }
+  uiState
+  .listeners
+  .delete(key);
 
   return true;
 
@@ -408,63 +182,96 @@ function handleGlobalKeyboard(
 
 
 // =====================================
-// KEYBOARD EVENTS
+// REMOVE ALL
 // =====================================
 
-function bindKeyboardEvents(){
+function removeAllListeners(){
 
-  return trackUIListener(
+  for(
+    const listener
+    of eventListeners
+    .values()
+  ){
+
+    listener.element
+    .removeEventListener(
+
+      listener.event,
+
+      listener.handler,
+
+      listener.options
+
+    );
+
+  }
+
+  eventListeners.clear();
+
+  uiState
+  .listeners
+  .clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// EMIT CUSTOM EVENT
+// =====================================
+
+function emitEvent(
+
+  name,
+
+  detail = {}
+
+){
+
+  document
+  .dispatchEvent(
+
+    new CustomEvent(
+
+      name,
+
+      {
+
+        detail
+
+      }
+
+    )
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// ON CUSTOM EVENT
+// =====================================
+
+function onEvent(
+
+  name,
+
+  handler
+
+){
+
+  return addListener(
 
     document,
 
-    "keydown",
+    name,
 
-    handleGlobalKeyboard
-
-  );
-
-}
-
-
-
-// =====================================
-// VISIBILITY CHANGE
-// =====================================
-
-function handleVisibilityChange(){
-
-  if(
-    document.hidden
-  ){
-
-    if(
-      typeof cancelUIAnimationFrame ===
-      "function"
-    ){
-
-      cancelUIAnimationFrame();
-
-    }
-
-  }
-
-}
-
-
-
-// =====================================
-// VISIBILITY EVENTS
-// =====================================
-
-function bindVisibilityEvents(){
-
-  return trackUIListener(
-
-    document,
-
-    "visibilitychange",
-
-    handleVisibilityChange
+    handler
 
   );
 
@@ -473,106 +280,14 @@ function bindVisibilityEvents(){
 
 
 // =====================================
-// BIND ALL UI EVENTS
+// EVENT COUNT
 // =====================================
 
-function bindUIEvents(){
+function getListenerCount(){
 
-  if(
-    uiEventState
-    .eventsBound
-  ){
-
-    return true;
-
-  }
-
-  if(
-    typeof bindSidebarEvents ===
-    "function"
-  ){
-
-    bindSidebarEvents();
-
-  }
-
-  if(
-    typeof bindInputEvents ===
-    "function"
-  ){
-
-    bindInputEvents();
-
-  }
-
-  bindResizeEvents();
-
-  bindKeyboardEvents();
-
-  bindVisibilityEvents();
-
-  uiEventState
-  .eventsBound =
-  true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UNBIND ALL UI EVENTS
-// =====================================
-
-function unbindUIEvents(){
-
-  clearTimeout(
-    uiEventState
-    .resizeTimeout
-  );
-
-  uiEventState
-  .resizeTimeout =
-  null;
-
-  removeAllUIListeners();
-
-  uiEventState
-  .eventsBound =
-  false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// EVENT DIAGNOSTICS
-// =====================================
-
-function getUIEventDiagnostics(){
-
-  return Object.freeze({
-
-    eventsBound:
-    uiEventState
-    .eventsBound,
-
-    activeListeners:
-
-      uiState
-      .activeListeners
-      .size,
-
-    resizePending:
-
-      uiEventState
-      .resizeTimeout !==
-      null
-
-  });
+  return uiState
+  .listeners
+  .size;
 
 }
 
@@ -582,25 +297,46 @@ function getUIEventDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const UIEvents =
+const UiEvents =
 Object.freeze({
 
-  bind:
-  bindUIEvents,
+  addListener,
 
-  unbind:
-  unbindUIEvents,
+  removeListener,
 
-  track:
-  trackUIListener,
+  removeAllListeners,
 
-  remove:
-  removeTrackedUIListener,
+  emitEvent,
 
-  removeAll:
-  removeAllUIListeners,
+  onEvent,
 
-  diagnostics:
-  getUIEventDiagnostics
+  getListenerCount
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  addListener,
+
+  removeListener,
+
+  removeAllListeners,
+
+  emitEvent,
+
+  onEvent,
+
+  getListenerCount,
+
+  UiEvents
+
+};
+
+export default
+UiEvents;
