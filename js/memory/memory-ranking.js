@@ -1,754 +1,64 @@
 // =====================================
 // RIGO AI
 // MEMORY RANKING
-// OPTIMIZED FINAL
+// RANKING LAYER
 // =====================================
 
+import {
+  loadEmbedding,
 
+  calculateSimilarity
+}
+from "./memory-embeddings.js";
 
-// =====================================
-// CONFIG
-// =====================================
-
-const MEMORY_RANKING_CONFIG =
-Object.freeze({
-
-  MAX_SCORE:1000,
-
-  DEFAULT_SCORE:1,
-
-  MAX_RESULTS:500,
-
-  MAX_HISTORY:1000,
-
-  PINNED_BOOST:200,
-
-  RECENT_BOOST:100,
-
-  ACCESS_BOOST:5,
-
-  TITLE_BOOST:120,
-
-  TAG_BOOST:80,
-
-  SUMMARY_BOOST:50,
-
-  CONTENT_BOOST:25,
-
-  EXACT_MATCH_BOOST:250,
-
-  DECAY_PER_DAY:0.25
-
-});
+import {
+  createEmbedding
+}
+from "./memory-embeddings.js";
 
 
 
 // =====================================
-// STATE
+// SCORE MEMORY
 // =====================================
 
-const memoryRankingState =
-Object.seal({
+function calculateMemoryScore(
 
-  rankings:new Map(),
+  memory,
 
-  accessCounts:new Map(),
-
-  rankingHistory:[],
-
-  lastRankAt:null,
-
-  lastRebuildAt:null,
-
-  totalRankings:0,
-
-  failedRankings:0
-
-});
-
-
-
-// =====================================
-// HELPERS
-// =====================================
-
-function normalizeRankingQuery(
   query
+
 ){
 
-  return normalizeMemoryContent(
-    query
-  )
-  .toLowerCase()
-  .trim();
-
-}
-
-
-
-function clampRankingScore(
-  score
-){
-
-  return Math.max(
-
-    0,
-
-    Math.min(
-
-      MEMORY_RANKING_CONFIG
-      .MAX_SCORE,
-
-      Number(score) || 0
-
-    )
-
-  );
-
-}
-
-
-
-// =====================================
-// HISTORY
-// =====================================
-
-function storeRankingHistory(
-  memoryId,
-  score,
-  query = ""
-){
-
-  memoryRankingState
-  .rankingHistory
-  .push({
-
-    memoryId:
-    normalizeMemoryString(
-      memoryId
-    ),
-
-    score:
-    clampRankingScore(
-      score
-    ),
-
-    query:
-    normalizeRankingQuery(
-      query
-    ),
-
-    createdAt:
-    Date.now()
-
-  });
-
-  while(
-
-    memoryRankingState
-    .rankingHistory
-    .length >
-
-    MEMORY_RANKING_CONFIG
-    .MAX_HISTORY
-
+  if(
+    !memory
   ){
-
-    memoryRankingState
-    .rankingHistory
-    .shift();
-
-  }
-
-}
-
-
-
-// =====================================
-// ACCESS TRACKING
-// =====================================
-
-function getMemoryAccessCount(
-  memoryId
-){
-
-  return Number(
-
-    memoryRankingState
-    .accessCounts
-    .get(
-      normalizeMemoryString(
-        memoryId
-      )
-    ) || 0
-
-  );
-
-}
-
-
-
-function incrementMemoryAccessCount(
-  memoryId
-){
-
-  const normalizedId =
-  normalizeMemoryString(
-    memoryId
-  );
-
-  if(!normalizedId){
-
     return 0;
-
   }
 
-  const nextCount =
+  const queryEmbedding =
 
-    getMemoryAccessCount(
-      normalizedId
-    ) + 1;
-
-  memoryRankingState
-  .accessCounts
-  .set(
-    normalizedId,
-    nextCount
-  );
-
-  return nextCount;
-
-}
-
-
-
-// =====================================
-// RECENCY SCORE
-// =====================================
-
-function calculateRecencyScore(
-  memory
-){
-
-  const updatedAt =
-  Number(
-    memory?.updatedAt
-  );
-
-  if(
-    !Number.isFinite(
-      updatedAt
-    )
-  ){
-
-    return 0;
-
-  }
-
-  const ageInDays =
-
-    (
-      Date.now() -
-      updatedAt
-    ) / 86400000;
-
-  if(
-    ageInDays <= 1
-  ){
-
-    return MEMORY_RANKING_CONFIG
-    .RECENT_BOOST;
-
-  }
-
-  if(
-    ageInDays <= 7
-  ){
-
-    return 60;
-
-  }
-
-  if(
-    ageInDays <= 30
-  ){
-
-    return 25;
-
-  }
-
-  return 0;
-
-}
-
-
-
-// =====================================
-// PINNED SCORE
-// =====================================
-
-function calculatePinnedScore(
-  memory
-){
-
-  if(
-    !memory?.id
-  ){
-
-    return 0;
-
-  }
-
-  return memoryState
-  ?.tracking
-  ?.pinnedMemoryIds
-  ?.has(memory.id)
-
-  ? MEMORY_RANKING_CONFIG
-    .PINNED_BOOST
-
-  : 0;
-
-}
-
-
-
-// =====================================
-// ACCESS SCORE
-// =====================================
-
-function calculateAccessScore(
-  memory
-){
-
-  if(!memory?.id){
-
-    return 0;
-
-  }
-
-  const accessCount =
-  getMemoryAccessCount(
-    memory.id
-  );
-
-  return Math.min(
-
-    MEMORY_RANKING_CONFIG
-    .ACCESS_BOOST *
-
-    Math.log10(
-      accessCount + 1
-    ),
-
-    50
-
-  );
-
-}
-
-
-
-// =====================================
-// DECAY
-// =====================================
-
-function calculateDecayPenalty(
-  memory
-){
-
-  const updatedAt =
-  Number(
-    memory?.updatedAt
-  );
-
-  if(
-    !Number.isFinite(
-      updatedAt
-    )
-  ){
-
-    return 0;
-
-  }
-
-  const ageInDays =
-
-    (
-      Date.now() -
-      updatedAt
-    ) / 86400000;
-
-  return (
-
-    ageInDays *
-
-    MEMORY_RANKING_CONFIG
-    .DECAY_PER_DAY
-
-  );
-
-}
-
-
-
-// =====================================
-// RELEVANCE
-// =====================================
-
-function calculateRankingRelevance(
-  memory,
-  query
-){
-
-  const normalizedQuery =
-  normalizeRankingQuery(
-    query
-  );
-
-  if(!normalizedQuery){
-
-    return 0;
-
-  }
-
-  let score = 0;
-
-  const title =
-  normalizeMemoryContent(
-    memory?.title
-  )
-  .toLowerCase();
-
-  const summary =
-  normalizeMemoryContent(
-    memory?.summary
-  )
-  .toLowerCase();
-
-  const content =
-  normalizeMemoryContent(
-    memory?.content
-  )
-  .toLowerCase();
-
-  const tags =
-
-    Array.isArray(
-      memory?.tags
-    )
-
-    ? memory.tags
-
-    : [];
-
-
-
-  if(
-    title === normalizedQuery
-  ){
-
-    score +=
-
-      MEMORY_RANKING_CONFIG
-      .EXACT_MATCH_BOOST;
-
-  }
-
-
-
-  if(
-    title.includes(
-      normalizedQuery
-    )
-  ){
-
-    score +=
-
-      MEMORY_RANKING_CONFIG
-      .TITLE_BOOST;
-
-  }
-
-
-
-  if(
-    summary.includes(
-      normalizedQuery
-    )
-  ){
-
-    score +=
-
-      MEMORY_RANKING_CONFIG
-      .SUMMARY_BOOST;
-
-  }
-
-
-
-  if(
-    content.includes(
-      normalizedQuery
-    )
-  ){
-
-    score +=
-
-      MEMORY_RANKING_CONFIG
-      .CONTENT_BOOST;
-
-  }
-
-
-
-  tags.forEach((tag) => {
-
-    const normalizedTag =
-    normalizeMemoryContent(
-      tag
-    )
-    .toLowerCase();
-
-    if(
-      normalizedTag.includes(
-        normalizedQuery
-      )
-    ){
-
-      score +=
-
-        MEMORY_RANKING_CONFIG
-        .TAG_BOOST;
-
-    }
-
-  });
-
-  return score;
-
-}
-
-
-
-// =====================================
-// FINAL SCORE
-// =====================================
-
-function calculateMemoryRankingScore(
-  memory,
-  query = ""
-){
-
-  let score =
-  MEMORY_RANKING_CONFIG
-  .DEFAULT_SCORE;
-
-  score +=
-  calculatePinnedScore(
-    memory
-  );
-
-  score +=
-  calculateRecencyScore(
-    memory
-  );
-
-  score +=
-  calculateAccessScore(
-    memory
-  );
-
-  score +=
-  calculateRankingRelevance(
-    memory,
-    query
-  );
-
-  score -=
-  calculateDecayPenalty(
-    memory
-  );
-
-  return clampRankingScore(
-    Math.round(score)
-  );
-
-}
-
-
-
-// =====================================
-// STORE RANK
-// =====================================
-
-function storeMemoryRank(
-  memoryId,
-  score
-){
-
-  const normalizedId =
-  normalizeMemoryString(
-    memoryId
-  );
-
-  if(!normalizedId){
-
-    return false;
-
-  }
-
-  memoryRankingState
-  .rankings
-  .set(
-
-    normalizedId,
-
-    clampRankingScore(
-      score
-    )
-
-  );
-
-  return true;
-
-}
-
-
-
-function getMemoryRank(
-  memoryId
-){
-
-  return Number(
-
-    memoryRankingState
-    .rankings
-    .get(
-      normalizeMemoryString(
-        memoryId
-      )
-    ) || 0
-
-  );
-
-}
-
-
-
-// =====================================
-// RANK MEMORY
-// =====================================
-
-function rankMemory(
-  memory,
-  query = ""
-){
-
-  try{
-
-    if(
-      !memory?.id
-    ){
-
-      return 0;
-
-    }
-
-    const score =
-    calculateMemoryRankingScore(
-
-      memory,
-      query
-
-    );
-
-    storeMemoryRank(
-      memory.id,
-      score
-    );
-
-    storeRankingHistory(
-      memory.id,
-      score,
+    createEmbedding(
       query
     );
 
-    memoryRankingState
-    .totalRankings++;
+  const memoryEmbedding =
 
-    memoryRankingState
-    .lastRankAt =
-    Date.now();
-
-    return score;
-
-  }
-
-  catch(error){
-
-    memoryRankingState
-    .failedRankings++;
-
-    return 0;
-
-  }
-
-}
-
-
-
-// =====================================
-// RANK RESULTS
-// =====================================
-
-function rankMemoryResults(
-  memories = [],
-  query = ""
-){
-
-  return memories
-
-  .filter((memory) => {
-
-    return (
-      memory &&
+    loadEmbedding(
       memory.id
     );
 
-  })
+  if(
+    !memoryEmbedding
+  ){
+    return 0;
+  }
 
-  .map((memory) => {
+  return calculateSimilarity(
 
-    return {
+    queryEmbedding,
 
-      memory,
-
-      score:
-      rankMemory(
-        memory,
-        query
-      )
-
-    };
-
-  })
-
-  .sort((a,b) => {
-
-    return (
-      b.score -
-      a.score
-    );
-
-  })
-
-  .slice(
-
-    0,
-
-    MEMORY_RANKING_CONFIG
-    .MAX_RESULTS
+    memoryEmbedding
 
   );
 
@@ -757,128 +67,35 @@ function rankMemoryResults(
 
 
 // =====================================
-// REBUILD
+// SCORE RESULTS
 // =====================================
 
-function rebuildMemoryRankings(){
+function scoreResults(
 
-  memoryRankingState
-  .rankings
-  .clear();
+  memories = [],
 
-  const memories =
+  query = ""
 
-    Array.isArray(
-      memoryState?.memories
-    )
-
-    ? memoryState.memories
-
-    : [];
-
-  memories.forEach((memory) => {
-
-    rankMemory(
-      memory
-    );
-
-  });
-
-  memoryRankingState
-  .lastRebuildAt =
-  Date.now();
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLEAR
-// =====================================
-
-function clearMemoryRankings(){
-
-  memoryRankingState
-  .rankings
-  .clear();
-
-  memoryRankingState
-  .accessCounts
-  .clear();
-
-  memoryRankingState
-  .rankingHistory = [];
-
-  return true;
-
-}
-
-
-
-// =====================================
-// TOP MEMORIES
-// =====================================
-
-function getTopRankedMemories(
-  limit = 10
 ){
 
-  const safeLimit =
-  Math.max(
-    1,
-    Math.min(
-      100,
-      Number(limit) || 10
-    )
-  );
+  return memories.map(
 
-  return (
-
-    Array.isArray(
-      memoryState?.memories
-    )
-
-    ? memoryState.memories
-
-    : []
-
-  )
-
-  .filter((memory) => {
-
-    return memory?.id;
-
-  })
-
-  .map((memory) => {
-
-    return {
+    memory => ({
 
       memory,
 
       score:
-      getMemoryRank(
-        memory.id
+
+      calculateMemoryScore(
+
+        memory,
+
+        query
+
       )
 
-    };
+    })
 
-  })
-
-  .sort((a,b) => {
-
-    return (
-      b.score -
-      a.score
-    );
-
-  })
-
-  .slice(
-    0,
-    safeLimit
   );
 
 }
@@ -886,48 +103,116 @@ function getTopRankedMemories(
 
 
 // =====================================
-// DIAGNOSTICS
+// FILTER SCORES
 // =====================================
 
-function getMemoryRankingDiagnostics(){
+function filterRankedResults(
 
-  return Object.freeze({
+  results = [],
 
-    totalRankings:
-    memoryRankingState
-    .totalRankings,
+  minimumScore = 1
 
-    failedRankings:
-    memoryRankingState
-    .failedRankings,
+){
 
-    rankedMemories:
+  return results.filter(
 
-      memoryRankingState
-      .rankings
-      .size,
+    result =>
 
-    trackedAccesses:
+    result.score >=
+    minimumScore
 
-      memoryRankingState
-      .accessCounts
-      .size,
+  );
 
-    rankingHistory:
+}
 
-      memoryRankingState
-      .rankingHistory
-      .length,
 
-    lastRankAt:
-    memoryRankingState
-    .lastRankAt,
 
-    lastRebuildAt:
-    memoryRankingState
-    .lastRebuildAt
+// =====================================
+// SORT SCORES
+// =====================================
 
-  });
+function sortRankedResults(
+  results = []
+){
+
+  return [
+
+    ...results
+
+  ]
+  .sort(
+
+    (
+      a,
+
+      b
+
+    ) =>
+
+      b.score -
+      a.score
+
+  );
+
+}
+
+
+
+// =====================================
+// RANK
+// =====================================
+
+function rankMemories(
+
+  memories = [],
+
+  query = ""
+
+){
+
+  const scored =
+
+    scoreResults(
+
+      memories,
+
+      query
+
+    );
+
+  const filtered =
+
+    filterRankedResults(
+      scored
+    );
+
+  return sortRankedResults(
+    filtered
+  );
+
+}
+
+
+
+// =====================================
+// TOP RESULTS
+// =====================================
+
+function getTopResults(
+
+  results = [],
+
+  limit = 10
+
+){
+
+  return results.slice(
+
+    0,
+
+    limit
+
+  );
 
 }
 
@@ -940,65 +225,43 @@ function getMemoryRankingDiagnostics(){
 const MemoryRanking =
 Object.freeze({
 
-  rank:
-  rankMemory,
+  calculateMemoryScore,
 
-  rankResults:
-  rankMemoryResults,
+  scoreResults,
 
-  rebuild:
-  rebuildMemoryRankings,
+  filterRankedResults,
 
-  clear:
-  clearMemoryRankings,
+  sortRankedResults,
 
-  getRank:
-  getMemoryRank,
+  rankMemories,
 
-  getTop:
-  getTopRankedMemories,
-
-  incrementAccess:
-  incrementMemoryAccessCount,
-
-  diagnostics:
-  getMemoryRankingDiagnostics
+  getTopResults
 
 });
 
 
 
 // =====================================
-// GLOBAL EXPORT
+// EXPORTS
 // =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  window.MemoryRanking =
-  MemoryRanking;
-
-}
-export default MemoryRanking;
 
 export {
 
-  rankMemory,
+  calculateMemoryScore,
 
-  rankMemoryResults,
+  scoreResults,
 
-  rebuildMemoryRankings,
+  filterRankedResults,
 
-  clearMemoryRankings,
+  sortRankedResults,
 
-  getMemoryRank,
+  rankMemories,
 
-  getTopRankedMemories,
+  getTopResults,
 
-  incrementMemoryAccessCount,
-
-  getMemoryRankingDiagnostics
+  MemoryRanking
 
 };
+
+export default
+MemoryRanking;
