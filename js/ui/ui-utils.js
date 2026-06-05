@@ -1,491 +1,372 @@
 // =====================================
 // RIGO AI
 // UI UTILS
-// ENTERPRISE UI UTILITIES
+// UI HELPER UTILITIES
 // =====================================
 
 
 
 // =====================================
-// SAFE ELEMENT
+// DOM HELPERS
 // =====================================
 
-function isValidElement(
-  element
+function getElement(
+  selector
 ){
 
-  return (
-
-    element instanceof
-    Element
-
-    ||
-
-    element instanceof
-    HTMLElement
-
+  return document
+  .querySelector(
+    selector
   );
 
 }
 
 
 
-// =====================================
-// SAFE NODE
-// =====================================
-
-function isValidNode(
-  node
+function getElements(
+  selector
 ){
 
-  return (
-    node instanceof Node
-  );
+  return Array.from(
 
-}
-
-
-
-// =====================================
-// SAFE DOCUMENT
-// =====================================
-
-function isDOMAvailable(){
-
-  return (
-
-    typeof window !==
-    "undefined"
-
-    &&
-
-    typeof document !==
-    "undefined"
-
-  );
-
-}
-
-
-
-// =====================================
-// SAFE QUERY
-// =====================================
-
-function safeQuerySelector(
-  selector,
-  parent = document
-){
-
-  if(
-    !isDOMAvailable()
-  ){
-
-    return null;
-
-  }
-
-  if(
-    typeof selector !==
-    "string"
-  ){
-
-    return null;
-
-  }
-
-  try{
-
-    return parent
-    ?.querySelector(
+    document
+    .querySelectorAll(
       selector
     )
 
-    ||
-
-    null;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "QUERY SELECTOR ERROR",
-      error
-    );
-
-    return null;
-
-  }
+  );
 
 }
 
 
 
 // =====================================
-// SAFE QUERY ALL
+// CLASS HELPERS
 // =====================================
 
-function safeQuerySelectorAll(
-  selector,
-  parent = document
-){
-
-  if(
-    !isDOMAvailable()
-  ){
-
-    return [];
-  }
-
-  if(
-    typeof selector !==
-    "string"
-  ){
-
-    return [];
-  }
-
-  try{
-
-    return [
-
-      ...parent
-      ?.querySelectorAll(
-        selector
-      )
-
-    ];
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "QUERY SELECTOR ALL ERROR",
-      error
-    );
-
-    return [];
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE CREATE ELEMENT
-// =====================================
-
-function safeCreateElement(
-  tagName,
-  classNames = []
-){
-
-  if(
-    !isDOMAvailable()
-  ){
-
-    return null;
-
-  }
-
-  if(
-    typeof tagName !==
-    "string"
-  ){
-
-    return null;
-
-  }
-
-  try{
-
-    const element =
-    document.createElement(
-      tagName
-    );
-
-    if(
-      Array.isArray(
-        classNames
-      )
-    ){
-
-      classNames
-      .filter(Boolean)
-      .forEach((className) => {
-
-        element.classList.add(
-          String(className)
-        );
-
-      });
-
-    }
-
-    return element;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "CREATE ELEMENT ERROR",
-      error
-    );
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE REMOVE ELEMENT
-// =====================================
-
-function safeRemoveElement(
-  element
-){
-
-  if(
-    !isValidNode(
-      element
-    )
-  ){
-
-    return false;
-
-  }
-
-  try{
-
-    element.remove();
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "REMOVE ELEMENT ERROR",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SAFE TEXT
-// =====================================
-
-function safeSetText(
+function addClass(
   element,
-  text
+  className
 ){
 
   if(
-    !isValidElement(
-      element
-    )
+    !element
   ){
-
     return false;
-
   }
 
-  try{
+  element.classList
+  .add(
+    className
+  );
 
-    element.textContent =
-    String(text ?? "");
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "SET TEXT ERROR",
-      error
-    );
-
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
-// =====================================
-// SAFE HTML
-// =====================================
-
-function safeSetHTML(
+function removeClass(
   element,
-  html
+  className
 ){
 
   if(
-    !isValidElement(
-      element
-    )
+    !element
   ){
-
     return false;
-
   }
 
-  try{
+  element.classList
+  .remove(
+    className
+  );
 
-    element.innerHTML =
-    sanitizeHTML(
-      String(html ?? "")
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "SET HTML ERROR",
-      error
-    );
-
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
-// =====================================
-// SAFE CLASS TOGGLE
-// =====================================
-
-function safeToggleClass(
+function toggleClass(
   element,
   className,
   force
 ){
 
   if(
-    !isValidElement(
-      element
-    )
+    !element
   ){
-
     return false;
-
   }
 
-  try{
+  element.classList
+  .toggle(
+    className,
+    force
+  );
 
-    element.classList.toggle(
-      String(className),
-      force
-    );
-
-    return true;
-
-  }
-
-  catch(error){
-
-    safeLogError(
-      "TOGGLE CLASS ERROR",
-      error
-    );
-
-    return false;
-
-  }
+  return true;
 
 }
 
 
 
 // =====================================
-// SAFE LOCAL STORAGE GET
+// VISIBILITY
 // =====================================
 
-function safeLocalStorageGet(
-  key
+function showElement(
+  element
 ){
 
-  try{
-
-    return localStorage
-    .getItem(
-      key
-    );
-
+  if(
+    !element
+  ){
+    return false;
   }
 
-  catch(error){
+  element.hidden =
+  false;
 
-    safeLogError(
+  return true;
 
-      "LOCAL STORAGE GET ERROR",
+}
 
-      error
 
-    );
+
+function hideElement(
+  element
+){
+
+  if(
+    !element
+  ){
+    return false;
+  }
+
+  element.hidden =
+  true;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CONTENT
+// =====================================
+
+function setText(
+  element,
+  value = ""
+){
+
+  if(
+    !element
+  ){
+    return false;
+  }
+
+  element.textContent =
+  String(value);
+
+  return true;
+
+}
+
+
+
+function setHtml(
+  element,
+  value = ""
+){
+
+  if(
+    !element
+  ){
+    return false;
+  }
+
+  element.innerHTML =
+  String(value);
+
+  return true;
+
+}
+
+
+
+// =====================================
+// EVENTS
+// =====================================
+
+function safeEventListener(
+
+  element,
+
+  event,
+
+  handler,
+
+  options
+
+){
+
+  if(
+    !element
+  ){
 
     return null;
 
   }
 
+  element
+  .addEventListener(
+
+    event,
+
+    handler,
+
+    options
+
+  );
+
+  return () => {
+
+    element
+    .removeEventListener(
+
+      event,
+
+      handler,
+
+      options
+
+    );
+
+  };
+
 }
 
 
 
 // =====================================
-// SAFE LOCAL STORAGE SET
+// TIMING
 // =====================================
 
-function safeLocalStorageSet(
-  key,
-  value
+function nextFrame(){
+
+  return new Promise(
+
+    resolve =>
+
+    requestAnimationFrame(
+      resolve
+    )
+
+  );
+
+}
+
+
+
+function delay(
+  ms = 0
 ){
 
-  try{
+  return new Promise(
 
-    localStorage.setItem(
-      key,
-      value
-    );
+    resolve =>
 
-    return true;
+    setTimeout(
+      resolve,
+      ms
+    )
 
-  }
-
-  catch(error){
-
-    safeLogError(
-
-      "LOCAL STORAGE SET ERROR",
-
-      error
-
-    );
-
-    return false;
-
-  }
+  );
 
 }
+
+
+
+// =====================================
+// DEVICE
+// =====================================
+
+function isMobileDevice(){
+
+  return window
+  .matchMedia(
+    "(max-width: 768px)"
+  )
+  .matches;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const UiUtils =
+Object.freeze({
+
+  getElement,
+  getElements,
+
+  addClass,
+  removeClass,
+  toggleClass,
+
+  showElement,
+  hideElement,
+
+  setText,
+  setHtml,
+
+  safeEventListener,
+
+  nextFrame,
+  delay,
+
+  isMobileDevice
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  getElement,
+  getElements,
+
+  addClass,
+  removeClass,
+  toggleClass,
+
+  showElement,
+  hideElement,
+
+  setText,
+  setHtml,
+
+  safeEventListener,
+
+  nextFrame,
+  delay,
+
+  isMobileDevice,
+
+  UiUtils
+
+};
+
+export default
+UiUtils;
