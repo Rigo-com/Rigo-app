@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SIDEBAR STATE
-// ENTERPRISE SIDEBAR STATE SYSTEM
+// FOUNDATION STATE LAYER
 // =====================================
 
 
@@ -13,385 +13,281 @@
 const SIDEBAR_CONFIG =
 Object.freeze({
 
-  MAX_HISTORY_ITEMS:
+  MAX_ITEMS:
   500,
 
-  MAX_RENDER_BATCH:
-  50,
+  ANIMATION_DURATION:
+  250,
 
-  ENABLE_DIAGNOSTICS:
-  true,
+  MOBILE_BREAKPOINT:
+  768,
 
-  AUTO_FOCUS_INPUT:
-  true
+  ENABLE_ANIMATIONS:true,
+
+  ENABLE_GESTURES:true
 
 });
 
 
 
 // =====================================
-// SIDEBAR RUNTIME STATE
+// SIDEBAR STATE
 // =====================================
 
-const sidebarRuntimeState =
+const sidebarState =
 Object.seal({
 
   initialized:false,
 
   destroyed:false,
 
-  rendering:false,
+  open:false,
+
+  collapsed:false,
 
   loading:false,
 
-  deleting:false,
+  rendering:false,
 
-  creating:false,
+  mobile:false,
 
-  hydrated:false,
+  pinned:false,
 
-  listenersAttached:false,
 
-  activeChatId:null,
 
-  activeOperationId:0,
+  // ================================
+  // ACTIVE
+  // ================================
+
+  activeView:null,
+
+  activeItem:null,
+
+
+
+  // ================================
+  // DATA
+  // ================================
+
+  items:[],
+
+
+
+  // ================================
+  // DOM
+  // ================================
+
+  elements:
+  new Map(),
+
+  listeners:
+  new Set(),
+
+
+
+  // ================================
+  // TIMESTAMPS
+  // ================================
 
   initializedAt:null,
 
   destroyedAt:null,
 
-  lastRenderAt:null,
+  lastOpenedAt:null,
 
-  lastActionAt:null,
-
-  lastError:null
+  lastClosedAt:null
 
 });
 
 
 
 // =====================================
-// SIDEBAR ELEMENT STATE
+// STATE FLAGS
 // =====================================
 
-const sidebarElementState =
-Object.seal({
-
-  chatHistoryList:null,
-
-  newChatButton:null,
-
-  sidebarContainer:null,
-
-  activeHistoryItem:null
-
-});
-
-
-
-// =====================================
-// SIDEBAR CACHE STATE
-// =====================================
-
-const sidebarCacheState =
-Object.seal({
-
-  historyElements:
-  new Map(),
-
-  renderedChats:
-  new Map(),
-
-  pendingOperations:
-  new Set()
-
-});
-
-
-
-// =====================================
-// SIDEBAR UI STATE
-// =====================================
-
-const sidebarUIState =
-Object.seal({
-
-  focused:false,
-
-  collapsed:false,
-
-  mobile:false,
-
-  scrolling:false,
-
-  keyboardNavigation:false
-
-});
-
-
-
-// =====================================
-// RESET SIDEBAR CACHE
-// =====================================
-
-function resetSidebarCache(){
-
-  sidebarCacheState
-  .historyElements
-  .clear();
-
-  sidebarCacheState
-  .renderedChats
-  .clear();
-
-  sidebarCacheState
-  .pendingOperations
-  .clear();
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RESET SIDEBAR ELEMENTS
-// =====================================
-
-function resetSidebarElements(){
-
-  sidebarElementState
-  .chatHistoryList =
-  null;
-
-  sidebarElementState
-  .newChatButton =
-  null;
-
-  sidebarElementState
-  .sidebarContainer =
-  null;
-
-  sidebarElementState
-  .activeHistoryItem =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RESET SIDEBAR RUNTIME
-// =====================================
-
-function resetSidebarRuntimeState(){
-
-  sidebarRuntimeState
-  .initialized =
-  false;
-
-  sidebarRuntimeState
-  .destroyed =
-  false;
-
-  sidebarRuntimeState
-  .rendering =
-  false;
-
-  sidebarRuntimeState
-  .loading =
-  false;
-
-  sidebarRuntimeState
-  .deleting =
-  false;
-
-  sidebarRuntimeState
-  .creating =
-  false;
-
-  sidebarRuntimeState
-  .hydrated =
-  false;
-
-  sidebarRuntimeState
-  .listenersAttached =
-  false;
-
-  sidebarRuntimeState
-  .activeChatId =
-  null;
-
-  sidebarRuntimeState
-  .activeOperationId =
-  0;
-
-  sidebarRuntimeState
-  .initializedAt =
-  null;
-
-  sidebarRuntimeState
-  .destroyedAt =
-  null;
-
-  sidebarRuntimeState
-  .lastRenderAt =
-  null;
-
-  sidebarRuntimeState
-  .lastActionAt =
-  null;
-
-  sidebarRuntimeState
-  .lastError =
-  null;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SIDEBAR READY
-// =====================================
-
-function isSidebarReady(){
-
-  return (
-
-    sidebarRuntimeState
-    .initialized ===
-    true
-
-    &&
-
-    sidebarRuntimeState
-    .destroyed ===
-    false
-
-  );
-
-}
-
-
-
-// =====================================
-// SIDEBAR BUSY
-// =====================================
-
-function isSidebarBusy(){
-
-  return (
-
-    sidebarRuntimeState
-    .rendering
-
-    ||
-
-    sidebarRuntimeState
-    .loading
-
-    ||
-
-    sidebarRuntimeState
-    .deleting
-
-    ||
-
-    sidebarRuntimeState
-    .creating
-
-  );
-
-}
-
-
-
-// =====================================
-// CREATE OPERATION ID
-// =====================================
-
-function createSidebarOperationId(){
-
-  sidebarRuntimeState
-  .activeOperationId++;
-
-  return (
-    sidebarRuntimeState
-    .activeOperationId
-  );
-
-}
-
-
-
-// =====================================
-// TRACK OPERATION
-// =====================================
-
-function trackSidebarOperation(
-  operationId
+function setInitialized(
+  value
 ){
 
-  sidebarCacheState
-  .pendingOperations
-  .add(
-    operationId
-  );
+  sidebarState.initialized =
+  Boolean(value);
 
-  return true;
+  if(value){
 
-}
-
-
-
-// =====================================
-// COMPLETE OPERATION
-// =====================================
-
-function completeSidebarOperation(
-  operationId
-){
-
-  sidebarCacheState
-  .pendingOperations
-  .delete(
-    operationId
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SET ACTIVE CHAT
-// =====================================
-
-function setSidebarActiveChat(
-  chatId
-){
-
-  if(
-    typeof chatId !==
-    "string"
-  ){
-
-    return false;
+    sidebarState.initializedAt =
+    Date.now();
 
   }
 
-  sidebarRuntimeState
-  .activeChatId =
-  chatId;
+}
 
-  sidebarRuntimeState
-  .lastActionAt =
-  Date.now();
+
+
+function setDestroyed(
+  value
+){
+
+  sidebarState.destroyed =
+  Boolean(value);
+
+  if(value){
+
+    sidebarState.destroyedAt =
+    Date.now();
+
+  }
+
+}
+
+
+
+function setOpen(
+  value
+){
+
+  sidebarState.open =
+  Boolean(value);
+
+  if(value){
+
+    sidebarState.lastOpenedAt =
+    Date.now();
+
+  }
+
+  else{
+
+    sidebarState.lastClosedAt =
+    Date.now();
+
+  }
+
+}
+
+
+
+function setCollapsed(
+  value
+){
+
+  sidebarState.collapsed =
+  Boolean(value);
+
+}
+
+
+
+function setLoading(
+  value
+){
+
+  sidebarState.loading =
+  Boolean(value);
+
+}
+
+
+
+function setRendering(
+  value
+){
+
+  sidebarState.rendering =
+  Boolean(value);
+
+}
+
+
+
+function setMobile(
+  value
+){
+
+  sidebarState.mobile =
+  Boolean(value);
+
+}
+
+
+
+function setPinned(
+  value
+){
+
+  sidebarState.pinned =
+  Boolean(value);
+
+}
+
+
+
+// =====================================
+// ACTIVE
+// =====================================
+
+function setActiveView(
+  view
+){
+
+  sidebarState.activeView =
+  view;
+
+}
+
+
+
+function setActiveItem(
+  item
+){
+
+  sidebarState.activeItem =
+  item;
+
+}
+
+
+
+// =====================================
+// ITEMS
+// =====================================
+
+function setItems(
+  items = []
+){
+
+  sidebarState.items =
+
+    Array.isArray(
+      items
+    )
+
+    ? [...items]
+
+    : [];
+
+  return true;
+
+}
+
+
+
+function getItems(){
+
+  return [
+
+    ...sidebarState
+    .items
+
+  ];
+
+}
+
+
+
+function clearItems(){
+
+  sidebarState.items =
+  [];
 
   return true;
 
@@ -400,14 +296,23 @@ function setSidebarActiveChat(
 
 
 // =====================================
-// CLEAR ACTIVE CHAT
+// ELEMENTS
 // =====================================
 
-function clearSidebarActiveChat(){
+function setElement(
+  key,
+  element
+){
 
-  sidebarRuntimeState
-  .activeChatId =
-  null;
+  sidebarState
+  .elements
+  .set(
+
+    key,
+
+    element
+
+  );
 
   return true;
 
@@ -415,100 +320,173 @@ function clearSidebarActiveChat(){
 
 
 
+function getElement(
+  key
+){
+
+  return (
+
+    sidebarState
+    .elements
+    .get(key)
+
+    ??
+
+    null
+
+  );
+
+}
+
+
+
+function removeElement(
+  key
+){
+
+  return sidebarState
+  .elements
+  .delete(
+    key
+  );
+
+}
+
+
+
 // =====================================
-// SIDEBAR DIAGNOSTICS
+// SNAPSHOT
 // =====================================
 
-function getSidebarDiagnostics(){
+function getSidebarSnapshot(){
 
   return Object.freeze({
 
     initialized:
-    sidebarRuntimeState
-    .initialized,
+    sidebarState.initialized,
 
     destroyed:
-    sidebarRuntimeState
-    .destroyed,
+    sidebarState.destroyed,
 
-    rendering:
-    sidebarRuntimeState
-    .rendering,
+    open:
+    sidebarState.open,
+
+    collapsed:
+    sidebarState.collapsed,
 
     loading:
-    sidebarRuntimeState
-    .loading,
+    sidebarState.loading,
 
-    deleting:
-    sidebarRuntimeState
-    .deleting,
+    rendering:
+    sidebarState.rendering,
 
-    creating:
-    sidebarRuntimeState
-    .creating,
+    mobile:
+    sidebarState.mobile,
 
-    hydrated:
-    sidebarRuntimeState
-    .hydrated,
+    pinned:
+    sidebarState.pinned,
 
-    listenersAttached:
-    sidebarRuntimeState
-    .listenersAttached,
+    activeView:
+    sidebarState.activeView,
 
-    activeChatId:
-    sidebarRuntimeState
-    .activeChatId,
+    items:
+    sidebarState.items.length,
 
-    pendingOperations:
+    elements:
+    sidebarState.elements.size,
 
-      sidebarCacheState
-      .pendingOperations
-      .size,
-
-    trackedHistoryElements:
-
-      sidebarCacheState
-      .historyElements
-      .size,
-
-    renderedChats:
-
-      sidebarCacheState
-      .renderedChats
-      .size,
-
-    initializedAt:
-    sidebarRuntimeState
-    .initializedAt,
-
-    destroyedAt:
-    sidebarRuntimeState
-    .destroyedAt,
-
-    lastRenderAt:
-    sidebarRuntimeState
-    .lastRenderAt,
-
-    lastActionAt:
-    sidebarRuntimeState
-    .lastActionAt,
-
-    lastError:
-
-      sidebarRuntimeState
-      .lastError
-
-      ?
-
-      String(
-        sidebarRuntimeState
-        .lastError
-      )
-
-      :
-
-      null
+    listeners:
+    sidebarState.listeners.size
 
   });
 
 }
+
+
+
+// =====================================
+// RESET
+// =====================================
+
+function resetSidebarState(){
+
+  sidebarState.initialized = false;
+  sidebarState.destroyed = false;
+
+  sidebarState.open = false;
+  sidebarState.collapsed = false;
+  sidebarState.loading = false;
+  sidebarState.rendering = false;
+  sidebarState.mobile = false;
+  sidebarState.pinned = false;
+
+  sidebarState.activeView = null;
+  sidebarState.activeItem = null;
+
+  sidebarState.items = [];
+
+  sidebarState.elements.clear();
+  sidebarState.listeners.clear();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// PUBLIC API
+// =====================================
+
+const SidebarState =
+Object.freeze({
+
+  setInitialized,
+  setDestroyed,
+
+  setOpen,
+  setCollapsed,
+
+  setLoading,
+  setRendering,
+
+  setMobile,
+  setPinned,
+
+  setActiveView,
+  setActiveItem,
+
+  setItems,
+  getItems,
+  clearItems,
+
+  setElement,
+  getElement,
+  removeElement,
+
+  snapshot:
+  getSidebarSnapshot,
+
+  reset:
+  resetSidebarState
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  SIDEBAR_CONFIG,
+
+  sidebarState,
+
+  SidebarState
+
+};
+
+export default
+SidebarState;
