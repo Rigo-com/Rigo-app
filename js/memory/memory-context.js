@@ -1,427 +1,62 @@
 // =====================================
 // RIGO AI
 // MEMORY CONTEXT
-// ENTERPRISE INFINITY ULTRA FINAL
-// OPTIMIZED + STABILIZED FINAL
+// CONTEXT MANAGEMENT LAYER
 // =====================================
 
+import {
+  MEMORY_LIMITS
+}
+from "./memory-constants.js";
 
+import {
+  getContext,
+  setContext
+}
+from "./memory-state.js";
 
-// =====================================
-// CONTEXT CONFIG
-// =====================================
-
-const MEMORY_CONTEXT_CONFIG =
-Object.freeze({
-
-  DEFAULT_CONTEXT_LIMIT:10,
-
-  MAX_CONTEXT_LIMIT:50,
-
-  MAX_CONTEXT_LENGTH:12000,
-
-  MAX_MEMORY_CONTENT_LENGTH:2000,
-
-  MAX_MEMORY_ID_LENGTH:120,
-
-  MAX_TAGS:10,
-
-  MAX_SEARCHABLE_PART_LENGTH:500,
-
-  PINNED_BOOST:5,
-
-  RECENT_BOOST:3,
-
-  RELEVANCE_BOOST:4,
-
-  TRUNCATION_MARKER:
-  "\n...[TRUNCATED]"
-
-});
+import {
+  deepClone
+}
+from "./memory-utils.js";
 
 
 
 // =====================================
-// CONSTANTS
+// ADD
 // =====================================
 
-const SAFE_CONVERSATION_ROLES =
-
-typeof createImmutableSet ===
-"function"
-
-? createImmutableSet([
-
-  "user",
-
-  "assistant",
-
-  "system"
-
-])
-
-: new Set([
-
-  "user",
-
-  "assistant",
-
-  "system"
-
-]);
-
-
-
-const PROMPT_INJECTION_PATTERNS =
-Object.freeze([
-
-  /ignore\s+previous\s+instructions/gi,
-
-  /disregard\s+all\s+prior\s+messages/gi,
-
-  /system\s*prompt/gi,
-
-  /developer\s*message/gi,
-
-  /function_call/gi,
-
-  /<\s*system\s*>/gi,
-
-  /<\s*assistant\s*>/gi,
-
-  /<\s*developer\s*>/gi,
-
-  /```system/gi,
-
-  /```assistant/gi
-
-]);
-
-
-
-// =====================================
-// CONTEXT HELPERS
-// =====================================
-
-function clampContextLimit(
-  limit
+function addContextItem(
+  item
 ){
 
-  const numericLimit =
-  Number(limit);
+  const context =
+  getContext();
 
-  if(
-    !Number.isFinite(
-      numericLimit
-    )
-  ){
+  context.push(
 
-    return MEMORY_CONTEXT_CONFIG
-    .DEFAULT_CONTEXT_LIMIT;
-
-  }
-
-  return Math.min(
-
-    MEMORY_CONTEXT_CONFIG
-    .MAX_CONTEXT_LIMIT,
-
-    Math.max(
-      1,
-      Math.floor(
-        numericLimit
-      )
+    deepClone(
+      item
     )
 
   );
 
-}
+  while(
 
+    context.length >
 
-
-// =====================================
-// PROMPT INJECTION CLEANUP
-// =====================================
-
-function removePromptInjectionPatterns(
-  text
-){
-
-  if(
-    typeof text !==
-    "string"
-  ){
-
-    return "";
-  }
-
-  let cleanedText =
-  text;
-
-  PROMPT_INJECTION_PATTERNS
-  .forEach((pattern) => {
-
-    cleanedText =
-    cleanedText.replace(
-      pattern,
-      ""
-    );
-
-  });
-
-  return cleanedText;
-
-}
-
-
-
-// =====================================
-// CONTEXT SANITIZATION
-// =====================================
-
-function sanitizeContextText(
-  text
-){
-
-  if(
-    typeof text !==
-    "string"
-  ){
-
-    return "";
-  }
-
-  return removePromptInjectionPatterns(
-    text
-  )
-
-  .replace(
-    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,
-    " "
-  )
-
-  .replace(
-    /[ \t]+/g,
-    " "
-  )
-
-  .replace(
-    /\n{3,}/g,
-    "\n\n"
-  )
-
-  .replace(
-    /\[\s*(SYSTEM|USER|ASSISTANT)\s+CONTEXT\s*\]/gi,
-    ""
-  )
-
-  .trim();
-
-}
-
-
-
-// =====================================
-// SAFE ROLE
-// =====================================
-
-function sanitizeConversationRole(
-  role
-){
-
-  const normalizedRole =
-  String(
-
-    normalizeMemoryString(
-      role
-    ) || ""
-
-  )
-  .toLowerCase();
-
-  if(
-
-    SAFE_CONVERSATION_ROLES
-    .has(
-      normalizedRole
-    )
+    MEMORY_LIMITS
+    .MAX_CONTEXT_ITEMS
 
   ){
 
-    return normalizedRole;
+    context.shift();
 
   }
 
-  return "user";
-
-}
-
-
-
-// =====================================
-// SAFE TRUNCATION
-// =====================================
-
-function safelyTruncateText(
-  text,
-  maxLength
-){
-
-  const normalizedText =
-  sanitizeContextText(
-    text
+  setContext(
+    context
   );
-
-  const safeMaxLength =
-  Number(maxLength);
-
-  if(
-
-    !Number.isFinite(
-      safeMaxLength
-    )
-
-    ||
-
-    safeMaxLength <= 0
-
-  ){
-
-    return "";
-  }
-
-  if(
-    normalizedText.length <=
-    safeMaxLength
-  ){
-
-    return normalizedText;
-
-  }
-
-  const safeLength =
-
-    safeMaxLength -
-
-    MEMORY_CONTEXT_CONFIG
-    .TRUNCATION_MARKER
-    .length;
-
-  if(
-    safeLength <= 0
-  ){
-
-    return MEMORY_CONTEXT_CONFIG
-    .TRUNCATION_MARKER;
-
-  }
-
-  const slicedText =
-  normalizedText.slice(
-    0,
-    safeLength
-  );
-
-  const lastSpaceIndex =
-  slicedText.lastIndexOf(
-    " "
-  );
-
-  if(
-    lastSpaceIndex <= 0
-  ){
-
-    return (
-
-      slicedText +
-
-      MEMORY_CONTEXT_CONFIG
-      .TRUNCATION_MARKER
-
-    );
-
-  }
-
-  return (
-
-    slicedText.slice(
-      0,
-      lastSpaceIndex
-    )
-
-    +
-
-    MEMORY_CONTEXT_CONFIG
-    .TRUNCATION_MARKER
-
-  );
-
-}
-
-
-
-// =====================================
-// CONTEXT FILTER
-// =====================================
-
-function isContextEligibleMemory(
-  memory,
-  options = {}
-){
-
-  if(
-
-    !memory ||
-
-    typeof memory !==
-    "object"
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    memoryState?.tracking
-    ?.corruptedIds
-    ?.has?.(
-      memory.id
-    )
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    memory.state ===
-    "deleted"
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    memory.state ===
-    "archived"
-
-    &&
-
-    options.includeArchived !==
-    true
-
-  ){
-
-    return false;
-
-  }
 
   return true;
 
@@ -430,401 +65,62 @@ function isContextEligibleMemory(
 
 
 // =====================================
-// CONTENT COMPRESSION
+// REMOVE
 // =====================================
 
-function compressMemoryContent(
-  content
+function removeContextItem(
+  id
 ){
 
-  return safelyTruncateText(
+  const context =
 
-    normalizeMemoryContent(
-      content
-    ),
+    getContext();
 
-    MEMORY_CONTEXT_CONFIG
-    .MAX_MEMORY_CONTENT_LENGTH
+  const filtered =
 
+    context.filter(
+
+      item =>
+
+      item?.id !== id
+
+    );
+
+  setContext(
+    filtered
   );
+
+  return true;
 
 }
 
 
 
 // =====================================
-// CONTEXT SECTION FORMATTER
+// FIND
 // =====================================
 
-function formatContextSection(
-  title,
-  content
+function findContextItem(
+  id
 ){
 
-  const normalizedTitle =
-  sanitizeContextText(
-    title
-  );
+  const context =
 
-  const normalizedContent =
-  String(
-    content || ""
-  )
-  .trim();
-
-  if(
-
-    !normalizedTitle ||
-
-    !normalizedContent
-
-  ){
-
-    return "";
-  }
+    getContext();
 
   return (
 
-    `[${normalizedTitle}]\n` +
+    context.find(
 
-    normalizedContent
+      item =>
 
-  );
-
-}
-
-
-
-// =====================================
-// MEMORY CONTEXT BLOCK
-// =====================================
-
-function buildMemoryContextBlock(
-  memory
-){
-
-  if(!memory){
-
-    return "";
-  }
-
-  const lines = [];
-
-  const safeMemoryId =
-  sanitizeContextText(
-    String(
-      memory.id || ""
-    )
-    .slice(
-
-      0,
-
-      MEMORY_CONTEXT_CONFIG
-      .MAX_MEMORY_ID_LENGTH
+      item?.id === id
 
     )
-  );
 
-  lines.push(
-    `[Memory ${safeMemoryId}]`
-  );
+    ??
 
-  if(
-    memory.title
-  ){
-
-    lines.push(
-
-      `Title: ${sanitizeContextText(
-        memory.title
-      )}`
-
-    );
-
-  }
-
-  if(
-    memory.summary
-  ){
-
-    lines.push(
-
-      `Summary: ${sanitizeContextText(
-        memory.summary
-      )}`
-
-    );
-
-  }
-
-  if(
-    memory.content
-  ){
-
-    lines.push(
-
-      `Content: ${compressMemoryContent(
-        memory.content
-      )}`
-
-    );
-
-  }
-
-  if(
-
-    Array.isArray(
-      memory.tags
-    )
-
-    &&
-
-    memory.tags.length > 0
-
-  ){
-
-    const limitedTags =
-
-      memory.tags
-      .slice(
-
-        0,
-
-        MEMORY_CONTEXT_CONFIG
-        .MAX_TAGS
-
-      )
-      .map((tag) => {
-
-        return sanitizeContextText(
-          tag
-        );
-
-      })
-      .filter(Boolean);
-
-    if(
-      limitedTags.length > 0
-    ){
-
-      lines.push(
-
-        `Tags: ${limitedTags.join(", ")}`
-
-      );
-
-    }
-
-  }
-
-  lines.push(
-
-    `Priority: ${sanitizeContextText(
-      memory.priority || "normal"
-    )}`
-
-  );
-
-  lines.push(
-
-    `State: ${sanitizeContextText(
-      memory.state || "active"
-    )}`
-
-  );
-
-  return lines.join("\n");
-
-}
-
-
-
-// =====================================
-// DEDUPLICATION
-// =====================================
-
-function deduplicateContextMemories(
-  memories = []
-){
-
-  const seenIds =
-  new Set();
-
-  return memories.filter((memory) => {
-
-    const normalizedId =
-    normalizeMemoryString(
-      memory?.id
-    );
-
-    if(
-      !normalizedId
-    ){
-
-      return false;
-
-    }
-
-    if(
-      seenIds.has(
-        normalizedId
-      )
-    ){
-
-      return false;
-
-    }
-
-    seenIds.add(
-      normalizedId
-    );
-
-    return true;
-
-  });
-
-}
-
-
-
-function deduplicateContextSections(
-  sections = []
-){
-
-  const seenTitles =
-  new Set();
-
-  return sections.filter((section) => {
-
-    const normalizedSection =
-    sanitizeContextText(
-      section
-    );
-
-    if(
-      !normalizedSection
-    ){
-
-      return false;
-
-    }
-
-    const firstLine =
-    normalizedSection
-    .split("\n")[0]
-    .trim();
-
-    if(
-      seenTitles.has(
-        firstLine
-      )
-    ){
-
-      return false;
-
-    }
-
-    seenTitles.add(
-      firstLine
-    );
-
-    return true;
-
-  });
-
-}
-
-
-
-// =====================================
-// BUILD RELEVANT CONTEXT
-// =====================================
-
-function buildRelevantContext(
-  query,
-  options = {}
-){
-
-  const limit =
-  clampContextLimit(
-    options.limit
-  );
-
-  if(
-
-    typeof advancedMemorySearch !==
-    "function"
-
-  ){
-
-    return deduplicateContextMemories(
-
-      memoryState.memories
-      .filter((memory) => {
-
-        return isContextEligibleMemory(
-          memory,
-          options
-        );
-
-      })
-
-    )
-    .slice(0,limit);
-
-  }
-
-  const searchResults =
-  advancedMemorySearch(
-    query,
-    {
-      limit,
-      includeArchived:
-      options.includeArchived
-    }
-  );
-
-  const memories =
-  searchResults
-  .map((result) => {
-
-    return result?.memory;
-
-  })
-  .filter(Boolean);
-
-  return deduplicateContextMemories(
-
-    memories.filter((memory) => {
-
-      return isContextEligibleMemory(
-        memory,
-        options
-      );
-
-    })
-
-  )
-  .slice(0,limit);
-
-}
-
-
-
-// =====================================
-// CONTEXT TRIMMING
-// =====================================
-
-function trimContextLength(
-  context
-){
-
-  return safelyTruncateText(
-
-    context,
-
-    MEMORY_CONTEXT_CONFIG
-    .MAX_CONTEXT_LENGTH
+    null
 
   );
 
@@ -833,75 +129,14 @@ function trimContextLength(
 
 
 // =====================================
-// BUILD MEMORY CONTEXT
+// GET ALL
 // =====================================
 
-function buildMemoryContext(
-  query,
-  options = {}
-){
+function getContextItems(){
 
-  const memories =
-  buildRelevantContext(
-    query,
-    options
-  );
+  return deepClone(
 
-  const blocks = [];
-
-  let currentLength = 0;
-
-  memories.forEach((memory) => {
-
-    const block =
-    buildMemoryContextBlock(
-      memory
-    );
-
-    if(!block){
-
-      return;
-    }
-
-    const separatorLength =
-    blocks.length > 0
-      ? 2
-      : 0;
-
-    const nextLength =
-
-      currentLength +
-
-      separatorLength +
-
-      block.length;
-
-    if(
-
-      nextLength >
-
-      MEMORY_CONTEXT_CONFIG
-      .MAX_CONTEXT_LENGTH
-
-    ){
-
-      return;
-    }
-
-    currentLength =
-    nextLength;
-
-    blocks.push(
-      block
-    );
-
-  });
-
-  return trimContextLength(
-
-    blocks.join(
-      "\n\n"
-    )
+    getContext()
 
   );
 
@@ -910,261 +145,96 @@ function buildMemoryContext(
 
 
 // =====================================
-// BUILD CONVERSATION CONTEXT
+// COUNT
 // =====================================
 
-function buildConversationContext(
-  messages = [],
-  options = {}
-){
+function getContextCount(){
 
-  if(
-    !Array.isArray(
-      messages
-    )
-  ){
+  return getContext()
+  .length;
 
-    return "";
-  }
+}
 
-  const limit =
-  clampContextLimit(
-    options.limit
+
+
+// =====================================
+// CLEAR
+// =====================================
+
+function clearContext(){
+
+  setContext(
+    []
   );
 
-  const trimmedMessages =
-  messages.slice(
+  return true;
+
+}
+
+
+
+// =====================================
+// RECENT
+// =====================================
+
+function getRecentContext(
+  limit = 10
+){
+
+  return getContext()
+  .slice(
     -limit
   );
 
-  const lines = [];
+}
 
-  let currentLength = 0;
 
-  trimmedMessages
-  .forEach((message) => {
 
-    if(
-      !message
-    ){
+// =====================================
+// STATS
+// =====================================
 
-      return;
-    }
+function getContextStats(){
 
-    if(
-      typeof message.content !==
-      "string"
-    ){
+  return Object.freeze({
 
-      return;
-    }
+    items:
+    getContextCount(),
 
-    const role =
-    sanitizeConversationRole(
-      message.role
-    );
-
-    const content =
-    compressMemoryContent(
-      message.content
-    );
-
-    if(
-      !content
-    ){
-
-      return;
-    }
-
-    const line =
-    `${role}: ${content}`;
-
-    const separatorLength =
-    lines.length > 0
-      ? 1
-      : 0;
-
-    const nextLength =
-
-      currentLength +
-
-      separatorLength +
-
-      line.length;
-
-    if(
-
-      nextLength >
-
-      MEMORY_CONTEXT_CONFIG
-      .MAX_CONTEXT_LENGTH
-
-    ){
-
-      return;
-    }
-
-    currentLength =
-    nextLength;
-
-    lines.push(
-      line
-    );
+    limit:
+    MEMORY_LIMITS
+    .MAX_CONTEXT_ITEMS
 
   });
 
-  return trimContextLength(
-
-    lines.join("\n")
-
-  );
-
 }
 
 
 
 // =====================================
-// BUILD SYSTEM CONTEXT
+// PUBLIC API
 // =====================================
 
-function buildSystemContext(){
+const MemoryContext =
+Object.freeze({
 
-  if(
+  addContextItem,
 
-    !MEMORY_DEBUG
-    ?.ENABLE_LOGS
+  removeContextItem,
 
-  ){
+  findContextItem,
 
-    return "";
+  getContextItems,
 
-  }
+  getContextCount,
 
-  if(
+  clearContext,
 
-    typeof getMemoryDiagnostics !==
-    "function"
+  getRecentContext,
 
-  ){
+  getContextStats
 
-    return "";
-
-  }
-
-  const diagnostics =
-  getMemoryDiagnostics();
-
-  return trimContextLength(
-
-    [
-
-      "Memory System Status:",
-
-      `Initialized: ${diagnostics.initialized}`,
-
-      `Corrupted: ${diagnostics.corrupted}`,
-
-      `Total Memories: ${diagnostics.totalMemories}`,
-
-      `Indexed Memories: ${diagnostics.indexedMemories}`,
-
-      `Dirty Memories: ${diagnostics.dirtyMemories}`,
-
-      `Corrupted Memories: ${diagnostics.corruptedMemories}`
-
-    ]
-    .join("\n")
-
-  );
-
-}
-
-
-
-// =====================================
-// BUILD FULL AI CONTEXT
-// =====================================
-
-function buildFullAIContext(
-  query,
-  conversationMessages = [],
-  options = {}
-){
-
-  const memoryContext =
-  buildMemoryContext(
-    query,
-    options
-  );
-
-  const conversationContext =
-  buildConversationContext(
-    conversationMessages,
-    options
-  );
-
-  const systemContext =
-  buildSystemContext();
-
-  let sections = [];
-
-  if(
-    systemContext
-  ){
-
-    sections.push(
-
-      formatContextSection(
-        "SYSTEM CONTEXT",
-        systemContext
-      )
-
-    );
-
-  }
-
-  if(
-    memoryContext
-  ){
-
-    sections.push(
-
-      formatContextSection(
-        "MEMORY CONTEXT",
-        memoryContext
-      )
-
-    );
-
-  }
-
-  if(
-    conversationContext
-  ){
-
-    sections.push(
-
-      formatContextSection(
-        "CONVERSATION CONTEXT",
-        conversationContext
-      )
-
-    );
-
-  }
-
-  sections =
-  deduplicateContextSections(
-    sections
-  );
-
-  return trimContextLength(
-
-    sections.join("\n\n")
-
-  );
-
-}
+});
 
 
 
@@ -1174,36 +244,25 @@ function buildFullAIContext(
 
 export {
 
-  MEMORY_CONTEXT_CONFIG,
+  addContextItem,
 
-  sanitizeContextText,
+  removeContextItem,
 
-  sanitizeConversationRole,
+  findContextItem,
 
-  safelyTruncateText,
+  getContextItems,
 
-  isContextEligibleMemory,
+  getContextCount,
 
-  compressMemoryContent,
+  clearContext,
 
-  formatContextSection,
+  getRecentContext,
 
-  buildMemoryContextBlock,
+  getContextStats,
 
-  deduplicateContextMemories,
-
-  deduplicateContextSections,
-
-  buildRelevantContext,
-
-  trimContextLength,
-
-  buildMemoryContext,
-
-  buildConversationContext,
-
-  buildSystemContext,
-
-  buildFullAIContext
+  MemoryContext
 
 };
+
+export default
+MemoryContext;
