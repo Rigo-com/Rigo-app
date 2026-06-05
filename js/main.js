@@ -8,9 +8,17 @@ from "./bootstrap/index.js";
 
 
 
+// =====================================
+// STARTUP
+// =====================================
+
 async function startApplication(){
 
   try{
+
+    console.log(
+      "RIGO BOOTING..."
+    );
 
     const booted =
     await BootstrapManager
@@ -45,4 +53,8 @@ async function startApplication(){
 
 
 
-startApplication();
+// =====================================
+// BOOT
+// =====================================
+
+void startApplication();
