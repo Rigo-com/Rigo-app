@@ -1,64 +1,175 @@
 // =====================================
 // RIGO AI
 // UI RENDERER
-// ENTERPRISE RENDER PIPELINE
+// RENDER PIPELINE
 // =====================================
 
-
-
-// =====================================
-// RENDER STATE
-// =====================================
-
-const uiRenderState =
-Object.seal({
-
-  scheduled:false,
-
-  rendering:false,
-
-  pendingFrame:null,
-
-  renderQueue:[],
-
-  completedRenders:0,
-
-  failedRenders:0,
-
-  cancelledFrames:0
-
-});
+import {
+  uiState,
+  UI_CONFIG
+}
+from "./ui-state.js";
 
 
 
 // =====================================
-// VALIDATE RENDER CALLBACK
+// RENDER QUEUE
 // =====================================
 
-function validateRenderCallback(
+function enqueueRender(
   callback
 ){
 
-  return (
-    typeof callback ===
+  if(
+    typeof callback !==
     "function"
+  ){
+
+    return false;
+
+  }
+
+  if(
+
+    uiState
+    .renderQueue
+    .length >=
+
+    UI_CONFIG
+    .MAX_RENDER_QUEUE
+
+  ){
+
+    return false;
+
+  }
+
+  uiState
+  .renderQueue
+  .push(
+    callback
   );
+
+  return true;
 
 }
 
 
 
 // =====================================
-// SAFE RENDER EXECUTION
+// PROCESS QUEUE
 // =====================================
 
-function safelyExecuteRender(
-  callback
+function processRenderQueue(){
+
+  if(
+    uiState.renderLocked
+  ){
+
+    return 0;
+
+  }
+
+  uiState.renderLocked =
+  true;
+
+  let processed = 0;
+
+  while(
+
+    uiState
+    .renderQueue
+    .length > 0
+
+  ){
+
+    const callback =
+
+      uiState
+      .renderQueue
+      .shift();
+
+    try{
+
+      callback();
+
+      processed++;
+
+    }
+
+    catch(error){
+
+      console.error(
+
+        "[UI RENDER]",
+
+        error
+
+      );
+
+    }
+
+  }
+
+  uiState.renderLocked =
+  false;
+
+  uiState.lastRenderAt =
+  Date.now();
+
+  return processed;
+
+}
+
+
+
+// =====================================
+// RENDER FRAME
+// =====================================
+
+function renderFrame(){
+
+  if(
+    uiState.rendering
+  ){
+
+    return false;
+
+  }
+
+  uiState.rendering =
+  true;
+
+  uiState.animationFrame =
+
+    requestAnimationFrame(
+      () => {
+
+        processRenderQueue();
+
+        uiState.rendering =
+        false;
+
+      }
+    );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// BATCH RENDER
+// =====================================
+
+function batchRender(
+  callbacks = []
 ){
 
   if(
-    !validateRenderCallback(
-      callback
+    !Array.isArray(
+      callbacks
     )
   ){
 
@@ -66,12 +177,36 @@ function safelyExecuteRender(
 
   }
 
+  for(
+    const callback
+    of callbacks
+  ){
+
+    enqueueRender(
+      callback
+    );
+
+  }
+
+  renderFrame();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// FORCE RENDER
+// =====================================
+
+function forceRender(
+  callback
+){
+
   try{
 
     callback();
-
-    uiRenderState
-    .completedRenders++;
 
     uiState.lastRenderAt =
     Date.now();
@@ -82,17 +217,6 @@ function safelyExecuteRender(
 
   catch(error){
 
-    uiRenderState
-    .failedRenders++;
-
-    safeLogError(
-
-      "UI RENDER ERROR",
-
-      error
-
-    );
-
     return false;
 
   }
@@ -102,122 +226,13 @@ function safelyExecuteRender(
 
 
 // =====================================
-// PROCESS RENDER QUEUE
+// CLEAR QUEUE
 // =====================================
 
-function processUIRenderQueue(){
+function clearRenderQueue(){
 
-  if(
-    uiRenderState
-    .rendering
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    uiState
-    .renderLocked
-
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    uiRenderState
-    .renderQueue
-    .length <= 0
-
-  ){
-
-    uiRenderState
-    .scheduled =
-    false;
-
-    return true;
-
-  }
-
-  uiRenderState
-  .rendering =
-  true;
-
-  uiState
-  .rendering =
-  true;
-
-  const executeQueue = () => {
-
-    try{
-
-      while(
-
-        uiRenderState
-        .renderQueue
-        .length > 0
-
-      ){
-
-        const callback =
-
-          uiRenderState
-          .renderQueue
-          .shift();
-
-        safelyExecuteRender(
-          callback
-        );
-
-      }
-
-    }
-
-    finally{
-
-      uiRenderState
-      .rendering =
-      false;
-
-      uiState
-      .rendering =
-      false;
-
-      uiRenderState
-      .scheduled =
-      false;
-
-      uiRenderState
-      .pendingFrame =
-      null;
-
-    }
-
-  };
-
-  if(
-
-    typeof requestAnimationFrame !==
-    "function"
-
-  ){
-
-    executeQueue();
-
-    return true;
-
-  }
-
-  uiRenderState
-  .pendingFrame =
-
-  requestAnimationFrame(
-    executeQueue
-  );
+  uiState.renderQueue =
+  [];
 
   return true;
 
@@ -226,240 +241,29 @@ function processUIRenderQueue(){
 
 
 // =====================================
-// QUEUE RENDER
+// RENDER STATS
 // =====================================
 
-function queueUIRender(
-  callback
-){
-
-  if(
-    !validateRenderCallback(
-      callback
-    )
-  ){
-
-    return false;
-
-  }
-
-  if(
-    uiState.destroyed
-  ){
-
-    return false;
-
-  }
-
-  if(
-
-    uiRenderState
-    .renderQueue
-    .length >=
-
-    UI_CONFIG
-    .MAX_RENDER_QUEUE
-
-  ){
-
-    uiRenderState
-    .failedRenders++;
-
-    return false;
-
-  }
-
-  uiRenderState
-  .renderQueue
-  .push(
-    callback
-  );
-
-  if(
-    !uiRenderState
-    .scheduled
-  ){
-
-    uiRenderState
-    .scheduled =
-    true;
-
-    processUIRenderQueue();
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// REQUEST UI FRAME
-// =====================================
-
-function requestUIAnimationFrame(
-  callback
-){
-
-  return queueUIRender(
-    callback
-  );
-
-}
-
-
-
-// =====================================
-// CANCEL UI FRAME
-// =====================================
-
-function cancelUIAnimationFrame(){
-
-  if(
-
-    typeof cancelAnimationFrame !==
-    "function"
-
-  ){
-
-    uiRenderState
-    .pendingFrame =
-    null;
-
-    return false;
-
-  }
-
-  if(
-    uiRenderState
-    .pendingFrame
-  ){
-
-    cancelAnimationFrame(
-
-      uiRenderState
-      .pendingFrame
-
-    );
-
-    uiRenderState
-    .cancelledFrames++;
-
-    uiRenderState
-    .pendingFrame =
-    null;
-
-  }
-
-  uiRenderState
-  .scheduled =
-  false;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLEAR RENDER QUEUE
-// =====================================
-
-function clearUIRenderQueue(){
-
-  uiRenderState
-  .renderQueue
-  .length = 0;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// LOCK RENDERING
-// =====================================
-
-function lockUIRendering(){
-
-  uiState.renderLocked =
-  true;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UNLOCK RENDERING
-// =====================================
-
-function unlockUIRendering(){
-
-  uiState.renderLocked =
-  false;
-
-  if(
-
-    uiRenderState
-    .renderQueue
-    .length > 0
-
-  ){
-
-    processUIRenderQueue();
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RENDER DIAGNOSTICS
-// =====================================
-
-function getUIRenderDiagnostics(){
+function getRenderStats(){
 
   return Object.freeze({
 
-    scheduled:
-    uiRenderState
-    .scheduled,
-
     rendering:
-    uiRenderState
-    .rendering,
+    uiState.rendering,
 
-    queueSize:
+    queued:
 
-      uiRenderState
-      .renderQueue
-      .length,
-
-    completedRenders:
-
-      uiRenderState
-      .completedRenders,
-
-    failedRenders:
-
-      uiRenderState
-      .failedRenders,
-
-    cancelledFrames:
-
-      uiRenderState
-      .cancelledFrames,
-
-    renderLocked:
     uiState
-    .renderLocked
+    .renderQueue
+    .length,
+
+    locked:
+    uiState
+    .renderLocked,
+
+    lastRenderAt:
+    uiState
+    .lastRenderAt
 
   });
 
@@ -471,28 +275,50 @@ function getUIRenderDiagnostics(){
 // PUBLIC API
 // =====================================
 
-const UIRenderer =
+const UiRenderer =
 Object.freeze({
 
-  queue:
-  queueUIRender,
+  enqueueRender,
 
-  requestFrame:
-  requestUIAnimationFrame,
+  processRenderQueue,
 
-  cancelFrame:
-  cancelUIAnimationFrame,
+  renderFrame,
 
-  clearQueue:
-  clearUIRenderQueue,
+  batchRender,
 
-  lock:
-  lockUIRendering,
+  forceRender,
 
-  unlock:
-  unlockUIRendering,
+  clearRenderQueue,
 
-  diagnostics:
-  getUIRenderDiagnostics
+  getRenderStats
 
 });
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  enqueueRender,
+
+  processRenderQueue,
+
+  renderFrame,
+
+  batchRender,
+
+  forceRender,
+
+  clearRenderQueue,
+
+  getRenderStats,
+
+  UiRenderer
+
+};
+
+export default
+UiRenderer;
