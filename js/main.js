@@ -1,5 +1,8 @@
+import BootstrapManager
+from "./bootstrap/index.js";
+
 document.body.innerHTML = `
 <h1 style="color:green">
-MAIN WORKS
+BOOTSTRAP LOADED
 </h1>
 `;
