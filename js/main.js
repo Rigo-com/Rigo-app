@@ -1,7 +1,7 @@
-import "./bootstrap/bootstrap-setup.js";
+import "./core/index.js";
 
 document.body.innerHTML = `
 <h1 style="color:green">
-BOOTSTRAP SETUP OK
+CORE OK
 </h1>
 `;
