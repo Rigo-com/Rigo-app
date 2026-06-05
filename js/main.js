@@ -1,7 +1,7 @@
-import "./core/index.js";
+import "./core/constants/index.js";
 
 document.body.innerHTML = `
 <h1 style="color:green">
-CORE OK
+CONSTANTS OK
 </h1>
 `;
