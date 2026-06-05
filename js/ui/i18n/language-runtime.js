@@ -136,7 +136,7 @@ const TRANSLATIONS = {
       "رفع ملف"
     }
 
-    }
+  }
 
 };
 
@@ -1216,29 +1216,7 @@ Object.freeze({
 // =====================================
 
 export {
-
-  LANGUAGE_CONFIG,
-
-  LANGUAGE_RUNTIME_EVENTS,
-
-  initializeLanguageRuntime,
-
-  resetLanguageRuntime,
-
-  setLanguage,
-
-  getCurrentLanguage,
-
-  getTranslation,
-
-  registerTranslations,
-
-  formatNumber,
-
-  formatDate,
-
   LanguageRuntime
-
 };
 
 export default
