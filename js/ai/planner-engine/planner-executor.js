@@ -515,6 +515,99 @@ export async function executePlan(
 
 
 // =====================================
+// TERMINATE PLAN
+// =====================================
+
+export async function terminatePlan(
+  planId
+){
+
+  const normalizedId =
+  normalizePlanId(
+    planId
+  );
+
+  const plan =
+  plannerEngineState
+  .plans
+  .get(
+    normalizedId
+  );
+
+  if(
+    !plan
+  ){
+
+    return false;
+
+  }
+
+  plan.runtime
+  ?.controller
+  ?.abort();
+
+  plan.runtime.running =
+  false;
+
+  plan.runtime
+  .terminatedAt =
+  Date.now();
+
+  plan.state =
+  PLAN_STATES
+  .FAILED;
+
+  plannerEngineState
+  .activePlans
+  .delete(
+    normalizedId
+  );
+
+  plannerEngineState
+  .queuedPlans
+  .delete(
+    normalizedId
+  );
+
+  plannerEngineState
+  .executionLocks
+  .delete(
+    normalizedId
+  );
+
+  plannerEngineState
+  .failedPlans
+  .add(
+    normalizedId
+  );
+
+  plannerEngineState
+  .diagnostics
+  .terminated++;
+
+  await emitPlannerEvent(
+
+    PLAN_EVENTS
+    .FAILED,
+
+    {
+
+      planId:
+      normalizedId,
+
+      terminated:true
+
+    }
+
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
 // PROCESS REQUEST
 // =====================================
 
