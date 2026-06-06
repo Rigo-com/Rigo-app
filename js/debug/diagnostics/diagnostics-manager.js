@@ -264,14 +264,12 @@ function createDiagnosticsSnapshot(){
     diagnosticsState
     .healthScore,
 
-    diagnostics:
+    diagnostics:{
 
-    structuredClone(
-
-      diagnosticsState
+      ...diagnosticsState
       .diagnostics
 
-    ),
+    },
 
     errors:
 
