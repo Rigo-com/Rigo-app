@@ -41,7 +41,7 @@ Object.seal({
   new Map(),
 
   diagnostics:
-  object.seal({
+  Object.seal({
     registered:0,
 
     executed:0,
