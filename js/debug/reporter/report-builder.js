@@ -26,6 +26,35 @@ Object.freeze({
 
 
 // =====================================
+// ID
+// =====================================
+
+function createReportId(){
+
+  if(
+    globalThis
+    .crypto
+    ?.randomUUID
+  ){
+
+    return crypto
+    .randomUUID();
+
+  }
+
+  return `report-${
+    Date.now()
+  }-${
+    Math.random()
+    .toString(36)
+    .slice(2)
+  }`;
+
+}
+
+
+
+// =====================================
 // CREATE ITEM
 // =====================================
 
@@ -47,8 +76,7 @@ function createReportItem({
   return Object.freeze({
 
     id:
-
-    crypto.randomUUID(),
+    createReportId(),
 
     title,
 
@@ -88,7 +116,7 @@ function createReport({
   const report = {
 
     id:
-    crypto.randomUUID(),
+    createReportId(),
 
     title,
 
