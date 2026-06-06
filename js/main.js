@@ -1,5 +1,5 @@
-import "./memory/memory-state.js";
+import "./memory/memory-events.js";
 
 document.body.innerHTML = `
-<h1>MEMORY STATE OK</h1>
+<h1>MEMORY EVENTS OK</h1>
 `;
