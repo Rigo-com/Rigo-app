@@ -1,7 +1,8 @@
-import Storage
-from "./storage/index.js";
+import "./storage/storage-config.js";
+import "./storage/storage-state.js";
+import "./storage/storage-utils.js";
 
 document.body.innerHTML =
 `
-<h1>STORAGE INDEX OK</h1>
+<h1>GROUB 1 OK</h1>
 `;
