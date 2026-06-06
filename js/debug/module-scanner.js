@@ -37,23 +37,24 @@ export async function runModuleScanner(){
 
     catch(error){
 
-      results.push({
+  results.push({
 
-        module:
-        modulePath,
+    module: modulePath,
 
-        status:
-        "FAIL",
+    status: "FAIL",
 
-        message:
-        error?.message,
+    name: error?.name,
 
-        stack:
-        error?.stack
+    message: error?.message,
 
-      });
+    source:
+    error?.sourceURL ||
+    error?.fileName ||
+    error?.url
 
-    }
+  });
+
+}
 
   }
 
