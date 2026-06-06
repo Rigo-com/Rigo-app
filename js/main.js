@@ -1,7 +1,5 @@
-import "./memory/index.js";
+import "./memory/memory-constants.js";
 
 document.body.innerHTML = `
-<h1 style="color:green">
-MEMORY OK
-</h1>
+<h1>MEMORY CONSTANTS OK</h1>
 `;
