@@ -7,68 +7,60 @@
 
 
 // =====================================
-// MODULE SCANNER
+// IMPORTS
 // =====================================
 
-export {
+import {
   ModuleScanner
 }
 from "./module-scanner.js";
 
-
-
-// =====================================
-// DEPENDENCY SCANNER
-// =====================================
-
-export {
+import {
   DependencyScanner
 }
 from "./dependency-scanner.js";
 
-
-
-// =====================================
-// IMPORT SCANNER
-// =====================================
-
-export {
+import {
   ImportScanner
 }
 from "./import-scanner.js";
 
-
-
-// =====================================
-// SYNTAX SCANNER
-// =====================================
-
-export {
+import {
   SyntaxScanner
 }
 from "./syntax-scanner.js";
 
-
-
-// =====================================
-// CIRCULAR SCANNER
-// =====================================
-
-export {
+import {
   CircularScanner
 }
 from "./circular-scanner.js";
 
-
-
-// =====================================
-// RUNTIME SCANNER
-// =====================================
-
-export {
+import {
   RuntimeScanner
 }
 from "./runtime-scanner.js";
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  ModuleScanner,
+
+  DependencyScanner,
+
+  ImportScanner,
+
+  SyntaxScanner,
+
+  CircularScanner,
+
+  RuntimeScanner
+
+};
 
 
 
