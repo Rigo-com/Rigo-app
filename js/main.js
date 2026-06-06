@@ -1,2 +1,6 @@
+import "./storage/storage-utils.js";
+
+alert("loaded");
+
 document.body.innerHTML =
-"<h1>MAIN OK</h1>";
+"<h1>OK</h1>";
