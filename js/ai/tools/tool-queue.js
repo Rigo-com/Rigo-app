@@ -318,6 +318,8 @@ export async function processExecutionQueue(){
         )
         .catch(() => {});
 
+            }
+
       await delayExecution(
 
         TOOL_EXECUTOR_CONFIG
