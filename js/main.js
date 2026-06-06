@@ -3,13 +3,12 @@
 // APPLICATION ENTRY POINT
 // =====================================
 
-import BootstrapManager
-from "./bootstrap/index.js";
+console.log("MAIN START");
 
-document.body.innerHTML += `
-<h2 style="color:green">
-MAIN FILE EXECUTED
-</h2>
+document.body.innerHTML = `
+<h1 style="color:green">
+MAIN WORKING
+</h1>
 `;
 
 
@@ -74,4 +73,3 @@ ${error?.stack || error?.message || String(error)}
 // BOOT
 // =====================================
 
-void startApplication();
