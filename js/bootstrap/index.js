@@ -11,20 +11,13 @@ import {
 }
 from "./bootstrap-setup.js";
 
-export {
-  BootstrapManager
-};
-
-export default
-BootstrapManager;
-
 
 
 // =====================================
 // SETUP
 // =====================================
 
-// registerBootstrapSystems();;
+registerBootstrapSystems();
 
 
 
