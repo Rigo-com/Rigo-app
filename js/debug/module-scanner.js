@@ -6,19 +6,12 @@
 const modules = [
 
   "./core/index.js",
-  "./ai/index.js",
-  "./api/index.js",
-  "./auth/index.js",
-  "./chat/index.js",
-  "./communication/index.js",
-  "./memory/index.js",
-  "./search/index.js",
-  "./services/index.js",
-  "./settings/index.js",
-  "./shared/index.js",
-  "./storage/index.js",
-  "./ui/index.js",
-  "./voice/index.js"
+
+  "./core/app/index.js",
+  "./core/state/index.js",
+  "./core/events/index.js",
+  "./core/modules/index.js",
+  "./core/container/index.js",
 
 ];
 
