@@ -5,7 +5,15 @@
 
 const modules = [
 
-  "../core/runtime/index.js"
+  "../core/runtime/runtime-boot-sequence.js",
+
+  "../core/runtime/runtime-config.js",
+
+  "../core/runtime/runtime-helpers.js",
+
+  "../core/runtime/runtime-manager.js",
+
+  "../core/runtime/runtime-state.js"
 
 ];
 
