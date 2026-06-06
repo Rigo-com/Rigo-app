@@ -5,18 +5,39 @@
 
 const modules = [
 
-  "../ai/tools/tool-config.js",
-  "../ai/tools/tool-constants.js",
-  "../ai/tools/tool-state.js",
-  "../ai/tools/tool-utils.js",
-  "../ai/tools/tool-events.js",
-  "../ai/tools/tool-registry.js",
-  "../ai/tools/tool-index.js",
-  "../ai/tools/tool-reset.js",
-  "../ai/tools/tool-queue.js",
-  "../ai/tools/tool-executor.js",
-  "../ai/tools/tool-diagnostics.js",
-  "../ai/tools/tool-lifecycle.js"
+  "../ai/index.js",
+
+  "../api/index.js",
+
+  "../auth/index.js",
+
+  "../bootstrap/index.js",
+
+  "../chat/index.js",
+
+  "../communication/index.js",
+
+  "../core/index.js",
+
+  "../debug/index.js",
+
+  "../memory/index.js",
+
+  "../search/index.js",
+
+  "../security/index.js",
+
+  "../services/index.js",
+
+  "../settings/index.js",
+
+  "../shared/index.js",
+
+  "../storage/index.js",
+
+  "../ui/index.js",
+
+  "../voice/index.js"
 
 ];
 
