@@ -4,34 +4,18 @@
 // PUBLIC API
 // =====================================
 
-export {
+
+
+// =====================================
+// IMPORTS
+// =====================================
+
+import {
   ReportBuilder,
   ReportSeverity
 }
 from "./report-builder.js";
 
-export {
-  JsonReport
-}
-from "./json-report.js";
-
-export {
-  HtmlReport
-}
-from "./html-report.js";
-
-export {
-  ExportReport
-}
-from "./export-report.js";
-
-
-
-import {
-  ReportBuilder
-}
-from "./report-builder.js";
-
 import {
   JsonReport
 }
@@ -48,6 +32,30 @@ import {
 from "./export-report.js";
 
 
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  ReportBuilder,
+
+  ReportSeverity,
+
+  JsonReport,
+
+  HtmlReport,
+
+  ExportReport
+
+};
+
+
+
+// =====================================
+// DEFAULT API
+// =====================================
 
 const Reporter =
 Object.freeze({
@@ -67,6 +75,10 @@ Object.freeze({
 });
 
 
+
+// =====================================
+// EXPORTS
+// =====================================
 
 export default
 Reporter;
