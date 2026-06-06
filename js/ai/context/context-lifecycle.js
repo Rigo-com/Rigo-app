@@ -206,3 +206,19 @@ async function initializeContextManager(){
   .startupPromise;
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  initializeContextManager,
+
+  shutdownContextManager,
+
+  resetContextManager
+
+};
