@@ -5,11 +5,17 @@
 
 const modules = [
 
-  "./core/app/application-runtime.js",
-  "./core/state/state-transactions.js",
-  "./core/events/event-queue.js",
-  "./core/modules/module-runtime.js",
-  "./core/container/container-resolution.js"
+  "./debug/index.js",
+
+  "./debug/diagnostics/index.js",
+
+  "./debug/scanner/index.js",
+
+  "./debug/monitor/index.js",
+
+  "./debug/reporter/index.js",
+
+  "./debug/ui/index.js"
 
 ];
 
