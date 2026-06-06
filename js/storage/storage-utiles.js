@@ -103,8 +103,8 @@ function deepClone(
   value
 ){
 
-  return structuredClone(
-    value
+  return JSON.parse(
+    JSON.stringify(value)
   );
 
 }
