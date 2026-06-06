@@ -5,9 +5,17 @@
 
 const modules = [
 
-  "../ai/index.js",
+  "../ai/ai-kernel/index.js",
 
-  "../core/modules/module-runtime.js"
+  "../ai/context/index.js",
+
+  "../ai/tools/index.js",
+
+  "../ai/agent/index.js",
+
+  "../ai/planner-engine/index.js",
+
+  "../ai/workflow-engine/index.js"
 
 ];
 
