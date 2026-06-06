@@ -22,6 +22,11 @@ from "./module-activation.js";
 import ModuleRuntime
 from "./module-runtime.js";
 
+import {
+  registerCoreModules
+}
+from "./module-setup.js";
+
 
 
 // =====================================
@@ -34,17 +39,6 @@ async function initializeModules(){
   .initialize();
 
 }
-
-
-
-// =====================================
-// SETUP
-// =====================================
-
-export {
-  registerCoreModules
-}
-from "./module-setup.js";
 
 
 
@@ -136,7 +130,7 @@ Object.freeze({
 
   register:
   registerCoreModules,
-  
+
   initialize:
   initializeModules,
 
@@ -171,7 +165,7 @@ export {
   ModuleRuntime,
 
   registerCoreModules,
-  
+
   initializeModules,
 
   bootModules,
