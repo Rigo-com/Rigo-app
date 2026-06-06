@@ -135,7 +135,7 @@ Object.freeze({
   ModuleRuntime,
 
   register:
-  registerCoreModules,
+  null,
   
   initialize:
   initializeModules,
@@ -169,8 +169,6 @@ export {
   ModuleActivation,
 
   ModuleRuntime,
-
-  registerCoreModules,
   
   initializeModules,
 
