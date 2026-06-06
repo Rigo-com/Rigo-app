@@ -4,27 +4,11 @@
 // PUBLIC API
 // =====================================
 
-export {
-  DebugDashboard
-}
-from "./debug-dashboard.js";
-
-export {
-  DebugTable
-}
-from "./debug-table.js";
-
-export {
-  DebugWidgets
-}
-from "./debug-widgets.js";
-
-export {
-  DebugConsole
-}
-from "./debug-console.js";
 
 
+// =====================================
+// IMPORTS
+// =====================================
 
 import {
   DebugDashboard
@@ -47,6 +31,28 @@ import {
 from "./debug-console.js";
 
 
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  DebugDashboard,
+
+  DebugTable,
+
+  DebugWidgets,
+
+  DebugConsole
+
+};
+
+
+
+// =====================================
+// DEFAULT API
+// =====================================
 
 const DebugUI =
 Object.freeze({
@@ -66,6 +72,10 @@ Object.freeze({
 });
 
 
+
+// =====================================
+// EXPORTS
+// =====================================
 
 export default
 DebugUI;
