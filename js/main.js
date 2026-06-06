@@ -1,7 +1,8 @@
-import "./core/modules/index.js";
+import ModuleRuntime
+from "./core/modules/module-runtime.js";
 
 document.body.innerHTML = `
 <h1 style="color:green">
-MODULES OKk
+RUNTIME OK
 </h1>
 `;
