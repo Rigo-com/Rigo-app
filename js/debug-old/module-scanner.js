@@ -5,11 +5,7 @@
 
 const modules = [
 
-  "../core/app/app-dom.js",
-  "../core/app/app-manager.js",
-  "../core/app/app-recovery.js",
-  "../core/app/app-state.js",
-  "../core/app/application-runtime.js"
+  "../core/runtime/index.js"
 
 ];
 
