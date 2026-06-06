@@ -1,5 +1,5 @@
-import "./memory/memory-types.js";
+import "./memory/memory-state.js";
 
 document.body.innerHTML = `
-<h1>MEMORY TYPES OK</h1>
+<h1>MEMORY STATE OK</h1>
 `;
