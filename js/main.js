@@ -1,5 +1,5 @@
 import runModuleScanner
-from "./debug-old/module-scanner.js";
+from "../debug-old/module-scanner.js";
 
 runModuleScanner()
 .then(
