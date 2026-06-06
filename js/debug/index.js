@@ -118,6 +118,89 @@ function openDashboard(){
 
 
 // =====================================
+// STOP
+// =====================================
+
+function stopDebugSystem(){
+
+  Monitor
+  .memory
+  .stop();
+
+  Monitor
+  .performance
+  .stop();
+
+  Monitor
+  .network
+  .stop();
+
+  Monitor
+  .events
+  .stop();
+
+  Monitor
+  .services
+  .stop();
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function createDebugSnapshot(){
+
+  return Object.freeze({
+
+    diagnostics:
+
+    Diagnostics
+    .snapshot(),
+
+    memory:
+
+    Monitor
+    .memory
+    .snapshot(),
+
+    performance:
+
+    Monitor
+    .performance
+    .snapshot(),
+
+    network:
+
+    Monitor
+    .network
+    .snapshot(),
+
+    events:
+
+    Monitor
+    .events
+    .snapshot(),
+
+    services:
+
+    Monitor
+    .services
+    .snapshot(),
+
+    timestamp:
+    Date.now()
+
+  });
+
+}
+
+
+// =====================================
 // API
 // =====================================
 
@@ -142,8 +225,17 @@ Object.freeze({
   initialize:
   initializeDebugSystem,
 
+  start:
+  initializeDebugSystem,
+
+  stop:
+  stopDebugSystem,
+
   report:
   createSystemReport,
+
+  snapshot:
+  createDebugSnapshot,
 
   dashboard:
   openDashboard
