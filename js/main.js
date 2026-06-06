@@ -1,7 +1,19 @@
-import Debug
-from "./debug/index.js";
+import runModuleScanner
+from "./debug-old/module-scanner.js";
 
-console.log(
-  "DEBUG SYSTEM",
-  Debug
+runModuleScanner()
+.then(
+  results => {
+
+    document.body.innerHTML =
+
+    `<pre>${
+      JSON.stringify(
+        results,
+        null,
+        2
+      )
+    }</pre>`;
+
+  }
 );
