@@ -1,5 +1,7 @@
-import "./memory/memory-storage.js";
+import Storage
+from "./storage/index.js";
 
-document.body.innerHTML = `
-<h1>MEMORY STORAGE OK</h1>
+document.body.innerHTML =
+`
+<h1>STORAGE INDEX OK</h1>
 `;
