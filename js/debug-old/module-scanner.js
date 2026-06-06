@@ -1,75 +1,79 @@
-// =====================================
-// RIGO AI
-// MODULE SCANNER
-// =====================================
-
 const modules = [
 
-  "../ai/tools/tool-config.js",
-  "../ai/tools/tool-constants.js",
-  "../ai/tools/tool-state.js",
-  "../ai/tools/tool-utils.js",
-  "../ai/tools/tool-events.js",
-  "../ai/tools/tool-registry.js",
-  "../ai/tools/tool-index.js",
-  "../ai/tools/tool-reset.js",
-  "../ai/tools/tool-queue.js",
-  "../ai/tools/tool-executor.js",
-  "../ai/tools/tool-diagnostics.js",
-  "../ai/tools/tool-lifecycle.js"
+  "../ai/index.js",
+  "../api/index.js",
+  "../auth/index.js",
+  "../bootstrap/index.js",
+  "../chat/index.js",
+  "../communication/index.js",
+  "../core/index.js",
+  "../debug/index.js",
+  "../memory/index.js",
+  "../search/index.js",
+  "../security/index.js",
+  "../services/index.js",
+  "../settings/index.js",
+  "../shared/index.js",
+  "../storage/index.js",
+  "../ui/index.js",
+  "../voice/index.js"
 
 ];
 
+const results = [];
 
+for(const modulePath of modules){
 
-export async function runModuleScanner(){
+  try{
 
-  const results = [];
+    await import(
+      modulePath
+    );
 
-  for(
-    const modulePath
-    of modules
-  ){
+    results.push({
 
-    try{
+      module:
+      modulePath,
 
-      await import(modulePath);
+      status:
+      "PASS"
 
-      results.push({
-        module: modulePath,
-        status: "PASS"
-      });
-
-    }
-
-    catch(error){
-
-  results.push({
-
-    module: modulePath,
-
-    status: "FAIL",
-
-    name: error?.name,
-
-    message: error?.message,
-
-    source:
-    error?.sourceURL ||
-    error?.fileName ||
-    error?.url
-
-  });
-
-}
+    });
 
   }
 
-  return results;
+  catch(error){
+
+    results.push({
+
+      module:
+      modulePath,
+
+      status:
+      "FAIL",
+
+      name:
+      error?.name,
+
+      message:
+      error?.message,
+
+      source:
+      error?.sourceURL ||
+      error?.fileName ||
+      null
+
+    });
+
+  }
 
 }
 
-
-
-export default
-runModuleScanner;
+document.body.innerHTML =
+`<pre>${
+JSON.stringify(
+  results,
+  null,
+  2
+)
+}</pre>`;
