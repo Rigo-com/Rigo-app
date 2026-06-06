@@ -292,14 +292,12 @@ function createRuntimeSnapshot(){
     runtimeScannerState
     .lastError,
 
-    diagnostics:
+    diagnostics:{
 
-    structuredClone(
-
-      runtimeScannerState
+      ...runtimeScannerState
       .diagnostics
 
-    ),
+    },
 
     timestamp:
     Date.now()
