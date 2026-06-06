@@ -7,54 +7,30 @@
 
 
 // =====================================
-// MEMORY
+// IMPORTS
 // =====================================
 
-export {
+import {
   MemoryMonitor
 }
 from "./memory-monitor.js";
 
-
-
-// =====================================
-// PERFORMANCE
-// =====================================
-
-export {
+import {
   PerformanceMonitor
 }
 from "./performance-monitor.js";
 
-
-
-// =====================================
-// NETWORK
-// =====================================
-
-export {
+import {
   NetworkMonitor
 }
 from "./network-monitor.js";
 
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-export {
+import {
   EventMonitor
 }
 from "./event-monitor.js";
 
-
-
-// =====================================
-// SERVICES
-// =====================================
-
-export {
+import {
   ServiceMonitor,
 
   ServiceStatus
@@ -65,35 +41,30 @@ from "./service-monitor.js";
 
 
 // =====================================
-// DEFAULT API
+// EXPORTS
 // =====================================
 
-import {
-  MemoryMonitor
-}
-from "./memory-monitor.js";
+export {
 
-import {
-  PerformanceMonitor
-}
-from "./performance-monitor.js";
+  MemoryMonitor,
 
-import {
-  NetworkMonitor
-}
-from "./network-monitor.js";
+  PerformanceMonitor,
 
-import {
-  EventMonitor
-}
-from "./event-monitor.js";
+  NetworkMonitor,
 
-import {
-  ServiceMonitor
-}
-from "./service-monitor.js";
+  EventMonitor,
+
+  ServiceMonitor,
+
+  ServiceStatus
+
+};
 
 
+
+// =====================================
+// DEFAULT API
+// =====================================
 
 const Monitor =
 Object.freeze({
