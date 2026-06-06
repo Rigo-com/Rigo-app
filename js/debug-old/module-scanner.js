@@ -5,17 +5,18 @@
 
 const modules = [
 
-  "../ai/ai-kernel/index.js",
-
-  "../ai/context/index.js",
-
-  "../ai/tools/index.js",
-
-  "../ai/agent/index.js",
-
-  "../ai/planner-engine/index.js",
-
-  "../ai/workflow-engine/index.js"
+  "../ai/tools/tool-config.js",
+  "../ai/tools/tool-constants.js",
+  "../ai/tools/tool-state.js",
+  "../ai/tools/tool-utils.js",
+  "../ai/tools/tool-events.js",
+  "../ai/tools/tool-registry.js",
+  "../ai/tools/tool-index.js",
+  "../ai/tools/tool-reset.js",
+  "../ai/tools/tool-queue.js",
+  "../ai/tools/tool-executor.js",
+  "../ai/tools/tool-diagnostics.js",
+  "../ai/tools/tool-lifecycle.js"
 
 ];
 
