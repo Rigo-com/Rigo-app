@@ -1,35 +1,15 @@
-try {
+import runModuleScanner
+from "./debug/module-scanner.js";
 
-  await import("./bootstrap/index.js");
+const results =
+await runModuleScanner();
 
-  document.body.innerHTML = `
-    <h1 style="color:green">
-      SUCCESS
-    </h1>
-  `;
-
-}
-catch(error){
-
-  document.body.innerHTML = `
-<pre style="
-white-space:pre-wrap;
-padding:20px;
-color:red;
-font-size:14px;
-">
-TYPE:
-${typeof error}
-
-MESSAGE:
-${error?.message}
-
-STACK:
-${error?.stack}
-
-STRING:
-${String(error)}
+document.body.innerHTML = `
+<pre>
+${JSON.stringify(
+  results,
+  null,
+  2
+)}
 </pre>
 `;
-
-}
