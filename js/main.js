@@ -1,15 +1,7 @@
-import runModuleScanner
-from "./debug/module-scanner.js";
+import Debug
+from "./debug/index.js";
 
-const results =
-await runModuleScanner();
-
-document.body.innerHTML = `
-<pre>
-${JSON.stringify(
-  results,
-  null,
-  2
-)}
-</pre>
-`;
+console.log(
+  "DEBUG SYSTEM",
+  Debug
+);
