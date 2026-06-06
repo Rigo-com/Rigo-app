@@ -5,17 +5,11 @@
 
 const modules = [
 
-  "./debug/index.js",
-
-  "./debug/diagnostics/index.js",
-
-  "./debug/scanner/index.js",
-
-  "./debug/monitor/index.js",
-
-  "./debug/reporter/index.js",
-
-  "./debug/ui/index.js"
+  "./debug/diagnostics/diagnostics-state.js",
+  "./debug/scanner/module-scanner.js",
+  "./debug/monitor/memory-monitor.js",
+  "./debug/reporter/report-builder.js",
+  "./debug/ui/debug-dashboard.js"
 
 ];
 
