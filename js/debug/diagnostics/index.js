@@ -7,21 +7,15 @@
 
 
 // =====================================
-// STATE
+// IMPORTS
 // =====================================
 
-export {
+import {
   diagnosticsState
 }
 from "./diagnostics-state.js";
 
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-export {
+import {
   DiagnosticsEvents,
   on,
   off,
@@ -30,31 +24,115 @@ export {
 }
 from "./diagnostics-events.js";
 
-
-
-// =====================================
-// STORAGE
-// =====================================
-
-export {
+import {
   saveDiagnostics,
   loadDiagnostics,
   clearDiagnostics
 }
 from "./diagnostics-storage.js";
 
-
-
-// =====================================
-// MANAGER
-// =====================================
-
-export {
+import {
   DiagnosticsManager
 }
 from "./diagnostics-manager.js";
 
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
 export {
-  default
-}
-from "./diagnostics-manager.js";
+
+  diagnosticsState,
+
+  DiagnosticsEvents,
+
+  on,
+
+  off,
+
+  emit,
+
+  clear,
+
+  saveDiagnostics,
+
+  loadDiagnostics,
+
+  clearDiagnostics,
+
+  DiagnosticsManager
+
+};
+
+
+
+// =====================================
+// DEFAULT API
+// =====================================
+
+const Diagnostics =
+Object.freeze({
+
+  state:
+  diagnosticsState,
+
+  events:
+  DiagnosticsEvents,
+
+  on,
+
+  off,
+
+  emit,
+
+  clear,
+
+  save:
+  saveDiagnostics,
+
+  load:
+  loadDiagnostics,
+
+  clearStorage:
+  clearDiagnostics,
+
+  initialize:
+  DiagnosticsManager
+  .initialize,
+
+  start:
+  DiagnosticsManager
+  .start,
+
+  stop:
+  DiagnosticsManager
+  .stop,
+
+  snapshot:
+  DiagnosticsManager
+  .snapshot,
+
+  addWarning:
+  DiagnosticsManager
+  .addWarning,
+
+  addError:
+  DiagnosticsManager
+  .addError,
+
+  addCriticalIssue:
+  DiagnosticsManager
+  .addCriticalIssue
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export default
+Diagnostics;
