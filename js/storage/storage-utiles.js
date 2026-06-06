@@ -4,11 +4,7 @@
 // UTILITY LAYER
 // =====================================
 
-import {
-  STORAGE_KEYS,
-  STORAGE_NAMESPACES
-}
-from "./storage-config.js";
+
 
 
 
@@ -193,14 +189,7 @@ function isValidNamespace(
   namespace
 ){
 
-  return Object.values(
-
-    STORAGE_NAMESPACES
-
-  )
-  .includes(
-    namespace
-  );
+  return true;
 
 }
 
@@ -210,37 +199,9 @@ function getStorageRootKey(
   namespace
 ){
 
-  switch(namespace){
+  return namespace;
 
-    case
-    STORAGE_NAMESPACES.CHAT:
-
-      return STORAGE_KEYS
-      .CHATS;
-
-    case
-    STORAGE_NAMESPACES.MEMORY:
-
-      return STORAGE_KEYS
-      .MEMORY;
-
-    case
-    STORAGE_NAMESPACES.SETTINGS:
-
-      return STORAGE_KEYS
-      .SETTINGS;
-
-    case
-    STORAGE_NAMESPACES.RUNTIME:
-
-      return STORAGE_KEYS
-      .RUNTIME;
-
-    default:
-
-      return null;
-
-  }
+}
 
 }
 
