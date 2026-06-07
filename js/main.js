@@ -1,22 +1,120 @@
-import * as RIGO
-from "./index.js";
+// =====================================
+// RIGO UI RECOVERY SCAN
+// =====================================
 
-const pre =
-document.createElement("pre");
+function findUi(){
 
-pre.textContent =
-JSON.stringify({
+  const selectors = [
 
-  bodyChildren:
-  document.body.children.length,
+    "#app",
+    "#root",
+    "#chat",
+    "#chat-app",
+    "#rigo",
+    ".app",
+    ".root",
+    ".chat-container"
 
-  bodyHtmlLength:
-  document.body.innerHTML.length,
+  ];
 
-  first200:
-  document.body.innerHTML
-  .slice(0,200)
+  for(
+    const selector
+    of selectors
+  ){
 
-}, null, 2);
+    const element =
+    document.querySelector(
+      selector
+    );
 
-document.body.appendChild(pre);
+    if(
+      element
+    ){
+
+      return {
+
+        found:true,
+
+        selector
+
+      };
+
+    }
+
+  }
+
+  return {
+
+    found:false
+
+  };
+
+}
+
+
+
+// =====================================
+// SCAN
+// =====================================
+
+const result =
+findUi();
+
+
+
+// =====================================
+// BUILD FALLBACK UI
+// =====================================
+
+if(
+  !result.found
+){
+
+  document.body.innerHTML =
+  `
+  <div
+    id="rigo-recovery"
+    style="
+      padding:20px;
+      font-size:20px;
+      font-family:sans-serif;
+    "
+  >
+
+    <h1>
+      RIGO UI RECOVERY
+    </h1>
+
+    <p>
+      No UI root found.
+    </p>
+
+    <div id="messages"></div>
+
+    <input
+      id="messageInput"
+      placeholder="Type..."
+    />
+
+    <button id="sendButton">
+      Send
+    </button>
+
+  </div>
+  `;
+
+}
+else{
+
+  document.body.innerHTML =
+  `
+  <pre>
+${JSON.stringify(
+  result,
+  null,
+  2
+)}
+  </pre>
+  `;
+
+}
