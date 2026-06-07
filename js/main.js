@@ -24,6 +24,9 @@ async function startApplication(){
       error
     );
 
+    document.body.innerHTML =
+    `<pre>${error?.stack || error}</pre>`;
+
   }
 
 }
