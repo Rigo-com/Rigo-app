@@ -412,24 +412,6 @@ function sanitizeInternal(
 
 }
 
-      sanitized[key] =
-
-      sanitizeInternal(
-
-        value[key],
-
-        depth + 1,
-
-        visited
-
-      );
-
-    });
-
-    return sanitized;
-
-  }
-
 
 
   // ================================
