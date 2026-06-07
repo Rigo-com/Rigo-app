@@ -180,7 +180,40 @@ function log(
       );
 
     }
+    
 
+    log(
+  "DOM CHECK",
+  {
+
+    app:
+    document.getElementById(
+      "app"
+    ),
+
+    appRoot:
+    document.querySelector(
+      "[data-app-root]"
+    ),
+
+    messageInput:
+    document.getElementById(
+      "messageInput"
+    ),
+
+    sendBtn:
+    document.getElementById(
+      "sendBtn"
+    ),
+
+    chatContainer:
+    document.querySelector(
+      ".chat-container"
+    )
+
+  }
+);
+    
 
 
     log(
