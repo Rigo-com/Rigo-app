@@ -9,23 +9,20 @@ document.createElement("pre");
 pre.textContent =
 JSON.stringify({
 
-  hasUiState:
-  !!RIGO.uiState,
+  appById:
+  document.getElementById("app"),
 
-  hasUiElements:
-  !!RIGO.UiElements,
+  rootById:
+  document.getElementById("root"),
 
-  app:
-  RIGO.UiElements?.getApp?.(),
+  appQuery:
+  document.querySelector("#app"),
 
-  input:
-  RIGO.UiElements?.getInput?.(),
+  rootQuery:
+  document.querySelector("#root"),
 
-  messages:
-  RIGO.UiElements?.getMessagesContainer?.(),
-
-  validation:
-  RIGO.UiElements?.validateElements?.()
+  bodyChildren:
+  document.body.children.length
 
 }, null, 2);
 
