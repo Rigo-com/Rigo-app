@@ -2,19 +2,18 @@ export default async function runModuleScanner(){
 
   const modules = [
 
-  "../core/constants/index.js",
-  "../core/config/index.js",
-  "../core/container/index.js",
-  "../core/events/index.js",
-  "../core/state/index.js",
-  "../core/modules/index.js",
-  "../core/runtime/index.js",
-  "../core/lifecycle/index.js",
-  "../core/health/index.js",
-  "../core/app/index.js",
-  "../core/index.js"
+    "../core/constants/index.js",
+    "../core/config/index.js",
+    "../core/container/index.js",
+    "../core/events/index.js",
+    "../core/state/index.js",
+    "../core/modules/index.js",
+    "../core/runtime/index.js",
+    "../core/lifecycle/index.js",
+    "../core/health/index.js",
+    "../core/app/index.js"
 
-];
+  ];
 
   const results = [];
 
@@ -22,11 +21,31 @@ export default async function runModuleScanner(){
 
     try{
 
+      const module =
       await import(modulePath);
 
       results.push({
-        module: modulePath,
-        status: "PASS"
+
+        module:
+        modulePath,
+
+        status:
+        "PASS",
+
+        hasDefault:
+
+          Object.prototype
+          .hasOwnProperty
+          .call(
+            module,
+            "default"
+          ),
+
+        exports:
+        Object.keys(
+          module
+        )
+
       });
 
     }
@@ -35,18 +54,17 @@ export default async function runModuleScanner(){
 
       results.push({
 
-        module: modulePath,
+        module:
+        modulePath,
 
-        status: "FAIL",
+        status:
+        "FAIL",
 
-        name: error?.name,
+        name:
+        error?.name,
 
-        message: error?.message,
-
-        source:
-        error?.sourceURL ||
-        error?.fileName ||
-        null
+        message:
+        error?.message
 
       });
 
