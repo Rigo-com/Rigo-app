@@ -1,61 +1,36 @@
 import * as RIGO
 from "./index.js";
 
-const matches = [];
+const results = {};
 
-for(
-  const [moduleName,module]
-  of Object.entries(RIGO)
-){
+try{
+  results.UI_bootstrap =
+  await RIGO.UI.bootstrapUi();
+}catch(error){
+  results.UI_bootstrap =
+  error.message;
+}
 
-  if(
-    !module ||
-    typeof module !== "object"
-  ){
-    continue;
-  }
+try{
+  results.UI_render =
+  await RIGO.UI.render();
+}catch(error){
+  results.UI_render =
+  error.message;
+}
 
-  for(
-    const key
-    of Object.keys(module)
-  ){
-
-    const name =
-    key.toLowerCase();
-
-    if(
-
-      name.includes("render")
-      ||
-      name.includes("ui")
-      ||
-      name.includes("element")
-      ||
-      name.includes("dom")
-      ||
-      name.includes("mount")
-      ||
-      name.includes("create")
-
-    ){
-
-      matches.push({
-
-        module:moduleName,
-        function:key
-
-      });
-
-    }
-
-  }
-
+try{
+  results.Runtime_bootstrap =
+  await RIGO.UiRuntime.bootstrapUi();
+}catch(error){
+  results.Runtime_bootstrap =
+  error.message;
 }
 
 document.body.innerHTML =
 `<pre>${
 JSON.stringify(
-  matches,
+  results,
   null,
   2
 )
