@@ -1,11 +1,32 @@
-import * as RIGO from "./index.js";
+import * as RIGO
+from "./index.js";
 
-console.log("UI", RIGO.UI);
-console.log("UiRuntime", RIGO.UiRuntime);
+document.body.innerHTML = "";
 
-await RIGO.UiRuntime?.initializeUi?.();
+const pre =
+document.createElement("pre");
 
-await RIGO.UiRuntime?.render?.();
+pre.textContent =
+JSON.stringify({
 
-document.body.innerHTML +=
-"<h1>UI CALLED</h1>";
+  hasUiState:
+  !!RIGO.uiState,
+
+  hasUiElements:
+  !!RIGO.UiElements,
+
+  app:
+  RIGO.UiElements?.getApp?.(),
+
+  input:
+  RIGO.UiElements?.getInput?.(),
+
+  messages:
+  RIGO.UiElements?.getMessagesContainer?.(),
+
+  validation:
+  RIGO.UiElements?.validateElements?.()
+
+}, null, 2);
+
+document.body.appendChild(pre);
