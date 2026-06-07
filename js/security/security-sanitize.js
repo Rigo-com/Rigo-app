@@ -532,3 +532,5 @@ export {
   SecuritySanitize
 
 };
+
+export default SecuritySanitize;
