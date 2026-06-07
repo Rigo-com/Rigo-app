@@ -253,3 +253,5 @@ export {
   SecurityURL
 
 };
+
+export default SecurityURL;
