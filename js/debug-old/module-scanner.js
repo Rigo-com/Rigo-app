@@ -36,7 +36,6 @@ export default async function runModuleScanner(){
 
   "../index.js",
 
-  "../main.js"
 
 ];
 
