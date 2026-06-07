@@ -1,18 +1,42 @@
 export default async function runModuleScanner(){
 
-  const modules = [
+  const MODULES = [
 
-  "../core/constants/index.js",
-  "../core/config/index.js",
-  "../core/container/index.js",
-  "../core/events/index.js",
-  "../core/state/index.js",
-  "../core/modules/index.js",
-  "../core/runtime/index.js",
-  "../core/lifecycle/index.js",
-  "../core/health/index.js",
-  "../core/app/index.js",
-  "../core/index.js"
+  "../ai/index.js",
+
+  "../api/index.js",
+
+  "../auth/index.js",
+
+  "../bootstrap/index.js",
+
+  "../chat/index.js",
+
+  "../communication/index.js",
+
+  "../core/index.js",
+
+  "../memory/index.js",
+
+  "../search/index.js",
+
+  "../security/index.js",
+
+  "../services/index.js",
+
+  "../settings/index.js",
+
+  "../shared/index.js",
+
+  "../storage/index.js",
+
+  "../ui/index.js",
+
+  "../voice/index.js",
+
+  "../index.js",
+
+  "../main.js"
 
 ];
 
