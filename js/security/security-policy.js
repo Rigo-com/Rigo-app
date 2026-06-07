@@ -275,3 +275,5 @@ export {
   SecurityPolicy
 
 };
+
+export default SecurityPolicy;
