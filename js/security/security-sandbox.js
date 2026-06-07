@@ -248,3 +248,5 @@ export {
   SecuritySandbox
 
 };
+
+export default SecuritySandbox;
