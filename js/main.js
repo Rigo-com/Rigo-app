@@ -2,7 +2,9 @@ import * as RIGO from "./index.js";
 
 document.body.innerHTML =
 `<pre>${
-RIGO.UI
-?.bootstrapUi
+RIGO.initializeUi
+?.toString?.()
+||
+RIGO.UI.initializeUi
 ?.toString?.()
 }</pre>`;
