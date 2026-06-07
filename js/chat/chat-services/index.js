@@ -32,3 +32,33 @@ export {
   default as ChatRenderService
 }
 from "./chat-render-service.js";
+
+
+
+import ChatMessageService
+from "./chat-message-service.js";
+
+import ChatQueueService
+from "./chat-queue-service.js";
+
+import ChatStreamService
+from "./chat-stream-service.js";
+
+import ChatRenderService
+from "./chat-render-service.js";
+
+const ChatServices =
+Object.freeze({
+
+  ChatMessageService,
+
+  ChatQueueService,
+
+  ChatStreamService,
+
+  ChatRenderService
+
+});
+
+export default
+ChatServices;
