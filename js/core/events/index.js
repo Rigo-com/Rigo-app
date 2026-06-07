@@ -3,6 +3,12 @@
 // EVENTS INDEX
 // =====================================
 
+import SystemEvents
+from "./event-manager.js";
+
+import AppEvents
+from "./event-app.js";
+
 export * from "./event-types.js";
 
 export * from "./event-manager.js";
@@ -10,11 +16,9 @@ export * from "./event-manager.js";
 export * from "./event-app.js";
 
 export {
-  default as SystemEvents
-}
-from "./event-manager.js";
+  SystemEvents,
+  AppEvents
+};
 
-export {
-  default as AppEvents
-}
-from "./event-app.js";
+export default
+SystemEvents;
