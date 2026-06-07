@@ -3,15 +3,12 @@
 // CONTAINER INDEX
 // =====================================
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
+export {
+  RIGOContainer
+}
+from "./container.js";
 
 export {
-
-  RIGOContainer
-
+  default
 }
 from "./container.js";
