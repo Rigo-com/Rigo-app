@@ -2,14 +2,17 @@ export default async function runModuleScanner(){
 
   const modules = [
 
-  "../bootstrap/bootstrap-config.js",
-  "../bootstrap/bootstrap-diagnostics.js",
-  "../bootstrap/bootstrap-lifecycle.js",
-  "../bootstrap/bootstrap-manager.js",
-  "../bootstrap/bootstrap-registry.js",
-  "../bootstrap/bootstrap-setup.js",
-  "../bootstrap/bootstrap-state.js",
-  "../bootstrap/index.js"
+  "../core/constants/index.js",
+  "../core/config/index.js",
+  "../core/container/index.js",
+  "../core/events/index.js",
+  "../core/state/index.js",
+  "../core/modules/index.js",
+  "../core/runtime/index.js",
+  "../core/lifecycle/index.js",
+  "../core/health/index.js",
+  "../core/app/index.js",
+  "../core/index.js"
 
 ];
 
