@@ -1,120 +1,62 @@
-// =====================================
-// RIGO UI RECOVERY SCAN
-// =====================================
+import * as RIGO
+from "./index.js";
 
-function findUi(){
+const matches = [];
 
-  const selectors = [
+for(
+  const [moduleName,module]
+  of Object.entries(RIGO)
+){
 
-    "#app",
-    "#root",
-    "#chat",
-    "#chat-app",
-    "#rigo",
-    ".app",
-    ".root",
-    ".chat-container"
-
-  ];
+  if(
+    !module ||
+    typeof module !== "object"
+  ){
+    continue;
+  }
 
   for(
-    const selector
-    of selectors
+    const key
+    of Object.keys(module)
   ){
 
-    const element =
-    document.querySelector(
-      selector
-    );
+    const name =
+    key.toLowerCase();
 
     if(
-      element
+
+      name.includes("render")
+      ||
+      name.includes("ui")
+      ||
+      name.includes("element")
+      ||
+      name.includes("dom")
+      ||
+      name.includes("mount")
+      ||
+      name.includes("create")
+
     ){
 
-      return {
+      matches.push({
 
-        found:true,
+        module:moduleName,
+        function:key
 
-        selector
-
-      };
+      });
 
     }
 
   }
 
-  return {
-
-    found:false
-
-  };
-
 }
 
-
-
-// =====================================
-// SCAN
-// =====================================
-
-const result =
-findUi();
-
-
-
-// =====================================
-// BUILD FALLBACK UI
-// =====================================
-
-if(
-  !result.found
-){
-
-  document.body.innerHTML =
-  `
-  <div
-    id="rigo-recovery"
-    style="
-      padding:20px;
-      font-size:20px;
-      font-family:sans-serif;
-    "
-  >
-
-    <h1>
-      RIGO UI RECOVERY
-    </h1>
-
-    <p>
-      No UI root found.
-    </p>
-
-    <div id="messages"></div>
-
-    <input
-      id="messageInput"
-      placeholder="Type..."
-    />
-
-    <button id="sendButton">
-      Send
-    </button>
-
-  </div>
-  `;
-
-}
-else{
-
-  document.body.innerHTML =
-  `
-  <pre>
-${JSON.stringify(
-  result,
+document.body.innerHTML =
+`<pre>${
+JSON.stringify(
+  matches,
   null,
   2
-)}
-  </pre>
-  `;
-
-}
+)
+}</pre>`;
