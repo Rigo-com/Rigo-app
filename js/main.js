@@ -1,16 +1,24 @@
 // =====================================
 // RIGO AI
-// DEBUG MAIN
+// ROOT SYSTEM SCANNER
 // =====================================
 
-import Bootstrap
-from "./bootstrap/index.js";
+import * as RIGO
+from "./index.js";
 
 
 
-function log(
+// =====================================
+// UI HELPERS
+// =====================================
+
+document.body.innerHTML = "";
+
+
+
+function printBlock(
   title,
-  value = ""
+  data
 ){
 
   const block =
@@ -19,10 +27,10 @@ function log(
   );
 
   block.style.padding =
-  "8px";
+  "12px";
 
   block.style.margin =
-  "8px";
+  "12px";
 
   block.style.border =
   "1px solid #444";
@@ -30,25 +38,30 @@ function log(
   block.style.whiteSpace =
   "pre-wrap";
 
+  block.style.fontSize =
+  "12px";
+
   block.textContent =
 
-    `[${title}]\n\n` +
+    `[${title}]`
+
+    +
+
+    "\n\n"
+
+    +
 
     (
-      typeof value ===
+      typeof data ===
       "string"
 
-      ?
+      ? data
 
-      value
-
-      :
-
-      JSON.stringify(
-        value,
-        null,
-        2
-      )
+      : JSON.stringify(
+          data,
+          null,
+          2
+        )
     );
 
   document.body
@@ -60,173 +73,117 @@ function log(
 
 
 
-(async() => {
+// =====================================
+// START
+// =====================================
+
+printBlock(
+  "RIGO SCANNER",
+  "STARTED"
+);
+
+
+
+// =====================================
+// ROOT EXPORTS
+// =====================================
+
+const rootExports =
+
+  Object.keys(
+    RIGO
+  );
+
+printBlock(
+  "ROOT EXPORTS",
+  rootExports
+);
+
+
+
+// =====================================
+// MODULE INSPECTION
+// =====================================
+
+for(
+  const moduleName
+  of rootExports
+){
 
   try{
 
-    log(
-      "STEP 1",
-      "MAIN STARTED"
-    );
+    const module =
+    RIGO[moduleName];
+
+    const report =
+    {
+
+      exists:
+      Boolean(
+        module
+      ),
+
+      type:
+      typeof module,
+
+      keys:
+      []
+
+    };
 
 
 
-    log(
-      "STEP 2",
-      "BOOTSTRAP IMPORTED"
-    );
+    if(
 
+      module &&
 
+      (
+        typeof module ===
+        "object"
 
-    log(
-      "STEP 3",
-      "BOOT STARTING"
-    );
+        ||
 
-
-
-    const result =
-    await Bootstrap
-    .boot();
-
-
-
-    log(
-      "STEP 4",
-      {
-        bootResult:
-        result
-      }
-    );
-
-
-
-    log(
-      "STEP 5",
-      {
-        bodyChildren:
-        document.body
-        .children
-        .length
-      }
-    );
-
-
-
-    const appRoot =
-
-      document
-      .querySelector(
-        "#app"
+        typeof module ===
+        "function"
       )
 
-      ||
-
-      document
-      .querySelector(
-        "[data-app-root]"
-      );
-
-
-
-    log(
-      "STEP 6",
-      {
-        appRootExists:
-        Boolean(
-          appRoot
-        )
-      }
-    );
-
-
-
-    log(
-      "STEP 7",
-      {
-        bodyHTML:
-
-          document.body
-          .innerHTML
-          .slice(
-            0,
-            3000
-          )
-      }
-    );
-
-
-
-    if(
-      window.Core
     ){
 
-      log(
-        "CORE FOUND",
-        true
-      );
+      try{
+
+        report.keys =
+
+          Object.keys(
+            module
+          );
+
+      }
+
+      catch(error){
+
+        report.keys = [
+          "KEY_SCAN_FAILED"
+        ];
+
+      }
 
     }
 
 
 
-    if(
-      window.App
-    ){
-
-      log(
-        "APP FOUND",
-        true
-      );
-
-    }
-    
-
-    log(
-  "DOM CHECK",
-  {
-
-    app:
-    document.getElementById(
-      "app"
-    ),
-
-    appRoot:
-    document.querySelector(
-      "[data-app-root]"
-    ),
-
-    messageInput:
-    document.getElementById(
-      "messageInput"
-    ),
-
-    sendBtn:
-    document.getElementById(
-      "sendBtn"
-    ),
-
-    chatContainer:
-    document.querySelector(
-      ".chat-container"
-    )
-
-  }
-);
-    
-
-
-    log(
-      "FINAL",
-      "DEBUG COMPLETE"
+    printBlock(
+      moduleName,
+      report
     );
 
   }
 
   catch(error){
 
-    log(
-      "FATAL ERROR",
+    printBlock(
+
+      `${moduleName} ERROR`,
+
       {
 
         message:
@@ -236,12 +193,124 @@ function log(
         error?.stack
 
       }
-    );
 
-    console.error(
-      error
     );
 
   }
 
-})();
+}
+
+
+
+// =====================================
+// DOM SCAN
+// =====================================
+
+const domElements =
+
+  [
+    ...document
+    .querySelectorAll("*")
+  ]
+
+  .map(
+
+    element => ({
+
+      tag:
+      element.tagName,
+
+      id:
+      element.id || null,
+
+      className:
+      element.className || null
+
+    })
+
+  );
+
+
+
+printBlock(
+  "DOM ELEMENTS",
+  domElements
+);
+
+
+
+// =====================================
+// COMMON SELECTORS
+// =====================================
+
+const selectors =
+[
+  "#app",
+  "#messageInput",
+  "#sendBtn",
+  "#chatContainer",
+
+  ".app",
+  ".chat-container",
+  ".chat-message",
+  ".sidebar",
+
+  "input",
+  "textarea",
+  "button"
+];
+
+
+
+const selectorResults =
+{};
+
+
+
+for(
+  const selector
+  of selectors
+){
+
+  selectorResults[
+    selector
+  ] =
+
+  Boolean(
+
+    document
+    .querySelector(
+      selector
+    )
+
+  );
+
+}
+
+
+
+printBlock(
+  "SELECTOR CHECK",
+  selectorResults
+);
+
+
+
+// =====================================
+// FINISHED
+// =====================================
+
+printBlock(
+  "SCAN COMPLETE",
+  {
+
+    exports:
+    rootExports.length,
+
+    domElements:
+    document
+    .querySelectorAll("*")
+    .length
+
+  }
+);
