@@ -277,3 +277,4 @@ export {
   SecurityCore
 
 };
+export default SecurityCore;
