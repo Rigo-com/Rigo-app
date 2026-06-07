@@ -24,7 +24,7 @@ export default async function runModuleScanner(){
 
   const results = [];
 
-  for(const modulePath of modules){
+  for(const modulePath of MODULES){
 
     try{
 
