@@ -32,3 +32,33 @@ export {
   default as ChatStreamState
 }
 from "./chat-stream-state.js";
+
+
+
+import ChatState
+from "./chat-state.js";
+
+import ChatMessageState
+from "./chat-message-state.js";
+
+import ChatQueueState
+from "./chat-queue-state.js";
+
+import ChatStreamState
+from "./chat-stream-state.js";
+
+const ChatStates =
+Object.freeze({
+
+  ChatState,
+
+  ChatMessageState,
+
+  ChatQueueState,
+
+  ChatStreamState
+
+});
+
+export default
+ChatStates;
