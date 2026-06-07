@@ -32,3 +32,33 @@ export {
   default as ChatUIRenderer
 }
 from "./chat-ui-renderer.js";
+
+
+
+import ChatElements
+from "./chat-elements.js";
+
+import ChatScrollManager
+from "./chat-scroll-manager.js";
+
+import ChatUIManager
+from "./chat-ui-manager.js";
+
+import ChatUIRenderer
+from "./chat-ui-renderer.js";
+
+const ChatUI =
+Object.freeze({
+
+  ChatElements,
+
+  ChatScrollManager,
+
+  ChatUIManager,
+
+  ChatUIRenderer
+
+});
+
+export default
+ChatUI;
