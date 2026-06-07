@@ -309,3 +309,5 @@ export {
   SecurityMonitor
 
 };
+
+export default SecurityMonitor;
