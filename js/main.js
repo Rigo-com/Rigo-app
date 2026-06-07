@@ -2,26 +2,57 @@ import * as RIGO from "./index.js";
 
 document.body.innerHTML = "";
 
-const targets = [
-  "app",
-  "appRoot",
-  "chatContainer",
-  "messagesContainer",
-  "messageInput",
-  "sendButton"
-];
+const suspects = [];
 
-const pre =
-document.createElement("pre");
+for(
+  const [moduleName,module]
+  of Object.entries(RIGO)
+){
 
-pre.textContent =
+  if(
+    typeof module !==
+    "object"
+  ){
+    continue;
+  }
+
+  for(
+    const key
+    of Object.keys(module)
+  ){
+
+    if(
+
+         key.includes("render")
+      || key.includes("Render")
+      || key.includes("create")
+      || key.includes("Create")
+      || key.includes("bootstrap")
+      || key.includes("initialize")
+
+    ){
+
+      suspects.push({
+
+        module:
+        moduleName,
+
+        function:
+        key
+
+      });
+
+    }
+
+  }
+
+}
+
+document.body.innerHTML =
+"<pre>" +
 JSON.stringify(
-{
-  exports:Object.keys(RIGO),
-  targets
-},
-null,
-2
-);
-
-document.body.appendChild(pre);
+  suspects,
+  null,
+  2
+) +
+"</pre>";
