@@ -331,51 +331,39 @@ function sanitizeInternal(
   // ================================
 
   if(
-  !Array.isArray(value)
+  Array.isArray(value)
 ){
-  return [];
-}
 
-    const sanitized =
-    [];
+  const sanitized = [];
 
-    visited.set(
-      value,
-      sanitized
+  visited.set(
+    value,
+    sanitized
+  );
+
+  value
+  .slice(
+    0,
+    SECURITY_SANITIZE_CONFIG
+    .MAX_ARRAY_LENGTH
+  )
+  .forEach((item) => {
+
+    sanitized.push(
+
+      sanitizeInternal(
+        item,
+        depth + 1,
+        visited
+      )
+
     );
 
-    value
+  });
 
-    .slice(
+  return sanitized;
 
-      0,
-
-      SECURITY_SANITIZE_CONFIG
-      .MAX_ARRAY_LENGTH
-
-    )
-
-    .forEach((item) => {
-
-      sanitized.push(
-
-        sanitizeInternal(
-
-          item,
-
-          depth + 1,
-
-          visited
-
-        )
-
-      );
-
-    });
-
-    return sanitized;
-
-  }
+}
 
 
 
@@ -384,52 +372,45 @@ function sanitizeInternal(
   // ================================
 
   if(
-  !isPlainObject(value)
+  isPlainObject(value)
 ){
-  return Object.create(null);
-}
 
-    const sanitized =
-    Object.create(null);
+  const sanitized =
+  Object.create(null);
 
-    visited.set(
-      value,
-      sanitized
+  visited.set(
+    value,
+    sanitized
+  );
+
+  Object.keys(value)
+  .slice(
+    0,
+    SECURITY_SANITIZE_CONFIG
+    .MAX_OBJECT_KEYS
+  )
+  .forEach((key) => {
+
+    if(
+      key === "__proto__" ||
+      key === "prototype" ||
+      key === "constructor"
+    ){
+      return;
+    }
+
+    sanitized[key] =
+    sanitizeInternal(
+      value[key],
+      depth + 1,
+      visited
     );
 
-    Object.keys(value)
+  });
 
-    .slice(
+  return sanitized;
 
-      0,
-
-      SECURITY_SANITIZE_CONFIG
-      .MAX_OBJECT_KEYS
-
-    )
-
-    .forEach((key) => {
-
-      if(
-
-        key ===
-        "__proto__"
-
-        ||
-
-        key ===
-        "prototype"
-
-        ||
-
-        key ===
-        "constructor"
-
-      ){
-
-        return;
-
-      }
+}
 
       sanitized[key] =
 
