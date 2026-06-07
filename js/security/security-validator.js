@@ -435,3 +435,5 @@ export {
   SecurityValidator
 
 };
+
+export default SecurityValidator;
