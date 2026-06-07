@@ -1,30 +1,33 @@
-import runModuleScanner
-from "./debug-old/module-scanner.js";
+// =====================================
+// RIGO AI
+// APPLICATION ENTRY POINT
+// =====================================
 
-runModuleScanner()
+import {
+  Bootstrap
+}
+from "./index.js";
 
-.then(results => {
 
-  document.body.innerHTML =
 
-  `<pre>${
-    JSON.stringify(
-      results,
-      null,
-      2
-    )
-  }</pre>`;
+async function startApplication(){
 
-})
+  try{
 
-.catch(error => {
+    await Bootstrap.boot();
 
-  document.body.innerHTML =
+  }
+  catch(error){
 
-  `<pre>${
-    error?.stack ||
-    error?.message ||
-    String(error)
-  }</pre>`;
+    console.error(
+      "RIGO startup failed:",
+      error
+    );
 
-});
+  }
+
+}
+
+
+
+startApplication();
