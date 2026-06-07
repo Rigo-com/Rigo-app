@@ -1,8 +1,3 @@
-// =====================================
-// RIGO AI
-// ROOT SYSTEM SCANNER
-// =====================================
-
 import * as RIGO
 from "./index.js";
 
@@ -34,28 +29,89 @@ function print(
 
 }
 
-print(
-  "ROOT EXPORTS",
-  Object.keys(RIGO)
-);
-
-print(
-  "UI",
-  Object.keys(
-    RIGO.UI || {}
+for(
+  const [name,module]
+  of Object.entries(
+    RIGO
   )
-);
+){
 
-print(
-  "CHAT",
-  Object.keys(
-    RIGO.Chat || {}
-  )
-);
+  if(
+    !module ||
+    typeof module !==
+    "object"
+  ){
 
-print(
-  "CORE",
+    continue;
+
+  }
+
+  const keys =
   Object.keys(
-    RIGO.Core || {}
-  )
-);
+    module
+  );
+
+  const interesting =
+
+    keys.filter(
+      key =>
+
+        key
+        .toLowerCase()
+        .includes(
+          "init"
+        )
+
+        ||
+
+        key
+        .toLowerCase()
+        .includes(
+          "boot"
+        )
+
+        ||
+
+        key
+        .toLowerCase()
+        .includes(
+          "start"
+        )
+
+        ||
+
+        key
+        .toLowerCase()
+        .includes(
+          "render"
+        )
+
+        ||
+
+        key
+        .toLowerCase()
+        .includes(
+          "mount"
+        )
+
+        ||
+
+        key
+        .toLowerCase()
+        .includes(
+          "create"
+        )
+    );
+
+  if(
+    interesting.length
+  ){
+
+    print(
+      name,
+      interesting
+    );
+
+  }
+
+}
