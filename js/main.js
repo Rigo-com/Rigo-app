@@ -1,6 +1,12 @@
 (() => {
 
-const matches = [];
+const checks = {
+  createElement: false,
+  setRootElement: false,
+  registerUiElements: false,
+  bootstrapUi: false,
+  initializeUi: false
+};
 
 for (const key in window) {
 
@@ -9,36 +15,28 @@ for (const key in window) {
     const obj = window[key];
 
     if (
-      typeof obj !== "object" &&
-      typeof obj !== "function"
+      typeof obj !== "function" &&
+      typeof obj !== "object"
     ) continue;
 
-    const props =
-      Object.getOwnPropertyNames(obj);
+    const text = String(obj);
 
-    props.forEach(prop => {
+    Object.keys(checks)
+      .forEach(name => {
 
-      if (
-        prop.includes("Root") ||
-        prop.includes("root") ||
-        prop.includes("Element") ||
-        prop.includes("element")
-      ) {
+        if (
+          text.includes(name)
+        ) {
+          checks[name] = true;
+        }
 
-        matches.push({
-          object: key,
-          property: prop
-        });
-
-      }
-
-    });
+      });
 
   } catch {}
 
 }
 
 document.body.innerHTML =
-`<pre>${JSON.stringify(matches,null,2)}</pre>`;
+`<pre>${JSON.stringify(checks,null,2)}</pre>`;
 
 })();
