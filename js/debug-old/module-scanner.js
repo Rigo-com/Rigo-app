@@ -3,39 +3,22 @@ export default async function runModuleScanner(){
   const MODULES = [
 
   "../ai/index.js",
-
   "../api/index.js",
-
   "../auth/index.js",
-
   "../bootstrap/index.js",
-
   "../chat/index.js",
-
   "../communication/index.js",
-
   "../core/index.js",
-
   "../memory/index.js",
-
   "../search/index.js",
-
   "../security/index.js",
-
   "../services/index.js",
-
   "../settings/index.js",
-
   "../shared/index.js",
-
   "../storage/index.js",
-
   "../ui/index.js",
-
   "../voice/index.js",
-
-  "../index.js",
-
+  "../index.js"
 
 ];
 
