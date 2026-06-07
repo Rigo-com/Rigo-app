@@ -1,37 +1,23 @@
-import * as RIGO
-from "./index.js";
+import * as RIGO from "./index.js";
 
-const results = {};
-
-try{
-  results.UI_bootstrap =
-  await RIGO.UI.bootstrapUi();
-}catch(error){
-  results.UI_bootstrap =
-  error.message;
-}
+const result = {};
 
 try{
-  results.UI_render =
-  await RIGO.UI.render();
-}catch(error){
-  results.UI_render =
-  error.message;
-}
+  result.root =
+    RIGO.ChatElements?.getRootElement?.() || null;
 
-try{
-  results.Runtime_bootstrap =
-  await RIGO.UiRuntime.bootstrapUi();
+  result.messages =
+    RIGO.ChatElements?.getMessagesElement?.() || null;
+
+  result.input =
+    RIGO.ChatElements?.getInputElement?.() || null;
+
+  result.sendButton =
+    RIGO.ChatElements?.getSendButtonElement?.() || null;
+
 }catch(error){
-  results.Runtime_bootstrap =
-  error.message;
+  result.error = error.message;
 }
 
 document.body.innerHTML =
-`<pre>${
-JSON.stringify(
-  results,
-  null,
-  2
-)
-}</pre>`;
+`<pre>${JSON.stringify(result,null,2)}</pre>`;
