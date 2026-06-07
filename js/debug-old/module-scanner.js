@@ -2,25 +2,16 @@ export default async function runModuleScanner(){
 
   const modules = [
 
-    "../ai/index.js",
-    "../api/index.js",
-    "../auth/index.js",
-    "../bootstrap/index.js",
-    "../chat/index.js",
-    "../communication/index.js",
-    "../core/index.js",
-    "../debug/index.js",
-    "../memory/index.js",
-    "../search/index.js",
-    "../security/index.js",
-    "../services/index.js",
-    "../settings/index.js",
-    "../shared/index.js",
-    "../storage/index.js",
-    "../ui/index.js",
-    "../voice/index.js"
+  "../bootstrap/bootstrap-config.js",
+  "../bootstrap/bootstrap-diagnostics.js",
+  "../bootstrap/bootstrap-lifecycle.js",
+  "../bootstrap/bootstrap-manager.js",
+  "../bootstrap/bootstrap-registry.js",
+  "../bootstrap/bootstrap-setup.js",
+  "../bootstrap/bootstrap-state.js",
+  "../bootstrap/index.js"
 
-  ];
+];
 
   const results = [];
 
