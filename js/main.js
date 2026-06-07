@@ -1,5 +1,30 @@
 import runModuleScanner
 from "./debug-old/module-scanner.js";
 
-document.body.innerHTML =
-"<h1>SCANNER LOADED</h1>";
+runModuleScanner()
+
+.then(results => {
+
+  document.body.innerHTML =
+
+  `<pre>${
+    JSON.stringify(
+      results,
+      null,
+      2
+    )
+  }</pre>`;
+
+})
+
+.catch(error => {
+
+  document.body.innerHTML =
+
+  `<pre>${
+    error?.stack ||
+    error?.message ||
+    String(error)
+  }</pre>`;
+
+});
