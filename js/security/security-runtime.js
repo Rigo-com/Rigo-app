@@ -294,3 +294,5 @@ export {
   SecurityRuntime
 
 };
+
+export default SecurityRuntime;
