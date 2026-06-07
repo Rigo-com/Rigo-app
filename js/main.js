@@ -1,28 +1,21 @@
 import * as RIGO
 from "./index.js";
 
-document.body.innerHTML = "";
-
 const pre =
 document.createElement("pre");
 
 pre.textContent =
 JSON.stringify({
 
-  appById:
-  document.getElementById("app"),
-
-  rootById:
-  document.getElementById("root"),
-
-  appQuery:
-  document.querySelector("#app"),
-
-  rootQuery:
-  document.querySelector("#root"),
-
   bodyChildren:
-  document.body.children.length
+  document.body.children.length,
+
+  bodyHtmlLength:
+  document.body.innerHTML.length,
+
+  first200:
+  document.body.innerHTML
+  .slice(0,200)
 
 }, null, 2);
 
