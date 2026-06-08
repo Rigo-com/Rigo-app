@@ -145,6 +145,21 @@ function startNetworkMonitor(){
   .active =
   true;
 
+  recordNetworkEvent(
+
+  networkMonitorState
+  .online
+
+  ?
+
+  "online"
+
+  :
+
+  "offline"
+
+);
+  
   return true;
 
 }
