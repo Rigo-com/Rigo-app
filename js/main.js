@@ -2,6 +2,10 @@
 // RIGO AI
 // APPLICATION ENTRY POINT
 // =====================================
+alert(
+  "MAIN JS LOADED"
+);
+
 
 import {
   Bootstrap
