@@ -10,6 +10,9 @@ from "../core/index.js";
 import ChatRuntime
 from "../chat/chat-runtime/chat-runtime.js";
 
+import Debug
+from "../debug/index.js";
+
 import {
   registerBootstrapSystem
 }
@@ -75,6 +78,8 @@ function registerBootstrapSystems(){
   registerCoreSystem();
 
   registerChatSystem();
+
+  registerDebugSystem();
 
   return true;
 
