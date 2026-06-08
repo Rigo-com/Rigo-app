@@ -227,6 +227,42 @@ function createDebugSnapshot(){
     .services
     .snapshot(),
 
+    runtime:
+
+    Scanner
+    .runtime
+    .snapshot(),
+
+    module:
+
+    Scanner
+    .module
+    .snapshot(),
+
+    dependency:
+
+    Scanner
+    .dependency
+    .snapshot(),
+
+    imports:
+
+    Scanner
+    .imports
+    .snapshot(),
+
+    syntax:
+
+    Scanner
+    .syntax
+    .snapshot(),
+
+    circular:
+
+    Scanner
+    .circular
+    .snapshot(),
+
     timestamp:
     Date.now()
 
