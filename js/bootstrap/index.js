@@ -11,6 +11,10 @@ import {
 }
 from "./bootstrap-setup.js";
 
+alert(
+  "BOOTSTRAP INDEX LOADED"
+);
+
 
 
 // =====================================
