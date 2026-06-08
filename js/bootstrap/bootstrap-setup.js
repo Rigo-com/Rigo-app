@@ -67,6 +67,26 @@ function registerChatSystem(){
 
 }
 
+function registerDebugSystem(){
+
+  return registerBootstrapSystem({
+
+    id:
+    "debug",
+
+    priority:
+    20,
+
+    initialize:
+    Debug.initialize,
+
+    shutdown:
+    Debug.stop
+
+  });
+
+}
+
 
 
 // =====================================
