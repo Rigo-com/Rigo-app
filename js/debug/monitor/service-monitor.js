@@ -125,6 +125,8 @@ function updateServiceStatus(
   service.updatedAt =
   Date.now();
 
+  calculateServiceHealth();
+  
   return true;
 
 }
@@ -299,6 +301,16 @@ function snapshot(){
 
     calculateServiceHealth(),
 
+    serviceList:
+
+    [
+
+      ...serviceMonitorState
+      .services
+      .values()
+
+    ],
+    
     timestamp:
     Date.now()
 
