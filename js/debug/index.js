@@ -74,6 +74,18 @@ function createSystemReport(){
     Diagnostics
     .snapshot();
 
+  const runtime =
+
+    Scanner
+    .runtime
+    .snapshot();
+
+  const circular =
+
+    Scanner
+    .circular
+    .snapshot();
+
   return Reporter
   .builder
   .health({
@@ -92,7 +104,19 @@ function createSystemReport(){
 
     critical:
     diagnostics
-    .critical
+    .critical,
+
+    events:
+    diagnostics
+    .eventCount || 0,
+
+    runtimeErrors:
+    runtime
+    .runtimeErrors || 0,
+
+    circularDependencies:
+    circular
+    .circularFound || 0
 
   });
 
