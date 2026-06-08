@@ -181,6 +181,10 @@ function snapshot(){
     memoryMonitorState
     .lastSample
 
+    maxSamples:
+    memoryMonitorState
+    .maxSamples,
+    
   });
 
 }
