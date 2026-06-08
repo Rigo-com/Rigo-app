@@ -3,6 +3,11 @@
 // RUNTIME SCANNER
 // =====================================
 
+import Diagnostics
+from "../diagnostics/index.js";
+
+
+
 const runtimeScannerState =
 Object.seal({
 
@@ -86,6 +91,16 @@ function handleRuntimeError(
   .diagnostics
   .errors++;
 
+  Diagnostics.addError(
+  error.message ||
+  "Runtime Error"
+);
+
+  Diagnostics.recordEvent(
+  "runtime:error",
+  error
+);
+  
 }
 
 
@@ -131,6 +146,15 @@ function handlePromiseRejection(
   .diagnostics
   .rejections++;
 
+  Diagnostics.addError(
+  rejection.reason
+);
+
+  Diagnostics.recordEvent(
+  "runtime:rejection",
+  rejection
+);
+  
 }
 
 
