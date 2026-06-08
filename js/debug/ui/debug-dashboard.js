@@ -218,6 +218,44 @@ ${report.critical ?? 0}
 
 <br>
 
+<h3>
+Recent Events
+</h3>
+
+<div
+style="
+max-height:220px;
+overflow:auto;
+border:1px solid ${DashboardColors.BORDER};
+padding:8px;
+margin-bottom:12px;
+"
+>
+
+${
+  (
+    report.recentEvents ||
+    []
+  )
+  .map(event => `
+
+<div
+style="
+padding:4px 0;
+border-bottom:1px solid ${DashboardColors.BORDER};
+"
+>
+
+${event.type}
+
+</div>
+
+`)
+  .join("")
+}
+
+</div>
+
 <pre>
 
 ${JSON.stringify(
