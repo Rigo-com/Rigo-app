@@ -29,10 +29,10 @@ body{
 }
 
 .logo{
-  width:140px;
-  height:140px;
+  width:180px;
+  height:180px;
 
-  margin:0 auto 32px;
+  margin:0 auto 24px;
 
   object-fit:contain;
 }
@@ -41,24 +41,26 @@ body{
   color:white;
   text-align:center;
 
-  font-size:36px;
+  font-size:42px;
   font-weight:700;
 
-  margin-bottom:12px;
+  margin-bottom:10px;
 }
 
 .subtitle{
   color:#94a3b8;
   text-align:center;
 
-  margin-bottom:40px;
+  font-size:16px;
+
+  margin-bottom:50px;
 }
 
 .google-button{
-  height:56px;
+  height:58px;
 
   border:none;
-  border-radius:16px;
+  border-radius:18px;
 
   background:white;
   color:black;
@@ -66,7 +68,9 @@ body{
   font-size:16px;
   font-weight:600;
 
-  margin-bottom:24px;
+  margin-bottom:28px;
+
+  cursor:pointer;
 }
 
 .divider{
@@ -75,33 +79,47 @@ body{
   text-align:center;
 
   margin-bottom:24px;
+
+  font-size:14px;
 }
 
 .phone-input{
-  height:56px;
+  height:58px;
 
-  border:1px solid #334155;
-  border-radius:16px;
+  border:1px solid #1e293b;
+  border-radius:18px;
 
   background:#0f172a;
   color:white;
 
-  padding:0 16px;
+  padding:0 18px;
 
   margin-bottom:20px;
 
   font-size:16px;
+
+  outline:none;
+}
+
+.phone-input::placeholder{
+  color:#64748b;
 }
 
 .otp-button{
-  height:56px;
+  height:58px;
 
   border:none;
-  border-radius:16px;
+  border-radius:18px;
 
   background:#22c55e;
   color:white;
 
   font-size:18px;
-  font-weight:600;
+  font-weight:700;
+
+  cursor:pointer;
+}
+
+.otp-button:hover{
+  opacity:.95;
 }
