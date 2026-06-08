@@ -3,6 +3,10 @@
 // MODULE SCANNER
 // =====================================
 
+import Diagnostics
+from "../diagnostics/index.js";
+
+
 const moduleScannerState =
 Object.seal({
 
@@ -54,6 +58,14 @@ async function scanModule(
     moduleScannerState
     .passed++;
 
+    Diagnostics.recordEvent(
+  "module:passed",
+  {
+    module:
+    modulePath
+  }
+);
+    
   }
 
   catch(error){
@@ -77,6 +89,22 @@ async function scanModule(
     moduleScannerState
     .failed++;
 
+    Diagnostics.addError(
+  error?.message ||
+  `Module Scan Failed: ${modulePath}`
+);
+
+Diagnostics.recordEvent(
+  "module:failed",
+  {
+    module:
+    modulePath,
+
+    error:
+    error?.message
+  }
+);
+    
   }
 
   moduleScannerState
@@ -129,13 +157,47 @@ async function scanModules(
 
 function snapshot(){
 
-  return {
+  return Object.freeze({
 
-    ...moduleScannerState
+  scanned:
+  moduleScannerState
+  .scanned,
 
-  };
+  passed:
+  moduleScannerState
+  .passed,
 
-}
+  failed:
+  moduleScannerState
+  .failed,
+
+  lastScan:
+  moduleScannerState
+  .lastScan,
+
+  successRate:
+
+    moduleScannerState.scanned > 0
+
+    ?
+
+    Math.round(
+
+      (
+        moduleScannerState.passed /
+        moduleScannerState.scanned
+      ) * 100
+
+    )
+
+    :
+
+    0,
+
+  timestamp:
+  Date.now()
+
+});
 
 
 
