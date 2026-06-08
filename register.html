@@ -46,15 +46,39 @@
         type="email"
         placeholder="Email Address">
 
-      <input
-        class="input-field"
-        type="password"
-        placeholder="Password">
+      <div class="password-container">
 
-      <input
-        class="input-field"
-        type="password"
-        placeholder="Confirm Password">
+        <input
+          id="password"
+          class="input-field"
+          type="password"
+          placeholder="Password">
+
+        <button
+          type="button"
+          class="toggle-password"
+          onclick="togglePassword('password', this)">
+          👁
+        </button>
+
+      </div>
+
+      <div class="password-container">
+
+        <input
+          id="confirmPassword"
+          class="input-field"
+          type="password"
+          placeholder="Confirm Password">
+
+        <button
+          type="button"
+          class="toggle-password"
+          onclick="togglePassword('confirmPassword', this)">
+          👁
+        </button>
+
+      </div>
 
       <button
         class="create-button">
@@ -70,6 +94,42 @@
     </div>
 
   </div>
+
+  <script>
+
+    function togglePassword(
+      inputId,
+      button
+    ){
+
+      const input =
+      document.getElementById(
+        inputId
+      );
+
+      if(
+        input.type === "password"
+      ){
+
+        input.type = "text";
+
+        button.textContent =
+        "🙈";
+
+      }
+      else{
+
+        input.type =
+        "password";
+
+        button.textContent =
+        "👁";
+
+      }
+
+    }
+
+  </script>
 
 </body>
 
