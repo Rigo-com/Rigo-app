@@ -10,8 +10,6 @@ import {
 }
 from "./index.js";
 
-alert("MAIN JS LOADED");
-
 
 async function startApplication(){
 
