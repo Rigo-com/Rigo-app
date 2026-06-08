@@ -7,6 +7,9 @@
 import Core
 from "../core/index.js";
 
+import ChatRuntime
+from "../chat/chat-runtime/chat-runtime.js";
+
 import {
   registerBootstrapSystem
 }
@@ -41,6 +44,26 @@ function registerCoreSystem(){
 
 }
 
+function registerChatSystem(){
+
+  return registerBootstrapSystem({
+
+    id:
+    "chat",
+
+    priority:
+    10,
+
+    initialize:
+    ChatRuntime.initialize,
+
+    shutdown:
+    ChatRuntime.destroy
+
+  });
+
+}
+
 
 
 // =====================================
@@ -50,6 +73,8 @@ function registerCoreSystem(){
 function registerBootstrapSystems(){
 
   registerCoreSystem();
+
+  registerChatSystem();
 
   return true;
 
