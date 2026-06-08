@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+  <title>RIGO Debug Center</title>
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+
+      min-height:100vh;
+
+      background:#020817;
+
+      color:white;
+
+      font-family:Arial,sans-serif;
+
+      padding:24px;
+
+    }
+
+    .container{
+
+      max-width:900px;
+
+      margin:0 auto;
+
+    }
+
+    .header{
+
+      display:flex;
+
+      justify-content:space-between;
+
+      align-items:center;
+
+      margin-bottom:32px;
+
+    }
+
+    .title{
+
+      font-size:34px;
+
+      font-weight:700;
+
+    }
+
+    .back-btn{
+
+      text-decoration:none;
+
+      color:white;
+
+      background:#0f172a;
+
+      border:1px solid #1e293b;
+
+      padding:12px 18px;
+
+      border-radius:12px;
+
+    }
+
+    .section-title{
+
+      font-size:20px;
+
+      margin-bottom:16px;
+
+      color:#94a3b8;
+
+    }
+
+    .grid{
+
+      display:grid;
+
+      grid-template-columns:
+      repeat(
+        auto-fit,
+        minmax(
+          220px,
+          1fr
+        )
+      );
+
+      gap:16px;
+
+      margin-bottom:40px;
+
+    }
+
+    .card{
+
+      background:#0f172a;
+
+      border:1px solid #1e293b;
+
+      border-radius:18px;
+
+      padding:20px;
+
+      cursor:pointer;
+
+      transition:0.2s;
+
+    }
+
+    .card:hover{
+
+      transform:translateY(-3px);
+
+      border-color:#22c55e;
+
+    }
+
+    .card-icon{
+
+      font-size:32px;
+
+      margin-bottom:12px;
+
+    }
+
+    .card-title{
+
+      font-size:18px;
+
+      font-weight:700;
+
+      margin-bottom:8px;
+
+    }
+
+    .card-text{
+
+      color:#94a3b8;
+
+      font-size:14px;
+
+      line-height:1.5;
+
+    }
+
+    .output{
+
+      margin-top:20px;
+
+      background:#0f172a;
+
+      border:1px solid #1e293b;
+
+      border-radius:18px;
+
+      padding:20px;
+
+      min-height:220px;
+
+      overflow:auto;
+
+      white-space:pre-wrap;
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="header">
+
+      <div class="title">
+        🐞 RIGO Debug Center
+      </div>
+
+      <a
+        href="./home.html"
+        class="back-btn">
+        ← Home
+      </a>
+
+    </div>
+
+
+
+    <div class="section-title">
+
+      Debug Tools
+
+    </div>
+
+    <div class="grid">
+
+      <div
+        class="card"
+        onclick="runDashboard()">
+
+        <div class="card-icon">
+          📊
+        </div>
+
+        <div class="card-title">
+          Dashboard
+        </div>
+
+        <div class="card-text">
+          Open system dashboard.
+        </div>
+
+      </div>
+
+
+
+      <div
+        class="card"
+        onclick="showSnapshot()">
+
+        <div class="card-icon">
+          📦
+        </div>
+
+        <div class="card-title">
+          Snapshot
+        </div>
+
+        <div class="card-text">
+          Show current system snapshot.
+        </div>
+
+      </div>
+
+
+
+      <div
+        class="card"
+        onclick="runDiagnostics()">
+
+        <div class="card-icon">
+          🩺
+        </div>
+
+        <div class="card-title">
+          Diagnostics
+        </div>
+
+        <div class="card-text">
+          Run diagnostics report.
+        </div>
+
+      </div>
+
+
+
+      <div
+        class="card"
+        onclick="clearOutput()">
+
+        <div class="card-icon">
+          🧹
+        </div>
+
+        <div class="card-title">
+          Clear
+        </div>
+
+        <div class="card-text">
+          Clear output panel.
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <div
+      id="output"
+      class="output">
+
+Waiting for debug action...
+
+    </div>
+
+  </div>
+
+
+
+  <script type="module">
+
+    import Debug
+    from "./js/debug/index.js";
+
+    window.runDashboard =
+    function(){
+
+      try{
+
+        Debug.dashboard();
+
+      }
+      catch(error){
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+        error.stack || error;
+
+      }
+
+    };
+
+
+
+    window.showSnapshot =
+    function(){
+
+      try{
+
+        const snapshot =
+
+        Debug.snapshot();
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+
+        JSON.stringify(
+          snapshot,
+          null,
+          2
+        );
+
+      }
+      catch(error){
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+        error.stack || error;
+
+      }
+
+    };
+
+
+
+    window.runDiagnostics =
+    function(){
+
+      try{
+
+        const report =
+
+        Debug.report();
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+
+        JSON.stringify(
+          report,
+          null,
+          2
+        );
+
+      }
+      catch(error){
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+        error.stack || error;
+
+      }
+
+    };
+
+
+
+    window.clearOutput =
+    function(){
+
+      document
+      .getElementById(
+        "output"
+      )
+      .textContent = "";
+
+    };
+
+  </script>
+
+</body>
+
+</html>
