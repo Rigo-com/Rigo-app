@@ -387,6 +387,8 @@ Object.freeze({
   stop:
   stopDiagnostics,
 
+  recordEvent,
+  
   addWarning,
 
   addError,
