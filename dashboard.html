@@ -218,6 +218,14 @@
       const snapshot =
       Debug.snapshot();
 
+      alert(
+  JSON.stringify(
+    Debug.snapshot(),
+    null,
+    2
+  )
+);
+
       const diagnostics =
       snapshot.diagnostics || {};
 
