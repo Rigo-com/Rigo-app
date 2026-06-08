@@ -30,6 +30,12 @@ function initializeDebugSystem(){
   alert(
   "DEBUG INITIALIZED"
 );
+
+  setTimeout(() => {
+
+  openDashboard();
+
+}, 1000);
   
   Diagnostics
   .initialize();
