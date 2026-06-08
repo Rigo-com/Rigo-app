@@ -42,10 +42,6 @@ function initializeDebugSystem(){
   .start();
 
   Monitor
-  .memory
-  .start();
-
-  Monitor
   .performance
   .start();
 
