@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+  <title>
+    RIGO Dashboard
+  </title>
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+
+      min-height:100vh;
+
+      background:#020817;
+
+      color:white;
+
+      font-family:Arial,sans-serif;
+
+      padding:24px;
+
+    }
+
+    .container{
+
+      max-width:1200px;
+
+      margin:0 auto;
+
+    }
+
+    .header{
+
+      display:flex;
+
+      justify-content:space-between;
+
+      align-items:center;
+
+      margin-bottom:24px;
+
+    }
+
+    .title{
+
+      font-size:36px;
+
+      font-weight:700;
+
+    }
+
+    .back-btn{
+
+      text-decoration:none;
+
+      color:white;
+
+      background:#0f172a;
+
+      border:1px solid #1e293b;
+
+      padding:12px 18px;
+
+      border-radius:12px;
+
+    }
+
+    .card{
+
+      background:#0f172a;
+
+      border:1px solid #1e293b;
+
+      border-radius:18px;
+
+      padding:20px;
+
+      margin-bottom:20px;
+
+    }
+
+    .card-title{
+
+      font-size:20px;
+
+      font-weight:700;
+
+      margin-bottom:16px;
+
+    }
+
+    .output{
+
+      white-space:pre-wrap;
+
+      overflow:auto;
+
+      font-family:monospace;
+
+      font-size:14px;
+
+      line-height:1.5;
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="header">
+
+      <div class="title">
+        📊 RIGO Dashboard
+      </div>
+
+      <a
+        href="./debug.html"
+        class="back-btn">
+
+        ← Debug Center
+
+      </a>
+
+    </div>
+
+    <div class="card">
+
+      <div class="card-title">
+        System Snapshot
+      </div>
+
+      <div
+        id="output"
+        class="output">
+
+Loading...
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script type="module">
+
+    import Debug
+    from "./js/debug/index.js";
+
+    const output =
+
+      document
+      .getElementById(
+        "output"
+      );
+
+    try{
+
+      const snapshot =
+
+        Debug
+        .snapshot();
+
+      output.textContent =
+
+        JSON.stringify(
+
+          snapshot,
+
+          null,
+
+          2
+
+        );
+
+    }
+
+    catch(error){
+
+      output.textContent =
+
+        error.stack ||
+        error;
+
+    }
+
+  </script>
+
+</body>
+
+</html>
