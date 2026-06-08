@@ -3,6 +3,10 @@
 // IMPORT SCANNER
 // =====================================
 
+import Diagnostics
+from "../diagnostics/index.js";
+
+
 const importScannerState =
 Object.seal({
 
@@ -68,6 +72,19 @@ async function scanImport(
       importScannerState
       .failed++;
 
+      Diagnostics.addWarning(
+        `Empty Module: ${modulePath}`
+    );
+
+      Diagnostics.recordEvent(
+        "import:empty-module",
+    {
+      module:
+      modulePath
+   }
+);
+
+      
     }
 
     else{
@@ -82,6 +99,19 @@ async function scanImport(
 
       importScannerState
       .passed++;
+      
+      Diagnostics.recordEvent(
+  "import:passed",
+  {
+    module:
+    modulePath,
+
+    exports:
+    Object.keys(
+      importedModule
+    ).length
+  }
+);
 
     }
 
@@ -108,6 +138,22 @@ async function scanImport(
 
     importScannerState
     .failed++;
+
+    Diagnostics.addError(
+  error?.message ||
+  `Import Failed: ${modulePath}`
+);
+
+Diagnostics.recordEvent(
+  "import:failed",
+  {
+    module:
+    modulePath,
+
+    error:
+    error?.message
+  }
+);
 
   }
 
@@ -161,11 +207,47 @@ async function scanImports(
 
 function snapshot(){
 
-  return {
+  return Object.freeze({
 
-    ...importScannerState
+    scanned:
+    importScannerState
+    .scanned,
 
-  };
+    passed:
+    importScannerState
+    .passed,
+
+    failed:
+    importScannerState
+    .failed,
+
+    lastScan:
+    importScannerState
+    .lastScan,
+
+    successRate:
+
+      importScannerState.scanned > 0
+
+      ?
+
+      Math.round(
+
+        (
+          importScannerState.passed /
+          importScannerState.scanned
+        ) * 100
+
+      )
+
+      :
+
+      0,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
