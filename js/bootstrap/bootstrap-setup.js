@@ -13,6 +13,9 @@ from "../chat/chat-runtime/chat-runtime.js";
 import Debug
 from "../debug/index.js";
 
+import Memory
+from "../memory/index.js";
+
 import {
   registerBootstrapSystem
 }
@@ -87,6 +90,26 @@ function registerDebugSystem(){
 
 }
 
+function registerMemorySystem(){
+
+  return registerBootstrapSystem({
+
+    id:
+    "memory",
+
+    priority:
+    20,
+
+    initialize:
+    Memory.initialize,
+
+    shutdown:
+    Memory.shutdown
+
+  });
+
+}
+
 
 
 // =====================================
@@ -99,6 +122,8 @@ function registerBootstrapSystems(){
 
   registerChatSystem();
 
+  registerMemorySystem();
+  
   registerDebugSystem();
 
   return true;
