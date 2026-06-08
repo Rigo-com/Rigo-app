@@ -64,7 +64,8 @@ Object.seal({
   reports:
   [],
 
-
+  eventHistory:
+  [],
 
   errors:
   [],
