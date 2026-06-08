@@ -58,14 +58,31 @@ body{
 
 .start-button{
   width:100%;
-  height:56px;
+  height:64px;
+
+  display:flex;
+  justify-content:center;
+  align-items:center;
+
+  text-decoration:none;
 
   border:none;
-  border-radius:16px;
+  border-radius:20px;
 
-  background:#22c55e;
-  color:white;
+  background:linear-gradient(
+    135deg,
+    #6ee46a,
+    #34d399,
+    #22c55e
+  );
 
-  font-size:18px;
-  font-weight:600;
+  color:#ffffff;
+
+  font-size:24px;
+  font-weight:700;
+
+  box-shadow:
+    0 8px 24px rgba(34,197,94,.35);
+
+  cursor:pointer;
 }
