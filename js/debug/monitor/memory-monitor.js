@@ -124,6 +124,8 @@ function startMemoryMonitor(
   .active =
   true;
 
+  collectMemorySample();
+
   return true;
 
 }
