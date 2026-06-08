@@ -33,6 +33,14 @@ function initializeDebugSystem(){
     "DEBUG INITIALIZED"
   );
 
+  alert(
+    "DEBUG BOOTED"
+  );
+
+  Monitor
+  .memory
+  .start();
+
   Monitor
   .memory
   .start();
