@@ -179,7 +179,7 @@ function snapshot(){
 
     lastSample:
     memoryMonitorState
-    .lastSample
+    .lastSample,
 
     maxSamples:
     memoryMonitorState
