@@ -30,7 +30,7 @@ function createWelcomeScreen() {
         </h1>
 
         <p>
-          Your Intelligent Assistant
+          AI Assistant For Everything
         </p>
 
         <button
