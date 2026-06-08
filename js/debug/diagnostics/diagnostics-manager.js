@@ -361,6 +361,17 @@ function createDiagnosticsSnapshot(){
     .eventHistory
     .length - 1
     ] || null,
+
+
+    recentEvents:
+
+[
+
+  ...diagnosticsState
+  .eventHistory
+
+]
+.slice(-25),
     
     timestamp:
     Date.now()
