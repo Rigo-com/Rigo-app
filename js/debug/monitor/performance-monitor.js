@@ -174,7 +174,7 @@ function snapshot(){
 
     lastSample:
     performanceMonitorState
-    .lastSample
+    .lastSample,
 
     maxSamples:
     performanceMonitorState
