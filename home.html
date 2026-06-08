@@ -33,6 +33,80 @@
       padding:24px;
     }
 
+    .menu-button{
+      position:fixed;
+
+      top:20px;
+      right:20px;
+
+      width:48px;
+      height:48px;
+
+      border:none;
+      border-radius:12px;
+
+      background:#0f172a;
+
+      color:white;
+
+      font-size:22px;
+
+      cursor:pointer;
+
+      border:1px solid #1e293b;
+
+      z-index:1001;
+    }
+
+    .sidebar{
+      position:fixed;
+
+      top:0;
+      right:-280px;
+
+      width:280px;
+      height:100vh;
+
+      background:#0f172a;
+
+      border-left:1px solid #1e293b;
+
+      transition:.3s;
+
+      padding:24px;
+
+      z-index:1000;
+    }
+
+    .sidebar.active{
+      right:0;
+    }
+
+    .sidebar-title{
+      color:white;
+
+      font-size:22px;
+      font-weight:700;
+
+      margin-bottom:24px;
+    }
+
+    .menu-link{
+      display:block;
+
+      color:#cbd5e1;
+
+      text-decoration:none;
+
+      padding:14px 0;
+
+      border-bottom:1px solid #1e293b;
+    }
+
+    .menu-link:hover{
+      color:white;
+    }
+
     .home-container{
       width:100%;
       max-width:420px;
@@ -105,6 +179,36 @@
 
 <body>
 
+  <button
+    class="menu-button"
+    onclick="toggleMenu()">
+
+    ☰
+
+  </button>
+
+  <div
+    id="sidebar"
+    class="sidebar">
+
+    <div class="sidebar-title">
+      RIGO AI
+    </div>
+
+    <a
+      href="./home.html"
+      class="menu-link">
+      🏠 Home
+    </a>
+
+    <a
+      href="./debug.html"
+      class="menu-link">
+      🐞 Debug Center
+    </a>
+
+  </div>
+
   <div class="home-container">
 
     <img
@@ -134,11 +238,28 @@
 
   </div>
 
+  <script>
+
+    function toggleMenu(){
+
+      document
+      .getElementById(
+        "sidebar"
+      )
+      .classList
+      .toggle(
+        "active"
+      );
+
+    }
+
+  </script>
+
   <script
     type="module"
     src="./js/main.js">
   </script>
-  
+
 </body>
 
 </html>
