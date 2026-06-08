@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+  <title>
+    RIGO Diagnostics
+  </title>
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+
+      min-height:100vh;
+
+      background:#020817;
+
+      color:white;
+
+      font-family:Arial,sans-serif;
+
+      padding:24px;
+
+    }
+
+    .container{
+
+      max-width:1200px;
+
+      margin:0 auto;
+
+    }
+
+    .header{
+
+      display:flex;
+
+      justify-content:space-between;
+
+      align-items:center;
+
+      margin-bottom:32px;
+
+    }
+
+    .title{
+
+      font-size:34px;
+
+      font-weight:700;
+
+    }
+
+    .back-btn{
+
+      text-decoration:none;
+
+      color:white;
+
+      background:#0f172a;
+
+      border:1px solid #1e293b;
+
+      padding:12px 18px;
+
+      border-radius:12px;
+
+    }
+
+    .grid{
+
+      display:grid;
+
+      grid-template-columns:
+      repeat(
+        auto-fit,
+        minmax(
+          260px,
+          1fr
+        )
+      );
+
+      gap:20px;
+
+    }
+
+    .card{
+
+      background:#0f172a;
+
+      border:1px solid #1e293b;
+
+      border-radius:18px;
+
+      padding:24px;
+
+    }
+
+    .card-title{
+
+      font-size:16px;
+
+      color:#94a3b8;
+
+      margin-bottom:12px;
+
+    }
+
+    .card-value{
+
+      font-size:32px;
+
+      font-weight:700;
+
+    }
+
+    .success{
+      color:#22c55e;
+    }
+
+    .warning{
+      color:#f59e0b;
+    }
+
+    .danger{
+      color:#ef4444;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="header">
+
+      <div class="title">
+        🩺 RIGO Diagnostics
+      </div>
+
+      <a
+        href="./debug.html"
+        class="back-btn">
+
+        ← Debug Center
+
+      </a>
+
+    </div>
+
+    <div class="grid">
+
+      <div class="card">
+
+        <div class="card-title">
+          Health Score
+        </div>
+
+        <div
+          id="health"
+          class="card-value success">
+
+          --
+
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          Reports
+        </div>
+
+        <div
+          id="reports"
+          class="card-value">
+
+          --
+
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          Warnings
+        </div>
+
+        <div
+          id="warnings"
+          class="card-value warning">
+
+          --
+
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          Errors
+        </div>
+
+        <div
+          id="errors"
+          class="card-value danger">
+
+          --
+
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          Critical Issues
+        </div>
+
+        <div
+          id="critical"
+          class="card-value danger">
+
+          --
+
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          Total Scans
+        </div>
+
+        <div
+          id="scans"
+          class="card-value">
+
+          --
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script type="module">
+
+    import Debug
+    from "./js/debug/index.js";
+
+    try{
+
+      const diagnostics =
+
+        Debug
+        .diagnostics
+        .snapshot();
+
+      document
+      .getElementById(
+        "health"
+      )
+      .textContent =
+
+      diagnostics
+      .healthScore + "%";
+
+      document
+      .getElementById(
+        "reports"
+      )
+      .textContent =
+
+      diagnostics
+      .diagnostics
+      .reports;
+
+      document
+      .getElementById(
+        "warnings"
+      )
+      .textContent =
+
+      diagnostics
+      .warnings;
+
+      document
+      .getElementById(
+        "errors"
+      )
+      .textContent =
+
+      diagnostics
+      .errors;
+
+      document
+      .getElementById(
+        "critical"
+      )
+      .textContent =
+
+      diagnostics
+      .critical;
+
+      document
+      .getElementById(
+        "scans"
+      )
+      .textContent =
+
+      diagnostics
+      .diagnostics
+      .scans;
+
+    }
+
+    catch(error){
+
+      document.body.innerHTML =
+      `<pre>${error.stack || error}</pre>`;
+
+    }
+
+  </script>
+
+</body>
+
+</html>
