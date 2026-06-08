@@ -3,6 +3,11 @@
 // CIRCULAR SCANNER
 // =====================================
 
+import Diagnostics
+from "../diagnostics/index.js";
+
+
+
 const circularScannerState =
 Object.seal({
 
@@ -149,6 +154,17 @@ function scanCircularDependencies(
     .circularFound +=
     cycles.length;
 
+    Diagnostics.addCriticalIssue(
+  `Circular Dependencies Found: ${cycles.length}`
+);
+
+Diagnostics.recordEvent(
+  "circular:detected",
+  {
+    cycles
+  }
+);
+    
     return {
 
       status:
@@ -166,6 +182,10 @@ function scanCircularDependencies(
   circularScannerState
   .passed++;
 
+  Diagnostics.recordEvent(
+  "circular:passed"
+);
+  
   return {
 
     status:
@@ -188,11 +208,51 @@ function scanCircularDependencies(
 
 function snapshot(){
 
-  return {
+  return Object.freeze({
 
-    ...circularScannerState
+    scanned:
+    circularScannerState
+    .scanned,
 
-  };
+    passed:
+    circularScannerState
+    .passed,
+
+    failed:
+    circularScannerState
+    .failed,
+
+    circularFound:
+    circularScannerState
+    .circularFound,
+
+    lastScan:
+    circularScannerState
+    .lastScan,
+
+    successRate:
+
+      circularScannerState.scanned > 0
+
+      ?
+
+      Math.round(
+
+        (
+          circularScannerState.passed /
+          circularScannerState.scanned
+        ) * 100
+
+      )
+
+      :
+
+      0,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
