@@ -99,13 +99,13 @@ function createSystemReport(){
 
 function openDashboard(){
 
-  const report =
+  const snapshot =
 
-    createSystemReport();
+    createDebugSnapshot();
 
   UI
   .dashboard
-  .render(report);
+  .render(snapshot);
 
   UI
   .dashboard
