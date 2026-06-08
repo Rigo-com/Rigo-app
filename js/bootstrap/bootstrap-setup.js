@@ -72,6 +72,12 @@ function registerChatSystem(){
 
 function registerDebugSystem(){
 
+   alert(
+
+    "DEBUG REGISTERED"
+
+  );
+  
   return registerBootstrapSystem({
 
     id:
