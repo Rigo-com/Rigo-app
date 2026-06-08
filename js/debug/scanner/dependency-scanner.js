@@ -3,6 +3,10 @@
 // DEPENDENCY SCANNER
 // =====================================
 
+import Diagnostics
+from "../diagnostics/index.js";
+
+
 const dependencyScannerState =
 Object.seal({
 
@@ -54,6 +58,14 @@ async function checkDependency(
     dependencyScannerState
     .passed++;
 
+    Diagnostics.recordEvent(
+  "dependency:passed",
+  {
+    dependency:
+    dependencyPath
+  }
+);
+    
   }
 
   catch(error){
@@ -77,6 +89,22 @@ async function checkDependency(
     dependencyScannerState
     .failed++;
 
+    Diagnostics.addError(
+  error?.message ||
+  `Dependency Check Failed: ${dependencyPath}`
+);
+
+Diagnostics.recordEvent(
+  "dependency:failed",
+  {
+    dependency:
+    dependencyPath,
+
+    error:
+    error?.message
+  }
+);
+    
   }
 
   dependencyScannerState
@@ -129,11 +157,47 @@ async function checkDependencies(
 
 function snapshot(){
 
-  return {
+  return Object.freeze({
 
-    ...dependencyScannerState
+    scanned:
+    dependencyScannerState
+    .scanned,
 
-  };
+    passed:
+    dependencyScannerState
+    .passed,
+
+    failed:
+    dependencyScannerState
+    .failed,
+
+    lastScan:
+    dependencyScannerState
+    .lastScan,
+
+    successRate:
+
+      dependencyScannerState.scanned > 0
+
+      ?
+
+      Math.round(
+
+        (
+          dependencyScannerState.passed /
+          dependencyScannerState.scanned
+        ) * 100
+
+      )
+
+      :
+
+      0,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
