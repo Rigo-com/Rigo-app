@@ -29,8 +29,8 @@ function initializeDebugSystem(){
 
   Diagnostics.start();
 
-  Diagnostics.addWarning(
-  "DEBUG INITIALIZED"
+  Diagnostics.recordEvent(
+  "debug:initialized"
 );
 
   Monitor
