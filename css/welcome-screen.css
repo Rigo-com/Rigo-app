@@ -69,20 +69,14 @@ body{
   border:none;
   border-radius:20px;
 
-  background:linear-gradient(
-    135deg,
-    #4fbf68,
-    #2fae67,
-    #1f8f59
-  );
+  background:#267a4d;
 
   color:#ffffff;
 
   font-size:24px;
   font-weight:700;
 
-  box-shadow:
-  0 8px 20px rgba(47,174,103,.20);
+  box-shadow:none;
 
   cursor:pointer;
 }
