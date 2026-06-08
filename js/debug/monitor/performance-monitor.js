@@ -117,7 +117,9 @@ function startPerformanceMonitor(
 
   performanceMonitorState
   .active =
-  true;
+   true;
+
+  collectPerformanceSample();
 
   return true;
 
@@ -174,6 +176,10 @@ function snapshot(){
     performanceMonitorState
     .lastSample
 
+    maxSamples:
+    performanceMonitorState
+    .maxSamples,
+    
   });
 
 }
