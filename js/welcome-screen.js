@@ -22,7 +22,7 @@ function createWelcomeScreen() {
 
         <img
           class="logo"
-          src="./assets/logo.png"
+          src="./assets/rigo-logo.PNG"
           alt="RIGO AI">
 
         <h1>
