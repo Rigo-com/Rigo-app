@@ -1,3 +1,5 @@
+alert("RIGO MAIN STARTED");
+
 // =====================================
 // RIGO AI
 // APPLICATION ENTRY POINT
