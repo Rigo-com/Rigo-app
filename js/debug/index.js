@@ -150,6 +150,10 @@ function stopDebugSystem(){
   .services
   .stop();
 
+  Scanner
+  .runtime
+  .stop();
+  
   return true;
 
 }
