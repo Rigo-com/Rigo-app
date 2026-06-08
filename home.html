@@ -254,7 +254,57 @@
     }
 
   </script>
+<script>
 
+window.addEventListener(
+  "error",
+  event => {
+
+    alert(
+      "JS ERROR:\n\n" +
+      event.message +
+      "\n\nFILE:\n" +
+      event.filename +
+      "\n\nLINE:\n" +
+      event.lineno
+    );
+
+  }
+);
+
+window.addEventListener(
+  "unhandledrejection",
+  event => {
+
+    alert(
+      "PROMISE ERROR:\n\n" +
+      String(
+        event.reason
+      )
+    );
+
+  }
+);
+
+fetch("./js/main.js")
+.then(response => {
+
+  alert(
+    "MAIN.JS STATUS: " +
+    response.status
+  );
+
+})
+.catch(error => {
+
+  alert(
+    "MAIN.JS FETCH FAILED:\n\n" +
+    error
+  );
+
+});
+
+</script>
 <script
   type="module"
   src="./js/main.js">
