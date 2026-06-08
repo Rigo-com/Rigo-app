@@ -248,6 +248,14 @@ border-bottom:1px solid ${DashboardColors.BORDER};
 
 ${event.type}
 
+${
+  event.payload?.system
+  ?
+  ` → ${event.payload.system}`
+  :
+  ""
+}
+
 </div>
 
 `)
