@@ -128,8 +128,12 @@ Object.freeze({
 
   addCriticalIssue:
   DiagnosticsManager
-  .addCriticalIssue
+  .addCriticalIssue,
 
+  recordEvent:
+  DiagnosticsManager
+  .recordEvent,
+  
 });
 
 
