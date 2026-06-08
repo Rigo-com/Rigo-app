@@ -29,12 +29,8 @@ function initializeDebugSystem(){
 
   Diagnostics.start();
 
-alert(
-  JSON.stringify(
-    Diagnostics.snapshot(),
-    null,
-    2
-  )
+  Diagnostics.addWarning(
+  "DEBUG INITIALIZED"
 );
 
   Monitor
