@@ -3,6 +3,9 @@
 // BOOTSTRAP LIFECYCLE
 // =====================================
 
+import Diagnostics
+from "../debug/diagnostics/index.js";
+
 import {
   bootstrapState
 }
@@ -43,7 +46,11 @@ export async function bootBootstrapSystems(){
   bootstrapState
   .diagnostics
   .boots++;
-
+  
+  Diagnostics.recordEvent(
+  "bootstrap:boot-started"
+);
+  
   try{
 
     const systems =
@@ -55,6 +62,14 @@ export async function bootBootstrapSystems(){
     ){
 
       try{
+
+        Diagnostics.recordEvent(
+          "bootstrap:system-started",
+          {
+            system:
+            system.id
+          }
+        );
 
         if(
           typeof system
@@ -94,6 +109,14 @@ export async function bootBootstrapSystems(){
         .diagnostics
         .initializedSystems++;
 
+        Diagnostics.recordEvent(
+        "bootstrap:system-success",
+       {
+          system:
+          system.id
+       }
+    );
+        
       }
 
       catch(error){
@@ -108,6 +131,19 @@ export async function bootBootstrapSystems(){
         .lastError =
         error;
 
+        Diagnostics.recordEvent(
+       "bootstrap:system-failed",
+     {
+
+         system:
+         system.id,
+
+        error:
+        String(error)
+
+     }
+   );
+        
         throw error;
 
       }
@@ -125,6 +161,10 @@ export async function bootBootstrapSystems(){
     bootstrapState.state =
     "ready";
 
+    Diagnostics.recordEvent(
+   "bootstrap:boot-completed"
+);
+    
     return true;
 
   }
@@ -141,6 +181,14 @@ export async function bootBootstrapSystems(){
 
     bootstrapState.state =
     "failed";
+
+    Diagnostics.recordEvent(
+      "bootstrap:boot-failed",
+   {
+       error:
+       String(error)
+   }
+ );
 
     return false;
 
