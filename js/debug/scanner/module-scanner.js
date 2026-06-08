@@ -214,6 +214,7 @@ Object.freeze({
   scanMany:
   scanModules,
 
+  snapshot:
   snapshot
 
 });
