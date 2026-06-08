@@ -53,6 +53,10 @@ function initializeDebugSystem(){
   .services
   .start();
 
+  Scanner
+  .runtime
+  .start();
+  
   return true;
 
 }
