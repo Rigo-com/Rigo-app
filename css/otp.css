@@ -1,0 +1,122 @@
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  min-height:100vh;
+  background:#020817;
+  font-family:Arial,sans-serif;
+}
+
+.otp-screen{
+  min-height:100vh;
+
+  display:flex;
+  justify-content:center;
+  align-items:center;
+
+  padding:24px;
+}
+
+.otp-content{
+  width:100%;
+  max-width:380px;
+
+  display:flex;
+  flex-direction:column;
+
+  align-items:center;
+}
+
+.logo{
+  width:180px;
+  height:180px;
+
+  object-fit:contain;
+
+  margin-bottom:24px;
+}
+
+.title{
+  color:white;
+
+  font-size:40px;
+  font-weight:700;
+
+  margin-bottom:12px;
+
+  text-align:center;
+}
+
+.subtitle{
+  color:#94a3b8;
+
+  text-align:center;
+
+  margin-bottom:40px;
+
+  line-height:1.5;
+}
+
+.otp-container{
+  width:100%;
+
+  display:flex;
+  justify-content:space-between;
+
+  gap:10px;
+
+  margin-bottom:32px;
+}
+
+.otp-input{
+  width:52px;
+  height:60px;
+
+  border:1px solid #1e293b;
+  border-radius:16px;
+
+  background:#0f172a;
+  color:white;
+
+  text-align:center;
+
+  font-size:24px;
+  font-weight:700;
+
+  outline:none;
+}
+
+.verify-button{
+  width:100%;
+  height:58px;
+
+  border:none;
+  border-radius:18px;
+
+  background:#22c55e;
+  color:white;
+
+  font-size:18px;
+  font-weight:700;
+
+  margin-bottom:20px;
+}
+
+.timer{
+  color:#94a3b8;
+
+  margin-bottom:16px;
+}
+
+.resend-button{
+  background:none;
+  border:none;
+
+  color:#22c55e;
+
+  font-size:16px;
+  font-weight:600;
+}
