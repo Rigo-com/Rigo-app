@@ -29,13 +29,13 @@ function initializeDebugSystem(){
 
   Diagnostics.start();
 
-  Diagnostics.addWarning(
-    "DEBUG INITIALIZED"
-  );
-
-  alert(
-    "DEBUG BOOTED"
-  );
+alert(
+  JSON.stringify(
+    Diagnostics.snapshot(),
+    null,
+    2
+  )
+);
 
   Monitor
   .memory
