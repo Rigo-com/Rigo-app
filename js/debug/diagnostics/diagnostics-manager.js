@@ -40,6 +40,11 @@ function initializeDiagnostics(){
   .startedAt =
   Date.now();
 
+  recordEvent(
+  DiagnosticsEvents
+  .INITIALIZED
+);
+  
   emit(
     DiagnosticsEvents
     .INITIALIZED
@@ -63,6 +68,11 @@ function startDiagnostics(){
   .active =
   true;
 
+  recordEvent(
+  DiagnosticsEvents
+  .STARTED
+);
+  
   emit(
     DiagnosticsEvents
     .STARTED
@@ -92,6 +102,11 @@ function stopDiagnostics(){
   .monitoring =
   false;
 
+  recordEvent(
+  DiagnosticsEvents
+  .STOPPED
+);
+  
   emit(
     DiagnosticsEvents
     .STOPPED
@@ -188,6 +203,11 @@ function addWarning(
 
   updateHealthScore();
 
+  recordEvent(
+  DiagnosticsEvents.WARNING,
+  warning
+);
+  
   emit(
     DiagnosticsEvents
     .WARNING,
@@ -220,6 +240,11 @@ function addError(
 
   updateHealthScore();
 
+  recordEvent(
+  DiagnosticsEvents.ERROR,
+  error
+);
+  
   emit(
     DiagnosticsEvents
     .ERROR,
@@ -252,6 +277,11 @@ function addCriticalIssue(
 
   updateHealthScore();
 
+  recordEvent(
+  DiagnosticsEvents.CRITICAL,
+  issue
+);
+  
   emit(
     DiagnosticsEvents
     .CRITICAL,
@@ -317,6 +347,21 @@ function createDiagnosticsSnapshot(){
     .criticalIssues
     .length,
 
+    eventCount:
+
+    diagnosticsState
+    .eventHistory
+    .length,
+
+    lastEvent:
+
+    diagnosticsState
+    .eventHistory[
+    diagnosticsState
+    .eventHistory
+    .length - 1
+    ] || null,
+    
     timestamp:
     Date.now()
 
