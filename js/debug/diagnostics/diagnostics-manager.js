@@ -141,6 +141,34 @@ function updateHealthScore(){
 
 
 // =====================================
+// EVENT HISTORY
+// =====================================
+
+function recordEvent(
+  type,
+  payload = null
+){
+
+  diagnosticsState
+  .eventHistory
+  .push({
+
+    type,
+
+    payload,
+
+    timestamp:
+    Date.now()
+
+  });
+
+  return true;
+
+}
+
+
+
+// =====================================
 // WARNING
 // =====================================
 
