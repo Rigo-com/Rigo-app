@@ -71,9 +71,9 @@ body{
 
   background:linear-gradient(
     135deg,
-    #5acb69,
-    #39b86a,
-    #239b5c
+    #4fbf68,
+    #2fae67,
+    #1f8f59
   );
 
   color:#ffffff;
@@ -82,7 +82,7 @@ body{
   font-weight:700;
 
   box-shadow:
-    0 8px 24px rgba(34,197,94,.35);
+  0 8px 20px rgba(47,174,103,.20);
 
   cursor:pointer;
 }
