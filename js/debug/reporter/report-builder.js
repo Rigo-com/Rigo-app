@@ -149,7 +149,13 @@ function createHealthReport({
 
   errors = 0,
 
-  critical = 0
+  critical = 0,
+
+  events = 0,
+
+  runtimeErrors = 0,
+
+  circularDependencies = 0
 
 } = {}){
 
@@ -259,6 +265,84 @@ function createHealthReport({
 
   }
 
+  if(
+    runtimeErrors
+  ){
+
+    items.push(
+
+      createReportItem({
+
+        title:
+        "Runtime Errors",
+
+        message:
+        String(
+          runtimeErrors
+        ),
+
+        severity:
+        ReportSeverity
+        .ERROR
+
+      })
+
+    );
+
+  }
+
+  if(
+    circularDependencies
+  ){
+
+    items.push(
+
+      createReportItem({
+
+        title:
+        "Circular Dependencies",
+
+        message:
+        String(
+          circularDependencies
+        ),
+
+        severity:
+        ReportSeverity
+        .CRITICAL
+
+      })
+
+    );
+
+  }
+
+  if(
+    events
+  ){
+
+    items.push(
+
+      createReportItem({
+
+        title:
+        "Recorded Events",
+
+        message:
+        String(
+          events
+        ),
+
+        severity:
+        ReportSeverity
+        .INFO
+
+      })
+
+    );
+
+  }
+
   return createReport({
 
     title:
@@ -273,7 +357,6 @@ function createHealthReport({
   });
 
 }
-
 
 
 // =====================================
