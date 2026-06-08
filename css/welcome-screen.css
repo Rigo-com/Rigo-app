@@ -1,3 +1,7 @@
+/* =====================================
+   RIGO AI - Welcome Screen
+===================================== */
+
 *{
   margin:0;
   padding:0;
@@ -5,19 +9,26 @@
 }
 
 body{
+
+  min-height:100vh;
+
   background:#08111F;
-  color:#FFFFFF;
-  font-family:sans-serif;
+
+  font-family:
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  sans-serif;
 }
 
 .welcome-screen{
 
-  width:100%;
   min-height:100vh;
 
   display:flex;
-  align-items:center;
+
   justify-content:center;
+  align-items:center;
 
   padding:24px;
 }
@@ -25,49 +36,55 @@ body{
 .welcome-content{
 
   width:100%;
+  max-width:360px;
 
   display:flex;
   flex-direction:column;
 
   align-items:center;
-  justify-content:center;
-
-  gap:20px;
+  text-align:center;
 }
 
 .logo{
 
-  width:140px;
-  height:140px;
+  width:180px;
+  height:180px;
 
   object-fit:contain;
+
+  border-radius:40px;
 }
 
-h1{
+.title{
 
-  font-size:36px;
-  font-weight:700;
+  margin-top:24px;
 
   color:#FFFFFF;
+
+  font-size:42px;
+  font-weight:700;
 }
 
-p{
+.subtitle{
 
-  color:#C7D0D9;
+  margin-top:10px;
+
+  color:#BFC7D1;
+
   font-size:16px;
 }
 
-#startButton{
+.start-button{
 
   width:100%;
-  max-width:280px;
+  height:58px;
 
-  height:56px;
+  margin-top:40px;
 
   border:none;
   border-radius:18px;
 
-  background:#18C964;
+  background:#22C55E;
 
   color:#FFFFFF;
 
