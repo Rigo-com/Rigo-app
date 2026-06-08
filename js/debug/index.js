@@ -27,6 +27,10 @@ from "./ui/index.js";
 
 function initializeDebugSystem(){
 
+  alert(
+  "DEBUG INITIALIZE STARTED"
+);
+  
   Diagnostics.start();
 
   Diagnostics.recordEvent(
