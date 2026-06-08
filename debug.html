@@ -9,7 +9,9 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0">
 
-  <title>RIGO Debug Center</title>
+  <title>
+    RIGO Debug Center
+  </title>
 
   <style>
 
@@ -102,8 +104,6 @@
 
       gap:16px;
 
-      margin-bottom:40px;
-
     }
 
     .card{
@@ -118,7 +118,7 @@
 
       cursor:pointer;
 
-      transition:0.2s;
+      transition:.2s;
 
     }
 
@@ -158,26 +158,6 @@
 
     }
 
-    .output{
-
-      margin-top:20px;
-
-      background:#0f172a;
-
-      border:1px solid #1e293b;
-
-      border-radius:18px;
-
-      padding:20px;
-
-      min-height:220px;
-
-      overflow:auto;
-
-      white-space:pre-wrap;
-
-    }
-
   </style>
 
 </head>
@@ -195,12 +175,12 @@
       <a
         href="./home.html"
         class="back-btn">
+
         ← Home
+
       </a>
 
     </div>
-
-
 
     <div class="section-title">
 
@@ -223,12 +203,10 @@
         </div>
 
         <div class="card-text">
-          Open system dashboard.
+          View system health dashboard.
         </div>
 
       </div>
-
-
 
       <div
         class="card"
@@ -243,12 +221,10 @@
         </div>
 
         <div class="card-text">
-          Show current system snapshot.
+          View current runtime snapshot.
         </div>
 
       </div>
-
-
 
       <div
         class="card"
@@ -263,161 +239,14 @@
         </div>
 
         <div class="card-text">
-          Run diagnostics report.
+          View diagnostics report.
         </div>
 
       </div>
-
-
-
-      <div
-        class="card"
-        onclick="clearOutput()">
-
-        <div class="card-icon">
-          🧹
-        </div>
-
-        <div class="card-title">
-          Clear
-        </div>
-
-        <div class="card-text">
-          Clear output panel.
-        </div>
-
-      </div>
-
-    </div>
-
-
-
-    <div
-      id="output"
-      class="output">
-
-Waiting for debug action...
 
     </div>
 
   </div>
-
-
-
-  <script type="module">
-
-    import Debug
-    from "./js/debug/index.js";
-
-    window.runDashboard =
-    function(){
-
-      try{
-
-        Debug.dashboard();
-
-      }
-      catch(error){
-
-        document
-        .getElementById(
-          "output"
-        )
-        .textContent =
-        error.stack || error;
-
-      }
-
-    };
-
-
-
-    window.showSnapshot =
-    function(){
-
-      try{
-
-        const snapshot =
-
-        Debug.snapshot();
-
-        document
-        .getElementById(
-          "output"
-        )
-        .textContent =
-
-        JSON.stringify(
-          snapshot,
-          null,
-          2
-        );
-
-      }
-      catch(error){
-
-        document
-        .getElementById(
-          "output"
-        )
-        .textContent =
-        error.stack || error;
-
-      }
-
-    };
-
-
-
-    window.runDiagnostics =
-    function(){
-
-      try{
-
-        const report =
-
-        Debug.report();
-
-        document
-        .getElementById(
-          "output"
-        )
-        .textContent =
-
-        JSON.stringify(
-          report,
-          null,
-          2
-        );
-
-      }
-      catch(error){
-
-        document
-        .getElementById(
-          "output"
-        )
-        .textContent =
-        error.stack || error;
-
-      }
-
-    };
-
-
-
-    window.clearOutput =
-    function(){
-
-      document
-      .getElementById(
-        "output"
-      )
-      .textContent = "";
-
-    };
-
-  </script>
 
 </body>
 
