@@ -30,7 +30,7 @@ function createWelcomeScreen() {
         </h1>
 
         <p>
-          AI Assistant For Everything
+          One App. Unlimited Possibilities.
         </p>
 
         <button
