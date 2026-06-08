@@ -110,6 +110,10 @@ Object.freeze({
   DiagnosticsManager
   .stop,
 
+  recordEvent:
+  DiagnosticsManager
+  .recordEvent,
+  
   snapshot:
   DiagnosticsManager
   .snapshot,
