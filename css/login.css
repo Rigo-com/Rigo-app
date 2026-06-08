@@ -79,16 +79,37 @@ body{
   color:#64748b;
 }
 
+.login-links{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+
+  margin-bottom:24px;
+}
+
 .forgot-password{
   color:#94a3b8;
-
   text-decoration:none;
+  font-size:14px;
+}
+
+.forgot-password:hover{
+  color:white;
+}
+
+.google-link{
+  background:none;
+  border:none;
+
+  color:#94a3b8;
 
   font-size:14px;
 
-  text-align:right;
+  cursor:pointer;
+}
 
-  margin-bottom:24px;
+.google-link:hover{
+  color:white;
 }
 
 .continue-button{
@@ -111,21 +132,20 @@ body{
   opacity:.95;
 }
 
-.google-link{
-  background:none;
-  border:none;
-
-  color:#94a3b8;
-
-  font-size:15px;
+.create-account{
+  display:block;
 
   margin-top:20px;
 
-  cursor:pointer;
-
   text-align:center;
+
+  color:#94a3b8;
+
+  text-decoration:none;
+
+  font-size:15px;
 }
 
-.google-link:hover{
+.create-account:hover{
   color:white;
 }
