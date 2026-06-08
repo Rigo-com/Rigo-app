@@ -108,3 +108,34 @@ body{
 
   font-size:15px;
 }
+
+
+.password-container{
+  position:relative;
+
+  width:100%;
+
+  margin-bottom:16px;
+}
+
+.password-container .input-field{
+  margin-bottom:0;
+}
+
+.toggle-password{
+  position:absolute;
+
+  top:50%;
+  right:18px;
+
+  transform:translateY(-50%);
+
+  background:none;
+  border:none;
+
+  color:#94a3b8;
+
+  font-size:18px;
+
+  cursor:pointer;
+}
