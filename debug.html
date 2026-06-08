@@ -304,37 +304,120 @@ Waiting for debug action...
 
 
 
-  <script>
+  <script type="module">
 
-window.runDashboard =
-function(){
+    import Debug
+    from "./js/debug/index.js";
 
-  alert("Dashboard");
+    window.runDashboard =
+    function(){
 
-};
+      try{
 
-window.showSnapshot =
-function(){
+        Debug.dashboard();
 
-  alert("Snapshot");
+      }
+      catch(error){
 
-};
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+        error.stack || error;
 
-window.runDiagnostics =
-function(){
+      }
 
-  alert("Diagnostics");
+    };
 
-};
 
-window.clearOutput =
-function(){
 
-  alert("Clear");
+    window.showSnapshot =
+    function(){
 
-};
+      try{
 
-</script>
+        const snapshot =
+
+        Debug.snapshot();
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+
+        JSON.stringify(
+          snapshot,
+          null,
+          2
+        );
+
+      }
+      catch(error){
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+        error.stack || error;
+
+      }
+
+    };
+
+
+
+    window.runDiagnostics =
+    function(){
+
+      try{
+
+        const report =
+
+        Debug.report();
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+
+        JSON.stringify(
+          report,
+          null,
+          2
+        );
+
+      }
+      catch(error){
+
+        document
+        .getElementById(
+          "output"
+        )
+        .textContent =
+        error.stack || error;
+
+      }
+
+    };
+
+
+
+    window.clearOutput =
+    function(){
+
+      document
+      .getElementById(
+        "output"
+      )
+      .textContent = "";
+
+    };
+
+  </script>
 
 </body>
 
