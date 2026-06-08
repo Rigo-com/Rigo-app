@@ -2,7 +2,7 @@
 // RIGO AI
 // APPLICATION ENTRY POINT
 // =====================================
-alert("MAIN JS LOADED");
+
 
 
 import {
@@ -10,6 +10,7 @@ import {
 }
 from "./index.js";
 
+alert("MAIN JS LOADED");
 
 
 async function startApplication(){
