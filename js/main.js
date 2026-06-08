@@ -1,11 +1,14 @@
-alert("MAIN OK");
+// =====================================
+// RIGO AI
+// APPLICATION ENTRY POINT
+// =====================================
 
 import {
   Bootstrap
 }
 from "./index.js";
 
-alert("INDEX OK");
+alert("INDEX IMPORTED");
 
 async function startApplication(){
 
@@ -20,43 +23,7 @@ async function startApplication(){
   }
   catch(error){
 
-    alert(
-      "BOOT FAILED"
-    );
-
-    console.error(
-      error
-    );
-
-    document.body.innerHTML =
-    `<pre>${error?.stack || error}</pre>`;
-
-  }
-
-}
-
-startApplication();
-
-// =====================================
-// RIGO AI
-// APPLICATION ENTRY POINT
-// =====================================
-
-import {
-  Bootstrap
-}
-from "./index.js";
-
-
-
-async function startApplication(){
-
-  try{
-
-    await Bootstrap.boot();
-
-  }
-  catch(error){
+    alert("BOOT FAILED");
 
     console.error(
       "RIGO startup failed:",
@@ -69,7 +36,5 @@ async function startApplication(){
   }
 
 }
-
-
 
 startApplication();
