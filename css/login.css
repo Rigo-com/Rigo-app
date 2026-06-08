@@ -1,0 +1,107 @@
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  min-height:100vh;
+  background:#020817;
+  font-family:Arial,sans-serif;
+}
+
+.login-screen{
+  min-height:100vh;
+
+  display:flex;
+  justify-content:center;
+  align-items:center;
+
+  padding:24px;
+}
+
+.login-content{
+  width:100%;
+  max-width:380px;
+
+  display:flex;
+  flex-direction:column;
+}
+
+.logo{
+  width:140px;
+  height:140px;
+
+  margin:0 auto 32px;
+
+  object-fit:contain;
+}
+
+.title{
+  color:white;
+  text-align:center;
+
+  font-size:36px;
+  font-weight:700;
+
+  margin-bottom:12px;
+}
+
+.subtitle{
+  color:#94a3b8;
+  text-align:center;
+
+  margin-bottom:40px;
+}
+
+.google-button{
+  height:56px;
+
+  border:none;
+  border-radius:16px;
+
+  background:white;
+  color:black;
+
+  font-size:16px;
+  font-weight:600;
+
+  margin-bottom:24px;
+}
+
+.divider{
+  color:#64748b;
+
+  text-align:center;
+
+  margin-bottom:24px;
+}
+
+.phone-input{
+  height:56px;
+
+  border:1px solid #334155;
+  border-radius:16px;
+
+  background:#0f172a;
+  color:white;
+
+  padding:0 16px;
+
+  margin-bottom:20px;
+
+  font-size:16px;
+}
+
+.otp-button{
+  height:56px;
+
+  border:none;
+  border-radius:16px;
+
+  background:#22c55e;
+  color:white;
+
+  font-size:18px;
+  font-weight:600;
+}
