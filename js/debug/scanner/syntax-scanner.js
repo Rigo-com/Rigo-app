@@ -3,6 +3,11 @@
 // SYNTAX SCANNER
 // =====================================
 
+import Diagnostics
+from "../diagnostics/index.js";
+
+
+
 const syntaxScannerState =
 Object.seal({
 
@@ -47,6 +52,10 @@ function scanSyntax(
     syntaxScannerState
     .passed++;
 
+    Diagnostics.recordEvent(
+    "syntax:passed"
+  );
+    
   }
 
   catch(error){
@@ -70,6 +79,24 @@ function scanSyntax(
     syntaxScannerState
     .failed++;
 
+    Diagnostics.addError(
+  error?.message ||
+  "Syntax Error"
+);
+
+Diagnostics.recordEvent(
+  "syntax:failed",
+  {
+
+    type:
+    error?.name,
+
+    message:
+    error?.message
+
+  }
+);
+    
   }
 
   syntaxScannerState
@@ -124,11 +151,47 @@ function scanMultipleSyntax(
 
 function snapshot(){
 
-  return {
+  return Object.freeze({
 
-    ...syntaxScannerState
+    scanned:
+    syntaxScannerState
+    .scanned,
 
-  };
+    passed:
+    syntaxScannerState
+    .passed,
+
+    failed:
+    syntaxScannerState
+    .failed,
+
+    lastScan:
+    syntaxScannerState
+    .lastScan,
+
+    successRate:
+
+      syntaxScannerState.scanned > 0
+
+      ?
+
+      Math.round(
+
+        (
+          syntaxScannerState.passed /
+          syntaxScannerState.scanned
+        ) * 100
+
+      )
+
+      :
+
+      0,
+
+    timestamp:
+    Date.now()
+
+  });
 
 }
 
