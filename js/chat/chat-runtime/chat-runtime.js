@@ -52,10 +52,6 @@ Object.seal({
 // =====================================
 
 function initialize(){
-
-  alert(
-  "CHAT INITIALIZED"
-  );
   
   if(
     runtimeState.initialized
