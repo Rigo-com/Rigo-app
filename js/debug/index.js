@@ -25,14 +25,15 @@ from "./ui/index.js";
 // INITIALIZE
 // =====================================
 
-function initializeDebugSystem(){
-
-  console.log(
-  "[DEBUG] INITIALIZED"
-);
+function initializeDebugSystem()
   
   Diagnostics
   .initialize();
+
+Diagnostics
+.addWarning(
+  "DEBUG INITIALIZED"
+);
 
   Monitor
   .memory
