@@ -26,56 +26,42 @@ from "./ui/index.js";
 // =====================================
 
 function initializeDebugSystem(){
-
-  alert(
-  "DEBUG INITIALIZE STARTED"
-);
   
   Diagnostics.start();
-
-  alert("1");
 
   Diagnostics.recordEvent(
   "debug:initialized"
 );
 
-  alert("8");
-
   Monitor
   .memory
   .start();
 
-  alert("2");
 
   Monitor
   .performance
   .start();
 
-  alert("3");
 
   Monitor
   .network
   .start();
-
-  alert("4");
+  
 
   Monitor
   .events
   .start();
 
-  alert("5");
 
   Monitor
   .services
   .start();
 
-  alert("6");
 
   Scanner
   .runtime
   .start();
 
-  alert("7");
   
   return true;
 
