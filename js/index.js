@@ -3,40 +3,6 @@
 // ROOT EXPORTS
 // APPLICATION PUBLIC API
 // =====================================
-window.onerror = (
-  message,
-  source,
-  line,
-  column,
-  error
-) => {
-
-  document.body.innerHTML = `
-    <pre style="
-      color:red;
-      padding:20px;
-      white-space:pre-wrap;
-    ">
-ERROR:
-${message}
-
-FILE:
-${source}
-
-LINE:
-${line}
-
-COLUMN:
-${column}
-
-STACK:
-
-${error?.stack || "NO STACK"}
-    </pre>
-  `;
-
-  return true;
-};
 
 
 
