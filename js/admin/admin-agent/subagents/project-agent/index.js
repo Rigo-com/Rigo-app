@@ -4,6 +4,9 @@
 // PRIVATE SUBAGENT EXPORTS
 // =====================================
 
+import ProjectAgent
+from "./project-agent.js";
+
 export * from "./project-agent.js";
 export { default as ProjectAgent }
 from "./project-agent.js";
@@ -15,3 +18,6 @@ from "./project-agent-state.js";
 export * from "./project-index.js";
 export { default as ProjectIndex }
 from "./project-index.js";
+
+export default
+ProjectAgent;
