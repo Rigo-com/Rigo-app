@@ -86,6 +86,8 @@ async function boot(){
 
   try{
 
+    alert("PROJECT AGENT BOOT STARTED");
+    
     if(
       !ProjectAgentState
       .state
