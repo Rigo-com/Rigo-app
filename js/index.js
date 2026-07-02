@@ -15,6 +15,14 @@ export { default as AI }
 from "./ai/index.js";
 
 
+// =====================================
+// ADMIN
+// =====================================
+
+export * from "./admin/index.js";
+export { default as Admin }
+from "./admin/index.js";
+
 
 // =====================================
 // API
