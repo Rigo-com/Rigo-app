@@ -2,20 +2,24 @@
 // RIGO AI
 // APPLICATION ENTRY POINT
 // =====================================
+
 alert("MAIN FILE LOADED");
 
-
 import {
-  Bootstrap
+  Bootstrap,
+  Admin
 }
 from "./index.js";
-
 
 async function startApplication(){
 
   try{
 
     await Bootstrap.boot();
+
+    alert("BOOT DONE");
+
+    await Admin.boot();
 
   }
   catch(error){
