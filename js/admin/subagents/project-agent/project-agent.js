@@ -7,6 +7,9 @@
 import ProjectAgentState
 from "./project-agent-state.js";
 
+import ProjectIndex
+from "./project-index.js";
+
 
 
 // =====================================
@@ -116,7 +119,7 @@ async function scan(){
       true
     );
 
-    const projectData = {
+    const emptyProjectData = {
 
       files:
       [],
@@ -133,29 +136,78 @@ async function scan(){
       systems:
       [],
 
-      relationships:
-      []
-
-    };
-
-    const graph = {
-
-      nodes:
+      services:
       [],
 
-      edges:
-      []
+      routes:
+      [],
+
+      ui:
+      [],
+
+      ai:
+      [],
+
+      memory:
+      [],
+
+      debug:
+      [],
+
+      relationships:
+      [],
+
+      graph:
+      {
+
+        nodes:
+        [],
+
+        edges:
+        []
+
+      }
 
     };
 
-    ProjectAgentState
-    .setProjectData(
-      projectData
+    ProjectIndex
+    .set(
+      emptyProjectData
     );
 
     ProjectAgentState
+    .setProjectData({
+
+      files:
+      emptyProjectData
+      .files,
+
+      folders:
+      emptyProjectData
+      .folders,
+
+      imports:
+      emptyProjectData
+      .imports,
+
+      exports:
+      emptyProjectData
+      .exports,
+
+      systems:
+      emptyProjectData
+      .systems,
+
+      relationships:
+      emptyProjectData
+      .relationships
+
+    });
+
+    ProjectAgentState
     .setGraph(
-      graph
+      emptyProjectData
+      .graph
     );
 
     ProjectAgentState
@@ -169,7 +221,7 @@ async function scan(){
     ProjectAgentState
     .log(
       "scan",
-      "PROJECT SCAN COMPLETED"
+      "PROJECT INDEX CREATED"
     );
 
     return {
@@ -178,13 +230,13 @@ async function scan(){
       true,
 
       mode:
-      "browser-safe-empty-scan",
+      "project-index-empty",
 
       message:
-      "Project Agent scan completed. Real filesystem scanning requires backend file access.",
+      "Project Index created. Real project scanning requires backend file access or repository API.",
 
-      snapshot:
-      ProjectAgentState
+      index:
+      ProjectIndex
       .snapshot()
 
     };
@@ -234,10 +286,6 @@ function query(
   request
   ?.value;
 
-  const snapshot =
-  ProjectAgentState
-  .snapshot();
-
   if(
     type === "snapshot"
   ){
@@ -248,14 +296,15 @@ function query(
       true,
 
       result:
-      snapshot
+      ProjectIndex
+      .snapshot()
 
     };
 
   }
 
   if(
-    type === "files"
+    type === "state"
   ){
 
     return {
@@ -264,15 +313,22 @@ function query(
       true,
 
       result:
-      snapshot
-      .files
+      ProjectAgentState
+      .snapshot()
 
     };
 
   }
 
+  const result =
+  ProjectIndex
+  .query(
+    type,
+    value
+  );
+
   if(
-    type === "folders"
+    result !== null
   ){
 
     return {
@@ -280,50 +336,7 @@ function query(
       ok:
       true,
 
-      result:
-      snapshot
-      .folders
-
-    };
-
-  }
-
-  if(
-    type === "systems"
-  ){
-
-    return {
-
-      ok:
-      true,
-
-      result:
-      snapshot
-      .systems
-
-    };
-
-  }
-
-  if(
-    type === "search-file"
-  ){
-
-    return {
-
-      ok:
-      true,
-
-      result:
-      snapshot
-      .files
-      .filter(
-        file =>
-        String(file)
-        .includes(
-          String(value || "")
-        )
-      )
+      result
 
     };
 
@@ -340,10 +353,22 @@ function query(
     supported:
     [
       "snapshot",
+      "state",
       "files",
       "folders",
       "systems",
-      "search-file"
+      "services",
+      "routes",
+      "ui",
+      "ai",
+      "memory",
+      "debug",
+      "imports",
+      "exports",
+      "relationships",
+      "graph",
+      "diagnostics",
+      "search"
     ]
 
   };
@@ -381,6 +406,9 @@ async function shutdown(){
 
 async function reset(){
 
+  ProjectIndex
+  .clear();
+
   ProjectAgentState
   .reset();
 
@@ -402,8 +430,17 @@ async function reset(){
 
 function snapshot(){
 
-  return ProjectAgentState
-  .snapshot();
+  return {
+
+    state:
+    ProjectAgentState
+    .snapshot(),
+
+    index:
+    ProjectIndex
+    .snapshot()
+
+  };
 
 }
 
