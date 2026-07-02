@@ -11,3 +11,7 @@ from "./project-agent.js";
 export * from "./project-agent-state.js";
 export { default as ProjectAgentState }
 from "./project-agent-state.js";
+
+export * from "./project-index.js";
+export { default as ProjectIndex }
+from "./project-index.js";
