@@ -28,6 +28,8 @@ async function initialize(){
 
 async function boot(){
 
+  alert("ADMIN BOOT STARTED");
+  
   return AdminAgent
   .boot();
 
