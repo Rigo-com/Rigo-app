@@ -16,6 +16,9 @@ from "../debug/index.js";
 import Memory
 from "../memory/index.js";
 
+import Admin
+from "../admin/index.js";
+
 import {
   registerBootstrapSystem
 }
@@ -72,12 +75,6 @@ function registerChatSystem(){
 
 function registerDebugSystem(){
 
-   alert(
-
-    "DEBUG REGISTERED"
-
-  );
-  
   return registerBootstrapSystem({
 
     id:
@@ -116,6 +113,29 @@ function registerMemorySystem(){
 
 }
 
+function registerAdminSystem(){
+
+  return registerBootstrapSystem({
+
+    id:
+    "admin",
+
+    priority:
+    30,
+
+    initialize:
+    Admin.initialize,
+
+    boot:
+    Admin.boot,
+
+    shutdown:
+    Admin.shutdown
+
+  });
+
+}
+
 
 
 // =====================================
@@ -129,8 +149,10 @@ function registerBootstrapSystems(){
   registerChatSystem();
 
   registerMemorySystem();
-  
+
   registerDebugSystem();
+
+  registerAdminSystem();
 
   return true;
 
@@ -145,6 +167,14 @@ function registerBootstrapSystems(){
 export {
 
   registerCoreSystem,
+
+  registerChatSystem,
+
+  registerDebugSystem,
+
+  registerMemorySystem,
+
+  registerAdminSystem,
 
   registerBootstrapSystems
 
