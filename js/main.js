@@ -1,31 +1,28 @@
 // =====================================
 // RIGO AI
 // APPLICATION ENTRY POINT
-// ADMIN DIRECT TEST
 // =====================================
-
 alert("MAIN FILE LOADED");
 
+
 import {
-  Admin
+  Bootstrap
 }
 from "./index.js";
+
 
 async function startApplication(){
 
   try{
 
-    alert("BEFORE ADMIN BOOT");
-
-    await Admin.boot();
-
-    alert("AFTER ADMIN BOOT");
+    await Bootstrap.boot();
 
   }
   catch(error){
 
-    alert(
-      error?.message || String(error)
+    console.error(
+      "RIGO startup failed:",
+      error
     );
 
     document.body.innerHTML =
