@@ -115,6 +115,12 @@ function registerMemorySystem(){
 
 function registerAdminSystem(){
 
+  alert(
+
+    "ADMIN REGISTER SYSTEM"
+
+  );
+  
   return registerBootstrapSystem({
 
     id:
