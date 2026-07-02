@@ -9,6 +9,9 @@ from "./admin-agent-state.js";
 import AdminAgentPermissions
 from "./admin-agent-permissions.js";
 
+import ProjectAgent
+from "./subagents/project-agent/index.js";
+
 
 
 // =====================================
@@ -28,6 +31,9 @@ async function initialize(){
       return true;
 
     }
+
+    await ProjectAgent
+    .initialize();
 
     AdminAgentState
     .setInitialized(
@@ -76,6 +82,9 @@ async function boot(){
 
     }
 
+    await ProjectAgent
+    .boot();
+
     AdminAgentState
     .setBooted(
       true
@@ -111,6 +120,9 @@ async function boot(){
 
 async function shutdown(){
 
+  await ProjectAgent
+  .shutdown();
+
   AdminAgentState
   .setBooted(
     false
@@ -134,6 +146,9 @@ async function shutdown(){
 
 async function reset(){
 
+  await ProjectAgent
+  .reset();
+
   AdminAgentState
   .reset();
 
@@ -144,6 +159,97 @@ async function reset(){
   );
 
   return true;
+
+}
+
+
+
+// =====================================
+// PROJECT COMMAND
+// =====================================
+
+async function handleProjectCommand(
+  input
+){
+
+  const normalized =
+  String(input || "")
+  .trim()
+  .toLowerCase();
+
+  if(
+    normalized === "scan project" ||
+    normalized === "افحص المشروع" ||
+    normalized === "حلل المشروع"
+  ){
+
+    return ProjectAgent
+    .scan();
+
+  }
+
+  if(
+    normalized === "project snapshot" ||
+    normalized === "حالة المشروع"
+  ){
+
+    return ProjectAgent
+    .query({
+
+      type:
+      "snapshot"
+
+    });
+
+  }
+
+  if(
+    normalized === "list files" ||
+    normalized === "اعرض الملفات"
+  ){
+
+    return ProjectAgent
+    .query({
+
+      type:
+      "files"
+
+    });
+
+  }
+
+  if(
+    normalized === "list folders" ||
+    normalized === "اعرض الفولدرات"
+  ){
+
+    return ProjectAgent
+    .query({
+
+      type:
+      "folders"
+
+    });
+
+  }
+
+  if(
+    normalized === "list systems" ||
+    normalized === "اعرض الانظمة" ||
+    normalized === "اعرض الأنظمة"
+  ){
+
+    return ProjectAgent
+    .query({
+
+      type:
+      "systems"
+
+    });
+
+  }
+
+  return null;
 
 }
 
@@ -162,11 +268,13 @@ async function command(
   ){
 
     return {
+
       ok:
       false,
 
       error:
       "EMPTY_ADMIN_AGENT_COMMAND"
+
     };
 
   }
@@ -188,16 +296,49 @@ async function command(
     input
   );
 
+  const projectResult =
+  await handleProjectCommand(
+    input
+  );
+
+  if(
+    projectResult
+  ){
+
+    AdminAgentState
+    .state
+    .lastResult =
+    projectResult;
+
+    return projectResult;
+
+  }
+
   const result = {
 
     ok:
     true,
 
     mode:
-    "analysis-only",
+    "admin-agent-router",
 
     message:
-    "Admin Agent command received. Execution layer is disabled until approval and backend file access are connected.",
+    "Admin Agent command received. No matching private subagent route found yet.",
+
+    supportedCommands:
+    [
+      "scan project",
+      "project snapshot",
+      "list files",
+      "list folders",
+      "list systems",
+      "افحص المشروع",
+      "حلل المشروع",
+      "حالة المشروع",
+      "اعرض الملفات",
+      "اعرض الفولدرات",
+      "اعرض الأنظمة"
+    ],
 
     permissions:
     AdminAgentPermissions
@@ -233,7 +374,16 @@ function snapshot(){
 
     permissions:
     AdminAgentPermissions
-    .snapshot()
+    .snapshot(),
+
+    privateSubagents:
+    {
+
+      project:
+      ProjectAgent
+      .snapshot()
+
+    }
 
   };
 
