@@ -18,6 +18,7 @@ from "./bootstrap-setup.js";
 // =====================================
 // SETUP
 // =====================================
+alert("BOOTSTRAP SETUP CALL");
 
 registerBootstrapSystems();
 
