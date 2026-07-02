@@ -107,6 +107,8 @@ async function boot(){
       "PROJECT AGENT BOOTED"
     );
 
+    await scan();
+    
     return true;
 
   }
