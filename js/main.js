@@ -2,7 +2,7 @@
 // RIGO AI
 // APPLICATION ENTRY POINT
 // =====================================
-
+alert("MAIN FILE LOADED");
 
 
 import {
