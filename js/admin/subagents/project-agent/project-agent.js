@@ -10,6 +10,12 @@ from "./project-agent-state.js";
 import ProjectIndex
 from "./project-index.js";
 
+import ProjectProviderManager
+from "./providers/provider-manager.js";
+
+import GitHubProvider
+from "./providers/github-provider.js";
+
 
 
 // =====================================
@@ -29,6 +35,19 @@ async function initialize(){
       return true;
 
     }
+
+    ProjectProviderManager
+    .initialize();
+
+    ProjectProviderManager
+    .register(
+      GitHubProvider
+    );
+
+    ProjectProviderManager
+    .setActive(
+      "github-provider"
+    );
 
     ProjectAgentState
     .setInitialized(
@@ -119,94 +138,67 @@ async function scan(){
       true
     );
 
-    const emptyProjectData = {
+    const scanResult =
+    await ProjectProviderManager
+    .scanProject();
 
-      files:
-      [],
+    if(
+      !scanResult
+      ?.ok
+    ){
 
-      folders:
-      [],
+      throw new Error(
+        scanResult?.error ||
+        "PROJECT_PROVIDER_SCAN_FAILED"
+      );
 
-      imports:
-      [],
-
-      exports:
-      [],
-
-      systems:
-      [],
-
-      services:
-      [],
-
-      routes:
-      [],
-
-      ui:
-      [],
-
-      ai:
-      [],
-
-      memory:
-      [],
-
-      debug:
-      [],
-
-      relationships:
-      [],
-
-      graph:
-      {
-
-        nodes:
-        [],
-
-        edges:
-        []
-
-      }
-
-    };
+    }
 
     ProjectIndex
     .set(
-      emptyProjectData
+      scanResult
+      .data
     );
 
     ProjectAgentState
     .setProjectData({
 
       files:
-      emptyProjectData
+      scanResult
+      .data
       .files,
 
       folders:
-      emptyProjectData
+      scanResult
+      .data
       .folders,
 
       imports:
-      emptyProjectData
+      scanResult
+      .data
       .imports,
 
       exports:
-      emptyProjectData
+      scanResult
+      .data
       .exports,
 
       systems:
-      emptyProjectData
+      scanResult
+      .data
       .systems,
 
       relationships:
-      emptyProjectData
+      scanResult
+      .data
       .relationships
 
     });
 
     ProjectAgentState
     .setGraph(
-      emptyProjectData
+      scanResult
+      .data
       .graph
     );
 
@@ -221,7 +213,24 @@ async function scan(){
     ProjectAgentState
     .log(
       "scan",
-      "PROJECT INDEX CREATED"
+      "PROJECT SCAN COMPLETED",
+      {
+        source:
+        scanResult
+        .source,
+
+        files:
+        scanResult
+        .data
+        .files
+        .length,
+
+        folders:
+        scanResult
+        .data
+        .folders
+        .length
+      }
     );
 
     return {
@@ -230,10 +239,32 @@ async function scan(){
       true,
 
       mode:
-      "project-index-empty",
+      "github-project-scan",
 
-      message:
-      "Project Index created. Real project scanning requires backend file access or repository API.",
+      source:
+      scanResult
+      .source,
+
+      owner:
+      scanResult
+      .owner,
+
+      repo:
+      scanResult
+      .repo,
+
+      branch:
+      scanResult
+      .branch,
+
+      root:
+      scanResult
+      .root,
+
+      diagnostics:
+      ProjectIndex
+      .snapshot()
+      .diagnostics,
 
       index:
       ProjectIndex
@@ -320,6 +351,23 @@ function query(
 
   }
 
+  if(
+    type === "providers"
+  ){
+
+    return {
+
+      ok:
+      true,
+
+      result:
+      ProjectProviderManager
+      .snapshot()
+
+    };
+
+  }
+
   const result =
   ProjectIndex
   .query(
@@ -354,6 +402,7 @@ function query(
     [
       "snapshot",
       "state",
+      "providers",
       "files",
       "folders",
       "systems",
@@ -438,6 +487,10 @@ function snapshot(){
 
     index:
     ProjectIndex
+    .snapshot(),
+
+    providers:
+    ProjectProviderManager
     .snapshot()
 
   };
