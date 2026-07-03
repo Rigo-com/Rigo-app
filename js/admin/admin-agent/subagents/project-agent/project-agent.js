@@ -178,8 +178,6 @@ alert("STEP 2");
 
     ProjectAgentState
     .setProjectData({
-      
-alert("STEP 3");
   
       files:
       scanResult
@@ -213,6 +211,8 @@ alert("STEP 3");
 
     });
 
+    alert("STEP 3");
+    
     ProjectAgentState
     .setGraph(
       scanResult
