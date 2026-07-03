@@ -28,7 +28,8 @@ function registerModule(
 
   if(
     !module ||
-    typeof module !== "object"
+    typeof module !==
+    "object"
   ){
 
     return false;
@@ -50,6 +51,18 @@ function registerModule(
 
   }
 
+  if(
+
+    runtimeRegistry
+    .modules
+    .has(id)
+
+  ){
+
+    return false;
+
+  }
+
   runtimeRegistry
   .modules
   .set(
@@ -58,16 +71,16 @@ function registerModule(
 
     Object.freeze({
 
-  ...module,
+      ...module,
 
-  id,
+      id,
 
-  priority:
-  Number(
-    module.priority || 0
-  )
+      priority:
+      Number(
+        module.priority || 0
+      )
 
-})
+    })
 
   );
 
@@ -132,6 +145,30 @@ function getModule(
 
 
 // =====================================
+// HAS
+// =====================================
+
+function hasModule(
+  moduleId
+){
+
+  return runtimeRegistry
+  .modules
+  .has(
+
+    String(
+      moduleId || ""
+    )
+    .trim()
+    .toLowerCase()
+
+  );
+
+}
+
+
+
+// =====================================
 // LIST
 // =====================================
 
@@ -183,33 +220,45 @@ function snapshot(){
 
     modules:
 
-listModules()
+    listModules()
 
-.map(
+    .map(
 
-  module => ({
+      module => ({
 
-    id:
-    module.id,
+        id:
+        module.id,
 
-    priority:
-    module.priority,
+        priority:
+        module.priority,
 
-    initialized:
-    typeof module.initialize ===
-    "function",
+        initialized:
+        typeof module.initialize ===
+        "function",
 
-    boot:
-    typeof module.boot ===
-    "function",
+        boot:
+        typeof module.boot ===
+        "function",
 
-    shutdown:
-    typeof module.shutdown ===
-    "function"
+        shutdown:
+        typeof module.shutdown ===
+        "function",
 
-  })
+        recover:
+        typeof module.recover ===
+        "function",
 
-)
+        reset:
+        typeof module.reset ===
+        "function",
+
+        snapshot:
+        typeof module.snapshot ===
+        "function"
+
+      })
+
+    )
 
   };
 
@@ -232,6 +281,9 @@ Object.freeze({
 
   get:
   getModule,
+
+  has:
+  hasModule,
 
   list:
   listModules,
@@ -256,6 +308,8 @@ export {
   removeModule,
 
   getModule,
+
+  hasModule,
 
   listModules,
 
