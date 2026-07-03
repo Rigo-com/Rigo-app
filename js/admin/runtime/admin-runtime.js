@@ -3,6 +3,9 @@
 // ADMIN RUNTIME
 // =====================================
 
+import registerRuntimeModules
+from "./admin-runtime-setup.js";
+
 import AdminRuntimeState
 from "./admin-runtime-state.js";
 
@@ -42,6 +45,8 @@ async function initialize(){
 
     }
 
+    registerRuntimeModules();
+    
     AdminRuntimeState
     .log(
       "runtime",
