@@ -85,8 +85,6 @@ async function initialize(){
 async function boot(){
 
   try{
-
-    alert("PROJECT AGENT BOOT STARTED");
     
     if(
       !ProjectAgentState
@@ -154,8 +152,6 @@ async function scan(){
   )
 );
 
-    alert("STEP 1");
-    
     if(
       !scanResult
       ?.ok
@@ -173,9 +169,7 @@ async function scan(){
       scanResult
       .data
     );
-    
-alert("STEP 2");
-
+  
     ProjectAgentState
     .setProjectData({
   
@@ -211,7 +205,6 @@ alert("STEP 2");
 
     });
 
-    alert("STEP 3");
     
     ProjectAgentState
     .setGraph(
@@ -220,7 +213,6 @@ alert("STEP 2");
       .graph
     );
 
-    alert("STEP 4");
     
     ProjectAgentState
     .markScanned();
@@ -252,8 +244,6 @@ alert("STEP 2");
         .length
       }
     );
-
-alert("STEP 5");
     
     return {
 
