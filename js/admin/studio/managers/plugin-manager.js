@@ -5,10 +5,10 @@
 // =====================================
 
 import StudioState
-from "./studio-state.js";
+from "../kernel/studio-state.js";
 
 import StudioEvents
-from "./studio-events.js";
+from "../kernel/studio-events.js";
 
 
 
