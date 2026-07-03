@@ -153,6 +153,8 @@ async function scan(){
     2
   )
 );
+
+    alert("STEP 1");
     
     if(
       !scanResult
@@ -171,10 +173,14 @@ async function scan(){
       scanResult
       .data
     );
+    
+alert("STEP 2");
 
     ProjectAgentState
     .setProjectData({
-
+      
+alert("STEP 3");
+  
       files:
       scanResult
       .data
@@ -214,6 +220,8 @@ async function scan(){
       .graph
     );
 
+    alert("STEP 4");
+    
     ProjectAgentState
     .markScanned();
 
@@ -245,6 +253,8 @@ async function scan(){
       }
     );
 
+alert("STEP 5");
+    
     return {
 
       ok:
