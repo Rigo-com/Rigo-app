@@ -4,8 +4,8 @@
 // PRIVATE ADMIN SYSTEM
 // =====================================
 
-import AdminAgent
-from "./admin-agent/index.js";
+import AdminRuntime
+from "./runtime/index.js";
 
 
 
@@ -15,7 +15,7 @@ from "./admin-agent/index.js";
 
 async function initialize(){
 
-  return AdminAgent
+  return AdminRuntime
   .initialize();
 
 }
@@ -28,7 +28,7 @@ async function initialize(){
 
 async function boot(){
 
-  return AdminAgent
+  return AdminRuntime
   .boot();
 
 }
@@ -41,8 +41,21 @@ async function boot(){
 
 async function shutdown(){
 
-  return AdminAgent
+  return AdminRuntime
   .shutdown();
+
+}
+
+
+
+// =====================================
+// RECOVER
+// =====================================
+
+async function recover(){
+
+  return AdminRuntime
+  .recover();
 
 }
 
@@ -54,7 +67,7 @@ async function shutdown(){
 
 async function reset(){
 
-  return AdminAgent
+  return AdminRuntime
   .reset();
 
 }
@@ -69,7 +82,29 @@ async function command(
   input
 ){
 
-  return AdminAgent
+  const agentModule =
+  AdminRuntime
+  .registry
+  .get(
+    "admin-agent"
+  );
+
+  if(
+    !agentModule ||
+    typeof agentModule.command !== "function"
+  ){
+
+    return {
+      ok:
+      false,
+
+      error:
+      "ADMIN_AGENT_COMMAND_NOT_AVAILABLE"
+    };
+
+  }
+
+  return agentModule
   .command(
     input
   );
@@ -84,7 +119,7 @@ async function command(
 
 function snapshot(){
 
-  return AdminAgent
+  return AdminRuntime
   .snapshot();
 
 }
@@ -110,11 +145,16 @@ Object.freeze({
 
   shutdown,
 
+  recover,
+
   reset,
 
   command,
 
-  snapshot
+  snapshot,
+
+  runtime:
+  AdminRuntime
 
 });
 
@@ -131,6 +171,8 @@ export {
   boot,
 
   shutdown,
+
+  recover,
 
   reset,
 
