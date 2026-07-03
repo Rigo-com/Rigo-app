@@ -23,30 +23,9 @@ from "./admin-runtime-registry.js";
 
 function registerAgentModule(){
 
-  return registerModule({
-
-    id:
-    "admin-agent",
-
-    priority:
-    0,
-
-    initialize:
-    AdminAgent.initialize,
-
-    boot:
-    AdminAgent.boot,
-
-    shutdown:
-    AdminAgent.shutdown,
-
-    reset:
-    AdminAgent.reset,
-
-    snapshot:
-    AdminAgent.snapshot
-
-  });
+  return registerModule(
+    AdminAgent
+  );
 
 }
 
@@ -58,30 +37,9 @@ function registerAgentModule(){
 
 function registerStudioModule(){
 
-  return registerModule({
-
-    id:
-    "studio",
-
-    priority:
-    10,
-
-    initialize:
-    Studio.initialize,
-
-    boot:
-    Studio.boot,
-
-    shutdown:
-    Studio.shutdown,
-
-    reset:
-    Studio.reset,
-
-    snapshot:
-    Studio.snapshot
-
-  });
+  return registerModule(
+    Studio
+  );
 
 }
 
