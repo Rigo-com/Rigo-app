@@ -12,6 +12,9 @@ from "./admin-agent-permissions.js";
 import ProjectAgent
 from "./subagents/project-agent/index.js";
 
+import CodeAgent
+from "./subagents/code-agent/index.js";
+
 
 
 // =====================================
@@ -35,6 +38,9 @@ async function initialize(){
     await ProjectAgent
     .initialize();
 
+    await CodeAgent
+    .initialize();
+    
     AdminAgentState
     .setInitialized(
       true
@@ -85,6 +91,9 @@ async function boot(){
     await ProjectAgent
     .boot();
 
+    await CodeAgent
+    .boot();
+    
     AdminAgentState
     .setBooted(
       true
@@ -123,6 +132,9 @@ async function shutdown(){
   await ProjectAgent
   .shutdown();
 
+  await CodeAgent
+  .shutdown();
+  
   AdminAgentState
   .setBooted(
     false
@@ -149,6 +161,9 @@ async function reset(){
   await ProjectAgent
   .reset();
 
+  await CodeAgent
+  .reset();
+  
   AdminAgentState
   .reset();
 
@@ -377,13 +392,17 @@ function snapshot(){
     .snapshot(),
 
     privateSubagents:
-    {
+{
 
-      project:
-      ProjectAgent
-      .snapshot()
+  project:
+  ProjectAgent
+  .snapshot(),
 
-    }
+  code:
+  CodeAgent
+  .snapshot()
+
+}
 
   };
 
