@@ -10,6 +10,9 @@ from "./studio-state.js";
 import StudioEvents
 from "./studio-events.js";
 
+import PluginManager
+from "../managers/plugin-manager.js";
+
 
 
 // =====================================
