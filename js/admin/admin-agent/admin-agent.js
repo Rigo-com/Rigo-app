@@ -93,6 +93,10 @@ async function boot(){
 
     await CodeAgent
     .boot();
+
+    alert(
+  "CODE AGENT BOOTED"
+);
     
     AdminAgentState
     .setBooted(
