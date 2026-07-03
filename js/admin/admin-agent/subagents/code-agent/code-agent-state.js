@@ -208,8 +208,7 @@ function reset(){
 
 function snapshot(){
 
-  return
-  structuredClone(
+  return structuredClone(
     state
   );
 
