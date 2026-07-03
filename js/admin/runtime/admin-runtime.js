@@ -46,7 +46,12 @@ async function initialize(){
     }
 
     registerRuntimeModules();
-    
+
+    AdminRuntimeState
+    .state
+    .initialized =
+    true;
+
     AdminRuntimeState
     .log(
       "runtime",
@@ -87,8 +92,7 @@ async function boot(){
 
   }
 
-  return
-  bootRuntimeModules();
+  return bootRuntimeModules();
 
 }
 
@@ -100,8 +104,7 @@ async function boot(){
 
 async function shutdown(){
 
-  return
-  shutdownRuntimeModules();
+  return shutdownRuntimeModules();
 
 }
 
@@ -113,8 +116,7 @@ async function shutdown(){
 
 async function reset(){
 
-  return
-  resetRuntimeModules();
+  return resetRuntimeModules();
 
 }
 
@@ -126,8 +128,7 @@ async function reset(){
 
 async function recover(){
 
-  return
-  recoverRuntimeModules();
+  return recoverRuntimeModules();
 
 }
 
