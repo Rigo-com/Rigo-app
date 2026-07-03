@@ -58,29 +58,16 @@ function registerModule(
 
     Object.freeze({
 
-      id,
+  ...module,
 
-      priority:
-      Number(
-        module.priority || 0
-      ),
+  id,
 
-      initialize:
-      module.initialize || null,
+  priority:
+  Number(
+    module.priority || 0
+  )
 
-      boot:
-      module.boot || null,
-
-      shutdown:
-      module.shutdown || null,
-
-      reset:
-      module.reset || null,
-
-      snapshot:
-      module.snapshot || null
-
-    })
+})
 
   );
 
@@ -196,21 +183,33 @@ function snapshot(){
 
     modules:
 
-    listModules()
+listModules()
 
-    .map(
+.map(
 
-      module => ({
+  module => ({
 
-        id:
-        module.id,
+    id:
+    module.id,
 
-        priority:
-        module.priority
+    priority:
+    module.priority,
 
-      })
+    initialized:
+    typeof module.initialize ===
+    "function",
 
-    )
+    boot:
+    typeof module.boot ===
+    "function",
+
+    shutdown:
+    typeof module.shutdown ===
+    "function"
+
+  })
+
+)
 
   };
 
