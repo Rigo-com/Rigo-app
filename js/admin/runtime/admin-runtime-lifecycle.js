@@ -230,7 +230,6 @@ recoverRuntimeModules(){
 
   await shutdownRuntimeModules();
 
-  return
-  bootRuntimeModules();
+  return bootRuntimeModules();
 
 }
