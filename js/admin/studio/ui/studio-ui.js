@@ -32,9 +32,7 @@ async function mount(
   renderSidebar();
 
   await StudioPages
-  .renderPage(
-    "admin-agent"
-  );
+  .renderFromURL();
 
   return true;
 
