@@ -3,7 +3,7 @@
 // STUDIO UI
 // =====================================
 
-import renderPage
+import StudioPages
 from "./studio-pages.js";
 
 import {
@@ -21,7 +21,7 @@ from "./studio-sidebar.js";
 // MOUNT
 // =====================================
 
-function mount(
+async function mount(
   container
 ){
 
@@ -31,8 +31,9 @@ function mount(
 
   renderSidebar();
 
-  renderPage(
-    "dashboard"
+  await StudioPages
+  .renderPage(
+    "admin-agent"
   );
 
   return true;
@@ -46,6 +47,9 @@ function mount(
 // =====================================
 
 function unmount(){
+
+  StudioPages
+  .unmount();
 
   unmountStudioLayout();
 
