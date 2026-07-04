@@ -18,15 +18,14 @@ function createStudioRoot(){
 
   root.style.cssText =
   `
-    position: fixed;
-    inset: 0;
-    z-index: 999999;
-    background: ${StudioTheme.colors.background};
-    color: ${StudioTheme.colors.text};
-    display: grid;
-    grid-template-columns: 72px 1fr;
-    grid-template-rows: 48px 1fr 180px 28px;
-    font-family: system-ui, sans-serif;
+    width:100%;
+    min-height:100vh;
+    background:${StudioTheme.colors.background};
+    color:${StudioTheme.colors.text};
+    display:grid;
+    grid-template-columns:72px 1fr;
+    grid-template-rows:48px 1fr 180px 28px;
+    font-family:system-ui,sans-serif;
   `;
 
   root.innerHTML =
@@ -42,7 +41,11 @@ function createStudioRoot(){
 
 }
 
-function mountStudioLayout(){
+
+
+function mountStudioLayout(
+  container
+){
 
   let root =
   document.getElementById(
@@ -60,13 +63,19 @@ function mountStudioLayout(){
   root =
   createStudioRoot();
 
-  document.body.appendChild(
+  (
+    container ||
+    document.body
+  )
+  .appendChild(
     root
   );
 
   return root;
 
 }
+
+
 
 function unmountStudioLayout(){
 
@@ -87,14 +96,24 @@ function unmountStudioLayout(){
 
 }
 
+
+
 export {
+
   createStudioRoot,
+
   mountStudioLayout,
+
   unmountStudioLayout
+
 };
 
 export default {
+
   createStudioRoot,
+
   mountStudioLayout,
+
   unmountStudioLayout
+
 };
