@@ -35,8 +35,14 @@ Object.seal({
   activePage:
   null,
 
+  activePageId:
+  null,
+
   workspace:
-  null
+  null,
+
+  listening:
+  false
 
 });
 
@@ -58,14 +64,70 @@ function getWorkspace(){
 
 
 // =====================================
+// HASH
+// =====================================
+
+function getPageFromHash(){
+
+  const hash =
+  window.location.hash || "";
+
+  if(
+    hash.startsWith(
+      "#studio/"
+    )
+  ){
+
+    const pageId =
+    hash
+    .replace(
+      "#studio/",
+      ""
+    )
+    .trim();
+
+    return pageId || "dashboard";
+
+  }
+
+  return "dashboard";
+
+}
+
+
+
+function setPageHash(
+  pageId
+){
+
+  const nextHash =
+  "#studio/" + pageId;
+
+  if(
+    window.location.hash !== nextHash
+  ){
+
+    window.location.hash =
+    nextHash;
+
+    return true;
+
+  }
+
+  return false;
+
+}
+
+
+
+// =====================================
 // INITIALIZE
 // =====================================
 
 function initialize(){
 
   if(
-    studioPagesState
-    .initialized
+    studioPagesState.initialized
   ){
 
     return true;
@@ -86,13 +148,26 @@ function initialize(){
         typeof page.initialize === "function"
       ){
 
-        page
-        .initialize();
+        page.initialize();
 
       }
 
     }
   );
+
+  if(
+    !studioPagesState.listening
+  ){
+
+    window.addEventListener(
+      "hashchange",
+      handleHashChange
+    );
+
+    studioPagesState.listening =
+    true;
+
+  }
 
   studioPagesState.initialized =
   true;
@@ -146,14 +221,16 @@ async function renderPage(
     pageId
   );
 
+  const nextPageId =
+  nextPage?.id || "dashboard";
+
   if(
     studioPagesState.activePage &&
     studioPagesState.activePage !== nextPage &&
     typeof studioPagesState.activePage.unmount === "function"
   ){
 
-    studioPagesState.activePage
-    .unmount();
+    studioPagesState.activePage.unmount();
 
   }
 
@@ -163,13 +240,15 @@ async function renderPage(
   studioPagesState.activePage =
   nextPage;
 
+  studioPagesState.activePageId =
+  nextPageId;
+
   if(
     nextPage &&
     typeof nextPage.mount === "function"
   ){
 
-    await nextPage
-    .mount(
+    await nextPage.mount(
       workspace
     );
 
@@ -191,22 +270,91 @@ async function renderPage(
 
 
 // =====================================
+// NAVIGATE
+// =====================================
+
+async function navigate(
+  pageId = "dashboard"
+){
+
+  const page =
+  getPage(
+    pageId
+  );
+
+  const resolvedPageId =
+  page?.id || "dashboard";
+
+  const hashChanged =
+  setPageHash(
+    resolvedPageId
+  );
+
+  if(
+    hashChanged
+  ){
+
+    return true;
+
+  }
+
+  return renderPage(
+    resolvedPageId
+  );
+
+}
+
+
+
+// =====================================
+// HASH CHANGE
+// =====================================
+
+function handleHashChange(){
+
+  const pageId =
+  getPageFromHash();
+
+  renderPage(
+    pageId
+  );
+
+}
+
+
+
+// =====================================
+// RENDER FROM URL
+// =====================================
+
+async function renderFromURL(){
+
+  const pageId =
+  getPageFromHash();
+
+  return renderPage(
+    pageId
+  );
+
+}
+
+
+
+// =====================================
 // REFRESH ACTIVE PAGE
 // =====================================
 
 async function refresh(){
 
   const activePage =
-  studioPagesState
-  .activePage;
+  studioPagesState.activePage;
 
   if(
     activePage &&
     typeof activePage.refresh === "function"
   ){
 
-    await activePage
-    .refresh();
+    await activePage.refresh();
 
     return true;
 
@@ -229,12 +377,14 @@ function unmount(){
     typeof studioPagesState.activePage.unmount === "function"
   ){
 
-    studioPagesState.activePage
-    .unmount();
+    studioPagesState.activePage.unmount();
 
   }
 
   studioPagesState.activePage =
+  null;
+
+  studioPagesState.activePageId =
   null;
 
   studioPagesState.workspace =
@@ -258,12 +408,15 @@ function snapshot(){
     studioPagesState.initialized,
 
     activePage:
-    studioPagesState.activePage?.id || null,
+    studioPagesState.activePageId,
 
     registeredPages:
     Object.keys(
       pages
-    )
+    ),
+
+    hash:
+    window.location.hash
 
   };
 
@@ -280,7 +433,13 @@ Object.freeze({
 
   initialize,
 
+  getPageFromHash,
+
   renderPage,
+
+  renderFromURL,
+
+  navigate,
 
   refresh,
 
@@ -300,7 +459,13 @@ export {
 
   initialize,
 
+  getPageFromHash,
+
   renderPage,
+
+  renderFromURL,
+
+  navigate,
 
   refresh,
 
