@@ -2,17 +2,11 @@
 <html lang="en">
 
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RIGO AI</title>
 
   <style>
-
     *{
       margin:0;
       padding:0;
@@ -21,60 +15,37 @@
 
     body{
       min-height:100vh;
-
       background:#020817;
-
       font-family:Arial,sans-serif;
-
-      display:flex;
-      justify-content:center;
-      align-items:center;
-
-      padding:24px;
+      color:white;
     }
 
     .menu-button{
       position:fixed;
-
       top:20px;
       right:20px;
-
       width:48px;
       height:48px;
-
       border:none;
       border-radius:12px;
-
       background:#0f172a;
-
       color:white;
-
       font-size:22px;
-
       cursor:pointer;
-
       border:1px solid #1e293b;
-
       z-index:1001;
     }
 
     .sidebar{
       position:fixed;
-
       top:0;
       right:-280px;
-
       width:280px;
       height:100vh;
-
       background:#0f172a;
-
       border-left:1px solid #1e293b;
-
       transition:.3s;
-
       padding:24px;
-
       z-index:1000;
     }
 
@@ -83,34 +54,40 @@
     }
 
     .sidebar-title{
-      color:white;
-
       font-size:22px;
       font-weight:700;
-
       margin-bottom:24px;
     }
 
     .menu-link{
       display:block;
-
+      width:100%;
+      background:none;
+      border:none;
       color:#cbd5e1;
-
       text-decoration:none;
-
       padding:14px 0;
-
       border-bottom:1px solid #1e293b;
+      font-size:18px;
+      text-align:left;
+      cursor:pointer;
     }
 
     .menu-link:hover{
       color:white;
     }
 
+    #app-content{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:24px;
+    }
+
     .home-container{
       width:100%;
       max-width:420px;
-
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -119,152 +96,145 @@
     .logo{
       width:140px;
       height:140px;
-
       object-fit:contain;
-
       margin-bottom:24px;
     }
 
     .title{
-      color:white;
-
       font-size:42px;
       font-weight:700;
-
       margin-bottom:12px;
     }
 
     .subtitle{
       color:#94a3b8;
-
       font-size:18px;
-
       text-align:center;
-
       margin-bottom:48px;
     }
 
     .card{
       width:100%;
-
       background:#0f172a;
-
       border:1px solid #1e293b;
-
       border-radius:20px;
-
       padding:24px;
-
       text-align:center;
     }
 
     .card-title{
-      color:white;
-
       font-size:24px;
       font-weight:700;
-
       margin-bottom:12px;
     }
 
     .card-text{
       color:#94a3b8;
-
       line-height:1.6;
     }
-
   </style>
-
 </head>
 
 <body>
 
-  <button
-    class="menu-button"
-    onclick="toggleMenu()">
+  <button class="menu-button" onclick="toggleMenu()">☰</button>
 
-    ☰
+  <div id="sidebar" class="sidebar">
+    <div class="sidebar-title">RIGO AI</div>
 
-  </button>
+    <button class="menu-link" onclick="showHome()">
+      🏠 Home
+    </button>
 
-  <div
-  id="sidebar"
-  class="sidebar">
+    <button class="menu-link" onclick="showAdminStudio()">
+      🧠 Admin Studio
+    </button>
 
-  <div class="sidebar-title">
-    RIGO AI
+    <a href="./debug.html" class="menu-link">
+      🐞 Debug Center
+    </a>
   </div>
 
-  <a
-    href="./home.html"
-    class="menu-link">
-    🏠 Home
-  </a>
+  <main id="app-content">
+    <div class="home-container" id="home-view">
 
-  <a
-    href="./admin.html"
-    class="menu-link">
-    🧠 Admin Studio
-  </a>
+      <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
 
-  <a
-    href="./debug.html"
-    class="menu-link">
-    🐞 Debug Center
-  </a>
+      <h1 class="title">RIGO AI</h1>
 
-</div>
+      <p class="subtitle">
+        One App. Unlimited Possibilities.
+      </p>
 
-  <div class="home-container">
-
-    <img
-      class="logo"
-      src="./assets/rigo-logo.PNG"
-      alt="RIGO AI">
-
-    <h1 class="title">
-      RIGO AI
-    </h1>
-
-    <p class="subtitle">
-      One App. Unlimited Possibilities.
-    </p>
-
-    <div class="card">
-
-      <div class="card-title">
-        Welcome
-      </div>
-
-      <div class="card-text">
-        You have successfully signed in to RIGO AI.
+      <div class="card">
+        <div class="card-title">Welcome</div>
+        <div class="card-text">
+          You have successfully signed in to RIGO AI.
+        </div>
       </div>
 
     </div>
-
-  </div>
+  </main>
 
   <script>
-
     function toggleMenu(){
-
-      document
-      .getElementById(
-        "sidebar"
-      )
-      .classList
-      .toggle(
-        "active"
-      );
-
+      document.getElementById("sidebar").classList.toggle("active");
     }
 
+    function closeMenu(){
+      document.getElementById("sidebar").classList.remove("active");
+    }
   </script>
 
-  <script
-    type="module"
-    src="./js/main.js">
+  <script type="module">
+    import StudioUI from "./js/admin/studio/ui/index.js";
+
+    const appContent = document.getElementById("app-content");
+
+    window.showHome = function(){
+
+      StudioUI.unmount();
+
+      appContent.innerHTML = `
+        <div class="home-container" id="home-view">
+          <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
+
+          <h1 class="title">RIGO AI</h1>
+
+          <p class="subtitle">
+            One App. Unlimited Possibilities.
+          </p>
+
+          <div class="card">
+            <div class="card-title">Welcome</div>
+            <div class="card-text">
+              You have successfully signed in to RIGO AI.
+            </div>
+          </div>
+        </div>
+      `;
+
+      closeMenu();
+
+    };
+
+    window.showAdminStudio = function(){
+
+      appContent.innerHTML = "";
+
+      appContent.style.display = "block";
+      appContent.style.padding = "0";
+      appContent.style.alignItems = "stretch";
+      appContent.style.justifyContent = "stretch";
+
+      StudioUI.mount(appContent);
+
+      closeMenu();
+
+    };
   </script>
+
+  <script type="module" src="./js/main.js"></script>
 
 </body>
 
