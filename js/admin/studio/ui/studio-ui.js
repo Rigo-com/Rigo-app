@@ -3,6 +3,9 @@
 // STUDIO UI
 // =====================================
 
+import renderPage
+from "./studio-pages.js";
+
 import {
   mountStudioLayout,
   unmountStudioLayout
