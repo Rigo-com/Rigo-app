@@ -7,6 +7,9 @@
 import AdminRuntime
 from "./runtime/index.js";
 
+import createAdminDebugPanel
+from "./admin-debug-panel.js";
+
 
 
 // =====================================
@@ -28,8 +31,35 @@ async function initialize(){
 
 async function boot(){
 
-  return AdminRuntime
+  const result =
+  await AdminRuntime
   .boot();
+
+  if(
+    typeof window !== "undefined"
+  ){
+
+    window.Admin =
+    Admin;
+
+    const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+    if(
+      params.get("adminDebug") === "1"
+    ){
+
+      createAdminDebugPanel(
+        Admin
+      );
+
+    }
+
+  }
+
+  return result;
 
 }
 
@@ -157,6 +187,8 @@ Object.freeze({
   AdminRuntime
 
 });
+
+
 
 // =====================================
 // DEV EXPOSURE
