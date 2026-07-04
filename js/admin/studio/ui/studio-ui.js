@@ -21,9 +21,13 @@ from "./studio-sidebar.js";
 // MOUNT
 // =====================================
 
-function mount(){
+function mount(
+  container
+){
 
-  mountStudioLayout();
+  mountStudioLayout(
+    container
+  );
 
   renderSidebar();
 
