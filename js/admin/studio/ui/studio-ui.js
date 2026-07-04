@@ -27,6 +27,10 @@ function mount(){
 
   renderSidebar();
 
+  renderPage(
+    "dashboard"
+  );
+
   return true;
 
 }
