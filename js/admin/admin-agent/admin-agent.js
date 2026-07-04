@@ -25,43 +25,24 @@ async function initialize(){
 
   try{
 
-    if(
-      AdminAgentState
-      .state
-      .initialized
-    ){
+    if(AdminAgentState.state.initialized){
 
       return true;
 
     }
 
-    await ProjectAgent
-    .initialize();
+    await ProjectAgent.initialize();
+    await CodeAgent.initialize();
 
-    await CodeAgent
-    .initialize();
-    
-    AdminAgentState
-    .setInitialized(
-      true
-    );
-
-    AdminAgentState
-    .log(
-      "system",
-      "ADMIN AGENT INITIALIZED"
-    );
+    AdminAgentState.setInitialized(true);
+    AdminAgentState.log("system","ADMIN AGENT INITIALIZED");
 
     return true;
 
   }
   catch(error){
 
-    AdminAgentState
-    .setError(
-      error
-    );
-
+    AdminAgentState.setError(error);
     return false;
 
   }
@@ -78,47 +59,24 @@ async function boot(){
 
   try{
 
-    if(
-      !AdminAgentState
-      .state
-      .initialized
-    ){
+    if(!AdminAgentState.state.initialized){
 
       await initialize();
 
     }
 
-    await ProjectAgent
-    .boot();
+    await ProjectAgent.boot();
+    await CodeAgent.boot();
 
-    await CodeAgent
-    .boot();
-
-    alert(
-  "CODE AGENT BOOTED"
-);
-    
-    AdminAgentState
-    .setBooted(
-      true
-    );
-
-    AdminAgentState
-    .log(
-      "system",
-      "ADMIN AGENT BOOTED"
-    );
+    AdminAgentState.setBooted(true);
+    AdminAgentState.log("system","ADMIN AGENT BOOTED");
 
     return true;
 
   }
   catch(error){
 
-    AdminAgentState
-    .setError(
-      error
-    );
-
+    AdminAgentState.setError(error);
     return false;
 
   }
@@ -133,22 +91,11 @@ async function boot(){
 
 async function shutdown(){
 
-  await ProjectAgent
-  .shutdown();
+  await ProjectAgent.shutdown();
+  await CodeAgent.shutdown();
 
-  await CodeAgent
-  .shutdown();
-  
-  AdminAgentState
-  .setBooted(
-    false
-  );
-
-  AdminAgentState
-  .log(
-    "system",
-    "ADMIN AGENT SHUTDOWN"
-  );
+  AdminAgentState.setBooted(false);
+  AdminAgentState.log("system","ADMIN AGENT SHUTDOWN");
 
   return true;
 
@@ -162,20 +109,11 @@ async function shutdown(){
 
 async function reset(){
 
-  await ProjectAgent
-  .reset();
+  await ProjectAgent.reset();
+  await CodeAgent.reset();
 
-  await CodeAgent
-  .reset();
-  
-  AdminAgentState
-  .reset();
-
-  AdminAgentState
-  .log(
-    "system",
-    "ADMIN AGENT RESET"
-  );
+  AdminAgentState.reset();
+  AdminAgentState.log("system","ADMIN AGENT RESET");
 
   return true;
 
@@ -187,14 +125,10 @@ async function reset(){
 // PROJECT COMMAND
 // =====================================
 
-async function handleProjectCommand(
-  input
-){
+async function handleProjectCommand(input){
 
   const normalized =
-  String(input || "")
-  .trim()
-  .toLowerCase();
+  String(input || "").trim().toLowerCase();
 
   if(
     normalized === "scan project" ||
@@ -202,8 +136,7 @@ async function handleProjectCommand(
     normalized === "حلل المشروع"
   ){
 
-    return ProjectAgent
-    .scan();
+    return ProjectAgent.scan();
 
   }
 
@@ -212,13 +145,7 @@ async function handleProjectCommand(
     normalized === "حالة المشروع"
   ){
 
-    return ProjectAgent
-    .query({
-
-      type:
-      "snapshot"
-
-    });
+    return ProjectAgent.query({ type:"snapshot" });
 
   }
 
@@ -227,13 +154,7 @@ async function handleProjectCommand(
     normalized === "اعرض الملفات"
   ){
 
-    return ProjectAgent
-    .query({
-
-      type:
-      "files"
-
-    });
+    return ProjectAgent.query({ type:"files" });
 
   }
 
@@ -242,13 +163,7 @@ async function handleProjectCommand(
     normalized === "اعرض الفولدرات"
   ){
 
-    return ProjectAgent
-    .query({
-
-      type:
-      "folders"
-
-    });
+    return ProjectAgent.query({ type:"folders" });
 
   }
 
@@ -258,13 +173,31 @@ async function handleProjectCommand(
     normalized === "اعرض الأنظمة"
   ){
 
-    return ProjectAgent
-    .query({
+    return ProjectAgent.query({ type:"systems" });
 
-      type:
-      "systems"
+  }
 
-    });
+  return null;
+
+}
+
+
+
+// =====================================
+// CODE COMMAND
+// =====================================
+
+async function handleCodeCommand(input){
+
+  const normalized =
+  String(input || "").trim().toLowerCase();
+
+  if(
+    normalized === "analyze code" ||
+    normalized === "حلل الكود"
+  ){
+
+    return CodeAgent.analyze();
 
   }
 
@@ -278,100 +211,75 @@ async function handleProjectCommand(
 // COMMAND
 // =====================================
 
-async function command(
-  input
-){
+async function command(input){
 
-  if(
-    !input
-  ){
+  if(!input){
 
     return {
-
-      ok:
-      false,
-
-      error:
-      "EMPTY_ADMIN_AGENT_COMMAND"
-
+      ok:false,
+      error:"EMPTY_ADMIN_AGENT_COMMAND"
     };
 
   }
 
-  AdminAgentState
-  .state
-  .lastCommand =
-  input;
-
-  AdminAgentState
-  .state
-  .diagnostics
-  .commands +=
-  1;
-
-  AdminAgentState
-  .log(
-    "command",
-    input
-  );
+  AdminAgentState.state.lastCommand = input;
+  AdminAgentState.state.diagnostics.commands += 1;
+  AdminAgentState.log("command",input);
 
   const projectResult =
-  await handleProjectCommand(
-    input
-  );
+  await handleProjectCommand(input);
 
-  if(
-    projectResult
-  ){
+  if(projectResult){
 
-    AdminAgentState
-    .state
-    .lastResult =
-    projectResult;
-
+    AdminAgentState.state.lastResult = projectResult;
     return projectResult;
+
+  }
+
+  const codeResult =
+  await handleCodeCommand(input);
+
+  if(codeResult){
+
+    AdminAgentState.state.lastResult = codeResult;
+    return codeResult;
 
   }
 
   const result = {
 
-    ok:
-    true,
+    ok:true,
 
-    mode:
-    "admin-agent-router",
+    mode:"admin-agent-router",
 
     message:
     "Admin Agent command received. No matching private subagent route found yet.",
 
-    supportedCommands:
-    [
+    supportedCommands:[
       "scan project",
       "project snapshot",
       "list files",
       "list folders",
       "list systems",
+      "analyze code",
       "افحص المشروع",
       "حلل المشروع",
       "حالة المشروع",
       "اعرض الملفات",
       "اعرض الفولدرات",
-      "اعرض الأنظمة"
+      "اعرض الأنظمة",
+      "حلل الكود"
     ],
 
     permissions:
-    AdminAgentPermissions
-    .snapshot(),
+    AdminAgentPermissions.snapshot(),
 
     timestamp:
     Date.now()
 
   };
 
-  AdminAgentState
-  .state
-  .lastResult =
-  result;
+  AdminAgentState.state.lastResult = result;
 
   return result;
 
@@ -388,25 +296,20 @@ function snapshot(){
   return {
 
     state:
-    AdminAgentState
-    .snapshot(),
+    AdminAgentState.snapshot(),
 
     permissions:
-    AdminAgentPermissions
-    .snapshot(),
+    AdminAgentPermissions.snapshot(),
 
-    privateSubagents:
-{
+    privateSubagents:{
 
-  project:
-  ProjectAgent
-  .snapshot(),
+      project:
+      ProjectAgent.snapshot(),
 
-  code:
-  CodeAgent
-  .snapshot()
+      code:
+      CodeAgent.snapshot()
 
-}
+    }
 
   };
 
@@ -421,11 +324,9 @@ function snapshot(){
 const AdminAgent =
 Object.freeze({
 
-  id:
-  "admin-agent",
+  id:"admin-agent",
 
-  priority:
-  30,
+  priority:30,
 
   initialize,
 
