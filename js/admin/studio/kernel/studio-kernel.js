@@ -13,6 +13,9 @@ from "./studio-events.js";
 import PluginManager
 from "../managers/plugin-manager.js";
 
+import StudioUI
+from "../ui/index.js";
+
 
 
 // =====================================
@@ -85,6 +88,9 @@ async function boot(){
 
     }
 
+    StudioUI
+    .mount();
+
     StudioState
     .setBooted(
       true
@@ -134,6 +140,9 @@ async function shutdown(){
   .emit(
     "studio:shutdown"
   );
+
+  StudioUI
+  .unmount();
 
   StudioState
   .setMounted(
@@ -191,6 +200,10 @@ function snapshot(){
 
     events:
     StudioEvents
+    .snapshot(),
+
+    plugins:
+    PluginManager
     .snapshot()
 
   };
@@ -223,7 +236,10 @@ Object.freeze({
   snapshot,
 
   events:
-  StudioEvents
+  StudioEvents,
+
+  plugins:
+  PluginManager
 
 });
 
