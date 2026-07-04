@@ -144,13 +144,6 @@ async function scan(){
     await ProjectProviderManager
     .scanProject();
 
-    alert(
-  JSON.stringify(
-    scanResult,
-    null,
-    2
-  )
-);
 
     if(
       !scanResult
