@@ -191,12 +191,20 @@
 
     const appContent = document.getElementById("app-content");
 
-    window.showHome = function(){
+    window.showHome = async function(){
 
-      StudioUI.unmount();
+      closeMenu();
+
+      await StudioUI.unmount();
+
+      appContent.style.display = "flex";
+      appContent.style.padding = "24px";
+      appContent.style.alignItems = "center";
+      appContent.style.justifyContent = "center";
 
       appContent.innerHTML = `
         <div class="home-container" id="home-view">
+
           <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
 
           <h1 class="title">RIGO AI</h1>
@@ -211,14 +219,15 @@
               You have successfully signed in to RIGO AI.
             </div>
           </div>
+
         </div>
       `;
 
-      closeMenu();
-
     };
 
-    window.showAdminStudio = function(){
+    window.showAdminStudio = async function(){
+
+      closeMenu();
 
       appContent.innerHTML = "";
 
@@ -227,9 +236,7 @@
       appContent.style.alignItems = "stretch";
       appContent.style.justifyContent = "stretch";
 
-      StudioUI.mount(appContent);
-
-      closeMenu();
+      await StudioUI.mount(appContent);
 
     };
   </script>
