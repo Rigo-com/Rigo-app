@@ -158,6 +158,20 @@ Object.freeze({
 
 });
 
+// =====================================
+// DEV EXPOSURE
+// TEMPORARY ADMIN CONSOLE ACCESS
+// =====================================
+
+if(
+  typeof window !== "undefined"
+){
+
+  window.Admin =
+  Admin;
+
+}
+
 
 
 // =====================================
