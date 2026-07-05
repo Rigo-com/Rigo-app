@@ -241,7 +241,123 @@
     };
   </script>
 
-  <script type="module" src="./js/main.js"></script>
+  <script type="module">
+  import StudioUI from "./js/admin/studio/ui/index.js";
+
+  const appContent =
+  document.getElementById(
+    "app-content"
+  );
+
+  function isStudioURL(){
+
+    return String(
+      window.location.hash || ""
+    )
+    .startsWith(
+      "#studio/"
+    );
+
+  }
+
+  function resetAppContentForHome(){
+
+    appContent.style.display =
+    "flex";
+
+    appContent.style.padding =
+    "24px";
+
+    appContent.style.alignItems =
+    "center";
+
+    appContent.style.justifyContent =
+    "center";
+
+  }
+
+  function resetAppContentForStudio(){
+
+    appContent.style.display =
+    "block";
+
+    appContent.style.padding =
+    "0";
+
+    appContent.style.alignItems =
+    "stretch";
+
+    appContent.style.justifyContent =
+    "stretch";
+
+  }
+
+  window.showHome = async function(){
+
+    closeMenu();
+
+    window.location.hash =
+    "";
+
+    await StudioUI.unmount();
+
+    resetAppContentForHome();
+
+    appContent.innerHTML = `
+      <div class="home-container" id="home-view">
+
+        <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
+
+        <h1 class="title">RIGO AI</h1>
+
+        <p class="subtitle">
+          One App. Unlimited Possibilities.
+        </p>
+
+        <div class="card">
+          <div class="card-title">Welcome</div>
+          <div class="card-text">
+            You have successfully signed in to RIGO AI.
+          </div>
+        </div>
+
+      </div>
+    `;
+
+  };
+
+  window.showAdminStudio = async function(){
+
+    closeMenu();
+
+    if(
+      !isStudioURL()
+    ){
+
+      window.location.hash =
+      "studio/dashboard";
+
+    }
+
+    appContent.innerHTML =
+    "";
+
+    resetAppContentForStudio();
+
+    await StudioUI.mount(
+      appContent
+    );
+
+  };
+
+  if(
+    isStudioURL()
+  ){
+
+    window.showAdminStudio();
+
+  }
+</script>
 
 </body>
 
