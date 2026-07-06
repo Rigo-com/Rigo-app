@@ -23,7 +23,25 @@ const SIDEBAR_ITEMS = [
   {
     id:"code",
     icon:"💻",
-    label:"Code"
+    label:"System"
+  },
+
+  {
+    id:"admin-agent",
+    icon:"🧠",
+    label:"Agents"
+  },
+
+  {
+    id:"architecture",
+    icon:"</>",
+    label:"Code Map"
+  },
+
+  {
+    id:"memory",
+    icon:"🧠",
+    label:"Memory"
   },
 
   {
@@ -33,21 +51,9 @@ const SIDEBAR_ITEMS = [
   },
 
   {
-    id:"architecture",
-    icon:"🏗️",
-    label:"Architecture"
-  },
-
-  {
     id:"git",
     icon:"🌿",
-    label:"Git"
-  },
-
-  {
-    id:"admin-agent",
-    icon:"🧠",
-    label:"Agent"
+    label:"Extensions"
   },
 
   {
@@ -97,20 +103,20 @@ function createSidebarButton(
 
   button.style.cssText =
   `
-    width:64px;
-    min-height:58px;
+    width:112px;
+    min-height:78px;
     border:none;
     border-radius:14px;
-    background:#111827;
-    color:#cbd5e1;
+    background:transparent;
+    color:#f8fafc;
     cursor:pointer;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:4px;
-    font-size:20px;
-    transition:.2s;
+    gap:8px;
+    transition:.18s ease;
+    font-family:inherit;
   `;
 
   const icon =
@@ -130,7 +136,8 @@ function createSidebarButton(
     icon.style.cssText =
     `
       line-height:1;
-      font-size:22px;
+      font-size:30px;
+      filter:drop-shadow(0 0 12px rgba(34,197,94,.16));
     `;
 
   }
@@ -141,16 +148,49 @@ function createSidebarButton(
 
     label.style.cssText =
     `
-      font-size:9px;
+      font-size:13px;
       line-height:1;
-      color:#94a3b8;
-      max-width:58px;
+      font-weight:700;
+      color:#f8fafc;
+      max-width:104px;
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
     `;
 
   }
+
+  button.addEventListener(
+    "mouseenter",
+    function(){
+
+      if(
+        button.dataset.active !== "true"
+      ){
+
+        button.style.background =
+        "rgba(15,23,42,.9)";
+
+      }
+
+    }
+  );
+
+  button.addEventListener(
+    "mouseleave",
+    function(){
+
+      if(
+        button.dataset.active !== "true"
+      ){
+
+        button.style.background =
+        "transparent";
+
+      }
+
+    }
+  );
 
   button.addEventListener(
     "click",
@@ -175,27 +215,33 @@ function markActiveButton(
   isActive
 ){
 
+  button.dataset.active =
+  isActive ? "true" : "false";
+
+  const label =
+  button.querySelector(
+    ".rigo-studio-sidebar-label"
+  );
+
   if(
     isActive
   ){
 
     button.style.background =
-    "#1d4ed8";
+    "linear-gradient(180deg, rgba(16,185,129,.18), rgba(6,95,70,.14))";
+
+    button.style.boxShadow =
+    "inset 0 0 0 1px rgba(34,197,94,.16), 0 0 24px rgba(34,197,94,.08)";
 
     button.style.color =
-    "#ffffff";
-
-    const label =
-    button.querySelector(
-      ".rigo-studio-sidebar-label"
-    );
+    "#34d399";
 
     if(
       label
     ){
 
       label.style.color =
-      "#dbeafe";
+      "#34d399";
 
     }
 
@@ -204,22 +250,20 @@ function markActiveButton(
   }
 
   button.style.background =
-  "#111827";
+  "transparent";
+
+  button.style.boxShadow =
+  "none";
 
   button.style.color =
-  "#cbd5e1";
-
-  const label =
-  button.querySelector(
-    ".rigo-studio-sidebar-label"
-  );
+  "#f8fafc";
 
   if(
     label
   ){
 
     label.style.color =
-    "#94a3b8";
+    "#f8fafc";
 
   }
 
@@ -289,15 +333,18 @@ function renderSidebar(){
 
   sidebar.style.cssText =
   `
-    width:86px;
+    width:150px;
+    margin:0 0 0 16px;
+    padding:14px 10px;
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:10px;
-    padding:12px 10px;
-    background:#0f172a;
-    border-right:1px solid #1f2937;
+    gap:4px;
+    background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(2,8,23,.96));
+    border:1px solid rgba(148,163,184,.14);
+    border-radius:16px;
     overflow:auto;
+    box-shadow:0 18px 50px rgba(0,0,0,.28);
   `;
 
   for(
@@ -305,18 +352,20 @@ function renderSidebar(){
     of SIDEBAR_ITEMS
   ){
 
-    const button =
-    createSidebarButton(
-      item
-    );
-
     sidebar.appendChild(
-      button
+      createSidebarButton(
+        item
+      )
     );
 
   }
 
   updateActiveSidebarItem();
+
+  window.removeEventListener(
+    "hashchange",
+    updateActiveSidebarItem
+  );
 
   window.addEventListener(
     "hashchange",
