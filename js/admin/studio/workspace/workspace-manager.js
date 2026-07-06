@@ -17,10 +17,6 @@ import {
 
   getActiveTab,
 
-  registerView,
-
-  getView,
-
   snapshot
 
 }
@@ -36,6 +32,9 @@ import {
 
 }
 from "./workspace-layout.js";
+
+import ViewManager
+from "./view-manager.js";
 
 
 
@@ -93,13 +92,12 @@ function mount(
 // REGISTER VIEW
 // =====================================
 
-function register(
-
+async function register(
   view
-
 ){
 
-  return registerView(
+  return ViewManager
+  .register(
     view
   );
 
@@ -112,13 +110,12 @@ function register(
 // =====================================
 
 async function openView(
-
   viewId
-
 ){
 
   const view =
-  getView(
+  ViewManager
+  .get(
     viewId
   );
 
@@ -137,19 +134,12 @@ async function openView(
   ){
 
     addTab(
-
       createTab({
-
         id:view.id,
-
         title:view.title,
-
         icon:view.icon,
-
         closable:false
-
       })
-
     );
 
   }
@@ -164,11 +154,12 @@ async function openView(
   getWorkspaceContent();
 
   if(
-    content &&
-    typeof view.mount === "function"
+    content
   ){
 
-    await view.mount(
+    await ViewManager
+    .mount(
+      view.id,
       content
     );
 
@@ -204,10 +195,8 @@ function renderTabs(){
   getActiveTab();
 
   for(
-
     const tab
     of WorkspaceState.tabs
-
   ){
 
     const button =
@@ -215,22 +204,33 @@ function renderTabs(){
       "button"
     );
 
+    button.dataset.tab =
+    tab.id;
+
     button.textContent =
     `${tab.icon || ""} ${tab.title}`;
 
     button.style.cssText =
     `
-      height:36px;
-      padding:0 14px;
+      height:38px;
+      padding:0 16px;
       border:none;
-      border-radius:10px 10px 0 0;
+      border-radius:12px 12px 0 0;
       cursor:pointer;
       background:${
         active?.id === tab.id
         ? "#1e293b"
-        : "#111827"
+        : "#0f172a"
       };
-      color:white;
+      color:${
+        active?.id === tab.id
+        ? "#f8fafc"
+        : "#94a3b8"
+      };
+      border:1px solid rgba(148,163,184,.10);
+      border-bottom:none;
+      font-weight:700;
+      white-space:nowrap;
     `;
 
     button.onclick =
@@ -260,7 +260,15 @@ function renderTabs(){
 
 function getSnapshot(){
 
-  return snapshot();
+  return {
+
+    workspace:
+    snapshot(),
+
+    views:
+    ViewManager.snapshot()
+
+  };
 
 }
 
@@ -280,6 +288,8 @@ Object.freeze({
   register,
 
   openView,
+
+  renderTabs,
 
   snapshot:
   getSnapshot
@@ -301,6 +311,8 @@ export {
   register,
 
   openView,
+
+  renderTabs,
 
   getSnapshot,
 
