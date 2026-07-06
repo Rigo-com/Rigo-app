@@ -6,6 +6,9 @@
 import DashboardPage
 from "../pages/dashboard/index.js";
 
+import AdminAgentPage
+from "../pages/admin-agent/index.js";
+
 
 
 // =====================================
@@ -16,7 +19,10 @@ const pages =
 Object.freeze({
 
   dashboard:
-  DashboardPage
+  DashboardPage,
+
+  "admin-agent":
+  AdminAgentPage
 
 });
 
