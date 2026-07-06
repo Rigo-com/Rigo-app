@@ -16,20 +16,44 @@ from "../pages/admin-agent/index.js";
 
 
 // =====================================
+// INTERNAL STATE
+// =====================================
+
+const workspaceRootState =
+Object.seal({
+
+  initialized:false
+
+});
+
+
+
+// =====================================
 // INITIALIZE
 // =====================================
 
-function initialize(){
+async function initialize(){
+
+  if(
+    workspaceRootState.initialized
+  ){
+
+    return true;
+
+  }
 
   WorkspaceManager.initialize();
 
-  WorkspaceManager.register(
+  await WorkspaceManager.register(
     DashboardPage
   );
 
-  WorkspaceManager.register(
+  await WorkspaceManager.register(
     AdminAgentPage
   );
+
+  workspaceRootState.initialized =
+  true;
 
   return true;
 
@@ -41,11 +65,11 @@ function initialize(){
 // MOUNT
 // =====================================
 
-function mount(
+async function mount(
   container
 ){
 
-  initialize();
+  await initialize();
 
   return WorkspaceManager.mount(
     container
@@ -62,6 +86,8 @@ function mount(
 async function open(
   viewId
 ){
+
+  await initialize();
 
   return WorkspaceManager.openView(
     viewId
