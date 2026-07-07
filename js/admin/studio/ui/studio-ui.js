@@ -3,12 +3,18 @@
 // STUDIO UI
 // =====================================
 
+import Workspace
+from "../workspace/index.js";
+
 import StudioPages
 from "./studio-pages.js";
 
 import {
+
   mountStudioLayout,
+
   unmountStudioLayout
+
 }
 from "./studio-layout.js";
 
@@ -31,8 +37,21 @@ async function mount(
 
   renderSidebar();
 
-  await StudioPages
-  .renderFromURL();
+  const workspaceContainer =
+  document.getElementById(
+    "rigo-studio-workspace"
+  );
+
+  await Workspace.mount(
+    workspaceContainer
+  );
+
+  const pageId =
+  StudioPages.getPageFromHash();
+
+  await Workspace.open(
+    pageId
+  );
 
   return true;
 
@@ -46,8 +65,7 @@ async function mount(
 
 function unmount(){
 
-  StudioPages
-  .unmount();
+  StudioPages.unmount();
 
   unmountStudioLayout();
 
