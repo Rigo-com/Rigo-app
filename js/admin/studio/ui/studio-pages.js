@@ -1,30 +1,11 @@
 // =====================================
 // RIGO AI
 // STUDIO PAGES ROUTER
+// URL / HASH ONLY
 // =====================================
 
-import DashboardPage
-from "../pages/dashboard/index.js";
-
-import AdminAgentPage
-from "../pages/admin-agent/index.js";
-
-
-
-// =====================================
-// PAGE REGISTRY
-// =====================================
-
-const pages =
-Object.freeze({
-
-  dashboard:
-  DashboardPage,
-
-  "admin-agent":
-  AdminAgentPage
-
-});
+import Workspace
+from "../workspace/index.js";
 
 
 
@@ -38,34 +19,13 @@ Object.seal({
   initialized:
   false,
 
-  activePage:
-  null,
-
   activePageId:
-  null,
-
-  workspace:
   null,
 
   listening:
   false
 
 });
-
-
-
-// =====================================
-// WORKSPACE
-// =====================================
-
-function getWorkspace(){
-
-  return document
-  .getElementById(
-    "rigo-studio-workspace"
-  );
-
-}
 
 
 
@@ -140,27 +100,6 @@ function initialize(){
 
   }
 
-  Object
-  .values(
-    pages
-  )
-  .forEach(
-    function initializePage(
-      page
-    ){
-
-      if(
-        page &&
-        typeof page.initialize === "function"
-      ){
-
-        page.initialize();
-
-      }
-
-    }
-  );
-
   if(
     !studioPagesState.listening
   ){
@@ -185,91 +124,22 @@ function initialize(){
 
 
 // =====================================
-// GET PAGE
+// OPEN FROM HASH
 // =====================================
 
-function getPage(
-  pageId = "dashboard"
-){
-
-  return (
-    pages[pageId] ||
-    pages.dashboard
-  );
-
-}
-
-
-
-// =====================================
-// RENDER PAGE
-// =====================================
-
-async function renderPage(
-  pageId = "dashboard"
-){
+async function openFromHash(){
 
   initialize();
 
-  const workspace =
-  getWorkspace();
-
-  if(
-    !workspace
-  ){
-
-    return false;
-
-  }
-
-  const nextPage =
-  getPage(
-    pageId
-  );
-
-  const nextPageId =
-  nextPage?.id || "dashboard";
-
-  if(
-    studioPagesState.activePage &&
-    studioPagesState.activePage !== nextPage &&
-    typeof studioPagesState.activePage.unmount === "function"
-  ){
-
-    studioPagesState.activePage.unmount();
-
-  }
-
-  studioPagesState.workspace =
-  workspace;
-
-  studioPagesState.activePage =
-  nextPage;
+  const pageId =
+  getPageFromHash();
 
   studioPagesState.activePageId =
-  nextPageId;
+  pageId;
 
-  if(
-    nextPage &&
-    typeof nextPage.mount === "function"
-  ){
-
-    await nextPage.mount(
-      workspace
-    );
-
-    return true;
-
-  }
-
-  workspace.innerHTML =
-  `
-    <div style="padding:16px;color:#e5e7eb;">
-      Page not available.
-    </div>
-  `;
-
-  return false;
+  return Workspace.open(
+    pageId
+  );
 
 }
 
@@ -283,17 +153,14 @@ async function navigate(
   pageId = "dashboard"
 ){
 
-  const page =
-  getPage(
-    pageId
-  );
+  initialize();
 
-  const resolvedPageId =
-  page?.id || "dashboard";
+  const targetPageId =
+  pageId || "dashboard";
 
   const hashChanged =
   setPageHash(
-    resolvedPageId
+    targetPageId
   );
 
   if(
@@ -304,8 +171,11 @@ async function navigate(
 
   }
 
-  return renderPage(
-    resolvedPageId
+  studioPagesState.activePageId =
+  targetPageId;
+
+  return Workspace.open(
+    targetPageId
   );
 
 }
@@ -318,12 +188,7 @@ async function navigate(
 
 function handleHashChange(){
 
-  const pageId =
-  getPageFromHash();
-
-  renderPage(
-    pageId
-  );
+  openFromHash();
 
 }
 
@@ -331,14 +196,27 @@ function handleHashChange(){
 
 // =====================================
 // RENDER FROM URL
+// COMPATIBILITY ALIAS
 // =====================================
 
 async function renderFromURL(){
 
-  const pageId =
-  getPageFromHash();
+  return openFromHash();
 
-  return renderPage(
+}
+
+
+
+// =====================================
+// RENDER PAGE
+// COMPATIBILITY ALIAS
+// =====================================
+
+async function renderPage(
+  pageId = "dashboard"
+){
+
+  return navigate(
     pageId
   );
 
@@ -347,26 +225,18 @@ async function renderFromURL(){
 
 
 // =====================================
-// REFRESH ACTIVE PAGE
+// REFRESH
 // =====================================
 
 async function refresh(){
 
-  const activePage =
-  studioPagesState.activePage;
+  const pageId =
+  studioPagesState.activePageId ||
+  getPageFromHash();
 
-  if(
-    activePage &&
-    typeof activePage.refresh === "function"
-  ){
-
-    await activePage.refresh();
-
-    return true;
-
-  }
-
-  return false;
+  return Workspace.open(
+    pageId
+  );
 
 }
 
@@ -378,22 +248,7 @@ async function refresh(){
 
 function unmount(){
 
-  if(
-    studioPagesState.activePage &&
-    typeof studioPagesState.activePage.unmount === "function"
-  ){
-
-    studioPagesState.activePage.unmount();
-
-  }
-
-  studioPagesState.activePage =
-  null;
-
   studioPagesState.activePageId =
-  null;
-
-  studioPagesState.workspace =
   null;
 
   return true;
@@ -416,13 +271,11 @@ function snapshot(){
     activePage:
     studioPagesState.activePageId,
 
-    registeredPages:
-    Object.keys(
-      pages
-    ),
-
     hash:
-    window.location.hash
+    window.location.hash,
+
+    workspace:
+    Workspace.snapshot()
 
   };
 
@@ -444,6 +297,8 @@ Object.freeze({
   renderPage,
 
   renderFromURL,
+
+  openFromHash,
 
   navigate,
 
@@ -470,6 +325,8 @@ export {
   renderPage,
 
   renderFromURL,
+
+  openFromHash,
 
   navigate,
 
