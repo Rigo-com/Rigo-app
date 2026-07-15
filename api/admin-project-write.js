@@ -25,6 +25,9 @@ const BRANCH =
 const ALLOWED_ROOT =
 "js";
 
+const SESSION_COOKIE =
+"rigo_admin_session";
+
 
 
 // =====================================
@@ -46,7 +49,7 @@ function sendResponse(
 
 
 // =====================================
-// SECURITY
+// SAFE COMPARISON
 // =====================================
 
 function safeCompare(
@@ -83,61 +86,264 @@ function safeCompare(
 
 
 
-function authorizeRequest(
+// =====================================
+// SIGNATURE
+// =====================================
+
+function createSignature(
+  value,
+  secret
+){
+
+  return crypto
+  .createHmac(
+    "sha256",
+    secret
+  )
+  .update(
+    value
+  )
+  .digest(
+    "base64url"
+  );
+
+}
+
+
+
+// =====================================
+// COOKIE
+// =====================================
+
+function parseCookies(
   request
 ){
 
-  const configuredSecret =
-  process.env
-  .RIGO_ADMIN_SECRET;
+  const cookieHeader =
+  request.headers?.cookie || "";
 
-  const receivedSecret =
-  request.headers[
-    "x-rigo-admin-secret"
-  ];
+  const cookies = {};
+
+  for(
+    const cookiePart
+    of cookieHeader.split(";")
+  ){
+
+    const separatorIndex =
+    cookiePart.indexOf("=");
+
+    if(
+      separatorIndex === -1
+    ){
+
+      continue;
+
+    }
+
+    const key =
+    cookiePart
+    .slice(
+      0,
+      separatorIndex
+    )
+    .trim();
+
+    const value =
+    cookiePart
+    .slice(
+      separatorIndex + 1
+    )
+    .trim();
+
+    if(
+      key
+    ){
+
+      cookies[key] =
+      value;
+
+    }
+
+  }
+
+  return cookies;
+
+}
+
+
+
+// =====================================
+// SESSION VALIDATION
+// =====================================
+
+function validateSessionToken(
+  token,
+  secret
+){
 
   if(
-    !configuredSecret
+    !token ||
+    !secret
   ){
 
     return {
-
       ok:false,
+      error:"ADMIN_SESSION_MISSING"
+    };
 
-      status:500,
+  }
 
-      error:
-      "RIGO_ADMIN_SECRET_NOT_CONFIGURED"
+  const parts =
+  String(token)
+  .split(".");
 
+  if(
+    parts.length !== 2
+  ){
+
+    return {
+      ok:false,
+      error:"ADMIN_SESSION_INVALID"
+    };
+
+  }
+
+  const encodedPayload =
+  parts[0];
+
+  const receivedSignature =
+  parts[1];
+
+  const expectedSignature =
+  createSignature(
+    encodedPayload,
+    secret
+  );
+
+  if(
+    !safeCompare(
+      receivedSignature,
+      expectedSignature
+    )
+  ){
+
+    return {
+      ok:false,
+      error:"ADMIN_SESSION_SIGNATURE_INVALID"
+    };
+
+  }
+
+  let payload =
+  null;
+
+  try{
+
+    payload =
+    JSON.parse(
+      Buffer
+      .from(
+        encodedPayload,
+        "base64url"
+      )
+      .toString(
+        "utf8"
+      )
+    );
+
+  }
+  catch{
+
+    return {
+      ok:false,
+      error:"ADMIN_SESSION_PAYLOAD_INVALID"
     };
 
   }
 
   if(
-    !receivedSecret ||
-    !safeCompare(
-      receivedSecret,
-      configuredSecret
-    )
+    payload?.role !== "admin"
   ){
 
     return {
-
       ok:false,
+      error:"ADMIN_SESSION_ROLE_INVALID"
+    };
 
-      status:401,
+  }
 
-      error:
-      "UNAUTHORIZED_ADMIN_REQUEST"
+  if(
+    !payload?.expiresAt ||
+    Date.now() >= payload.expiresAt
+  ){
 
+    return {
+      ok:false,
+      error:"ADMIN_SESSION_EXPIRED"
     };
 
   }
 
   return {
+    ok:true,
+    payload
+  };
 
-    ok:true
+}
 
+
+
+function authorizeRequest(
+  request
+){
+
+  const secret =
+  process.env
+  .RIGO_ADMIN_SECRET;
+
+  if(
+    !secret
+  ){
+
+    return {
+      ok:false,
+      status:500,
+      error:"RIGO_ADMIN_SECRET_NOT_CONFIGURED"
+    };
+
+  }
+
+  const cookies =
+  parseCookies(
+    request
+  );
+
+  const token =
+  cookies[
+    SESSION_COOKIE
+  ];
+
+  const validation =
+  validateSessionToken(
+    token,
+    secret
+  );
+
+  if(
+    !validation.ok
+  ){
+
+    return {
+      ok:false,
+      status:401,
+      error:validation.error
+    };
+
+  }
+
+  return {
+    ok:true,
+    session:validation.payload
   };
 
 }
@@ -197,7 +403,16 @@ function validateProjectPath(
   }
 
   if(
-    path !== ALLOWED_ROOT &&
+    path === ALLOWED_ROOT
+  ){
+
+    throw new Error(
+      "ROOT_FILE_OPERATION_NOT_ALLOWED"
+    );
+
+  }
+
+  if(
     !path.startsWith(
       ALLOWED_ROOT + "/"
     )
@@ -330,17 +545,16 @@ async function requestGitHub(
 
     result =
     rawBody
-    ? JSON.parse(rawBody)
+    ? JSON.parse(
+        rawBody
+      )
     : null;
 
   }
   catch{
 
     result = {
-
-      message:
-      rawBody
-
+      message:rawBody
     };
 
   }
@@ -403,11 +617,6 @@ async function createFile(
     options.path
   );
 
-  const content =
-  String(
-    options.content ?? ""
-  );
-
   try{
 
     await getFile(
@@ -431,6 +640,18 @@ async function createFile(
 
   }
 
+  const content =
+  Buffer
+  .from(
+    String(
+      options.content ?? ""
+    ),
+    "utf8"
+  )
+  .toString(
+    "base64"
+  );
+
   const result =
   await requestGitHub(
     path,
@@ -444,15 +665,7 @@ async function createFile(
         options.message ||
         `RIGO Admin: create ${path}`,
 
-        content:
-        Buffer
-        .from(
-          content,
-          "utf8"
-        )
-        .toString(
-          "base64"
-        ),
+        content,
 
         branch:
         BRANCH
@@ -466,8 +679,7 @@ async function createFile(
 
     ok:true,
 
-    action:
-    "create-file",
+    action:"create-file",
 
     path,
 
@@ -513,8 +725,15 @@ async function updateFile(
   }
 
   const content =
-  String(
-    options.content ?? ""
+  Buffer
+  .from(
+    String(
+      options.content ?? ""
+    ),
+    "utf8"
+  )
+  .toString(
+    "base64"
   );
 
   const result =
@@ -530,15 +749,7 @@ async function updateFile(
         options.message ||
         `RIGO Admin: update ${path}`,
 
-        content:
-        Buffer
-        .from(
-          content,
-          "utf8"
-        )
-        .toString(
-          "base64"
-        ),
+        content,
 
         sha:
         currentFile.sha,
@@ -555,8 +766,7 @@ async function updateFile(
 
     ok:true,
 
-    action:
-    "update-file",
+    action:"update-file",
 
     path,
 
@@ -632,8 +842,7 @@ async function deleteFile(
 
     ok:true,
 
-    action:
-    "delete-file",
+    action:"delete-file",
 
     path,
 
@@ -717,7 +926,7 @@ async function moveFile(
 
   }
 
-  const normalizedContent =
+  const content =
   String(
     sourceFile.content
   )
@@ -736,8 +945,7 @@ async function moveFile(
         options.message ||
         `RIGO Admin: move ${sourcePath} to ${destinationPath}`,
 
-        content:
-        normalizedContent,
+        content,
 
         branch:
         BRANCH
@@ -760,7 +968,7 @@ async function moveFile(
 
           message:
           options.message ||
-          `RIGO Admin: remove moved file ${sourcePath}`,
+          `RIGO Admin: remove ${sourcePath}`,
 
           sha:
           sourceFile.sha,
@@ -777,8 +985,7 @@ async function moveFile(
 
       ok:true,
 
-      action:
-      "move-file",
+      action:"move-file",
 
       sourcePath,
 
@@ -799,21 +1006,17 @@ async function moveFile(
 
       ok:false,
 
-      action:
-      "move-file",
+      action:"move-file",
 
-      partial:
-      true,
+      partial:true,
 
       sourcePath,
 
       destinationPath,
 
-      destinationCreated:
-      true,
+      destinationCreated:true,
 
-      sourceDeleted:
-      false,
+      sourceDeleted:false,
 
       error:
       error?.message || String(error)
@@ -908,12 +1111,8 @@ export default async function handler(
         response,
         405,
         {
-
           ok:false,
-
-          error:
-          "METHOD_NOT_ALLOWED"
-
+          error:"METHOD_NOT_ALLOWED"
         }
       );
 
@@ -934,12 +1133,8 @@ export default async function handler(
         response,
         authorization.status,
         {
-
           ok:false,
-
-          error:
-          authorization.error
-
+          error:authorization.error
         }
       );
 
@@ -971,7 +1166,8 @@ export default async function handler(
         ok:false,
 
         error:
-        error?.message || String(error),
+        error?.message ||
+        String(error),
 
         details:
         error?.details || null
