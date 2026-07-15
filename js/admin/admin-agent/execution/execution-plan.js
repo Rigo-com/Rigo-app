@@ -301,6 +301,25 @@ function createExecutionPlan(
   "1.0.0"
 
 },
+
+    capabilities:{
+
+  provider:
+  "github",
+
+  rollback:
+  true,
+
+  validation:
+  true,
+
+  parallelExecution:
+  false,
+
+  dryRun:
+  true
+
+},
     
     status:
     ExecutionPlanStatus
