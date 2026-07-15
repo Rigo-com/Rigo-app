@@ -292,6 +292,16 @@ function createExecutionPlan(
     description:
     options.description || "",
 
+    schema:{
+
+  name:
+  "rigo-execution-plan",
+
+  version:
+  "1.0.0"
+
+},
+    
     status:
     ExecutionPlanStatus
     .DRAFT,
