@@ -80,7 +80,9 @@ function mount(
   root;
 
   WorkspaceState.mounted =
-  true;
+  Boolean(
+    root
+  );
 
   return root;
 
@@ -135,10 +137,19 @@ async function openView(
 
     addTab(
       createTab({
-        id:view.id,
-        title:view.title,
-        icon:view.icon,
-        closable:false
+
+        id:
+        view.id,
+
+        title:
+        view.title,
+
+        icon:
+        view.icon,
+
+        closable:
+        false
+
       })
     );
 
@@ -154,18 +165,171 @@ async function openView(
   getWorkspaceContent();
 
   if(
-    content
+    !content
   ){
 
-    await ViewManager
-    .mount(
-      view.id,
-      content
-    );
+    return false;
 
   }
 
+  await ViewManager
+  .mount(
+    view.id,
+    content
+  );
+
   return true;
+
+}
+
+
+
+// =====================================
+// CREATE TAB BUTTON
+// =====================================
+
+function createTabButton(
+  tab,
+  activeTab
+){
+
+  const button =
+  document.createElement(
+    "button"
+  );
+
+  const isActive =
+  activeTab?.id ===
+  tab.id;
+
+  button.type =
+  "button";
+
+  button.dataset.tab =
+  tab.id;
+
+  button.title =
+  tab.title;
+
+  button.innerHTML =
+  `
+    ${
+      tab.icon
+      ? `
+        <span
+          style="
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            line-height:1;
+          "
+        >
+          ${tab.icon}
+        </span>
+      `
+      : ""
+    }
+
+    <span>
+      ${tab.title}
+    </span>
+  `;
+
+  button.style.cssText =
+  `
+    height:34px;
+    min-width:0;
+    flex:0 0 auto;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:0 13px;
+    margin:0;
+    border:1px solid ${
+      isActive
+      ? "rgba(148,163,184,.16)"
+      : "transparent"
+    };
+    border-bottom:none;
+    border-radius:9px 9px 0 0;
+    background:${
+      isActive
+      ? "rgba(30,41,59,.92)"
+      : "transparent"
+    };
+    color:${
+      isActive
+      ? "#f8fafc"
+      : "#94a3b8"
+    };
+    font-family:inherit;
+    font-size:12px;
+    line-height:1;
+    font-weight:${
+      isActive
+      ? "700"
+      : "600"
+    };
+    white-space:nowrap;
+    cursor:pointer;
+    transition:
+      background .16s ease,
+      color .16s ease,
+      border-color .16s ease;
+  `;
+
+  button.addEventListener(
+    "mouseenter",
+    function(){
+
+      if(
+        !isActive
+      ){
+
+        button.style.background =
+        "rgba(30,41,59,.46)";
+
+        button.style.color =
+        "#cbd5e1";
+
+      }
+
+    }
+  );
+
+  button.addEventListener(
+    "mouseleave",
+    function(){
+
+      if(
+        !isActive
+      ){
+
+        button.style.background =
+        "transparent";
+
+        button.style.color =
+        "#94a3b8";
+
+      }
+
+    }
+  );
+
+  button.addEventListener(
+    "click",
+    function(){
+
+      openView(
+        tab.id
+      );
+
+    }
+  );
+
+  return button;
 
 }
 
@@ -191,7 +355,7 @@ function renderTabs(){
   tabsContainer.innerHTML =
   "";
 
-  const active =
+  const activeTab =
   getActiveTab();
 
   for(
@@ -199,51 +363,11 @@ function renderTabs(){
     of WorkspaceState.tabs
   ){
 
-    const button =
-    document.createElement(
-      "button"
-    );
-
-    button.dataset.tab =
-    tab.id;
-
-    button.textContent =
-    `${tab.icon || ""} ${tab.title}`;
-
-    button.style.cssText =
-    `
-      height:38px;
-      padding:0 16px;
-      border:none;
-      border-radius:12px 12px 0 0;
-      cursor:pointer;
-      background:${
-        active?.id === tab.id
-        ? "#1e293b"
-        : "#0f172a"
-      };
-      color:${
-        active?.id === tab.id
-        ? "#f8fafc"
-        : "#94a3b8"
-      };
-      border:1px solid rgba(148,163,184,.10);
-      border-bottom:none;
-      font-weight:700;
-      white-space:nowrap;
-    `;
-
-    button.onclick =
-    function(){
-
-      openView(
-        tab.id
-      );
-
-    };
-
     tabsContainer.appendChild(
-      button
+      createTabButton(
+        tab,
+        activeTab
+      )
     );
 
   }
