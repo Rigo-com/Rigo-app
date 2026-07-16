@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // STUDIO WORKSPACE MANAGER
+// UI V2
 // =====================================
 
 import {
@@ -28,7 +29,9 @@ import {
 
   getWorkspaceContent,
 
-  getWorkspaceTabs
+  getWorkspaceTabs,
+
+  renderWorkspaceEmpty
 
 }
 from "./workspace-layout.js";
@@ -84,6 +87,16 @@ function mount(
     root
   );
 
+  renderTabs();
+
+  if(
+    WorkspaceState.tabs.length === 0
+  ){
+
+    renderWorkspaceEmpty();
+
+  }
+
   return root;
 
 }
@@ -98,6 +111,15 @@ async function register(
   view
 ){
 
+  if(
+    !view ||
+    !view.id
+  ){
+
+    return false;
+
+  }
+
   return ViewManager
   .register(
     view
@@ -108,12 +130,50 @@ async function register(
 
 
 // =====================================
+// CREATE TAB
+// =====================================
+
+function createViewTab(
+  view
+){
+
+  return createTab({
+
+    id:
+    view.id,
+
+    type:
+    "view",
+
+    title:
+    view.title ||
+    view.id,
+
+    icon:
+    view.icon || "",
+
+    closable:
+    view.closable === true,
+
+    payload:
+    null
+
+  });
+
+}
+
+
+
+// =====================================
 // OPEN VIEW
 // =====================================
 
 async function openView(
-  viewId
+  viewId,
+  payload = null
 ){
+
+  initialize();
 
   const view =
   ViewManager
@@ -125,39 +185,80 @@ async function openView(
     !view
   ){
 
+    const content =
+    getWorkspaceContent();
+
+    if(
+      content
+    ){
+
+      content.innerHTML =
+      `
+        <div
+          style="
+            width:100%;
+            height:100%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+            color:var(--rigo-muted);
+            font-size:12px;
+            text-align:center;
+          "
+        >
+          View not registered:
+          ${String(viewId)}
+        </div>
+      `;
+
+    }
+
     return false;
+
+  }
+
+  const previousTab =
+  getActiveTab();
+
+  if(
+    previousTab &&
+    previousTab.id !== view.id
+  ){
+
+    await ViewManager
+    .unmount(
+      previousTab.id
+    );
 
   }
 
   if(
     !hasTab(
-      viewId
+      view.id
     )
   ){
 
     addTab(
-      createTab({
-
-        id:
-        view.id,
-
-        title:
-        view.title,
-
-        icon:
-        view.icon,
-
-        closable:
-        false
-
-      })
+      createViewTab(
+        view
+      )
     );
 
   }
 
+  const activeSet =
   setActiveTab(
     view.id
   );
+
+  if(
+    !activeSet
+  ){
+
+    return false;
+
+  }
 
   renderTabs();
 
@@ -172,13 +273,43 @@ async function openView(
 
   }
 
+  content.innerHTML =
+  "";
+
   await ViewManager
   .mount(
     view.id,
-    content
+    content,
+    payload
   );
 
   return true;
+
+}
+
+
+
+// =====================================
+// TAB ICON
+// =====================================
+
+function createTabIcon(
+  icon
+){
+
+  if(
+    !icon
+  ){
+
+    return "";
+
+  }
+
+  return `
+    <span class="rigo-workspace-tab-icon">
+      ${icon}
+    </span>
+  `;
 
 }
 
@@ -205,131 +336,180 @@ function createTabButton(
   button.type =
   "button";
 
+  button.className =
+  "rigo-workspace-tab";
+
   button.dataset.tab =
   tab.id;
+
+  button.dataset.active =
+  isActive
+  ? "true"
+  : "false";
 
   button.title =
   tab.title;
 
+  button.setAttribute(
+    "role",
+    "tab"
+  );
+
+  button.setAttribute(
+    "aria-selected",
+    isActive
+    ? "true"
+    : "false"
+  );
+
   button.innerHTML =
   `
-    ${
-      tab.icon
-      ? `
-        <span
-          style="
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            font-size:13px;
-            line-height:1;
-          "
-        >
-          ${tab.icon}
-        </span>
-      `
-      : ""
-    }
+    ${createTabIcon(tab.icon)}
 
-    <span>
+    <span class="rigo-workspace-tab-title">
       ${tab.title}
     </span>
   `;
 
-  button.style.cssText =
-  `
-    height:34px;
-    min-width:0;
-    flex:0 0 auto;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
-    padding:0 13px;
-    margin:0;
-    border:1px solid ${
-      isActive
-      ? "rgba(148,163,184,.16)"
-      : "transparent"
-    };
-    border-bottom:none;
-    border-radius:9px 9px 0 0;
-    background:${
-      isActive
-      ? "rgba(30,41,59,.92)"
-      : "transparent"
-    };
-    color:${
-      isActive
-      ? "#f8fafc"
-      : "#94a3b8"
-    };
-    font-family:inherit;
-    font-size:12px;
-    line-height:1;
-    font-weight:${
-      isActive
-      ? "700"
-      : "600"
-    };
-    white-space:nowrap;
-    cursor:pointer;
-    transition:
-      background .16s ease,
-      color .16s ease,
-      border-color .16s ease;
-  `;
-
-  button.addEventListener(
-    "mouseenter",
-    function(){
-
-      if(
-        !isActive
-      ){
-
-        button.style.background =
-        "rgba(30,41,59,.46)";
-
-        button.style.color =
-        "#cbd5e1";
-
-      }
-
-    }
-  );
-
-  button.addEventListener(
-    "mouseleave",
-    function(){
-
-      if(
-        !isActive
-      ){
-
-        button.style.background =
-        "transparent";
-
-        button.style.color =
-        "#94a3b8";
-
-      }
-
-    }
-  );
-
   button.addEventListener(
     "click",
-    function(){
+    async function(){
 
-      openView(
-        tab.id
+      await openView(
+        tab.id,
+        tab.payload || null
       );
 
     }
   );
 
   return button;
+
+}
+
+
+
+// =====================================
+// TAB STYLES
+// =====================================
+
+function ensureTabStyles(){
+
+  if(
+    document.getElementById(
+      "rigo-workspace-tab-styles"
+    )
+  ){
+
+    return true;
+
+  }
+
+  const style =
+  document.createElement(
+    "style"
+  );
+
+  style.id =
+  "rigo-workspace-tab-styles";
+
+  style.textContent =
+  `
+    .rigo-workspace-tab{
+      position:relative;
+      height:32px;
+      min-width:0;
+      flex:0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      padding:0 12px;
+      margin:0;
+      border:1px solid transparent;
+      border-bottom:none;
+      border-radius:
+        var(--rigo-radius-sm)
+        var(--rigo-radius-sm)
+        0
+        0;
+      color:var(--rigo-muted);
+      background:transparent;
+      font-family:var(--rigo-font);
+      font-size:11px;
+      line-height:1;
+      font-weight:600;
+      white-space:nowrap;
+      cursor:pointer;
+      transition:
+        color var(--rigo-transition-normal),
+        background var(--rigo-transition-normal),
+        border-color var(--rigo-transition-normal);
+    }
+
+    .rigo-workspace-tab:hover{
+      color:var(--rigo-text-secondary);
+      background:rgba(21,36,58,.42);
+    }
+
+    .rigo-workspace-tab[data-active="true"]{
+      color:var(--rigo-text);
+      background:rgba(16,29,49,.96);
+      border-color:var(--rigo-border);
+    }
+
+    .rigo-workspace-tab[data-active="true"]::after{
+      content:"";
+      position:absolute;
+      right:8px;
+      bottom:0;
+      left:8px;
+      height:2px;
+      border-radius:999px 999px 0 0;
+      background:var(--rigo-primary);
+      box-shadow:
+        0 0 8px
+        var(--rigo-primary-glow);
+    }
+
+    .rigo-workspace-tab-icon{
+      min-width:14px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      color:inherit;
+      font-size:13px;
+      line-height:1;
+    }
+
+    .rigo-workspace-tab-title{
+      max-width:150px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    @media(max-width:760px){
+
+      .rigo-workspace-tab{
+        height:31px;
+        padding:0 10px;
+        font-size:10px;
+      }
+
+      .rigo-workspace-tab-title{
+        max-width:100px;
+      }
+
+    }
+  `;
+
+  document.head
+  .appendChild(
+    style
+  );
+
+  return true;
 
 }
 
@@ -352,6 +532,8 @@ function renderTabs(){
 
   }
 
+  ensureTabStyles();
+
   tabsContainer.innerHTML =
   "";
 
@@ -373,6 +555,32 @@ function renderTabs(){
   }
 
   return true;
+
+}
+
+
+
+// =====================================
+// REFRESH ACTIVE VIEW
+// =====================================
+
+async function refreshActiveView(){
+
+  const activeTab =
+  getActiveTab();
+
+  if(
+    !activeTab
+  ){
+
+    return false;
+
+  }
+
+  return ViewManager
+  .refresh(
+    activeTab.id
+  );
 
 }
 
@@ -415,6 +623,8 @@ Object.freeze({
 
   renderTabs,
 
+  refreshActiveView,
+
   snapshot:
   getSnapshot
 
@@ -437,6 +647,8 @@ export {
   openView,
 
   renderTabs,
+
+  refreshActiveView,
 
   getSnapshot,
 
