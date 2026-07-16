@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // STUDIO THEME
+// DESIGN SYSTEM V2
 // =====================================
 
 const StudioTheme =
@@ -11,38 +12,56 @@ Object.freeze({
     background:
     "#020817",
 
-    backgroundSecondary:
-    "#07101f",
+    backgroundSoft:
+    "#06101f",
 
     surface:
-    "#0f172a",
+    "#0b1628",
 
-    surfaceSecondary:
-    "#111c2d",
+    surfaceRaised:
+    "#101d31",
+
+    surfaceHover:
+    "#15243a",
 
     sidebar:
-    "#09111f",
+    "#07111f",
+
+    workspace:
+    "#020817",
 
     border:
-    "rgba(148,163,184,.12)",
+    "rgba(148,163,184,.14)",
+
+    borderStrong:
+    "rgba(148,163,184,.22)",
 
     primary:
     "#22c55e",
 
+    primarySoft:
+    "rgba(34,197,94,.14)",
+
     primaryGlow:
-    "rgba(34,197,94,.35)",
+    "rgba(34,197,94,.30)",
 
-    accent:
-    "#3b82f6",
+    blue:
+    "#38bdf8",
 
-    success:
-    "#22c55e",
-
-    warning:
+    yellow:
     "#facc15",
 
-    danger:
-    "#ef4444",
+    purple:
+    "#c084fc",
+
+    pink:
+    "#f472b6",
+
+    red:
+    "#fb7185",
+
+    cyan:
+    "#22d3ee",
 
     text:
     "#f8fafc",
@@ -51,7 +70,10 @@ Object.freeze({
     "#cbd5e1",
 
     muted:
-    "#94a3b8"
+    "#94a3b8",
+
+    subtle:
+    "#64748b"
 
   },
 
@@ -59,17 +81,26 @@ Object.freeze({
 
   spacing:{
 
-    xs:4,
+    xxs:
+    2,
 
-    sm:8,
+    xs:
+    4,
 
-    md:12,
+    sm:
+    8,
 
-    lg:16,
+    md:
+    12,
 
-    xl:24,
+    lg:
+    16,
 
-    xxl:32
+    xl:
+    20,
+
+    xxl:
+    24
 
   },
 
@@ -77,15 +108,20 @@ Object.freeze({
 
   radius:{
 
-    xs:6,
+    xs:
+    6,
 
-    sm:10,
+    sm:
+    8,
 
-    md:14,
+    md:
+    10,
 
-    lg:18,
+    lg:
+    12,
 
-    xl:24
+    xl:
+    14
 
   },
 
@@ -93,29 +129,41 @@ Object.freeze({
 
   shadow:{
 
-    sm:
-    "0 2px 8px rgba(0,0,0,.18)",
+    small:
+    "0 6px 18px rgba(0,0,0,.16)",
 
-    md:
-    "0 10px 28px rgba(0,0,0,.28)",
+    medium:
+    "0 12px 32px rgba(0,0,0,.22)",
 
-    lg:
-    "0 20px 60px rgba(0,0,0,.42)"
+    large:
+    "0 20px 60px rgba(0,0,0,.34)",
+
+    glow:
+    "0 0 20px rgba(34,197,94,.12)"
 
   },
 
 
 
-  animation:{
+  typography:{
 
-    fast:
-    "120ms",
+    family:
+    'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 
-    normal:
-    "180ms",
+    title:
+    26,
 
-    slow:
-    "260ms"
+    heading:
+    15,
+
+    body:
+    12,
+
+    small:
+    11,
+
+    tiny:
+    10
 
   },
 
@@ -124,17 +172,141 @@ Object.freeze({
   layout:{
 
     topbarHeight:
-    72,
+    64,
+
+    sidebarColumnWidth:
+    132,
 
     sidebarWidth:
-    150,
+    112,
+
+    workspaceTabsHeight:
+    36,
 
     statusbarHeight:
-    40
+    28,
+
+    workspacePadding:
+    10,
+
+    dashboardPadding:
+    14,
+
+    dashboardGap:
+    10,
+
+    metricCardHeight:
+    84
+
+  },
+
+
+
+  transition:{
+
+    fast:
+    "120ms ease",
+
+    normal:
+    "180ms ease",
+
+    slow:
+    "260ms ease"
 
   }
 
 });
+
+
+
+// =====================================
+// CSS VARIABLES
+// =====================================
+
+function createThemeVariables(){
+
+  return `
+    --rigo-background:${StudioTheme.colors.background};
+    --rigo-background-soft:${StudioTheme.colors.backgroundSoft};
+    --rigo-surface:${StudioTheme.colors.surface};
+    --rigo-surface-raised:${StudioTheme.colors.surfaceRaised};
+    --rigo-surface-hover:${StudioTheme.colors.surfaceHover};
+    --rigo-sidebar:${StudioTheme.colors.sidebar};
+    --rigo-workspace:${StudioTheme.colors.workspace};
+
+    --rigo-border:${StudioTheme.colors.border};
+    --rigo-border-strong:${StudioTheme.colors.borderStrong};
+
+    --rigo-primary:${StudioTheme.colors.primary};
+    --rigo-primary-soft:${StudioTheme.colors.primarySoft};
+    --rigo-primary-glow:${StudioTheme.colors.primaryGlow};
+
+    --rigo-blue:${StudioTheme.colors.blue};
+    --rigo-yellow:${StudioTheme.colors.yellow};
+    --rigo-purple:${StudioTheme.colors.purple};
+    --rigo-pink:${StudioTheme.colors.pink};
+    --rigo-red:${StudioTheme.colors.red};
+    --rigo-cyan:${StudioTheme.colors.cyan};
+
+    --rigo-text:${StudioTheme.colors.text};
+    --rigo-text-secondary:${StudioTheme.colors.textSecondary};
+    --rigo-muted:${StudioTheme.colors.muted};
+    --rigo-subtle:${StudioTheme.colors.subtle};
+
+    --rigo-radius-xs:${StudioTheme.radius.xs}px;
+    --rigo-radius-sm:${StudioTheme.radius.sm}px;
+    --rigo-radius-md:${StudioTheme.radius.md}px;
+    --rigo-radius-lg:${StudioTheme.radius.lg}px;
+    --rigo-radius-xl:${StudioTheme.radius.xl}px;
+
+    --rigo-shadow-small:${StudioTheme.shadow.small};
+    --rigo-shadow-medium:${StudioTheme.shadow.medium};
+    --rigo-shadow-large:${StudioTheme.shadow.large};
+    --rigo-shadow-glow:${StudioTheme.shadow.glow};
+
+    --rigo-font:${StudioTheme.typography.family};
+
+    --rigo-topbar-height:${StudioTheme.layout.topbarHeight}px;
+    --rigo-sidebar-column:${StudioTheme.layout.sidebarColumnWidth}px;
+    --rigo-sidebar-width:${StudioTheme.layout.sidebarWidth}px;
+    --rigo-workspace-tabs-height:${StudioTheme.layout.workspaceTabsHeight}px;
+    --rigo-statusbar-height:${StudioTheme.layout.statusbarHeight}px;
+    --rigo-workspace-padding:${StudioTheme.layout.workspacePadding}px;
+    --rigo-dashboard-padding:${StudioTheme.layout.dashboardPadding}px;
+    --rigo-dashboard-gap:${StudioTheme.layout.dashboardGap}px;
+    --rigo-metric-card-height:${StudioTheme.layout.metricCardHeight}px;
+
+    --rigo-transition-fast:${StudioTheme.transition.fast};
+    --rigo-transition-normal:${StudioTheme.transition.normal};
+    --rigo-transition-slow:${StudioTheme.transition.slow};
+  `;
+
+}
+
+
+
+// =====================================
+// APPLY THEME
+// =====================================
+
+function applyStudioTheme(
+  element
+){
+
+  if(
+    !element
+  ){
+
+    return false;
+
+  }
+
+  element.style.cssText +=
+  createThemeVariables();
+
+  return true;
+
+}
 
 
 
@@ -144,7 +316,11 @@ Object.freeze({
 
 export {
 
-  StudioTheme
+  StudioTheme,
+
+  createThemeVariables,
+
+  applyStudioTheme
 
 };
 
