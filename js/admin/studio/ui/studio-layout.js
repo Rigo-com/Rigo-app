@@ -1,131 +1,70 @@
 // =====================================
 // RIGO AI
 // STUDIO LAYOUT
+// UI V2
 // =====================================
 
-import StudioTheme
+import StudioTheme, {
+  applyStudioTheme
+}
 from "./studio-theme.js";
 
 
 
 // =====================================
-// CREATE TOPBAR
+// TOPBAR
 // =====================================
 
 function createTopbar(){
 
   return `
-    <div
-      style="
-        width:100%;
-        height:68px;
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        padding:0 18px 0 20px;
-        border-bottom:1px solid rgba(148,163,184,.11);
-        background:rgba(2,8,23,.68);
-      "
-    >
-      <div
-        style="
-          display:flex;
-          align-items:center;
-          gap:9px;
-          color:#f8fafc;
-          font-size:18px;
-          line-height:1;
-          font-weight:800;
-          letter-spacing:.2px;
-          white-space:nowrap;
-        "
-      >
-        <span
-          style="
-            width:30px;
-            height:30px;
-            flex:0 0 30px;
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            border-radius:50%;
-            background:linear-gradient(135deg,#34d399,#06b6d4);
-            color:#02111f;
-            font-size:17px;
-            font-weight:900;
-            box-shadow:0 0 20px rgba(16,185,129,.14);
-          "
-        >
+    <div class="rigo-studio-topbar-inner">
+
+      <div class="rigo-studio-brand">
+
+        <div class="rigo-studio-brand-logo">
           R
-        </span>
+        </div>
 
-        <span>
-          RIGO STUDIO
-        </span>
-      </div>
+        <div class="rigo-studio-brand-copy">
 
-      <div
-        style="
-          display:flex;
-          align-items:center;
-          gap:12px;
-        "
-      >
-        <div
-          style="
-            height:34px;
-            display:flex;
-            align-items:center;
-            gap:8px;
-            padding:0 13px;
-            border:1px solid rgba(148,163,184,.12);
-            border-radius:999px;
-            background:rgba(15,23,42,.72);
-            color:#f8fafc;
-            font-size:12px;
-            line-height:1;
-            font-weight:700;
-            white-space:nowrap;
-          "
-        >
-          <span
-            style="
-              width:9px;
-              height:9px;
-              border-radius:50%;
-              background:#22c55e;
-              box-shadow:0 0 10px rgba(34,197,94,.85);
-            "
-          ></span>
+          <strong>
+            RIGO STUDIO
+          </strong>
 
           <span>
-            Studio Online
+            Admin development environment
           </span>
+
+        </div>
+
+      </div>
+
+      <div class="rigo-studio-topbar-actions">
+
+        <div
+          class="rigo-studio-online-status"
+          title="Studio runtime status"
+        >
+          <span></span>
+
+          <strong>
+            Studio Online
+          </strong>
         </div>
 
         <button
           type="button"
           id="rigo-studio-menu-button"
+          class="rigo-studio-menu-button"
           aria-label="Open Studio menu"
-          style="
-            width:42px;
-            height:42px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            padding:0;
-            border:1px solid rgba(148,163,184,.15);
-            border-radius:12px;
-            background:rgba(15,23,42,.76);
-            color:#f8fafc;
-            font-size:21px;
-            line-height:1;
-            cursor:pointer;
-          "
+          title="Studio menu"
         >
           ☰
         </button>
+
       </div>
+
     </div>
   `;
 
@@ -134,7 +73,285 @@ function createTopbar(){
 
 
 // =====================================
-// CREATE STUDIO ROOT
+// STATUSBAR
+// =====================================
+
+function createStatusbar(){
+
+  return `
+    <div class="rigo-studio-statusbar-left">
+
+      <span class="rigo-studio-status-item">
+        <span class="rigo-studio-status-dot success"></span>
+        RIGO Ready
+      </span>
+
+      <span class="rigo-studio-status-item">
+        Main
+      </span>
+
+    </div>
+
+    <div class="rigo-studio-statusbar-right">
+
+      <span class="rigo-studio-status-item">
+        UTF-8
+      </span>
+
+      <span class="rigo-studio-status-item">
+        JavaScript
+      </span>
+
+      <span class="rigo-studio-status-item">
+        Admin Mode
+      </span>
+
+    </div>
+  `;
+
+}
+
+
+
+// =====================================
+// GLOBAL STYLES
+// =====================================
+
+function createStudioStyles(){
+
+  return `
+    <style id="rigo-studio-global-styles">
+
+      #rigo-studio-root,
+      #rigo-studio-root *{
+        box-sizing:border-box;
+      }
+
+      #rigo-studio-root{
+        color:var(--rigo-text);
+        font-family:var(--rigo-font);
+      }
+
+      .rigo-studio-topbar-inner{
+        width:100%;
+        height:100%;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:0 16px 0 18px;
+        background:
+          linear-gradient(
+            180deg,
+            rgba(6,16,31,.97),
+            rgba(2,8,23,.97)
+          );
+        border-bottom:1px solid var(--rigo-border);
+      }
+
+      .rigo-studio-brand{
+        min-width:0;
+        display:flex;
+        align-items:center;
+        gap:10px;
+      }
+
+      .rigo-studio-brand-logo{
+        width:30px;
+        height:30px;
+        flex:0 0 30px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:50%;
+        color:#02111f;
+        background:
+          linear-gradient(
+            135deg,
+            var(--rigo-primary),
+            var(--rigo-cyan)
+          );
+        font-size:16px;
+        line-height:1;
+        font-weight:900;
+        box-shadow:
+          0 0 18px
+          rgba(34,197,94,.17);
+      }
+
+      .rigo-studio-brand-copy{
+        min-width:0;
+        display:flex;
+        flex-direction:column;
+        gap:3px;
+      }
+
+      .rigo-studio-brand-copy strong{
+        overflow:hidden;
+        color:var(--rigo-text);
+        font-size:17px;
+        line-height:1;
+        font-weight:800;
+        letter-spacing:.2px;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .rigo-studio-brand-copy span{
+        overflow:hidden;
+        color:var(--rigo-muted);
+        font-size:10px;
+        line-height:1;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .rigo-studio-topbar-actions{
+        display:flex;
+        align-items:center;
+        gap:10px;
+      }
+
+      .rigo-studio-online-status{
+        height:32px;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        padding:0 12px;
+        border:1px solid var(--rigo-border);
+        border-radius:999px;
+        color:var(--rigo-text-secondary);
+        background:rgba(15,23,42,.64);
+        font-size:11px;
+        line-height:1;
+        white-space:nowrap;
+      }
+
+      .rigo-studio-online-status > span{
+        width:8px;
+        height:8px;
+        flex:0 0 8px;
+        border-radius:50%;
+        background:var(--rigo-primary);
+        box-shadow:
+          0 0 10px
+          var(--rigo-primary-glow);
+      }
+
+      .rigo-studio-online-status strong{
+        font-weight:700;
+      }
+
+      .rigo-studio-menu-button{
+        width:38px;
+        height:38px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:0;
+        border:1px solid var(--rigo-border);
+        border-radius:var(--rigo-radius-md);
+        color:var(--rigo-text);
+        background:rgba(15,23,42,.66);
+        font-size:20px;
+        line-height:1;
+        cursor:pointer;
+        transition:
+          background var(--rigo-transition-normal),
+          border-color var(--rigo-transition-normal);
+      }
+
+      .rigo-studio-menu-button:hover{
+        background:var(--rigo-surface-hover);
+        border-color:var(--rigo-border-strong);
+      }
+
+      .rigo-studio-statusbar-left,
+      .rigo-studio-statusbar-right{
+        display:flex;
+        align-items:center;
+        gap:14px;
+      }
+
+      .rigo-studio-status-item{
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        color:var(--rigo-muted);
+        font-size:10px;
+        line-height:1;
+        white-space:nowrap;
+      }
+
+      .rigo-studio-status-dot{
+        width:6px;
+        height:6px;
+        display:inline-block;
+        border-radius:50%;
+      }
+
+      .rigo-studio-status-dot.success{
+        background:var(--rigo-primary);
+        box-shadow:
+          0 0 8px
+          var(--rigo-primary-glow);
+      }
+
+      #rigo-studio-sidebar,
+      #rigo-studio-workspace{
+        min-width:0;
+        min-height:0;
+      }
+
+      #rigo-studio-workspace{
+        overflow:hidden;
+      }
+
+      @media(max-width:760px){
+
+        #rigo-studio-root{
+          grid-template-columns:
+            92px
+            minmax(0,1fr) !important;
+        }
+
+        .rigo-studio-brand-copy span{
+          display:none;
+        }
+
+        .rigo-studio-online-status strong{
+          display:none;
+        }
+
+        .rigo-studio-online-status{
+          width:32px;
+          padding:0;
+          justify-content:center;
+        }
+
+        #rigo-studio-statusbar{
+          padding:0 8px !important;
+        }
+
+        .rigo-studio-statusbar-left,
+        .rigo-studio-statusbar-right{
+          gap:8px;
+        }
+
+        .rigo-studio-status-item:nth-child(n+2){
+          display:none;
+        }
+
+      }
+
+    </style>
+  `;
+
+}
+
+
+
+// =====================================
+// CREATE ROOT
 // =====================================
 
 function createStudioRoot(){
@@ -153,33 +370,36 @@ function createStudioRoot(){
     height:100vh;
     min-height:100vh;
     display:grid;
-    grid-template-columns:142px minmax(0,1fr);
-    grid-template-rows:68px minmax(0,1fr) 30px;
+    grid-template-columns:
+      var(--rigo-sidebar-column)
+      minmax(0,1fr);
+    grid-template-rows:
+      var(--rigo-topbar-height)
+      minmax(0,1fr)
+      var(--rigo-statusbar-height);
     overflow:hidden;
     background:
       radial-gradient(
         circle at 0% 0%,
-        rgba(16,185,129,.055),
-        transparent 24%
+        rgba(34,197,94,.05),
+        transparent 25%
       ),
       radial-gradient(
         circle at 100% 0%,
-        rgba(14,165,233,.045),
-        transparent 26%
+        rgba(56,189,248,.04),
+        transparent 25%
       ),
-      #020817;
-    color:${StudioTheme.colors.text};
-    font-family:
-      Inter,
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
+      var(--rigo-background);
   `;
+
+  applyStudioTheme(
+    root
+  );
 
   root.innerHTML =
   `
+    ${createStudioStyles()}
+
     <header
       id="rigo-studio-topbar"
       style="
@@ -197,8 +417,11 @@ function createStudioRoot(){
       style="
         grid-column:1;
         grid-row:2;
-        min-width:0;
-        min-height:0;
+        padding:
+          8px
+          6px
+          8px
+          10px;
       "
     ></aside>
 
@@ -207,10 +430,11 @@ function createStudioRoot(){
       style="
         grid-column:2;
         grid-row:2;
-        min-width:0;
-        min-height:0;
-        overflow:hidden;
-        padding:8px 14px 0 8px;
+        padding:
+          8px
+          10px
+          0
+          4px;
       "
     ></main>
 
@@ -223,16 +447,13 @@ function createStudioRoot(){
         min-height:0;
         display:flex;
         align-items:center;
-        justify-content:center;
-        padding:0 16px;
-        border-top:1px solid rgba(148,163,184,.09);
-        background:rgba(2,8,23,.78);
-        color:#94a3b8;
-        font-size:11px;
-        line-height:1;
+        justify-content:space-between;
+        padding:0 14px;
+        border-top:1px solid var(--rigo-border);
+        background:rgba(2,8,23,.94);
       "
     >
-      RIGO AI Studio • All systems ready.
+      ${createStatusbar()}
     </footer>
   `;
 
@@ -313,6 +534,10 @@ export {
 
   createTopbar,
 
+  createStatusbar,
+
+  createStudioStyles,
+
   createStudioRoot,
 
   mountStudioLayout,
@@ -324,6 +549,10 @@ export {
 export default {
 
   createTopbar,
+
+  createStatusbar,
+
+  createStudioStyles,
 
   createStudioRoot,
 
