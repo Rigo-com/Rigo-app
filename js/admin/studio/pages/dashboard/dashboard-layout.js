@@ -27,10 +27,19 @@ function formatDateTime(
 
   }
 
-  return new Date(
-    timestamp
-  )
-  .toLocaleString();
+  try{
+
+    return new Date(
+      timestamp
+    )
+    .toLocaleString();
+
+  }
+  catch{
+
+    return "Never";
+
+  }
 
 }
 
@@ -51,21 +60,35 @@ function renderHeader(
 
   return `
     <header class="rigo-dashboard-header">
-      <div>
-        <h1>Dashboard</h1>
+
+      <div class="rigo-dashboard-heading">
+        <h1>
+          Dashboard
+        </h1>
+
         <p>
           RIGO Studio control center for project, agents, debug, and runtime status.
         </p>
       </div>
 
       <div class="rigo-dashboard-actions">
+
         <button
           type="button"
           class="rigo-dashboard-button"
           data-dashboard-action="refresh"
           ${loading ? "disabled" : ""}
         >
-          ${loading ? "Refreshing..." : "Refresh"}
+          <span
+            class="rigo-dashboard-button-icon"
+            aria-hidden="true"
+          >
+            ↻
+          </span>
+
+          <span>
+            ${loading ? "Refreshing..." : "Refresh"}
+          </span>
         </button>
 
         <button
@@ -74,9 +97,20 @@ function renderHeader(
           data-dashboard-action="scan-project"
           ${loading ? "disabled" : ""}
         >
-          Scan Project
+          <span
+            class="rigo-dashboard-button-icon"
+            aria-hidden="true"
+          >
+            ⌕
+          </span>
+
+          <span>
+            Scan Project
+          </span>
         </button>
+
       </div>
+
     </header>
   `;
 
@@ -105,7 +139,10 @@ function renderError(
   String(error);
 
   return `
-    <div class="rigo-dashboard-error">
+    <div
+      class="rigo-dashboard-error"
+      role="alert"
+    >
       ${escapeHTML(message)}
     </div>
   `;
@@ -122,12 +159,41 @@ function renderFooter(
   state = {}
 ){
 
+  const updatedAt =
+  formatDateTime(
+    state.lastUpdatedAt
+  );
+
   return `
     <footer class="rigo-dashboard-footer">
+
       <span>
-        Last updated:
-        ${escapeHTML(formatDateTime(state.lastUpdatedAt))}
+        RIGO AI Studio
       </span>
+
+      <span
+        class="rigo-dashboard-footer-separator"
+        aria-hidden="true"
+      >
+        •
+      </span>
+
+      <span>
+        ${
+          state.loading
+          ? "Updating dashboard..."
+          : "All systems ready."
+        }
+      </span>
+
+      <span
+        class="rigo-dashboard-footer-time"
+        title="${escapeHTML(updatedAt)}"
+      >
+        Last updated:
+        ${escapeHTML(updatedAt)}
+      </span>
+
     </footer>
   `;
 
@@ -148,10 +214,17 @@ function renderLayout(
 
   return `
     <div class="rigo-dashboard-page">
+
       ${renderHeader(state)}
+
       ${renderError(state.error)}
-      ${renderWidgets(data)}
+
+      <main class="rigo-dashboard-main">
+        ${renderWidgets(data)}
+      </main>
+
       ${renderFooter(state)}
+
     </div>
   `;
 
