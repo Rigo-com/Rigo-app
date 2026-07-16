@@ -3,13 +3,156 @@
 // STUDIO ADMIN AGENT LOADER
 // =====================================
 
+import Admin
+from "../../../index.js";
+
+
+
+// =====================================
+// GET ADMIN
+// =====================================
+
 function getAdmin(){
 
-  return window?.Admin || null;
+  if(
+    typeof window !== "undefined" &&
+    window.Admin
+  ){
+
+    return window.Admin;
+
+  }
+
+  return Admin || null;
 
 }
 
 
+
+// =====================================
+// ENSURE ADMIN READY
+// =====================================
+
+async function ensureAdminReady(){
+
+  const admin =
+  getAdmin();
+
+  if(
+    !admin
+  ){
+
+    return {
+
+      ok:false,
+
+      error:
+      "ADMIN_API_NOT_AVAILABLE"
+
+    };
+
+  }
+
+  try{
+
+    const state =
+    typeof admin.snapshot === "function"
+    ? admin.snapshot()
+    : null;
+
+    const initialized =
+    Boolean(
+      state?.initialized ||
+      state?.state?.initialized ||
+      state?.runtime?.initialized
+    );
+
+    const booted =
+    Boolean(
+      state?.booted ||
+      state?.state?.booted ||
+      state?.runtime?.booted
+    );
+
+    if(
+      !initialized &&
+      typeof admin.initialize === "function"
+    ){
+
+      const initializedResult =
+      await admin.initialize();
+
+      if(
+        initializedResult === false
+      ){
+
+        throw new Error(
+          "ADMIN_INITIALIZATION_FAILED"
+        );
+
+      }
+
+    }
+
+    if(
+      !booted &&
+      typeof admin.boot === "function"
+    ){
+
+      const bootResult =
+      await admin.boot();
+
+      if(
+        bootResult === false
+      ){
+
+        throw new Error(
+          "ADMIN_BOOT_FAILED"
+        );
+
+      }
+
+    }
+
+    if(
+      typeof window !== "undefined"
+    ){
+
+      window.Admin =
+      admin;
+
+    }
+
+    return {
+
+      ok:true,
+
+      admin
+
+    };
+
+  }
+  catch(error){
+
+    return {
+
+      ok:false,
+
+      error:
+      error?.message ||
+      String(error)
+
+    };
+
+  }
+
+}
+
+
+
+// =====================================
+// STATUS
+// =====================================
 
 function getAdminStatus(){
 
@@ -21,8 +164,12 @@ function getAdminStatus(){
   ){
 
     return {
+
       available:false,
-      status:"missing"
+
+      status:
+      "missing"
+
     };
 
   }
@@ -32,36 +179,69 @@ function getAdminStatus(){
   ){
 
     return {
+
       available:false,
-      status:"command-unavailable"
+
+      status:
+      "command-unavailable"
+
     };
 
   }
 
   return {
+
     available:true,
-    status:"connected"
+
+    status:
+    "connected"
+
   };
 
 }
 
 
 
+// =====================================
+// EXECUTE COMMAND
+// =====================================
+
 async function executeAdminCommand(
   input
 ){
 
-  const admin =
-  getAdmin();
+  const readiness =
+  await ensureAdminReady();
 
   if(
-    !admin ||
+    !readiness.ok
+  ){
+
+    return {
+
+      ok:false,
+
+      error:
+      readiness.error
+
+    };
+
+  }
+
+  const admin =
+  readiness.admin;
+
+  if(
     typeof admin.command !== "function"
   ){
 
     return {
+
       ok:false,
-      error:"ADMIN_COMMAND_API_NOT_AVAILABLE"
+
+      error:
+      "ADMIN_COMMAND_API_NOT_AVAILABLE"
+
     };
 
   }
@@ -74,9 +254,15 @@ async function executeAdminCommand(
 
 
 
+// =====================================
+// EXPORTS
+// =====================================
+
 export {
 
   getAdmin,
+
+  ensureAdminReady,
 
   getAdminStatus,
 
@@ -85,7 +271,13 @@ export {
 };
 
 export default {
+
   getAdmin,
+
+  ensureAdminReady,
+
   getAdminStatus,
+
   executeAdminCommand
+
 };
