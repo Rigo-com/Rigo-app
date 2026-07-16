@@ -3,6 +3,12 @@
 // STUDIO WORKSPACE LAYOUT
 // =====================================
 
+
+
+// =====================================
+// CREATE
+// =====================================
+
 function createWorkspaceLayout(){
 
   const root =
@@ -15,12 +21,19 @@ function createWorkspaceLayout(){
 
   root.style.cssText =
   `
-    display:grid;
-    grid-template-rows:48px 1fr;
     width:100%;
     height:100%;
+    min-width:0;
+    min-height:0;
+    display:grid;
+    grid-template-rows:40px minmax(0,1fr);
     overflow:hidden;
+    border:1px solid rgba(148,163,184,.12);
+    border-radius:14px 14px 0 0;
     background:#020817;
+    box-shadow:
+      0 14px 36px
+      rgba(0,0,0,.16);
   `;
 
   root.innerHTML =
@@ -28,13 +41,17 @@ function createWorkspaceLayout(){
     <div
       id="rigo-workspace-tabs"
       style="
+        min-width:0;
+        min-height:0;
         display:flex;
-        align-items:center;
-        gap:2px;
-        padding:0 8px;
-        background:#0f172a;
-        border-bottom:1px solid rgba(148,163,184,.12);
+        align-items:flex-end;
+        gap:4px;
+        padding:0 10px;
         overflow-x:auto;
+        overflow-y:hidden;
+        border-bottom:1px solid rgba(148,163,184,.11);
+        background:rgba(15,23,42,.78);
+        scrollbar-width:thin;
       "
     >
     </div>
@@ -43,6 +60,8 @@ function createWorkspaceLayout(){
       id="rigo-workspace-content"
       style="
         position:relative;
+        min-width:0;
+        min-height:0;
         overflow:auto;
         background:#020817;
       "
@@ -72,6 +91,17 @@ function mountWorkspaceLayout(
 
   }
 
+  const existingRoot =
+  getWorkspaceRoot();
+
+  if(
+    existingRoot
+  ){
+
+    return existingRoot;
+
+  }
+
   const root =
   createWorkspaceLayout();
 
@@ -94,7 +124,8 @@ function mountWorkspaceLayout(
 
 function getWorkspaceRoot(){
 
-  return document.getElementById(
+  return document
+  .getElementById(
     "rigo-workspace"
   );
 
@@ -104,7 +135,8 @@ function getWorkspaceRoot(){
 
 function getWorkspaceTabs(){
 
-  return document.getElementById(
+  return document
+  .getElementById(
     "rigo-workspace-tabs"
   );
 
@@ -114,7 +146,8 @@ function getWorkspaceTabs(){
 
 function getWorkspaceContent(){
 
-  return document.getElementById(
+  return document
+  .getElementById(
     "rigo-workspace-content"
   );
 
