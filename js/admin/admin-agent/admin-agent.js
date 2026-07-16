@@ -15,6 +15,181 @@ from "./subagents/project-agent/index.js";
 import CodeAgent
 from "./subagents/code-agent/index.js";
 
+import GitHubProvider
+from "./subagents/project-agent/providers/github-provider.js";
+
+import Execution
+from "./execution/index.js";
+
+import ExecutionBuilder
+from "./execution/execution-builder.js";
+
+import ExecutionPlan
+from "./execution/execution-plan.js";
+
+
+
+// =====================================
+// INTERNAL STATE
+// =====================================
+
+const adminExecutionState =
+Object.seal({
+
+  initialized:
+  false,
+
+  pendingPlans:
+  {},
+
+  lastPlanId:
+  null
+
+});
+
+
+
+// =====================================
+// EXECUTION HANDLERS
+// =====================================
+
+async function handleCreateFileOperation(
+  operation
+){
+
+  return GitHubProvider
+  .createFile(
+
+    operation.payload.path,
+
+    operation.payload.content || "",
+
+    operation.payload.message || null
+
+  );
+
+}
+
+
+
+async function handleUpdateFileOperation(
+  operation
+){
+
+  return GitHubProvider
+  .updateFile(
+
+    operation.payload.path,
+
+    operation.payload.content || "",
+
+    operation.payload.message || null
+
+  );
+
+}
+
+
+
+async function handleDeleteFileOperation(
+  operation
+){
+
+  return GitHubProvider
+  .deleteFile(
+
+    operation.payload.path,
+
+    operation.payload.message || null
+
+  );
+
+}
+
+
+
+async function handleMoveFileOperation(
+  operation
+){
+
+  return GitHubProvider
+  .moveFile(
+
+    operation.payload.sourcePath,
+
+    operation.payload.destinationPath,
+
+    operation.payload.message || null
+
+  );
+
+}
+
+
+
+// =====================================
+// INITIALIZE EXECUTION
+// =====================================
+
+function initializeExecution(){
+
+  if(
+    adminExecutionState.initialized
+  ){
+
+    return true;
+
+  }
+
+  Execution.initialize();
+
+  Execution.registerHandler(
+
+    ExecutionPlan
+    .OperationTypes
+    .CREATE_FILE,
+
+    handleCreateFileOperation
+
+  );
+
+  Execution.registerHandler(
+
+    ExecutionPlan
+    .OperationTypes
+    .UPDATE_FILE,
+
+    handleUpdateFileOperation
+
+  );
+
+  Execution.registerHandler(
+
+    ExecutionPlan
+    .OperationTypes
+    .DELETE_FILE,
+
+    handleDeleteFileOperation
+
+  );
+
+  Execution.registerHandler(
+
+    ExecutionPlan
+    .OperationTypes
+    .MOVE_FILE,
+
+    handleMoveFileOperation
+
+  );
+
+  adminExecutionState.initialized =
+  true;
+
+  return true;
+
+}
+
 
 
 // =====================================
@@ -25,24 +200,45 @@ async function initialize(){
 
   try{
 
-    if(AdminAgentState.state.initialized){
+    if(
+      AdminAgentState
+      .state
+      .initialized
+    ){
 
       return true;
 
     }
 
-    await ProjectAgent.initialize();
-    await CodeAgent.initialize();
+    await ProjectAgent
+    .initialize();
 
-    AdminAgentState.setInitialized(true);
-    AdminAgentState.log("system","ADMIN AGENT INITIALIZED");
+    await CodeAgent
+    .initialize();
+
+    initializeExecution();
+
+    AdminAgentState
+    .setInitialized(
+      true
+    );
+
+    AdminAgentState
+    .log(
+      "system",
+      "ADMIN AGENT INITIALIZED"
+    );
 
     return true;
 
   }
   catch(error){
 
-    AdminAgentState.setError(error);
+    AdminAgentState
+    .setError(
+      error
+    );
+
     return false;
 
   }
@@ -59,24 +255,45 @@ async function boot(){
 
   try{
 
-    if(!AdminAgentState.state.initialized){
+    if(
+      !AdminAgentState
+      .state
+      .initialized
+    ){
 
       await initialize();
 
     }
 
-    await ProjectAgent.boot();
-    await CodeAgent.boot();
+    await ProjectAgent
+    .boot();
 
-    AdminAgentState.setBooted(true);
-    AdminAgentState.log("system","ADMIN AGENT BOOTED");
+    await CodeAgent
+    .boot();
+
+    initializeExecution();
+
+    AdminAgentState
+    .setBooted(
+      true
+    );
+
+    AdminAgentState
+    .log(
+      "system",
+      "ADMIN AGENT BOOTED"
+    );
 
     return true;
 
   }
   catch(error){
 
-    AdminAgentState.setError(error);
+    AdminAgentState
+    .setError(
+      error
+    );
+
     return false;
 
   }
@@ -91,11 +308,22 @@ async function boot(){
 
 async function shutdown(){
 
-  await ProjectAgent.shutdown();
-  await CodeAgent.shutdown();
+  await ProjectAgent
+  .shutdown();
 
-  AdminAgentState.setBooted(false);
-  AdminAgentState.log("system","ADMIN AGENT SHUTDOWN");
+  await CodeAgent
+  .shutdown();
+
+  AdminAgentState
+  .setBooted(
+    false
+  );
+
+  AdminAgentState
+  .log(
+    "system",
+    "ADMIN AGENT SHUTDOWN"
+  );
 
   return true;
 
@@ -109,13 +337,732 @@ async function shutdown(){
 
 async function reset(){
 
-  await ProjectAgent.reset();
-  await CodeAgent.reset();
+  await ProjectAgent
+  .reset();
 
-  AdminAgentState.reset();
-  AdminAgentState.log("system","ADMIN AGENT RESET");
+  await CodeAgent
+  .reset();
+
+  adminExecutionState.pendingPlans =
+  {};
+
+  adminExecutionState.lastPlanId =
+  null;
+
+  AdminAgentState
+  .reset();
+
+  AdminAgentState
+  .log(
+    "system",
+    "ADMIN AGENT RESET"
+  );
 
   return true;
+
+}
+
+
+
+// =====================================
+// NORMALIZATION
+// =====================================
+
+function normalizeText(
+  value
+){
+
+  return String(
+    value || ""
+  )
+  .trim();
+
+}
+
+
+
+function normalizeCommand(
+  value
+){
+
+  return normalizeText(
+    value
+  )
+  .toLowerCase();
+
+}
+
+
+
+// =====================================
+// PLAN STORAGE
+// =====================================
+
+function storePendingPlan(
+  plan
+){
+
+  adminExecutionState
+  .pendingPlans[
+    plan.id
+  ] =
+  plan;
+
+  adminExecutionState.lastPlanId =
+  plan.id;
+
+  return plan;
+
+}
+
+
+
+function getPendingPlan(
+  planId
+){
+
+  return (
+    adminExecutionState
+    .pendingPlans[
+      planId
+    ] ||
+    null
+  );
+
+}
+
+
+
+function listPendingPlans(){
+
+  return Object
+  .values(
+    adminExecutionState
+    .pendingPlans
+  )
+  .map(
+    function(plan){
+
+      return ExecutionPlan
+      .snapshot(
+        plan
+      );
+
+    }
+  );
+
+}
+
+
+
+// =====================================
+// PLAN RESPONSE
+// =====================================
+
+function createPendingPlanResponse(
+  plan
+){
+
+  return {
+
+    ok:true,
+
+    mode:
+    "execution-plan",
+
+    status:
+    "waiting-approval",
+
+    message:
+    "Execution plan created. Approval is required before execution.",
+
+    plan:
+    ExecutionPlan.snapshot(
+      plan
+    ),
+
+    nextCommands:[
+
+      `approve ${plan.id}`,
+
+      `execute ${plan.id}`,
+
+      `approve and execute ${plan.id}`
+
+    ]
+
+  };
+
+}
+
+
+
+// =====================================
+// CREATE FILE PLAN
+// =====================================
+
+function createFilePlan(
+  path,
+  content = ""
+){
+
+  const plan =
+  ExecutionBuilder
+  .buildCreateFilePlan({
+
+    path,
+
+    content,
+
+    title:
+    `Create ${path}`
+
+  });
+
+  storePendingPlan(
+    plan
+  );
+
+  return createPendingPlanResponse(
+    plan
+  );
+
+}
+
+
+
+// =====================================
+// UPDATE FILE PLAN
+// =====================================
+
+function createUpdateFilePlan(
+  path,
+  content = ""
+){
+
+  const plan =
+  ExecutionBuilder
+  .buildUpdateFilePlan({
+
+    path,
+
+    content,
+
+    title:
+    `Update ${path}`
+
+  });
+
+  storePendingPlan(
+    plan
+  );
+
+  return createPendingPlanResponse(
+    plan
+  );
+
+}
+
+
+
+// =====================================
+// DELETE FILE PLAN
+// =====================================
+
+function createDeleteFilePlan(
+  path
+){
+
+  const plan =
+  ExecutionBuilder
+  .buildDeleteFilePlan({
+
+    path,
+
+    title:
+    `Delete ${path}`
+
+  });
+
+  plan.risk.destructive =
+  true;
+
+  plan.risk.level =
+  "high";
+
+  plan.risk.score =
+  80;
+
+  storePendingPlan(
+    plan
+  );
+
+  return createPendingPlanResponse(
+    plan
+  );
+
+}
+
+
+
+// =====================================
+// MOVE FILE PLAN
+// =====================================
+
+function createMoveFilePlan(
+  sourcePath,
+  destinationPath
+){
+
+  const plan =
+  ExecutionBuilder
+  .buildMoveFilePlan({
+
+    sourcePath,
+
+    destinationPath,
+
+    title:
+    `Move ${sourcePath} to ${destinationPath}`
+
+  });
+
+  storePendingPlan(
+    plan
+  );
+
+  return createPendingPlanResponse(
+    plan
+  );
+
+}
+
+
+
+// =====================================
+// APPROVE PLAN
+// =====================================
+
+function approvePlan(
+  planId
+){
+
+  const plan =
+  getPendingPlan(
+    planId
+  );
+
+  if(
+    !plan
+  ){
+
+    return {
+
+      ok:false,
+
+      error:
+      "EXECUTION_PLAN_NOT_FOUND"
+
+    };
+
+  }
+
+  if(
+    plan.status ===
+    ExecutionPlan
+    .Status
+    .COMPLETED
+  ){
+
+    return {
+
+      ok:false,
+
+      error:
+      "EXECUTION_PLAN_ALREADY_COMPLETED"
+
+    };
+
+  }
+
+  plan.approval.approved =
+  true;
+
+  plan.approval.approvedBy =
+  "admin";
+
+  plan.approval.approvedAt =
+  Date.now();
+
+  plan.status =
+  ExecutionPlan
+  .Status
+  .APPROVED;
+
+  for(
+    const operation
+    of Object.values(
+      plan.graph.nodes
+    )
+  ){
+
+    operation.status =
+    ExecutionPlan
+    .OperationStatus
+    .APPROVED;
+
+  }
+
+  return {
+
+    ok:true,
+
+    status:
+    "approved",
+
+    plan:
+    ExecutionPlan.snapshot(
+      plan
+    )
+
+  };
+
+}
+
+
+
+// =====================================
+// EXECUTE PLAN
+// =====================================
+
+async function executeApprovedPlan(
+  planId
+){
+
+  const plan =
+  getPendingPlan(
+    planId
+  );
+
+  if(
+    !plan
+  ){
+
+    return {
+
+      ok:false,
+
+      error:
+      "EXECUTION_PLAN_NOT_FOUND"
+
+    };
+
+  }
+
+  if(
+    !plan.approval.approved
+  ){
+
+    return {
+
+      ok:false,
+
+      error:
+      "EXECUTION_PLAN_NOT_APPROVED",
+
+      plan:
+      ExecutionPlan.snapshot(
+        plan
+      )
+
+    };
+
+  }
+
+  const result =
+  await Execution
+  .execute(
+    plan
+  );
+
+  if(
+    result.ok
+  ){
+
+    await ProjectAgent
+    .scan();
+
+  }
+
+  return result;
+
+}
+
+
+
+// =====================================
+// LOGIN COMMAND
+// =====================================
+
+async function handleLoginCommand(
+  input
+){
+
+  const text =
+  normalizeText(
+    input
+  );
+
+  const match =
+  text.match(
+    /^(?:login admin|admin login|تسجيل دخول الادمن|دخول الادمن)\s+(.+)$/i
+  );
+
+  if(
+    !match
+  ){
+
+    return null;
+
+  }
+
+  return GitHubProvider
+  .authenticate(
+    match[1].trim()
+  );
+
+}
+
+
+
+// =====================================
+// EXECUTION COMMAND
+// =====================================
+
+async function handleExecutionCommand(
+  input
+){
+
+  if(
+    input &&
+    typeof input === "object"
+  ){
+
+    const type =
+    normalizeCommand(
+      input.type ||
+      input.action
+    );
+
+    if(
+      type === "create-file"
+    ){
+
+      return createFilePlan(
+        input.path,
+        input.content || ""
+      );
+
+    }
+
+    if(
+      type === "update-file"
+    ){
+
+      return createUpdateFilePlan(
+        input.path,
+        input.content || ""
+      );
+
+    }
+
+    if(
+      type === "delete-file"
+    ){
+
+      return createDeleteFilePlan(
+        input.path
+      );
+
+    }
+
+    if(
+      type === "move-file"
+    ){
+
+      return createMoveFilePlan(
+        input.sourcePath,
+        input.destinationPath
+      );
+
+    }
+
+    if(
+      type === "approve-plan"
+    ){
+
+      return approvePlan(
+        input.planId
+      );
+
+    }
+
+    if(
+      type === "execute-plan"
+    ){
+
+      return executeApprovedPlan(
+        input.planId
+      );
+
+    }
+
+  }
+
+  const text =
+  normalizeText(
+    input
+  );
+
+  let match =
+  text.match(
+    /^(?:create file|انشئ ملف|أنشئ ملف)\s+(\S+)(?:\s*::\s*([\s\S]*))?$/i
+  );
+
+  if(
+    match
+  ){
+
+    return createFilePlan(
+      match[1],
+      match[2] || ""
+    );
+
+  }
+
+  match =
+  text.match(
+    /^(?:update file|عدل ملف|عدّل ملف)\s+(\S+)\s*::\s*([\s\S]*)$/i
+  );
+
+  if(
+    match
+  ){
+
+    return createUpdateFilePlan(
+      match[1],
+      match[2] || ""
+    );
+
+  }
+
+  match =
+  text.match(
+    /^(?:delete file|احذف ملف)\s+(\S+)$/i
+  );
+
+  if(
+    match
+  ){
+
+    return createDeleteFilePlan(
+      match[1]
+    );
+
+  }
+
+  match =
+  text.match(
+    /^(?:move file|انقل ملف)\s+(\S+)\s*(?:->|إلى|الى)\s*(\S+)$/i
+  );
+
+  if(
+    match
+  ){
+
+    return createMoveFilePlan(
+      match[1],
+      match[2]
+    );
+
+  }
+
+  match =
+  text.match(
+    /^(?:approve and execute|وافق ونفذ|وافق ونفّذ)\s+(PLAN-\d+)$/i
+  );
+
+  if(
+    match
+  ){
+
+    const approval =
+    approvePlan(
+      match[1]
+    );
+
+    if(
+      !approval.ok
+    ){
+
+      return approval;
+
+    }
+
+    return executeApprovedPlan(
+      match[1]
+    );
+
+  }
+
+  match =
+  text.match(
+    /^(?:approve|وافق)\s+(PLAN-\d+)$/i
+  );
+
+  if(
+    match
+  ){
+
+    return approvePlan(
+      match[1]
+    );
+
+  }
+
+  match =
+  text.match(
+    /^(?:execute|نفذ|نفّذ)\s+(PLAN-\d+)$/i
+  );
+
+  if(
+    match
+  ){
+
+    return executeApprovedPlan(
+      match[1]
+    );
+
+  }
+
+  if(
+    normalizeCommand(text) ===
+    "pending plans" ||
+    text === "الخطط المعلقة"
+  ){
+
+    return {
+
+      ok:true,
+
+      plans:
+      listPendingPlans()
+
+    };
+
+  }
+
+  return null;
 
 }
 
@@ -125,10 +1072,14 @@ async function reset(){
 // PROJECT COMMAND
 // =====================================
 
-async function handleProjectCommand(input){
+async function handleProjectCommand(
+  input
+){
 
   const normalized =
-  String(input || "").trim().toLowerCase();
+  normalizeCommand(
+    input
+  );
 
   if(
     normalized === "scan project" ||
@@ -136,7 +1087,8 @@ async function handleProjectCommand(input){
     normalized === "حلل المشروع"
   ){
 
-    return ProjectAgent.scan();
+    return ProjectAgent
+    .scan();
 
   }
 
@@ -145,7 +1097,10 @@ async function handleProjectCommand(input){
     normalized === "حالة المشروع"
   ){
 
-    return ProjectAgent.query({ type:"snapshot" });
+    return ProjectAgent
+    .query({
+      type:"snapshot"
+    });
 
   }
 
@@ -154,7 +1109,10 @@ async function handleProjectCommand(input){
     normalized === "اعرض الملفات"
   ){
 
-    return ProjectAgent.query({ type:"files" });
+    return ProjectAgent
+    .query({
+      type:"files"
+    });
 
   }
 
@@ -163,7 +1121,10 @@ async function handleProjectCommand(input){
     normalized === "اعرض الفولدرات"
   ){
 
-    return ProjectAgent.query({ type:"folders" });
+    return ProjectAgent
+    .query({
+      type:"folders"
+    });
 
   }
 
@@ -173,7 +1134,10 @@ async function handleProjectCommand(input){
     normalized === "اعرض الأنظمة"
   ){
 
-    return ProjectAgent.query({ type:"systems" });
+    return ProjectAgent
+    .query({
+      type:"systems"
+    });
 
   }
 
@@ -187,17 +1151,22 @@ async function handleProjectCommand(input){
 // CODE COMMAND
 // =====================================
 
-async function handleCodeCommand(input){
+async function handleCodeCommand(
+  input
+){
 
   const normalized =
-  String(input || "").trim().toLowerCase();
+  normalizeCommand(
+    input
+  );
 
   if(
     normalized === "analyze code" ||
     normalized === "حلل الكود"
   ){
 
-    return CodeAgent.analyze();
+    return CodeAgent
+    .analyze();
 
   }
 
@@ -211,37 +1180,104 @@ async function handleCodeCommand(input){
 // COMMAND
 // =====================================
 
-async function command(input){
+async function command(
+  input
+){
 
-  if(!input){
+  if(
+    !input
+  ){
 
     return {
+
       ok:false,
-      error:"EMPTY_ADMIN_AGENT_COMMAND"
+
+      error:
+      "EMPTY_ADMIN_AGENT_COMMAND"
+
     };
 
   }
 
-  AdminAgentState.state.lastCommand = input;
-  AdminAgentState.state.diagnostics.commands += 1;
-  AdminAgentState.log("command",input);
+  AdminAgentState
+  .state
+  .lastCommand =
+  input;
+
+  AdminAgentState
+  .state
+  .diagnostics
+  .commands +=
+  1;
+
+  AdminAgentState
+  .log(
+    "command",
+    typeof input === "string"
+    ? input
+    : JSON.stringify(input)
+  );
+
+  const loginResult =
+  await handleLoginCommand(
+    input
+  );
+
+  if(
+    loginResult
+  ){
+
+    AdminAgentState.state.lastResult =
+    loginResult;
+
+    return loginResult;
+
+  }
+
+  const executionResult =
+  await handleExecutionCommand(
+    input
+  );
+
+  if(
+    executionResult
+  ){
+
+    AdminAgentState.state.lastResult =
+    executionResult;
+
+    return executionResult;
+
+  }
 
   const projectResult =
-  await handleProjectCommand(input);
+  await handleProjectCommand(
+    input
+  );
 
-  if(projectResult){
+  if(
+    projectResult
+  ){
 
-    AdminAgentState.state.lastResult = projectResult;
+    AdminAgentState.state.lastResult =
+    projectResult;
+
     return projectResult;
 
   }
 
   const codeResult =
-  await handleCodeCommand(input);
+  await handleCodeCommand(
+    input
+  );
 
-  if(codeResult){
+  if(
+    codeResult
+  ){
 
-    AdminAgentState.state.lastResult = codeResult;
+    AdminAgentState.state.lastResult =
+    codeResult;
+
     return codeResult;
 
   }
@@ -250,36 +1286,57 @@ async function command(input){
 
     ok:true,
 
-    mode:"admin-agent-router",
+    mode:
+    "admin-agent-router",
 
     message:
-    "Admin Agent command received. No matching private subagent route found yet.",
+    "Admin Agent command received. No matching route found.",
 
     supportedCommands:[
+
+      "login admin <secret>",
+
+      "create file js/path/file.js :: content",
+
+      "update file js/path/file.js :: content",
+
+      "move file js/source.js -> js/destination.js",
+
+      "delete file js/path/file.js",
+
+      "approve PLAN-000001",
+
+      "execute PLAN-000001",
+
+      "approve and execute PLAN-000001",
+
+      "pending plans",
+
       "scan project",
+
       "project snapshot",
+
       "list files",
+
       "list folders",
+
       "list systems",
-      "analyze code",
-      "افحص المشروع",
-      "حلل المشروع",
-      "حالة المشروع",
-      "اعرض الملفات",
-      "اعرض الفولدرات",
-      "اعرض الأنظمة",
-      "حلل الكود"
+
+      "analyze code"
+
     ],
 
     permissions:
-    AdminAgentPermissions.snapshot(),
+    AdminAgentPermissions
+    .snapshot(),
 
     timestamp:
     Date.now()
 
   };
 
-  AdminAgentState.state.lastResult = result;
+  AdminAgentState.state.lastResult =
+  result;
 
   return result;
 
@@ -296,10 +1353,32 @@ function snapshot(){
   return {
 
     state:
-    AdminAgentState.snapshot(),
+    AdminAgentState
+    .snapshot(),
 
     permissions:
-    AdminAgentPermissions.snapshot(),
+    AdminAgentPermissions
+    .snapshot(),
+
+    execution:{
+
+      runtime:
+      Execution.snapshot(),
+
+      pendingPlans:
+      listPendingPlans(),
+
+      lastPlanId:
+      adminExecutionState.lastPlanId
+
+    },
+
+    providers:{
+
+      github:
+      GitHubProvider.snapshot()
+
+    },
 
     privateSubagents:{
 
@@ -324,9 +1403,11 @@ function snapshot(){
 const AdminAgent =
 Object.freeze({
 
-  id:"admin-agent",
+  id:
+  "admin-agent",
 
-  priority:30,
+  priority:
+  30,
 
   initialize,
 
