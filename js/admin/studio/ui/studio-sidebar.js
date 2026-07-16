@@ -1,6 +1,7 @@
 // =====================================
 // RIGO AI
 // STUDIO SIDEBAR
+// UI V2
 // =====================================
 
 import StudioPages
@@ -12,63 +13,129 @@ from "./studio-pages.js";
 // SIDEBAR ITEMS
 // =====================================
 
-const SIDEBAR_ITEMS = [
+const SIDEBAR_ITEMS =
+Object.freeze([
 
   {
-    id:"dashboard",
-    icon:"⌂",
-    label:"Dashboard"
+    id:
+    "dashboard",
+
+    icon:
+    "⌂",
+
+    label:
+    "Dashboard"
   },
 
   {
-    id:"project",
-    icon:"📁",
-    label:"Project"
+    id:
+    "project",
+
+    icon:
+    "📁",
+
+    label:
+    "Project"
   },
 
   {
-    id:"code",
-    icon:"💻",
-    label:"System"
+    id:
+    "code",
+
+    icon:
+    "⌨",
+
+    label:
+    "System"
   },
 
   {
-    id:"admin-agent",
-    icon:"⚙",
-    label:"Agents"
+    id:
+    "admin-agent",
+
+    icon:
+    "⚙",
+
+    label:
+    "Agents"
   },
 
   {
-    id:"architecture",
-    icon:"</>",
-    label:"Code Map"
+    id:
+    "architecture",
+
+    icon:
+    "</>",
+
+    label:
+    "Code Map"
   },
 
   {
-    id:"memory",
-    icon:"🧠",
-    label:"Memory"
+    id:
+    "memory",
+
+    icon:
+    "🧠",
+
+    label:
+    "Memory"
   },
 
   {
-    id:"debug",
-    icon:"🐞",
-    label:"Debug"
+    id:
+    "debug",
+
+    icon:
+    "🐞",
+
+    label:
+    "Debug"
   },
 
   {
-    id:"git",
-    icon:"🌿",
-    label:"Extensions"
+    id:
+    "git",
+
+    icon:
+    "⑂",
+
+    label:
+    "Extensions"
   },
 
   {
-    id:"settings",
-    icon:"⚙",
-    label:"Settings"
+    id:
+    "settings",
+
+    icon:
+    "⚙",
+
+    label:
+    "Settings"
   }
 
-];
+]);
+
+
+
+// =====================================
+// INTERNAL STATE
+// =====================================
+
+const studioSidebarState =
+Object.seal({
+
+  mounted:
+  false,
+
+  sidebar:
+  null,
+
+  hashListenerAttached:
+  false
+
+});
 
 
 
@@ -80,6 +147,208 @@ function getActivePageId(){
 
   return StudioPages
   .getPageFromHash();
+
+}
+
+
+
+// =====================================
+// SIDEBAR STYLES
+// =====================================
+
+function createSidebarStyles(){
+
+  return `
+    <style id="rigo-studio-sidebar-styles">
+
+      #rigo-studio-sidebar{
+        min-width:0;
+        min-height:0;
+      }
+
+      .rigo-studio-sidebar-shell{
+        width:100%;
+        height:100%;
+        min-width:0;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:2px;
+        padding:8px 6px;
+        overflow-x:hidden;
+        overflow-y:auto;
+        border:1px solid var(--rigo-border);
+        border-radius:var(--rigo-radius-xl);
+        background:
+          linear-gradient(
+            180deg,
+            rgba(11,22,40,.96),
+            rgba(4,12,27,.98)
+          );
+        box-shadow:var(--rigo-shadow-medium);
+        scrollbar-width:thin;
+        scrollbar-color:
+          rgba(148,163,184,.20)
+          transparent;
+      }
+
+      .rigo-studio-sidebar-shell::-webkit-scrollbar{
+        width:4px;
+      }
+
+      .rigo-studio-sidebar-shell::-webkit-scrollbar-track{
+        background:transparent;
+      }
+
+      .rigo-studio-sidebar-shell::-webkit-scrollbar-thumb{
+        border-radius:999px;
+        background:rgba(148,163,184,.20);
+      }
+
+      .rigo-studio-sidebar-button{
+        position:relative;
+        width:100%;
+        min-height:60px;
+        flex:0 0 60px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:5px;
+        padding:6px 4px;
+        border:1px solid transparent;
+        border-radius:var(--rigo-radius-lg);
+        color:var(--rigo-text-secondary);
+        background:transparent;
+        font-family:var(--rigo-font);
+        cursor:pointer;
+        transition:
+          color var(--rigo-transition-normal),
+          background var(--rigo-transition-normal),
+          border-color var(--rigo-transition-normal),
+          box-shadow var(--rigo-transition-normal),
+          transform var(--rigo-transition-fast);
+      }
+
+      .rigo-studio-sidebar-button:hover{
+        color:var(--rigo-text);
+        background:rgba(21,36,58,.58);
+        border-color:rgba(148,163,184,.08);
+        transform:translateY(-1px);
+      }
+
+      .rigo-studio-sidebar-button:focus-visible{
+        outline:none;
+        border-color:rgba(56,189,248,.55);
+        box-shadow:
+          0 0 0 2px
+          rgba(56,189,248,.12);
+      }
+
+      .rigo-studio-sidebar-button[data-active="true"]{
+        color:var(--rigo-primary);
+        background:
+          linear-gradient(
+            180deg,
+            rgba(34,197,94,.14),
+            rgba(34,197,94,.07)
+          );
+        border-color:rgba(34,197,94,.16);
+        box-shadow:
+          inset 0 0 0 1px
+          rgba(34,197,94,.04),
+          0 7px 20px
+          rgba(0,0,0,.14);
+      }
+
+      .rigo-studio-sidebar-button[data-active="true"]::before{
+        content:"";
+        position:absolute;
+        top:10px;
+        bottom:10px;
+        left:0;
+        width:3px;
+        border-radius:0 999px 999px 0;
+        background:var(--rigo-primary);
+        box-shadow:
+          0 0 10px
+          var(--rigo-primary-glow);
+      }
+
+      .rigo-studio-sidebar-icon{
+        min-height:24px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:inherit;
+        font-size:23px;
+        line-height:1;
+        font-weight:800;
+        letter-spacing:-1px;
+        filter:
+          drop-shadow(
+            0 0 7px
+            rgba(255,255,255,.03)
+          );
+      }
+
+      .rigo-studio-sidebar-button[data-page="architecture"]
+      .rigo-studio-sidebar-icon{
+        font-size:15px;
+        letter-spacing:-1.5px;
+      }
+
+      .rigo-studio-sidebar-button[data-page="git"]
+      .rigo-studio-sidebar-icon{
+        font-size:26px;
+      }
+
+      .rigo-studio-sidebar-label{
+        width:100%;
+        overflow:hidden;
+        color:inherit;
+        font-size:10px;
+        line-height:1.1;
+        font-weight:650;
+        text-align:center;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .rigo-studio-sidebar-separator{
+        width:72%;
+        height:1px;
+        flex:0 0 1px;
+        margin:3px 0;
+        background:rgba(148,163,184,.10);
+      }
+
+      @media(max-width:760px){
+
+        .rigo-studio-sidebar-shell{
+          padding:7px 5px;
+          border-radius:var(--rigo-radius-lg);
+        }
+
+        .rigo-studio-sidebar-button{
+          min-height:56px;
+          flex-basis:56px;
+          gap:4px;
+        }
+
+        .rigo-studio-sidebar-icon{
+          font-size:21px;
+        }
+
+        .rigo-studio-sidebar-label{
+          font-size:9px;
+        }
+
+      }
+
+    </style>
+  `;
 
 }
 
@@ -100,6 +369,9 @@ function createSidebarButton(
 
   button.type =
   "button";
+
+  button.className =
+  "rigo-studio-sidebar-button";
 
   button.dataset.page =
   item.id;
@@ -126,124 +398,11 @@ function createSidebarButton(
     </span>
   `;
 
-  button.style.cssText =
-  `
-    width:104px;
-    min-height:68px;
-    flex:0 0 68px;
-    padding:7px 5px;
-    border:none;
-    border-radius:12px;
-    background:transparent;
-    color:#f8fafc;
-    cursor:pointer;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
-    font-family:inherit;
-    transition:
-      background .16s ease,
-      color .16s ease,
-      box-shadow .16s ease,
-      transform .16s ease;
-  `;
-
-  const icon =
-  button.querySelector(
-    ".rigo-studio-sidebar-icon"
-  );
-
-  const label =
-  button.querySelector(
-    ".rigo-studio-sidebar-label"
-  );
-
-  if(
-    icon
-  ){
-
-    icon.style.cssText =
-    `
-      min-height:26px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:inherit;
-      font-size:25px;
-      line-height:1;
-      font-weight:800;
-      filter:drop-shadow(
-        0 0 9px
-        rgba(34,197,94,.10)
-      );
-    `;
-
-  }
-
-  if(
-    label
-  ){
-
-    label.style.cssText =
-    `
-      width:100%;
-      overflow:hidden;
-      color:#f8fafc;
-      font-size:11px;
-      line-height:1.1;
-      font-weight:650;
-      text-align:center;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    `;
-
-  }
-
-  button.addEventListener(
-    "mouseenter",
-    function(){
-
-      if(
-        button.dataset.active !== "true"
-      ){
-
-        button.style.background =
-        "rgba(15,23,42,.72)";
-
-        button.style.transform =
-        "translateY(-1px)";
-
-      }
-
-    }
-  );
-
-  button.addEventListener(
-    "mouseleave",
-    function(){
-
-      if(
-        button.dataset.active !== "true"
-      ){
-
-        button.style.background =
-        "transparent";
-
-      }
-
-      button.style.transform =
-      "translateY(0)";
-
-    }
-  );
-
   button.addEventListener(
     "click",
-    function(){
+    async function(){
 
-      StudioPages
+      await StudioPages
       .navigate(
         item.id
       );
@@ -258,7 +417,7 @@ function createSidebarButton(
 
 
 // =====================================
-// ACTIVE BUTTON
+// ACTIVE STATE
 // =====================================
 
 function markActiveButton(
@@ -266,99 +425,25 @@ function markActiveButton(
   isActive
 ){
 
+  if(
+    !button
+  ){
+
+    return false;
+
+  }
+
   button.dataset.active =
   isActive
   ? "true"
   : "false";
 
-  const icon =
-  button.querySelector(
-    ".rigo-studio-sidebar-icon"
-  );
-
-  const label =
-  button.querySelector(
-    ".rigo-studio-sidebar-label"
-  );
-
-  if(
+  button.setAttribute(
+    "aria-current",
     isActive
-  ){
-
-    button.style.background =
-    `
-      linear-gradient(
-        180deg,
-        rgba(16,185,129,.16),
-        rgba(6,95,70,.11)
-      )
-    `;
-
-    button.style.boxShadow =
-    `
-      inset 0 0 0 1px
-      rgba(52,211,153,.14),
-      0 9px 24px
-      rgba(0,0,0,.14)
-    `;
-
-    button.style.color =
-    "#34d399";
-
-    if(
-      icon
-    ){
-
-      icon.style.color =
-      "#34d399";
-
-      icon.style.filter =
-      "drop-shadow(0 0 9px rgba(52,211,153,.24))";
-
-    }
-
-    if(
-      label
-    ){
-
-      label.style.color =
-      "#34d399";
-
-    }
-
-    return true;
-
-  }
-
-  button.style.background =
-  "transparent";
-
-  button.style.boxShadow =
-  "none";
-
-  button.style.color =
-  "#f8fafc";
-
-  if(
-    icon
-  ){
-
-    icon.style.color =
-    "#f8fafc";
-
-    icon.style.filter =
-    "drop-shadow(0 0 9px rgba(34,197,94,.08))";
-
-  }
-
-  if(
-    label
-  ){
-
-    label.style.color =
-    "#f8fafc";
-
-  }
+    ? "page"
+    : "false"
+  );
 
   return true;
 
@@ -373,6 +458,7 @@ function markActiveButton(
 function updateActiveSidebarItem(){
 
   const sidebar =
+  studioSidebarState.sidebar ||
   document.getElementById(
     "rigo-studio-sidebar"
   );
@@ -390,7 +476,7 @@ function updateActiveSidebarItem(){
 
   const buttons =
   sidebar.querySelectorAll(
-    "[data-page]"
+    ".rigo-studio-sidebar-button"
   );
 
   buttons.forEach(
@@ -398,11 +484,68 @@ function updateActiveSidebarItem(){
 
       markActiveButton(
         button,
-        button.dataset.page === activePageId
+        button.dataset.page ===
+        activePageId
       );
 
     }
   );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// HASH LISTENER
+// =====================================
+
+function attachHashListener(){
+
+  if(
+    studioSidebarState
+    .hashListenerAttached
+  ){
+
+    return true;
+
+  }
+
+  window.addEventListener(
+    "hashchange",
+    updateActiveSidebarItem
+  );
+
+  studioSidebarState
+  .hashListenerAttached =
+  true;
+
+  return true;
+
+}
+
+
+
+function detachHashListener(){
+
+  if(
+    !studioSidebarState
+    .hashListenerAttached
+  ){
+
+    return true;
+
+  }
+
+  window.removeEventListener(
+    "hashchange",
+    updateActiveSidebarItem
+  );
+
+  studioSidebarState
+  .hashListenerAttached =
+  false;
 
   return true;
 
@@ -429,61 +572,139 @@ function renderSidebar(){
 
   }
 
-  sidebar.innerHTML =
-  "";
+  studioSidebarState.sidebar =
+  sidebar;
 
-  sidebar.style.cssText =
+  sidebar.innerHTML =
   `
-    width:124px;
-    height:calc(100% - 8px);
-    margin:0 0 8px 14px;
-    padding:10px 8px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:2px;
-    overflow-x:hidden;
-    overflow-y:auto;
-    border:1px solid rgba(148,163,184,.13);
-    border-radius:14px;
-    background:
-      linear-gradient(
-        180deg,
-        rgba(15,23,42,.88),
-        rgba(3,10,24,.94)
-      );
-    box-shadow:
-      0 14px 38px
-      rgba(0,0,0,.20);
-    scrollbar-width:thin;
+    ${createSidebarStyles()}
+
+    <nav
+      class="rigo-studio-sidebar-shell"
+      aria-label="Studio navigation"
+    ></nav>
   `;
 
-  for(
-    const item
-    of SIDEBAR_ITEMS
+  const navigation =
+  sidebar.querySelector(
+    ".rigo-studio-sidebar-shell"
+  );
+
+  if(
+    !navigation
   ){
 
-    sidebar.appendChild(
-      createSidebarButton(
-        item
-      )
-    );
+    return false;
 
   }
 
+  SIDEBAR_ITEMS
+  .forEach(
+    function(item){
+
+      navigation.appendChild(
+        createSidebarButton(
+          item
+        )
+      );
+
+      if(
+        item.id === "memory"
+      ){
+
+        const separator =
+        document.createElement(
+          "div"
+        );
+
+        separator.className =
+        "rigo-studio-sidebar-separator";
+
+        separator.setAttribute(
+          "aria-hidden",
+          "true"
+        );
+
+        navigation.appendChild(
+          separator
+        );
+
+      }
+
+    }
+  );
+
+  attachHashListener();
+
   updateActiveSidebarItem();
 
-  window.removeEventListener(
-    "hashchange",
-    updateActiveSidebarItem
-  );
-
-  window.addEventListener(
-    "hashchange",
-    updateActiveSidebarItem
-  );
+  studioSidebarState.mounted =
+  true;
 
   return true;
+
+}
+
+
+
+// =====================================
+// UNMOUNT
+// =====================================
+
+function unmountSidebar(){
+
+  detachHashListener();
+
+  if(
+    studioSidebarState.sidebar
+  ){
+
+    studioSidebarState
+    .sidebar
+    .innerHTML =
+    "";
+
+  }
+
+  studioSidebarState.sidebar =
+  null;
+
+  studioSidebarState.mounted =
+  false;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SNAPSHOT
+// =====================================
+
+function snapshot(){
+
+  return {
+
+    mounted:
+    studioSidebarState.mounted,
+
+    activePage:
+    getActivePageId(),
+
+    items:
+    SIDEBAR_ITEMS.map(
+      function(item){
+
+        return {
+          id:item.id,
+          label:item.label
+        };
+
+      }
+    )
+
+  };
 
 }
 
@@ -497,9 +718,19 @@ export {
 
   SIDEBAR_ITEMS,
 
+  createSidebarStyles,
+
+  createSidebarButton,
+
+  markActiveButton,
+
+  updateActiveSidebarItem,
+
   renderSidebar,
 
-  updateActiveSidebarItem
+  unmountSidebar,
+
+  snapshot
 
 };
 
