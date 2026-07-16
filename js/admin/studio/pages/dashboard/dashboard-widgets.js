@@ -50,6 +50,14 @@ function formatNumber(
     value || 0
   );
 
+  if(
+    !Number.isFinite(number)
+  ){
+
+    return "0";
+
+  }
+
   return number
   .toLocaleString(
     "en-US"
@@ -68,6 +76,10 @@ function formatStatus(
   )
   .replaceAll(
     "-",
+    " "
+  )
+  .replaceAll(
+    "_",
     " "
   )
   .toUpperCase();
@@ -90,9 +102,22 @@ function formatDateTime(
 
   try{
 
-    return new Date(
+    const date =
+    new Date(
       value
-    )
+    );
+
+    if(
+      Number.isNaN(
+        date.getTime()
+      )
+    ){
+
+      return "-";
+
+    }
+
+    return date
     .toLocaleString();
 
   }
@@ -135,11 +160,13 @@ function getStatusClass(
 
   if(
     normalized === "connected" ||
+    normalized === "indexed" ||
     normalized === "ready" ||
     normalized === "healthy" ||
     normalized === "available" ||
     normalized === "online" ||
-    normalized === "completed"
+    normalized === "completed" ||
+    normalized === "active"
   ){
 
     return "success";
@@ -151,7 +178,8 @@ function getStatusClass(
     normalized === "waiting-for-scan" ||
     normalized === "pending" ||
     normalized === "not-indexed" ||
-    normalized === "unknown"
+    normalized === "unknown" ||
+    normalized === "idle"
   ){
 
     return "warning";
@@ -163,7 +191,8 @@ function getStatusClass(
     normalized === "failed" ||
     normalized === "error" ||
     normalized === "unavailable" ||
-    normalized === "offline"
+    normalized === "offline" ||
+    normalized === "disconnected"
   ){
 
     return "danger";
@@ -184,18 +213,38 @@ function renderDashboardStyles(){
 
   return `
     <style>
+
+      /* =================================
+         PAGE
+      ================================= */
+
       .rigo-dashboard-page{
         width:100%;
-        min-height:100%;
-        padding:22px;
+        height:100%;
+        min-width:0;
+        min-height:0;
+        display:grid;
+        grid-template-rows:
+          auto
+          auto
+          minmax(0,1fr)
+          auto;
+        padding:
+          clamp(14px,1.35vw,22px);
+        overflow:hidden;
         color:#f8fafc;
         background:
           radial-gradient(
-            circle at 15% 0%,
-            rgba(16,185,129,.05),
-            transparent 28%
+            circle at 12% -5%,
+            rgba(16,185,129,.055),
+            transparent 30%
           ),
-          #020817;
+          linear-gradient(
+            145deg,
+            #020817 0%,
+            #030b18 55%,
+            #020712 100%
+          );
         font-family:
           Inter,
           system-ui,
@@ -203,141 +252,285 @@ function renderDashboardStyles(){
           BlinkMacSystemFont,
           "Segoe UI",
           sans-serif;
+        box-sizing:border-box;
       }
 
+      .rigo-dashboard-page *,
+      .rigo-dashboard-page *::before,
+      .rigo-dashboard-page *::after{
+        box-sizing:border-box;
+      }
+
+      .rigo-dashboard-main{
+        min-width:0;
+        min-height:0;
+        overflow:hidden;
+      }
+
+
+      /* =================================
+         HEADER
+      ================================= */
+
       .rigo-dashboard-header{
+        min-width:0;
         display:flex;
+        flex-direction:column;
         align-items:flex-start;
-        justify-content:space-between;
-        gap:20px;
-        margin-bottom:18px;
+        gap:12px;
+        margin-bottom:14px;
+      }
+
+      .rigo-dashboard-heading{
+        min-width:0;
       }
 
       .rigo-dashboard-header h1{
-        margin:0 0 6px;
+        margin:0 0 5px;
         color:#f8fafc;
-        font-size:32px;
-        line-height:1.1;
+        font-size:
+          clamp(
+            26px,
+            2.05vw,
+            34px
+          );
+        line-height:1.05;
         font-weight:800;
-        letter-spacing:-.6px;
+        letter-spacing:-.75px;
       }
 
       .rigo-dashboard-header p{
         margin:0;
         color:#cbd5e1;
-        font-size:14px;
-        line-height:1.6;
+        font-size:
+          clamp(
+            12px,
+            .9vw,
+            14px
+          );
+        line-height:1.4;
       }
 
       .rigo-dashboard-actions{
         display:flex;
         align-items:center;
-        gap:10px;
-        flex-wrap:wrap;
+        gap:8px;
       }
 
       .rigo-dashboard-button{
-        min-height:38px;
-        padding:0 16px;
-        border:1px solid rgba(16,185,129,.35);
-        border-radius:9px;
+        min-height:34px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:7px;
+        padding:0 14px;
+        border:1px solid rgba(16,185,129,.30);
+        border-radius:8px;
         color:#34d399;
-        background:rgba(6,78,59,.18);
-        font-size:13px;
+        background:
+          linear-gradient(
+            180deg,
+            rgba(6,78,59,.21),
+            rgba(6,48,42,.16)
+          );
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.025);
+        font-family:inherit;
+        font-size:12px;
+        line-height:1;
         font-weight:700;
+        white-space:nowrap;
         cursor:pointer;
         transition:
-          background .18s ease,
-          border-color .18s ease,
-          transform .18s ease;
+          background .16s ease,
+          border-color .16s ease,
+          transform .16s ease;
       }
 
       .rigo-dashboard-button:hover:not(:disabled){
-        background:rgba(6,95,70,.32);
-        border-color:rgba(52,211,153,.6);
+        border-color:rgba(52,211,153,.58);
+        background:rgba(6,95,70,.31);
         transform:translateY(-1px);
       }
 
       .rigo-dashboard-button.primary{
         color:#38bdf8;
-        border-color:rgba(14,165,233,.42);
-        background:rgba(3,105,161,.16);
+        border-color:rgba(14,165,233,.36);
+        background:
+          linear-gradient(
+            180deg,
+            rgba(3,105,161,.20),
+            rgba(3,64,99,.15)
+          );
       }
 
       .rigo-dashboard-button.primary:hover:not(:disabled){
-        background:rgba(3,105,161,.28);
-        border-color:rgba(56,189,248,.65);
+        border-color:rgba(56,189,248,.62);
+        background:rgba(3,105,161,.29);
       }
 
       .rigo-dashboard-button:disabled{
-        opacity:.55;
+        opacity:.52;
         cursor:not-allowed;
+        transform:none;
       }
+
+      .rigo-dashboard-button-icon{
+        font-size:17px;
+        line-height:1;
+      }
+
+
+      /* =================================
+         ERROR
+      ================================= */
 
       .rigo-dashboard-error{
-        margin-bottom:16px;
-        padding:12px 14px;
-        border:1px solid rgba(248,113,113,.32);
-        border-radius:10px;
+        margin-bottom:10px;
+        padding:9px 12px;
+        overflow:hidden;
+        border:1px solid rgba(248,113,113,.30);
+        border-radius:8px;
         color:#fca5a5;
-        background:rgba(127,29,29,.16);
-        font-size:13px;
+        background:rgba(127,29,29,.15);
+        font-size:12px;
+        line-height:1.4;
+        text-overflow:ellipsis;
+        white-space:nowrap;
       }
+
+
+      /* =================================
+         DASHBOARD GRID
+      ================================= */
 
       .rigo-dashboard-content{
-        display:flex;
-        flex-direction:column;
-        gap:14px;
+        width:100%;
+        height:100%;
+        min-width:0;
+        min-height:0;
+        display:grid;
+        grid-template-rows:
+          minmax(88px,108px)
+          minmax(190px,1fr)
+          minmax(105px,120px);
+        gap:
+          clamp(
+            10px,
+            .9vw,
+            14px
+          );
+        overflow:hidden;
       }
 
+
+      /* =================================
+         METRICS
+      ================================= */
+
       .rigo-dashboard-metrics{
+        min-width:0;
+        min-height:0;
         display:grid;
         grid-template-columns:
           repeat(
             6,
             minmax(0,1fr)
           );
-        gap:14px;
+        gap:
+          clamp(
+            8px,
+            .9vw,
+            14px
+          );
       }
 
       .rigo-dashboard-metric-card{
         position:relative;
         min-width:0;
-        min-height:108px;
-        padding:17px 18px 14px;
+        min-height:0;
+        height:100%;
+        display:flex;
+        align-items:center;
+        padding:
+          12px
+          clamp(11px,1vw,17px)
+          16px;
         overflow:hidden;
-        border:1px solid rgba(148,163,184,.16);
-        border-radius:14px;
+        border:1px solid rgba(148,163,184,.14);
+        border-radius:
+          clamp(
+            10px,
+            .85vw,
+            13px
+          );
         background:
           linear-gradient(
             145deg,
-            rgba(15,28,47,.96),
-            rgba(8,17,31,.96)
+            rgba(14,27,45,.96),
+            rgba(7,16,29,.97)
           );
         box-shadow:
           inset 0 1px 0 rgba(255,255,255,.025),
-          0 12px 32px rgba(0,0,0,.18);
+          0 10px 28px rgba(0,0,0,.16);
       }
 
       .rigo-dashboard-metric-main{
+        width:100%;
+        min-width:0;
         display:flex;
         align-items:center;
-        gap:14px;
+        gap:
+          clamp(
+            8px,
+            .8vw,
+            13px
+          );
       }
 
       .rigo-dashboard-metric-icon{
         flex:0 0 auto;
-        width:44px;
-        height:44px;
+        width:
+          clamp(
+            34px,
+            3vw,
+            43px
+          );
+        height:
+          clamp(
+            34px,
+            3vw,
+            43px
+          );
         display:flex;
         align-items:center;
         justify-content:center;
-        border-radius:11px;
-        font-size:29px;
-        line-height:1;
-        background:rgba(15,23,42,.76);
+        overflow:hidden;
+        border-radius:9px;
+        color:var(
+          --metric-color,
+          #38bdf8
+        );
+        background:
+          color-mix(
+            in srgb,
+            var(--metric-color,#38bdf8) 11%,
+            rgba(8,17,31,.92)
+          );
         box-shadow:
-          inset 0 0 0 1px rgba(255,255,255,.035);
+          inset 0 0 0 1px
+          color-mix(
+            in srgb,
+            var(--metric-color,#38bdf8) 11%,
+            transparent
+          );
+        font-size:
+          clamp(
+            20px,
+            1.8vw,
+            27px
+          );
+        line-height:1;
       }
 
       .rigo-dashboard-metric-value{
@@ -346,130 +539,233 @@ function renderDashboardStyles(){
 
       .rigo-dashboard-metric-value strong{
         display:block;
+        overflow:hidden;
         color:#f8fafc;
-        font-size:28px;
+        font-size:
+          clamp(
+            20px,
+            1.8vw,
+            27px
+          );
         line-height:1;
         font-weight:800;
+        text-overflow:ellipsis;
+        white-space:nowrap;
       }
 
       .rigo-dashboard-metric-value span{
         display:block;
-        margin-top:7px;
+        margin-top:5px;
+        overflow:hidden;
         color:#cbd5e1;
-        font-size:13px;
+        font-size:
+          clamp(
+            10px,
+            .78vw,
+            12px
+          );
+        line-height:1.2;
+        text-overflow:ellipsis;
         white-space:nowrap;
       }
 
       .rigo-dashboard-metric-line{
         position:absolute;
-        right:17px;
-        bottom:13px;
-        left:17px;
-        height:4px;
+        right:
+          clamp(
+            11px,
+            1vw,
+            17px
+          );
+        bottom:10px;
+        left:
+          clamp(
+            11px,
+            1vw,
+            17px
+          );
+        height:3px;
         border-radius:999px;
         background:var(
           --metric-color,
           #38bdf8
         );
         box-shadow:
-          0 0 14px
+          0 0 11px
           color-mix(
             in srgb,
-            var(--metric-color,#38bdf8) 45%,
+            var(--metric-color,#38bdf8) 38%,
             transparent
           );
       }
 
+
+      /* =================================
+         PANELS
+      ================================= */
+
       .rigo-dashboard-panels{
+        min-width:0;
+        min-height:0;
         display:grid;
         grid-template-columns:
-          1.05fr
+          1fr
           1fr
           1fr;
-        gap:14px;
+        gap:
+          clamp(
+            10px,
+            .9vw,
+            14px
+          );
+        overflow:hidden;
       }
 
       .rigo-dashboard-widget{
         min-width:0;
-        padding:17px;
-        border:1px solid rgba(148,163,184,.16);
-        border-radius:14px;
+        min-height:0;
+        height:100%;
+        padding:
+          clamp(
+            12px,
+            1.1vw,
+            17px
+          );
+        overflow:hidden;
+        border:1px solid rgba(148,163,184,.14);
+        border-radius:
+          clamp(
+            10px,
+            .85vw,
+            13px
+          );
         background:
           linear-gradient(
             145deg,
-            rgba(15,28,47,.96),
-            rgba(8,17,31,.96)
+            rgba(14,27,45,.96),
+            rgba(7,16,29,.97)
           );
         box-shadow:
           inset 0 1px 0 rgba(255,255,255,.025),
-          0 12px 32px rgba(0,0,0,.18);
+          0 10px 28px rgba(0,0,0,.16);
       }
 
       .rigo-dashboard-widget-header{
+        min-width:0;
         display:flex;
         align-items:flex-start;
-        gap:10px;
-        margin-bottom:10px;
+        gap:9px;
+        margin-bottom:7px;
       }
 
       .rigo-dashboard-widget-icon{
         flex:0 0 auto;
-        width:28px;
-        min-width:28px;
+        width:25px;
+        min-width:25px;
         display:flex;
+        align-items:center;
         justify-content:center;
         color:#34d399;
-        font-size:22px;
-        line-height:1.2;
+        font-size:20px;
+        line-height:1.15;
+      }
+
+      .rigo-dashboard-widget-title{
+        min-width:0;
       }
 
       .rigo-dashboard-widget-header h3{
         margin:0;
+        overflow:hidden;
         color:#f8fafc;
-        font-size:17px;
-        line-height:1.3;
+        font-size:
+          clamp(
+            14px,
+            1.05vw,
+            17px
+          );
+        line-height:1.25;
         font-weight:800;
+        text-overflow:ellipsis;
+        white-space:nowrap;
       }
 
       .rigo-dashboard-widget-header p{
-        margin:6px 0 0;
+        margin:4px 0 0;
+        overflow:hidden;
         color:#cbd5e1;
-        font-size:12px;
-        line-height:1.5;
+        font-size:
+          clamp(
+            10px,
+            .74vw,
+            12px
+          );
+        line-height:1.35;
+        text-overflow:ellipsis;
+        white-space:nowrap;
       }
 
       .rigo-dashboard-widget-body{
-        margin-top:14px;
+        min-width:0;
+        min-height:0;
+        margin-top:
+          clamp(
+            8px,
+            .8vw,
+            12px
+          );
       }
 
       .rigo-dashboard-status-list{
+        min-width:0;
         display:flex;
         flex-direction:column;
-        gap:14px;
+        gap:
+          clamp(
+            8px,
+            .82vw,
+            12px
+          );
       }
 
       .rigo-dashboard-status-row{
+        min-width:0;
         display:flex;
         align-items:center;
         justify-content:space-between;
-        gap:16px;
-        min-width:0;
+        gap:12px;
       }
 
       .rigo-dashboard-status-row > span:first-child{
+        flex:0 0 auto;
         color:#e2e8f0;
-        font-size:13px;
+        font-size:
+          clamp(
+            10px,
+            .8vw,
+            12px
+          );
+        line-height:1.25;
+        white-space:nowrap;
       }
 
       .rigo-dashboard-status-value{
-        max-width:62%;
+        min-width:0;
+        max-width:65%;
+        display:block;
         overflow:hidden;
         color:#f8fafc;
-        font-size:13px;
+        font-size:
+          clamp(
+            10px,
+            .8vw,
+            12px
+          );
+        line-height:1.25;
         font-weight:700;
+        text-align:right;
         text-overflow:ellipsis;
         white-space:nowrap;
-        text-align:right;
       }
 
       .rigo-dashboard-status-value.success{
@@ -490,32 +786,64 @@ function renderDashboardStyles(){
 
       .rigo-dashboard-status-dot{
         display:inline-block;
-        width:9px;
-        height:9px;
+        width:8px;
+        height:8px;
         margin-right:7px;
         border-radius:50%;
+        vertical-align:1px;
         background:#facc15;
-        box-shadow:0 0 10px rgba(250,204,21,.7);
+        box-shadow:
+          0 0 9px
+          rgba(250,204,21,.65);
       }
 
+
+      /* =================================
+         DEBUG
+      ================================= */
+
       .rigo-dashboard-debug{
+        min-width:0;
+        min-height:0;
         grid-column:1 / -1;
+        padding-top:
+          clamp(
+            10px,
+            .9vw,
+            14px
+          );
+        padding-bottom:
+          clamp(
+            10px,
+            .9vw,
+            14px
+          );
+      }
+
+      .rigo-dashboard-debug
+      .rigo-dashboard-widget-header{
+        margin-bottom:3px;
+      }
+
+      .rigo-dashboard-debug
+      .rigo-dashboard-widget-body{
+        margin-top:6px;
       }
 
       .rigo-dashboard-debug-grid{
+        min-width:0;
         display:grid;
         grid-template-columns:
           repeat(
             6,
             minmax(0,1fr)
           );
-        margin-top:10px;
       }
 
       .rigo-dashboard-debug-item{
         min-width:0;
-        padding:2px 15px;
-        border-right:1px solid rgba(148,163,184,.25);
+        padding:1px 11px;
+        border-right:1px solid rgba(148,163,184,.24);
         text-align:center;
       }
 
@@ -525,17 +853,28 @@ function renderDashboardStyles(){
 
       .rigo-dashboard-debug-item span{
         display:block;
-        margin-bottom:10px;
+        margin-bottom:6px;
         overflow:hidden;
         color:#e2e8f0;
-        font-size:12px;
+        font-size:
+          clamp(
+            9px,
+            .75vw,
+            11px
+          );
+        line-height:1.2;
         text-overflow:ellipsis;
         white-space:nowrap;
       }
 
       .rigo-dashboard-debug-item strong{
         display:block;
-        font-size:24px;
+        font-size:
+          clamp(
+            18px,
+            1.65vw,
+            24px
+          );
         line-height:1;
         font-weight:800;
       }
@@ -560,15 +899,166 @@ function renderDashboardStyles(){
         color:#a3e635;
       }
 
+
+      /* =================================
+         FOOTER
+      ================================= */
+
       .rigo-dashboard-footer{
+        min-width:0;
         display:flex;
-        justify-content:flex-end;
-        margin-top:16px;
-        color:#64748b;
-        font-size:11px;
+        align-items:center;
+        justify-content:center;
+        gap:5px;
+        padding-top:10px;
+        overflow:hidden;
+        color:#94a3b8;
+        font-size:10px;
+        line-height:1;
+        white-space:nowrap;
       }
 
-      @media(max-width:1250px){
+      .rigo-dashboard-footer-separator{
+        color:#475569;
+      }
+
+      .rigo-dashboard-footer-time{
+        margin-left:auto;
+        overflow:hidden;
+        color:#64748b;
+        text-overflow:ellipsis;
+      }
+
+
+      /* =================================
+         COMPACT LAPTOP HEIGHT
+      ================================= */
+
+      @media(
+        min-width:981px
+      ) and (
+        max-height:800px
+      ){
+
+        .rigo-dashboard-page{
+          padding:13px 16px;
+        }
+
+        .rigo-dashboard-header{
+          gap:9px;
+          margin-bottom:10px;
+        }
+
+        .rigo-dashboard-header h1{
+          margin-bottom:3px;
+          font-size:27px;
+        }
+
+        .rigo-dashboard-header p{
+          font-size:11px;
+        }
+
+        .rigo-dashboard-button{
+          min-height:31px;
+          padding:0 12px;
+          font-size:11px;
+        }
+
+        .rigo-dashboard-content{
+          grid-template-rows:
+            88px
+            minmax(180px,1fr)
+            100px;
+          gap:10px;
+        }
+
+        .rigo-dashboard-metrics,
+        .rigo-dashboard-panels{
+          gap:10px;
+        }
+
+        .rigo-dashboard-metric-card{
+          padding:10px 11px 15px;
+        }
+
+        .rigo-dashboard-widget{
+          padding:11px 13px;
+        }
+
+        .rigo-dashboard-status-list{
+          gap:8px;
+        }
+
+        .rigo-dashboard-footer{
+          padding-top:7px;
+        }
+
+      }
+
+
+      /* =================================
+         NARROW DESKTOP
+      ================================= */
+
+      @media(
+        min-width:981px
+      ) and (
+        max-width:1250px
+      ){
+
+        .rigo-dashboard-metric-main{
+          gap:7px;
+        }
+
+        .rigo-dashboard-metric-icon{
+          width:33px;
+          height:33px;
+          font-size:19px;
+        }
+
+        .rigo-dashboard-metric-value strong{
+          font-size:20px;
+        }
+
+        .rigo-dashboard-metric-value span{
+          font-size:9px;
+        }
+
+        .rigo-dashboard-widget{
+          padding-left:11px;
+          padding-right:11px;
+        }
+
+        .rigo-dashboard-status-row{
+          gap:8px;
+        }
+
+      }
+
+
+      /* =================================
+         TABLET
+      ================================= */
+
+      @media(max-width:980px){
+
+        .rigo-dashboard-page{
+          height:auto;
+          min-height:100%;
+          display:block;
+          overflow-y:auto;
+        }
+
+        .rigo-dashboard-main{
+          overflow:visible;
+        }
+
+        .rigo-dashboard-content{
+          height:auto;
+          display:flex;
+          flex-direction:column;
+          overflow:visible;
+        }
 
         .rigo-dashboard-metrics{
           grid-template-columns:
@@ -578,12 +1068,21 @@ function renderDashboardStyles(){
             );
         }
 
+        .rigo-dashboard-metric-card{
+          min-height:94px;
+        }
+
         .rigo-dashboard-panels{
           grid-template-columns:
             repeat(
               2,
               minmax(0,1fr)
             );
+          overflow:visible;
+        }
+
+        .rigo-dashboard-widget{
+          min-height:220px;
         }
 
         .rigo-dashboard-panels
@@ -591,20 +1090,42 @@ function renderDashboardStyles(){
           grid-column:1 / -1;
         }
 
-      }
-
-      @media(max-width:780px){
-
-        .rigo-dashboard-page{
-          padding:14px;
+        .rigo-dashboard-debug{
+          min-height:115px;
         }
 
-        .rigo-dashboard-header{
-          flex-direction:column;
+        .rigo-dashboard-footer{
+          margin-top:12px;
+        }
+
+      }
+
+
+      /* =================================
+         MOBILE
+      ================================= */
+
+      @media(max-width:680px){
+
+        .rigo-dashboard-page{
+          padding:13px;
         }
 
         .rigo-dashboard-header h1{
-          font-size:27px;
+          font-size:25px;
+        }
+
+        .rigo-dashboard-header p{
+          max-width:100%;
+          font-size:11px;
+        }
+
+        .rigo-dashboard-actions{
+          width:100%;
+        }
+
+        .rigo-dashboard-button{
+          flex:1;
         }
 
         .rigo-dashboard-metrics{
@@ -616,8 +1137,7 @@ function renderDashboardStyles(){
         }
 
         .rigo-dashboard-panels{
-          grid-template-columns:
-            1fr;
+          grid-template-columns:1fr;
         }
 
         .rigo-dashboard-panels
@@ -631,31 +1151,36 @@ function renderDashboardStyles(){
               2,
               minmax(0,1fr)
             );
-          row-gap:20px;
+          row-gap:18px;
         }
 
         .rigo-dashboard-debug-item{
           border-right:none;
         }
 
+        .rigo-dashboard-footer{
+          justify-content:flex-start;
+          flex-wrap:wrap;
+          line-height:1.4;
+          white-space:normal;
+        }
+
+        .rigo-dashboard-footer-time{
+          width:100%;
+          margin-left:0;
+        }
+
       }
 
-      @media(max-width:480px){
+
+      @media(max-width:420px){
 
         .rigo-dashboard-metrics{
-          grid-template-columns:
-            1fr;
-        }
-
-        .rigo-dashboard-actions{
-          width:100%;
-        }
-
-        .rigo-dashboard-button{
-          flex:1;
+          grid-template-columns:1fr;
         }
 
       }
+
     </style>
   `;
 
@@ -676,11 +1201,17 @@ function createStatusRow(
 
   const dot =
   options.dot
-  ? `<span class="rigo-dashboard-status-dot"></span>`
+  ? `
+    <span
+      class="rigo-dashboard-status-dot"
+      aria-hidden="true"
+    ></span>
+  `
   : "";
 
   return `
     <div class="rigo-dashboard-status-row">
+
       <span>
         ${escapeHTML(label)}
       </span>
@@ -690,9 +1221,11 @@ function createStatusRow(
           rigo-dashboard-status-value
           ${escapeHTML(status)}
         "
+        title="${escapeHTML(value)}"
       >
         ${dot}${escapeHTML(value)}
       </strong>
+
     </div>
   `;
 
@@ -724,19 +1257,37 @@ function createMetricCard(
         --metric-color:
         ${escapeHTML(options.color || "#38bdf8")};
       "
+      data-metric="${escapeHTML(options.id || "")}"
     >
+
       <div class="rigo-dashboard-metric-main">
-        <div class="rigo-dashboard-metric-icon">
-          ${options.icon || "📊"}
+
+        <div
+          class="rigo-dashboard-metric-icon"
+          aria-hidden="true"
+        >
+          ${options.icon || "◈"}
         </div>
 
         <div class="rigo-dashboard-metric-value">
-          <strong>${value}</strong>
-          <span>${escapeHTML(options.label || "")}</span>
+
+          <strong title="${value}">
+            ${value}
+          </strong>
+
+          <span>
+            ${escapeHTML(options.label || "")}
+          </span>
+
         </div>
+
       </div>
 
-      <div class="rigo-dashboard-metric-line"></div>
+      <div
+        class="rigo-dashboard-metric-line"
+        aria-hidden="true"
+      ></div>
+
     </article>
   `;
 
@@ -756,16 +1307,22 @@ function createWidget(
     <section
       class="
         rigo-dashboard-widget
-        ${options.className || ""}
+        ${escapeHTML(options.className || "")}
       "
       data-widget="${escapeHTML(options.id || "")}"
     >
+
       <div class="rigo-dashboard-widget-header">
-        <span class="rigo-dashboard-widget-icon">
+
+        <span
+          class="rigo-dashboard-widget-icon"
+          aria-hidden="true"
+        >
           ${options.icon || ""}
         </span>
 
-        <div>
+        <div class="rigo-dashboard-widget-title">
+
           <h3>
             ${escapeHTML(options.title || "Widget")}
           </h3>
@@ -779,12 +1336,15 @@ function createWidget(
             `
             : ""
           }
+
         </div>
+
       </div>
 
       <div class="rigo-dashboard-widget-body">
         ${options.body || ""}
       </div>
+
     </section>
   `;
 
@@ -803,38 +1363,52 @@ function renderMetricCards(
   const memory =
   data.memory || {};
 
+  const memoryValue =
+  memory.available
+  ? (
+    memory.usage ??
+    memory.entries ??
+    0
+  )
+  : "N/A";
+
   return `
     <div class="rigo-dashboard-metrics">
 
       ${createMetricCard({
-        icon:"📁",
+        id:"files",
+        icon:"▰",
         label:"Files",
         value:data.files,
         color:"#249cff"
       })}
 
       ${createMetricCard({
-        icon:"📂",
+        id:"folders",
+        icon:"▰",
         label:"Folders",
         value:data.folders,
         color:"#facc15"
       })}
 
       ${createMetricCard({
-        icon:"💻",
+        id:"systems",
+        icon:"▣",
         label:"Systems",
         value:data.systems,
         color:"#a855f7"
       })}
 
       ${createMetricCard({
-        icon:"⚙️",
+        id:"agents",
+        icon:"✹",
         label:"Agents",
         value:data.agents,
         color:"#ec4899"
       })}
 
       ${createMetricCard({
+        id:"imports",
         icon:"</>",
         label:"Code Imports",
         value:data.imports,
@@ -842,16 +1416,10 @@ function renderMetricCards(
       })}
 
       ${createMetricCard({
-        icon:"🗄️",
+        id:"memory",
+        icon:"◉",
         label:"Memory",
-        value:
-        memory.available
-        ? (
-          memory.usage ??
-          memory.entries ??
-          0
-        )
-        : "N/A",
+        value:memoryValue,
         raw:true,
         color:"#0ea5e9"
       })}
@@ -889,7 +1457,7 @@ function createProjectOverviewWidget(
   project.indexStatus ||
   project.status ||
   (
-    data.files > 0
+    Number(data.files) > 0
     ? "indexed"
     : "not-indexed"
   );
@@ -900,7 +1468,7 @@ function createProjectOverviewWidget(
     "project-overview",
 
     icon:
-    "📄",
+    "▤",
 
     title:
     "Project Overview",
@@ -911,14 +1479,17 @@ function createProjectOverviewWidget(
     body:
     `
       <div class="rigo-dashboard-status-list">
+
         ${createStatusRow(
           "Project Name",
-          projectName
+          projectName,
+          "muted"
         )}
 
         ${createStatusRow(
           "Project Path",
-          projectPath
+          projectPath,
+          "muted"
         )}
 
         ${createStatusRow(
@@ -938,6 +1509,7 @@ function createProjectOverviewWidget(
           ),
           "muted"
         )}
+
       </div>
     `
 
@@ -980,10 +1552,12 @@ function createGitHubWidget(
     body:
     `
       <div class="rigo-dashboard-status-list">
+
         ${createStatusRow(
           "Provider",
           github.provider ||
-          "GitHub"
+          "GitHub",
+          "muted"
         )}
 
         ${createStatusRow(
@@ -1006,7 +1580,8 @@ function createGitHubWidget(
           "Repository",
           github.repository ||
           github.repo ||
-          "-"
+          "-",
+          "muted"
         )}
 
         ${createStatusRow(
@@ -1016,6 +1591,7 @@ function createGitHubWidget(
           ),
           "muted"
         )}
+
       </div>
     `
 
@@ -1050,7 +1626,7 @@ function createMemoryWidget(
     "memory-status",
 
     icon:
-    "🧠",
+    "◉",
 
     title:
     "Memory Status",
@@ -1061,6 +1637,7 @@ function createMemoryWidget(
     body:
     `
       <div class="rigo-dashboard-status-list">
+
         ${createStatusRow(
           "Status",
           formatStatus(status),
@@ -1092,6 +1669,7 @@ function createMemoryWidget(
           "-",
           "muted"
         )}
+
       </div>
     `
 
@@ -1121,7 +1699,7 @@ function createDebugWidget(
     "rigo-dashboard-debug",
 
     icon:
-    "🐞",
+    "◉",
 
     title:
     "Debug Status",
@@ -1135,6 +1713,7 @@ function createDebugWidget(
 
         <div class="rigo-dashboard-debug-item red">
           <span>Runtime Errors</span>
+
           <strong>
             ${formatNumber(
               debug.runtimeErrors
@@ -1144,6 +1723,7 @@ function createDebugWidget(
 
         <div class="rigo-dashboard-debug-item red">
           <span>Console Errors</span>
+
           <strong>
             ${formatNumber(
               debug.consoleErrors
@@ -1153,6 +1733,7 @@ function createDebugWidget(
 
         <div class="rigo-dashboard-debug-item yellow">
           <span>Warnings</span>
+
           <strong>
             ${formatNumber(
               debug.warnings
@@ -1162,6 +1743,7 @@ function createDebugWidget(
 
         <div class="rigo-dashboard-debug-item purple">
           <span>Memory Issues</span>
+
           <strong>
             ${formatNumber(
               debug.memoryIssues
@@ -1171,6 +1753,7 @@ function createDebugWidget(
 
         <div class="rigo-dashboard-debug-item blue">
           <span>Performance Issues</span>
+
           <strong>
             ${formatNumber(
               debug.performanceIssues
@@ -1180,6 +1763,7 @@ function createDebugWidget(
 
         <div class="rigo-dashboard-debug-item green">
           <span>Network Issues</span>
+
           <strong>
             ${formatNumber(
               debug.networkIssues
@@ -1212,9 +1796,13 @@ function renderWidgets(
       ${renderMetricCards(data)}
 
       <div class="rigo-dashboard-panels">
+
         ${createProjectOverviewWidget(data)}
+
         ${createGitHubWidget(data)}
+
         ${createMemoryWidget(data)}
+
       </div>
 
       ${createDebugWidget(data)}
@@ -1238,12 +1826,15 @@ function createMetric(
 
   return `
     <div class="rigo-dashboard-status-row">
+
       <span>
         ${escapeHTML(label)}
       </span>
 
       <strong class="rigo-dashboard-status-value">
+
         ${formatNumber(value)}
+
         ${
           hint
           ? `
@@ -1253,7 +1844,9 @@ function createMetric(
           `
           : ""
         }
+
       </strong>
+
     </div>
   `;
 
@@ -1308,6 +1901,7 @@ function createCodeMapWidget(
     body:
     `
       <div class="rigo-dashboard-status-list">
+
         ${createStatusRow(
           "Imports",
           formatNumber(
@@ -1328,6 +1922,7 @@ function createCodeMapWidget(
             data.relationships
           )
         )}
+
       </div>
     `
 
