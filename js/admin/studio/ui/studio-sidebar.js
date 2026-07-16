@@ -6,11 +6,17 @@
 import StudioPages
 from "./studio-pages.js";
 
+
+
+// =====================================
+// SIDEBAR ITEMS
+// =====================================
+
 const SIDEBAR_ITEMS = [
 
   {
     id:"dashboard",
-    icon:"🏠",
+    icon:"⌂",
     label:"Dashboard"
   },
 
@@ -28,7 +34,7 @@ const SIDEBAR_ITEMS = [
 
   {
     id:"admin-agent",
-    icon:"🧠",
+    icon:"⚙",
     label:"Agents"
   },
 
@@ -58,13 +64,17 @@ const SIDEBAR_ITEMS = [
 
   {
     id:"settings",
-    icon:"⚙️",
+    icon:"⚙",
     label:"Settings"
   }
 
 ];
 
 
+
+// =====================================
+// ACTIVE PAGE
+// =====================================
 
 function getActivePageId(){
 
@@ -75,6 +85,10 @@ function getActivePageId(){
 
 
 
+// =====================================
+// CREATE BUTTON
+// =====================================
+
 function createSidebarButton(
   item
 ){
@@ -84,11 +98,22 @@ function createSidebarButton(
     "button"
   );
 
+  button.type =
+  "button";
+
   button.dataset.page =
   item.id;
 
+  button.dataset.active =
+  "false";
+
   button.title =
   item.label;
+
+  button.setAttribute(
+    "aria-label",
+    item.label
+  );
 
   button.innerHTML =
   `
@@ -103,10 +128,12 @@ function createSidebarButton(
 
   button.style.cssText =
   `
-    width:112px;
-    min-height:78px;
+    width:104px;
+    min-height:68px;
+    flex:0 0 68px;
+    padding:7px 5px;
     border:none;
-    border-radius:14px;
+    border-radius:12px;
     background:transparent;
     color:#f8fafc;
     cursor:pointer;
@@ -114,9 +141,13 @@ function createSidebarButton(
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:8px;
-    transition:.18s ease;
+    gap:6px;
     font-family:inherit;
+    transition:
+      background .16s ease,
+      color .16s ease,
+      box-shadow .16s ease,
+      transform .16s ease;
   `;
 
   const icon =
@@ -135,9 +166,18 @@ function createSidebarButton(
 
     icon.style.cssText =
     `
+      min-height:26px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:inherit;
+      font-size:25px;
       line-height:1;
-      font-size:30px;
-      filter:drop-shadow(0 0 12px rgba(34,197,94,.16));
+      font-weight:800;
+      filter:drop-shadow(
+        0 0 9px
+        rgba(34,197,94,.10)
+      );
     `;
 
   }
@@ -148,12 +188,13 @@ function createSidebarButton(
 
     label.style.cssText =
     `
-      font-size:13px;
-      line-height:1;
-      font-weight:700;
-      color:#f8fafc;
-      max-width:104px;
+      width:100%;
       overflow:hidden;
+      color:#f8fafc;
+      font-size:11px;
+      line-height:1.1;
+      font-weight:650;
+      text-align:center;
       text-overflow:ellipsis;
       white-space:nowrap;
     `;
@@ -169,7 +210,10 @@ function createSidebarButton(
       ){
 
         button.style.background =
-        "rgba(15,23,42,.9)";
+        "rgba(15,23,42,.72)";
+
+        button.style.transform =
+        "translateY(-1px)";
 
       }
 
@@ -188,6 +232,9 @@ function createSidebarButton(
         "transparent";
 
       }
+
+      button.style.transform =
+      "translateY(0)";
 
     }
   );
@@ -210,13 +257,24 @@ function createSidebarButton(
 
 
 
+// =====================================
+// ACTIVE BUTTON
+// =====================================
+
 function markActiveButton(
   button,
   isActive
 ){
 
   button.dataset.active =
-  isActive ? "true" : "false";
+  isActive
+  ? "true"
+  : "false";
+
+  const icon =
+  button.querySelector(
+    ".rigo-studio-sidebar-icon"
+  );
 
   const label =
   button.querySelector(
@@ -228,13 +286,36 @@ function markActiveButton(
   ){
 
     button.style.background =
-    "linear-gradient(180deg, rgba(16,185,129,.18), rgba(6,95,70,.14))";
+    `
+      linear-gradient(
+        180deg,
+        rgba(16,185,129,.16),
+        rgba(6,95,70,.11)
+      )
+    `;
 
     button.style.boxShadow =
-    "inset 0 0 0 1px rgba(34,197,94,.16), 0 0 24px rgba(34,197,94,.08)";
+    `
+      inset 0 0 0 1px
+      rgba(52,211,153,.14),
+      0 9px 24px
+      rgba(0,0,0,.14)
+    `;
 
     button.style.color =
     "#34d399";
+
+    if(
+      icon
+    ){
+
+      icon.style.color =
+      "#34d399";
+
+      icon.style.filter =
+      "drop-shadow(0 0 9px rgba(52,211,153,.24))";
+
+    }
 
     if(
       label
@@ -259,6 +340,18 @@ function markActiveButton(
   "#f8fafc";
 
   if(
+    icon
+  ){
+
+    icon.style.color =
+    "#f8fafc";
+
+    icon.style.filter =
+    "drop-shadow(0 0 9px rgba(34,197,94,.08))";
+
+  }
+
+  if(
     label
   ){
 
@@ -272,6 +365,10 @@ function markActiveButton(
 }
 
 
+
+// =====================================
+// UPDATE ACTIVE ITEM
+// =====================================
 
 function updateActiveSidebarItem(){
 
@@ -313,6 +410,10 @@ function updateActiveSidebarItem(){
 
 
 
+// =====================================
+// RENDER
+// =====================================
+
 function renderSidebar(){
 
   const sidebar =
@@ -333,18 +434,28 @@ function renderSidebar(){
 
   sidebar.style.cssText =
   `
-    width:150px;
-    margin:0 0 0 16px;
-    padding:14px 10px;
+    width:124px;
+    height:calc(100% - 8px);
+    margin:0 0 8px 14px;
+    padding:10px 8px;
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:4px;
-    background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(2,8,23,.96));
-    border:1px solid rgba(148,163,184,.14);
-    border-radius:16px;
-    overflow:auto;
-    box-shadow:0 18px 50px rgba(0,0,0,.28);
+    gap:2px;
+    overflow-x:hidden;
+    overflow-y:auto;
+    border:1px solid rgba(148,163,184,.13);
+    border-radius:14px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(15,23,42,.88),
+        rgba(3,10,24,.94)
+      );
+    box-shadow:
+      0 14px 38px
+      rgba(0,0,0,.20);
+    scrollbar-width:thin;
   `;
 
   for(
@@ -377,6 +488,10 @@ function renderSidebar(){
 }
 
 
+
+// =====================================
+// EXPORTS
+// =====================================
 
 export {
 
