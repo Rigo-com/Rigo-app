@@ -225,10 +225,10 @@ Object.freeze({
     66,
 
     sidebarColumnWidth:
-    142,
+    132,
 
     sidebarWidth:
-    126,
+    116,
 
     workspaceTabsHeight:
     0,
