@@ -10,6 +10,233 @@ from "./studio-pages.js";
 
 
 // =====================================
+// ICONS
+// =====================================
+
+const SIDEBAR_ICONS =
+Object.freeze({
+
+  dashboard:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 10.7 12 3l9 7.7"
+      ></path>
+
+      <path
+        d="M5.5 9.7V21h13V9.7"
+      ></path>
+
+      <path
+        d="M9.2 21v-6.3h5.6V21"
+      ></path>
+    </svg>
+  `,
+
+  project:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 6.5h6l2 2H21v10.8A1.7 1.7 0 0 1 19.3 21H4.7A1.7 1.7 0 0 1 3 19.3Z"
+      ></path>
+
+      <path
+        d="M3 8.5h18"
+      ></path>
+    </svg>
+  `,
+
+  system:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="13"
+        rx="1.5"
+      ></rect>
+
+      <path
+        d="M8 21h8"
+      ></path>
+
+      <path
+        d="M12 17v4"
+      ></path>
+    </svg>
+  `,
+
+  agents:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="3.3"
+      ></circle>
+
+      <path
+        d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"
+      ></path>
+    </svg>
+  `,
+
+  architecture:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="m8.5 6-5 6 5 6"
+      ></path>
+
+      <path
+        d="m15.5 6 5 6-5 6"
+      ></path>
+
+      <path
+        d="m13.5 4-3 16"
+      ></path>
+    </svg>
+  `,
+
+  memory:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M9.5 4.5A3.5 3.5 0 0 0 6 8v.2A3.4 3.4 0 0 0 4 11.3 3.5 3.5 0 0 0 7.5 15H9v3.5"
+      ></path>
+
+      <path
+        d="M14.5 4.5A3.5 3.5 0 0 1 18 8v.2a3.4 3.4 0 0 1 2 3.1 3.5 3.5 0 0 1-3.5 3.7H15v3.5"
+      ></path>
+
+      <path
+        d="M9.5 4.5a2.7 2.7 0 0 1 5 0"
+      ></path>
+
+      <path
+        d="M12 4v15"
+      ></path>
+
+      <path
+        d="M8 9.5h4"
+      ></path>
+
+      <path
+        d="M12 13.5h4"
+      ></path>
+    </svg>
+  `,
+
+  debug:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M8 9h8v7a4 4 0 0 1-8 0Z"
+      ></path>
+
+      <path
+        d="M9 9V7a3 3 0 0 1 6 0v2"
+      ></path>
+
+      <path
+        d="M4 13h4"
+      ></path>
+
+      <path
+        d="M16 13h4"
+      ></path>
+
+      <path
+        d="M5 8l3 2"
+      ></path>
+
+      <path
+        d="m19 8-3 2"
+      ></path>
+
+      <path
+        d="M5 18l3-2"
+      ></path>
+
+      <path
+        d="m19 18-3-2"
+      ></path>
+
+      <path
+        d="M12 10v10"
+      ></path>
+    </svg>
+  `,
+
+  extensions:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M12 21v-8"
+      ></path>
+
+      <path
+        d="M12 15c-4.5 0-7-2.5-7-7 4.5 0 7 2.5 7 7Z"
+      ></path>
+
+      <path
+        d="M12 12c0-5 2.5-8 7-9 0 5-2.5 8-7 9Z"
+      ></path>
+
+      <path
+        d="M12 18c3.6 0 5.7-1.8 6.5-5.2-3.5-.2-5.7 1.5-6.5 5.2Z"
+      ></path>
+    </svg>
+  `,
+
+  settings:
+  `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="3.2"
+      ></circle>
+
+      <path
+        d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"
+      ></path>
+    </svg>
+  `
+
+});
+
+
+
+// =====================================
 // SIDEBAR ITEMS
 // =====================================
 
@@ -21,10 +248,13 @@ Object.freeze([
     "dashboard",
 
     icon:
-    "⌂",
+    SIDEBAR_ICONS.dashboard,
 
     label:
-    "Dashboard"
+    "Dashboard",
+
+    color:
+    "var(--rigo-primary)"
   },
 
   {
@@ -32,10 +262,13 @@ Object.freeze([
     "project",
 
     icon:
-    "📁",
+    SIDEBAR_ICONS.project,
 
     label:
-    "Project"
+    "Project",
+
+    color:
+    "var(--rigo-yellow)"
   },
 
   {
@@ -43,10 +276,13 @@ Object.freeze([
     "code",
 
     icon:
-    "⌨",
+    SIDEBAR_ICONS.system,
 
     label:
-    "System"
+    "System",
+
+    color:
+    "var(--rigo-blue)"
   },
 
   {
@@ -54,10 +290,13 @@ Object.freeze([
     "admin-agent",
 
     icon:
-    "⚙",
+    SIDEBAR_ICONS.agents,
 
     label:
-    "Agents"
+    "Agents",
+
+    color:
+    "var(--rigo-pink)"
   },
 
   {
@@ -65,10 +304,13 @@ Object.freeze([
     "architecture",
 
     icon:
-    "</>",
+    SIDEBAR_ICONS.architecture,
 
     label:
-    "Code Map"
+    "Code Map",
+
+    color:
+    "var(--rigo-primary)"
   },
 
   {
@@ -76,10 +318,13 @@ Object.freeze([
     "memory",
 
     icon:
-    "🧠",
+    SIDEBAR_ICONS.memory,
 
     label:
-    "Memory"
+    "Memory",
+
+    color:
+    "var(--rigo-purple)"
   },
 
   {
@@ -87,10 +332,13 @@ Object.freeze([
     "debug",
 
     icon:
-    "🐞",
+    SIDEBAR_ICONS.debug,
 
     label:
-    "Debug"
+    "Debug",
+
+    color:
+    "var(--rigo-red)"
   },
 
   {
@@ -98,10 +346,13 @@ Object.freeze([
     "git",
 
     icon:
-    "⑂",
+    SIDEBAR_ICONS.extensions,
 
     label:
-    "Extensions"
+    "Extensions",
+
+    color:
+    "var(--rigo-lime)"
   },
 
   {
@@ -109,10 +360,13 @@ Object.freeze([
     "settings",
 
     icon:
-    "⚙",
+    SIDEBAR_ICONS.settings,
 
     label:
-    "Settings"
+    "Settings",
+
+    color:
+    "#b8c4d6"
   }
 
 ]);
@@ -173,23 +427,30 @@ function createSidebarStyles(){
         min-height:0;
         display:flex;
         flex-direction:column;
-        align-items:center;
+        align-items:stretch;
         gap:2px;
-        padding:8px 6px;
+        padding:8px;
         overflow-x:hidden;
         overflow-y:auto;
-        border:1px solid var(--rigo-border);
-        border-radius:var(--rigo-radius-xl);
+        border:1px solid rgba(94,126,163,.20);
+        border-radius:14px;
         background:
+          radial-gradient(
+            circle at 50% 0%,
+            rgba(0,230,157,.035),
+            transparent 24%
+          ),
           linear-gradient(
             180deg,
-            rgba(11,22,40,.96),
-            rgba(4,12,27,.98)
+            rgba(7,18,34,.99),
+            rgba(4,13,27,.99)
           );
-        box-shadow:var(--rigo-shadow-medium);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.018),
+          0 12px 32px rgba(0,0,0,.20);
         scrollbar-width:thin;
         scrollbar-color:
-          rgba(148,163,184,.20)
+          rgba(105,125,154,.34)
           transparent;
       }
 
@@ -203,26 +464,30 @@ function createSidebarStyles(){
 
       .rigo-studio-sidebar-shell::-webkit-scrollbar-thumb{
         border-radius:999px;
-        background:rgba(148,163,184,.20);
+        background:rgba(105,125,154,.34);
       }
 
       .rigo-studio-sidebar-button{
+        --sidebar-item-color:
+        var(--rigo-text-secondary);
+
         position:relative;
         width:100%;
-        min-height:60px;
-        flex:0 0 60px;
+        min-height:70px;
+        flex:1 1 70px;
         display:flex;
         flex-direction:column;
         align-items:center;
         justify-content:center;
-        gap:5px;
-        padding:6px 4px;
+        gap:7px;
+        padding:7px 4px;
         border:1px solid transparent;
-        border-radius:var(--rigo-radius-lg);
+        border-radius:12px;
         color:var(--rigo-text-secondary);
         background:transparent;
         font-family:var(--rigo-font);
         cursor:pointer;
+        isolation:isolate;
         transition:
           color var(--rigo-transition-normal),
           background var(--rigo-transition-normal),
@@ -233,17 +498,17 @@ function createSidebarStyles(){
 
       .rigo-studio-sidebar-button:hover{
         color:var(--rigo-text);
-        background:rgba(21,36,58,.58);
-        border-color:rgba(148,163,184,.08);
+        background:rgba(18,34,54,.66);
+        border-color:rgba(115,145,180,.12);
         transform:translateY(-1px);
       }
 
       .rigo-studio-sidebar-button:focus-visible{
         outline:none;
-        border-color:rgba(56,189,248,.55);
+        border-color:rgba(0,200,255,.50);
         box-shadow:
           0 0 0 2px
-          rgba(56,189,248,.12);
+          rgba(0,200,255,.10);
       }
 
       .rigo-studio-sidebar-button[data-active="true"]{
@@ -251,94 +516,179 @@ function createSidebarStyles(){
         background:
           linear-gradient(
             180deg,
-            rgba(34,197,94,.14),
-            rgba(34,197,94,.07)
+            rgba(0,230,157,.095),
+            rgba(0,230,157,.055)
           );
-        border-color:rgba(34,197,94,.16);
+        border-color:rgba(0,230,157,.15);
         box-shadow:
-          inset 0 0 0 1px
-          rgba(34,197,94,.04),
-          0 7px 20px
-          rgba(0,0,0,.14);
+          inset 0 1px 0 rgba(255,255,255,.025),
+          0 8px 20px rgba(0,0,0,.12);
       }
 
       .rigo-studio-sidebar-button[data-active="true"]::before{
         content:"";
         position:absolute;
-        top:10px;
-        bottom:10px;
-        left:0;
-        width:3px;
+        top:12px;
+        bottom:12px;
+        left:-9px;
+        width:4px;
         border-radius:0 999px 999px 0;
         background:var(--rigo-primary);
         box-shadow:
-          0 0 10px
+          0 0 12px
           var(--rigo-primary-glow);
       }
 
       .rigo-studio-sidebar-icon{
-        min-height:24px;
+        width:34px;
+        height:34px;
+        min-width:34px;
+        min-height:34px;
         display:flex;
         align-items:center;
         justify-content:center;
-        color:inherit;
-        font-size:23px;
-        line-height:1;
-        font-weight:800;
-        letter-spacing:-1px;
+        color:var(--sidebar-item-color);
         filter:
           drop-shadow(
             0 0 7px
-            rgba(255,255,255,.03)
+            color-mix(
+              in srgb,
+              var(--sidebar-item-color) 32%,
+              transparent
+            )
+          );
+        transition:
+          color var(--rigo-transition-normal),
+          filter var(--rigo-transition-normal),
+          transform var(--rigo-transition-normal);
+      }
+
+      .rigo-studio-sidebar-icon svg{
+        width:29px;
+        height:29px;
+        display:block;
+        overflow:visible;
+        fill:none;
+        stroke:currentColor;
+        stroke-width:1.9;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .rigo-studio-sidebar-button[data-active="true"]
+      .rigo-studio-sidebar-icon{
+        color:var(--rigo-primary);
+        filter:
+          drop-shadow(
+            0 0 8px
+            rgba(0,230,157,.32)
           );
       }
 
-      .rigo-studio-sidebar-button[data-page="architecture"]
+      .rigo-studio-sidebar-button:hover
       .rigo-studio-sidebar-icon{
-        font-size:15px;
-        letter-spacing:-1.5px;
-      }
-
-      .rigo-studio-sidebar-button[data-page="git"]
-      .rigo-studio-sidebar-icon{
-        font-size:26px;
+        transform:translateY(-1px);
       }
 
       .rigo-studio-sidebar-label{
         width:100%;
         overflow:hidden;
-        color:inherit;
-        font-size:10px;
+        color:var(--rigo-text-secondary);
+        font-size:11px;
         line-height:1.1;
         font-weight:650;
         text-align:center;
         text-overflow:ellipsis;
         white-space:nowrap;
+        transition:
+          color var(--rigo-transition-normal);
+      }
+
+      .rigo-studio-sidebar-button:hover
+      .rigo-studio-sidebar-label{
+        color:var(--rigo-text);
+      }
+
+      .rigo-studio-sidebar-button[data-active="true"]
+      .rigo-studio-sidebar-label{
+        color:var(--rigo-primary);
       }
 
       .rigo-studio-sidebar-separator{
         width:72%;
         height:1px;
         flex:0 0 1px;
-        margin:3px 0;
-        background:rgba(148,163,184,.10);
+        align-self:center;
+        margin:5px 0;
+        background:rgba(112,145,180,.14);
+      }
+
+      @media(max-height:820px){
+
+        .rigo-studio-sidebar-shell{
+          gap:1px;
+          padding:7px;
+        }
+
+        .rigo-studio-sidebar-button{
+          min-height:61px;
+          flex-basis:61px;
+          gap:5px;
+          padding:5px 3px;
+        }
+
+        .rigo-studio-sidebar-icon{
+          width:29px;
+          height:29px;
+          min-width:29px;
+          min-height:29px;
+        }
+
+        .rigo-studio-sidebar-icon svg{
+          width:25px;
+          height:25px;
+        }
+
+        .rigo-studio-sidebar-label{
+          font-size:10px;
+        }
+
+        .rigo-studio-sidebar-separator{
+          margin:3px 0;
+        }
+
       }
 
       @media(max-width:760px){
 
         .rigo-studio-sidebar-shell{
-          padding:7px 5px;
-          border-radius:var(--rigo-radius-lg);
+          padding:6px;
+          border-radius:12px;
         }
 
         .rigo-studio-sidebar-button{
-          min-height:56px;
-          flex-basis:56px;
+          min-height:58px;
+          flex-basis:58px;
           gap:4px;
+          padding:5px 2px;
+        }
+
+        .rigo-studio-sidebar-button[data-active="true"]::before{
+          left:-7px;
+          top:10px;
+          bottom:10px;
         }
 
         .rigo-studio-sidebar-icon{
-          font-size:21px;
+          width:27px;
+          height:27px;
+          min-width:27px;
+          min-height:27px;
+        }
+
+        .rigo-studio-sidebar-icon svg{
+          width:23px;
+          height:23px;
         }
 
         .rigo-studio-sidebar-label{
@@ -381,6 +731,11 @@ function createSidebarButton(
 
   button.title =
   item.label;
+
+  button.style.setProperty(
+    "--sidebar-item-color",
+    item.color
+  );
 
   button.setAttribute(
     "aria-label",
@@ -438,12 +793,23 @@ function markActiveButton(
   ? "true"
   : "false";
 
-  button.setAttribute(
-    "aria-current",
+  if(
     isActive
-    ? "page"
-    : "false"
-  );
+  ){
+
+    button.setAttribute(
+      "aria-current",
+      "page"
+    );
+
+  }
+  else{
+
+    button.removeAttribute(
+      "aria-current"
+    );
+
+  }
 
   return true;
 
@@ -697,8 +1063,13 @@ function snapshot(){
       function(item){
 
         return {
-          id:item.id,
-          label:item.label
+
+          id:
+          item.id,
+
+          label:
+          item.label
+
         };
 
       }
@@ -715,6 +1086,8 @@ function snapshot(){
 // =====================================
 
 export {
+
+  SIDEBAR_ICONS,
 
   SIDEBAR_ITEMS,
 
