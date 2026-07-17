@@ -10,227 +10,118 @@ from "./studio-pages.js";
 
 
 // =====================================
+// ICON FACTORY
+// =====================================
+
+function createIcon(
+  content,
+  options = {}
+){
+
+  const {
+
+    fill =
+    "none",
+
+    stroke =
+    "currentColor",
+
+    strokeWidth =
+    2
+
+  } = options;
+
+  return `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="${fill}"
+      stroke="${stroke}"
+      stroke-width="${strokeWidth}"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      ${content}
+    </svg>
+  `;
+
+}
+
+
+
+// =====================================
 // ICONS
 // =====================================
 
-const SIDEBAR_ICONS =
+const ICONS =
 Object.freeze({
 
   dashboard:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M3 10.7 12 3l9 7.7"
-      ></path>
-
-      <path
-        d="M5.5 9.7V21h13V9.7"
-      ></path>
-
-      <path
-        d="M9.2 21v-6.3h5.6V21"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <path d="M3 11.2 12 4l9 7.2"></path>
+    <path d="M5.5 10v10h13V10"></path>
+    <path d="M9.5 20v-6h5v6"></path>
+  `),
 
   project:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M3 6.5h6l2 2H21v10.8A1.7 1.7 0 0 1 19.3 21H4.7A1.7 1.7 0 0 1 3 19.3Z"
-      ></path>
-
-      <path
-        d="M3 8.5h18"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <path d="M3 7h7l2 2h9v10H3Z"></path>
+    <path d="M3 9h18"></path>
+  `),
 
   system:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="13"
-        rx="1.5"
-      ></rect>
-
-      <path
-        d="M8 21h8"
-      ></path>
-
-      <path
-        d="M12 17v4"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <rect x="3" y="4" width="18" height="13" rx="1.5"></rect>
+    <path d="M8 21h8"></path>
+    <path d="M12 17v4"></path>
+  `),
 
   agents:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="3.3"
-      ></circle>
-
-      <path
-        d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M19 13.5v-3l-2-.5a7 7 0 0 0-.8-1.9l1.1-1.8-2.1-2.1-1.8 1.1a7 7 0 0 0-1.9-.8L11 2H8l-.5 2.5a7 7 0 0 0-1.9.8L3.8 4.2 1.7 6.3l1.1 1.8A7 7 0 0 0 2 10l-2 .5v3l2 .5a7 7 0 0 0 .8 1.9l-1.1 1.8 2.1 2.1 1.8-1.1a7 7 0 0 0 1.9.8L8 22h3l.5-2.5a7 7 0 0 0 1.9-.8l1.8 1.1 2.1-2.1-1.1-1.8A7 7 0 0 0 17 14Z"></path>
+  `),
 
   architecture:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="m8.5 6-5 6 5 6"
-      ></path>
-
-      <path
-        d="m15.5 6 5 6-5 6"
-      ></path>
-
-      <path
-        d="m13.5 4-3 16"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <path d="m8 6-5 6 5 6"></path>
+    <path d="m16 6 5 6-5 6"></path>
+    <path d="m14 4-4 16"></path>
+  `),
 
   memory:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M9.5 4.5A3.5 3.5 0 0 0 6 8v.2A3.4 3.4 0 0 0 4 11.3 3.5 3.5 0 0 0 7.5 15H9v3.5"
-      ></path>
-
-      <path
-        d="M14.5 4.5A3.5 3.5 0 0 1 18 8v.2a3.4 3.4 0 0 1 2 3.1 3.5 3.5 0 0 1-3.5 3.7H15v3.5"
-      ></path>
-
-      <path
-        d="M9.5 4.5a2.7 2.7 0 0 1 5 0"
-      ></path>
-
-      <path
-        d="M12 4v15"
-      ></path>
-
-      <path
-        d="M8 9.5h4"
-      ></path>
-
-      <path
-        d="M12 13.5h4"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <path d="M9 5a4 4 0 0 0-4 4v1a4 4 0 0 0 1 7.9V19a2 2 0 0 0 2 2h2V5Z"></path>
+    <path d="M15 5a4 4 0 0 1 4 4v1a4 4 0 0 1-1 7.9V19a2 2 0 0 1-2 2h-2V5Z"></path>
+    <path d="M7 10h3"></path>
+    <path d="M14 14h3"></path>
+  `),
 
   debug:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M8 9h8v7a4 4 0 0 1-8 0Z"
-      ></path>
-
-      <path
-        d="M9 9V7a3 3 0 0 1 6 0v2"
-      ></path>
-
-      <path
-        d="M4 13h4"
-      ></path>
-
-      <path
-        d="M16 13h4"
-      ></path>
-
-      <path
-        d="M5 8l3 2"
-      ></path>
-
-      <path
-        d="m19 8-3 2"
-      ></path>
-
-      <path
-        d="M5 18l3-2"
-      ></path>
-
-      <path
-        d="m19 18-3-2"
-      ></path>
-
-      <path
-        d="M12 10v10"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <path d="M8 9h8v7a4 4 0 0 1-8 0Z"></path>
+    <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+    <path d="M4 12h4"></path>
+    <path d="M16 12h4"></path>
+    <path d="M5 7l3 2"></path>
+    <path d="m19 7-3 2"></path>
+    <path d="M5 18l3-2"></path>
+    <path d="m19 18-3-2"></path>
+  `),
 
   extensions:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M12 21v-8"
-      ></path>
-
-      <path
-        d="M12 15c-4.5 0-7-2.5-7-7 4.5 0 7 2.5 7 7Z"
-      ></path>
-
-      <path
-        d="M12 12c0-5 2.5-8 7-9 0 5-2.5 8-7 9Z"
-      ></path>
-
-      <path
-        d="M12 18c3.6 0 5.7-1.8 6.5-5.2-3.5-.2-5.7 1.5-6.5 5.2Z"
-      ></path>
-    </svg>
-  `,
+  createIcon(`
+    <path d="M12 21v-9"></path>
+    <path d="M12 14C7 14 5 11 5 7c4 0 7 2 7 7Z"></path>
+    <path d="M12 11c0-5 3-7 7-8 0 5-2 8-7 8Z"></path>
+    <path d="M12 18c3.5 0 5.5-2 6-5-3.5 0-5.5 1.5-6 5Z"></path>
+  `),
 
   settings:
-  `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="3.2"
-      ></circle>
-
-      <path
-        d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"
-      ></path>
-    </svg>
-  `
+  createIcon(`
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M19 13.5v-3l-2-.5a7 7 0 0 0-.8-1.9l1.1-1.8-2.1-2.1-1.8 1.1a7 7 0 0 0-1.9-.8L11 2H8l-.5 2.5a7 7 0 0 0-1.9.8L3.8 4.2 1.7 6.3l1.1 1.8A7 7 0 0 0 2 10l-2 .5v3l2 .5a7 7 0 0 0 .8 1.9l-1.1 1.8 2.1 2.1 1.8-1.1a7 7 0 0 0 1.9.8L8 22h3l.5-2.5a7 7 0 0 0 1.9-.8l1.8 1.1 2.1-2.1-1.1-1.8A7 7 0 0 0 17 14Z"></path>
+  `)
 
 });
 
@@ -244,129 +135,67 @@ const SIDEBAR_ITEMS =
 Object.freeze([
 
   {
-    id:
-    "dashboard",
-
-    icon:
-    SIDEBAR_ICONS.dashboard,
-
-    label:
-    "Dashboard",
-
-    color:
-    "var(--rigo-primary)"
+    id:"dashboard",
+    label:"Dashboard",
+    icon:ICONS.dashboard,
+    color:"var(--rigo-primary)"
   },
 
   {
-    id:
-    "project",
-
-    icon:
-    SIDEBAR_ICONS.project,
-
-    label:
-    "Project",
-
-    color:
-    "var(--rigo-yellow)"
+    id:"project",
+    label:"Project",
+    icon:ICONS.project,
+    color:"var(--rigo-yellow)"
   },
 
   {
-    id:
-    "code",
-
-    icon:
-    SIDEBAR_ICONS.system,
-
-    label:
-    "System",
-
-    color:
-    "var(--rigo-blue)"
+    id:"code",
+    label:"System",
+    icon:ICONS.system,
+    color:"var(--rigo-blue)"
   },
 
   {
-    id:
-    "admin-agent",
-
-    icon:
-    SIDEBAR_ICONS.agents,
-
-    label:
-    "Agents",
-
-    color:
-    "var(--rigo-pink)"
+    id:"admin-agent",
+    label:"Agents",
+    icon:ICONS.agents,
+    color:"var(--rigo-pink)"
   },
 
   {
-    id:
-    "architecture",
-
-    icon:
-    SIDEBAR_ICONS.architecture,
-
-    label:
-    "Code Map",
-
-    color:
-    "var(--rigo-primary)"
+    id:"architecture",
+    label:"Code Map",
+    icon:ICONS.architecture,
+    color:"var(--rigo-primary)"
   },
 
   {
-    id:
-    "memory",
-
-    icon:
-    SIDEBAR_ICONS.memory,
-
-    label:
-    "Memory",
-
-    color:
-    "var(--rigo-purple)"
+    id:"memory",
+    label:"Memory",
+    icon:ICONS.memory,
+    color:"var(--rigo-purple)",
+    separator:true
   },
 
   {
-    id:
-    "debug",
-
-    icon:
-    SIDEBAR_ICONS.debug,
-
-    label:
-    "Debug",
-
-    color:
-    "var(--rigo-red)"
+    id:"debug",
+    label:"Debug",
+    icon:ICONS.debug,
+    color:"var(--rigo-red)"
   },
 
   {
-    id:
-    "git",
-
-    icon:
-    SIDEBAR_ICONS.extensions,
-
-    label:
-    "Extensions",
-
-    color:
-    "var(--rigo-lime)"
+    id:"git",
+    label:"Extensions",
+    icon:ICONS.extensions,
+    color:"var(--rigo-lime)"
   },
 
   {
-    id:
-    "settings",
-
-    icon:
-    SIDEBAR_ICONS.settings,
-
-    label:
-    "Settings",
-
-    color:
-    "#b8c4d6"
+    id:"settings",
+    label:"Settings",
+    icon:ICONS.settings,
+    color:"#b8c5d7"
   }
 
 ]);
@@ -374,20 +203,17 @@ Object.freeze([
 
 
 // =====================================
-// INTERNAL STATE
+// STATE
 // =====================================
 
 const studioSidebarState =
 Object.seal({
 
-  mounted:
-  false,
+  mounted:false,
 
-  sidebar:
-  null,
+  sidebar:null,
 
-  hashListenerAttached:
-  false
+  hashListenerAttached:false
 
 });
 
@@ -407,7 +233,7 @@ function getActivePageId(){
 
 
 // =====================================
-// SIDEBAR STYLES
+// STYLES
 // =====================================
 
 function createSidebarStyles(){
@@ -423,185 +249,130 @@ function createSidebarStyles(){
       .rigo-studio-sidebar-shell{
         width:100%;
         height:100%;
-        min-width:0;
         min-height:0;
         display:flex;
         flex-direction:column;
-        align-items:stretch;
-        gap:2px;
-        padding:8px;
-        overflow-x:hidden;
-        overflow-y:auto;
-        border:1px solid rgba(94,126,163,.20);
+        padding:5px;
+        overflow:hidden;
+        border:1px solid var(--rigo-border);
         border-radius:14px;
         background:
-          radial-gradient(
-            circle at 50% 0%,
-            rgba(0,230,157,.035),
-            transparent 24%
-          ),
           linear-gradient(
             180deg,
-            rgba(7,18,34,.99),
+            rgba(7,18,34,.98),
             rgba(4,13,27,.99)
           );
         box-shadow:
-          inset 0 1px 0 rgba(255,255,255,.018),
-          0 12px 32px rgba(0,0,0,.20);
-        scrollbar-width:thin;
-        scrollbar-color:
-          rgba(105,125,154,.34)
-          transparent;
-      }
-
-      .rigo-studio-sidebar-shell::-webkit-scrollbar{
-        width:4px;
-      }
-
-      .rigo-studio-sidebar-shell::-webkit-scrollbar-track{
-        background:transparent;
-      }
-
-      .rigo-studio-sidebar-shell::-webkit-scrollbar-thumb{
-        border-radius:999px;
-        background:rgba(105,125,154,.34);
+          inset 0 1px 0 rgba(255,255,255,.02),
+          0 12px 28px rgba(0,0,0,.18);
       }
 
       .rigo-studio-sidebar-button{
-        --sidebar-item-color:
+        --sidebar-color:
         var(--rigo-text-secondary);
 
         position:relative;
         width:100%;
-        min-height:70px;
-        flex:1 1 70px;
+        height:66px;
+        min-height:66px;
+        flex:1 1 66px;
         display:flex;
         flex-direction:column;
         align-items:center;
         justify-content:center;
-        gap:7px;
-        padding:7px 4px;
+        gap:5px;
+        padding:4px 2px;
         border:1px solid transparent;
-        border-radius:12px;
+        border-radius:11px;
         color:var(--rigo-text-secondary);
         background:transparent;
         font-family:var(--rigo-font);
         cursor:pointer;
-        isolation:isolate;
         transition:
-          color var(--rigo-transition-normal),
           background var(--rigo-transition-normal),
           border-color var(--rigo-transition-normal),
-          box-shadow var(--rigo-transition-normal),
-          transform var(--rigo-transition-fast);
+          color var(--rigo-transition-normal);
       }
 
       .rigo-studio-sidebar-button:hover{
         color:var(--rigo-text);
-        background:rgba(18,34,54,.66);
-        border-color:rgba(115,145,180,.12);
-        transform:translateY(-1px);
+        background:rgba(17,33,54,.62);
+        border-color:rgba(148,163,184,.08);
       }
 
       .rigo-studio-sidebar-button:focus-visible{
         outline:none;
-        border-color:rgba(0,200,255,.50);
-        box-shadow:
-          0 0 0 2px
-          rgba(0,200,255,.10);
+        border-color:rgba(0,230,157,.42);
       }
 
       .rigo-studio-sidebar-button[data-active="true"]{
+        height:76px;
+        min-height:76px;
+        flex-grow:1.1;
         color:var(--rigo-primary);
+        border-color:rgba(0,230,157,.15);
         background:
           linear-gradient(
             180deg,
-            rgba(0,230,157,.095),
+            rgba(0,230,157,.10),
             rgba(0,230,157,.055)
           );
-        border-color:rgba(0,230,157,.15);
         box-shadow:
-          inset 0 1px 0 rgba(255,255,255,.025),
-          0 8px 20px rgba(0,0,0,.12);
+          inset 0 1px 0 rgba(255,255,255,.025);
       }
 
       .rigo-studio-sidebar-button[data-active="true"]::before{
         content:"";
         position:absolute;
-        top:12px;
-        bottom:12px;
-        left:-9px;
+        top:13px;
+        bottom:13px;
+        left:-6px;
         width:4px;
         border-radius:0 999px 999px 0;
         background:var(--rigo-primary);
         box-shadow:
-          0 0 12px
-          var(--rigo-primary-glow);
+          0 0 10px var(--rigo-primary-glow);
       }
 
       .rigo-studio-sidebar-icon{
-        width:34px;
-        height:34px;
-        min-width:34px;
-        min-height:34px;
+        width:30px;
+        height:30px;
         display:flex;
         align-items:center;
         justify-content:center;
-        color:var(--sidebar-item-color);
+        color:var(--sidebar-color);
         filter:
           drop-shadow(
-            0 0 7px
+            0 0 5px
             color-mix(
               in srgb,
-              var(--sidebar-item-color) 32%,
+              var(--sidebar-color) 24%,
               transparent
             )
           );
-        transition:
-          color var(--rigo-transition-normal),
-          filter var(--rigo-transition-normal),
-          transform var(--rigo-transition-normal);
       }
 
       .rigo-studio-sidebar-icon svg{
-        width:29px;
-        height:29px;
+        width:27px;
+        height:27px;
         display:block;
-        overflow:visible;
-        fill:none;
-        stroke:currentColor;
-        stroke-width:1.9;
-        stroke-linecap:round;
-        stroke-linejoin:round;
       }
 
       .rigo-studio-sidebar-button[data-active="true"]
       .rigo-studio-sidebar-icon{
         color:var(--rigo-primary);
-        filter:
-          drop-shadow(
-            0 0 8px
-            rgba(0,230,157,.32)
-          );
-      }
-
-      .rigo-studio-sidebar-button:hover
-      .rigo-studio-sidebar-icon{
-        transform:translateY(-1px);
       }
 
       .rigo-studio-sidebar-label{
         width:100%;
         overflow:hidden;
         color:var(--rigo-text-secondary);
-        font-size:11px;
+        font-size:10px;
         line-height:1.1;
         font-weight:650;
         text-align:center;
         text-overflow:ellipsis;
         white-space:nowrap;
-        transition:
-          color var(--rigo-transition-normal);
       }
 
       .rigo-studio-sidebar-button:hover
@@ -617,82 +388,57 @@ function createSidebarStyles(){
       .rigo-studio-sidebar-separator{
         width:72%;
         height:1px;
-        flex:0 0 1px;
+        min-height:1px;
         align-self:center;
-        margin:5px 0;
-        background:rgba(112,145,180,.14);
+        margin:2px 0;
+        background:rgba(148,163,184,.13);
       }
 
-      @media(max-height:820px){
+      @media(max-height:800px){
 
         .rigo-studio-sidebar-shell{
-          gap:1px;
-          padding:7px;
+          padding:4px;
         }
 
         .rigo-studio-sidebar-button{
-          min-height:61px;
-          flex-basis:61px;
-          gap:5px;
-          padding:5px 3px;
+          height:57px;
+          min-height:57px;
+          flex-basis:57px;
+          gap:3px;
+        }
+
+        .rigo-studio-sidebar-button[data-active="true"]{
+          height:65px;
+          min-height:65px;
         }
 
         .rigo-studio-sidebar-icon{
-          width:29px;
-          height:29px;
-          min-width:29px;
-          min-height:29px;
+          width:27px;
+          height:27px;
         }
 
         .rigo-studio-sidebar-icon svg{
-          width:25px;
-          height:25px;
+          width:24px;
+          height:24px;
         }
 
         .rigo-studio-sidebar-label{
-          font-size:10px;
-        }
-
-        .rigo-studio-sidebar-separator{
-          margin:3px 0;
+          font-size:9px;
         }
 
       }
 
       @media(max-width:760px){
 
-        .rigo-studio-sidebar-shell{
-          padding:6px;
-          border-radius:12px;
-        }
-
         .rigo-studio-sidebar-button{
+          height:58px;
           min-height:58px;
           flex-basis:58px;
-          gap:4px;
-          padding:5px 2px;
         }
 
-        .rigo-studio-sidebar-button[data-active="true"]::before{
-          left:-7px;
-          top:10px;
-          bottom:10px;
-        }
-
-        .rigo-studio-sidebar-icon{
-          width:27px;
-          height:27px;
-          min-width:27px;
-          min-height:27px;
-        }
-
-        .rigo-studio-sidebar-icon svg{
-          width:23px;
-          height:23px;
-        }
-
-        .rigo-studio-sidebar-label{
-          font-size:9px;
+        .rigo-studio-sidebar-button[data-active="true"]{
+          height:66px;
+          min-height:66px;
         }
 
       }
@@ -732,14 +478,14 @@ function createSidebarButton(
   button.title =
   item.label;
 
-  button.style.setProperty(
-    "--sidebar-item-color",
-    item.color
-  );
-
   button.setAttribute(
     "aria-label",
     item.label
+  );
+
+  button.style.setProperty(
+    "--sidebar-color",
+    item.color
   );
 
   button.innerHTML =
@@ -789,9 +535,9 @@ function markActiveButton(
   }
 
   button.dataset.active =
-  isActive
-  ? "true"
-  : "false";
+  String(
+    isActive
+  );
 
   if(
     isActive
@@ -840,12 +586,11 @@ function updateActiveSidebarItem(){
   const activePageId =
   getActivePageId();
 
-  const buttons =
-  sidebar.querySelectorAll(
+  sidebar
+  .querySelectorAll(
     ".rigo-studio-sidebar-button"
-  );
-
-  buttons.forEach(
+  )
+  .forEach(
     function(button){
 
       markActiveButton(
@@ -956,14 +701,6 @@ function renderSidebar(){
     ".rigo-studio-sidebar-shell"
   );
 
-  if(
-    !navigation
-  ){
-
-    return false;
-
-  }
-
   SIDEBAR_ITEMS
   .forEach(
     function(item){
@@ -975,24 +712,11 @@ function renderSidebar(){
       );
 
       if(
-        item.id === "memory"
+        item.separator
       ){
 
-        const separator =
-        document.createElement(
-          "div"
-        );
-
-        separator.className =
-        "rigo-studio-sidebar-separator";
-
-        separator.setAttribute(
-          "aria-hidden",
-          "true"
-        );
-
         navigation.appendChild(
-          separator
+          createSeparator()
         );
 
       }
@@ -1014,6 +738,31 @@ function renderSidebar(){
 
 
 // =====================================
+// CREATE SEPARATOR
+// =====================================
+
+function createSeparator(){
+
+  const separator =
+  document.createElement(
+    "div"
+  );
+
+  separator.className =
+  "rigo-studio-sidebar-separator";
+
+  separator.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+  return separator;
+
+}
+
+
+
+// =====================================
 // UNMOUNT
 // =====================================
 
@@ -1027,8 +776,7 @@ function unmountSidebar(){
 
     studioSidebarState
     .sidebar
-    .innerHTML =
-    "";
+    .replaceChildren();
 
   }
 
@@ -1064,11 +812,9 @@ function snapshot(){
 
         return {
 
-          id:
-          item.id,
+          id:item.id,
 
-          label:
-          item.label
+          label:item.label
 
         };
 
@@ -1087,13 +833,15 @@ function snapshot(){
 
 export {
 
-  SIDEBAR_ICONS,
+  ICONS,
 
   SIDEBAR_ITEMS,
 
   createSidebarStyles,
 
   createSidebarButton,
+
+  createSeparator,
 
   markActiveButton,
 
