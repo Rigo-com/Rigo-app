@@ -7,22 +7,28 @@
 const StudioTheme =
 Object.freeze({
 
+
+
+  // ===================================
+  // COLORS
+  // ===================================
+
   colors:{
 
     background:
     "#020817",
 
     backgroundSoft:
-    "#06101f",
+    "#050d19",
 
     surface:
-    "#0b1628",
+    "#0a1525",
 
     surfaceRaised:
-    "#101d31",
+    "#0d1a2d",
 
     surfaceHover:
-    "#15243a",
+    "#112139",
 
     sidebar:
     "#07111f",
@@ -31,53 +37,60 @@ Object.freeze({
     "#020817",
 
     border:
-    "rgba(148,163,184,.14)",
+    "rgba(94,126,163,.20)",
 
     borderStrong:
-    "rgba(148,163,184,.22)",
+    "rgba(112,148,190,.28)",
 
     primary:
-    "#22c55e",
+    "#00e69d",
 
     primarySoft:
-    "rgba(34,197,94,.14)",
+    "rgba(0,230,157,.10)",
 
     primaryGlow:
-    "rgba(34,197,94,.30)",
+    "rgba(0,230,157,.30)",
 
     blue:
-    "#38bdf8",
+    "#009cff",
 
     yellow:
-    "#facc15",
+    "#ffd000",
 
     purple:
-    "#c084fc",
+    "#913cff",
 
     pink:
-    "#f472b6",
+    "#ff2382",
 
     red:
-    "#fb7185",
+    "#ff4166",
 
     cyan:
-    "#22d3ee",
+    "#00c8ff",
+
+    lime:
+    "#8bdc3b",
 
     text:
     "#f8fafc",
 
     textSecondary:
-    "#cbd5e1",
+    "#d2d9e4",
 
     muted:
-    "#94a3b8",
+    "#9ba9bb",
 
     subtle:
-    "#64748b"
+    "#66778e"
 
   },
 
 
+
+  // ===================================
+  // SPACING
+  // ===================================
 
   spacing:{
 
@@ -100,11 +113,18 @@ Object.freeze({
     20,
 
     xxl:
-    24
+    24,
+
+    xxxl:
+    28
 
   },
 
 
+
+  // ===================================
+  // RADIUS
+  // ===================================
 
   radius:{
 
@@ -121,86 +141,135 @@ Object.freeze({
     12,
 
     xl:
-    14
+    14,
+
+    panel:
+    13
 
   },
 
 
+
+  // ===================================
+  // SHADOWS
+  // ===================================
 
   shadow:{
 
     small:
-    "0 6px 18px rgba(0,0,0,.16)",
+    "0 4px 14px rgba(0,0,0,.16)",
 
     medium:
-    "0 12px 32px rgba(0,0,0,.22)",
+    "0 10px 28px rgba(0,0,0,.22)",
 
     large:
-    "0 20px 60px rgba(0,0,0,.34)",
+    "0 20px 54px rgba(0,0,0,.34)",
 
     glow:
-    "0 0 20px rgba(34,197,94,.12)"
+    "0 0 18px rgba(0,230,157,.11)",
+
+    inset:
+    "inset 0 1px 0 rgba(255,255,255,.025)"
 
   },
 
 
+
+  // ===================================
+  // TYPOGRAPHY
+  // ===================================
 
   typography:{
 
     family:
     'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 
+    brand:
+    21,
+
     title:
-    26,
+    32,
 
     heading:
-    15,
+    17,
 
     body:
-    12,
+    13,
 
     small:
-    11,
+    12,
 
     tiny:
-    10
+    11,
+
+    titleWeight:
+    800,
+
+    headingWeight:
+    800,
+
+    bodyWeight:
+    500
 
   },
 
 
 
+  // ===================================
+  // LAYOUT
+  // ===================================
+
   layout:{
 
     topbarHeight:
-    64,
+    66,
 
     sidebarColumnWidth:
-    132,
+    142,
 
     sidebarWidth:
-    112,
+    126,
 
     workspaceTabsHeight:
-    36,
+    0,
 
     statusbarHeight:
-    28,
+    0,
 
     workspacePadding:
     10,
 
     dashboardPadding:
-    14,
+    20,
 
     dashboardGap:
-    10,
+    14,
 
     metricCardHeight:
-    84
+    108,
+
+    dashboardHeaderHeight:
+    128,
+
+    dashboardPanelsHeight:
+    272,
+
+    dashboardDebugHeight:
+    156,
+
+    desktopMinWidth:
+    981,
+
+    mobileBreakpoint:
+    680
 
   },
 
 
+
+  // ===================================
+  // TRANSITIONS
+  // ===================================
 
   transition:{
 
@@ -247,34 +316,63 @@ function createThemeVariables(){
     --rigo-pink:${StudioTheme.colors.pink};
     --rigo-red:${StudioTheme.colors.red};
     --rigo-cyan:${StudioTheme.colors.cyan};
+    --rigo-lime:${StudioTheme.colors.lime};
 
     --rigo-text:${StudioTheme.colors.text};
     --rigo-text-secondary:${StudioTheme.colors.textSecondary};
     --rigo-muted:${StudioTheme.colors.muted};
     --rigo-subtle:${StudioTheme.colors.subtle};
 
+    --rigo-space-xxs:${StudioTheme.spacing.xxs}px;
+    --rigo-space-xs:${StudioTheme.spacing.xs}px;
+    --rigo-space-sm:${StudioTheme.spacing.sm}px;
+    --rigo-space-md:${StudioTheme.spacing.md}px;
+    --rigo-space-lg:${StudioTheme.spacing.lg}px;
+    --rigo-space-xl:${StudioTheme.spacing.xl}px;
+    --rigo-space-xxl:${StudioTheme.spacing.xxl}px;
+    --rigo-space-xxxl:${StudioTheme.spacing.xxxl}px;
+
     --rigo-radius-xs:${StudioTheme.radius.xs}px;
     --rigo-radius-sm:${StudioTheme.radius.sm}px;
     --rigo-radius-md:${StudioTheme.radius.md}px;
     --rigo-radius-lg:${StudioTheme.radius.lg}px;
     --rigo-radius-xl:${StudioTheme.radius.xl}px;
+    --rigo-radius-panel:${StudioTheme.radius.panel}px;
 
     --rigo-shadow-small:${StudioTheme.shadow.small};
     --rigo-shadow-medium:${StudioTheme.shadow.medium};
     --rigo-shadow-large:${StudioTheme.shadow.large};
     --rigo-shadow-glow:${StudioTheme.shadow.glow};
+    --rigo-shadow-inset:${StudioTheme.shadow.inset};
 
     --rigo-font:${StudioTheme.typography.family};
+
+    --rigo-font-brand:${StudioTheme.typography.brand}px;
+    --rigo-font-title:${StudioTheme.typography.title}px;
+    --rigo-font-heading:${StudioTheme.typography.heading}px;
+    --rigo-font-body:${StudioTheme.typography.body}px;
+    --rigo-font-small:${StudioTheme.typography.small}px;
+    --rigo-font-tiny:${StudioTheme.typography.tiny}px;
+
+    --rigo-font-title-weight:${StudioTheme.typography.titleWeight};
+    --rigo-font-heading-weight:${StudioTheme.typography.headingWeight};
+    --rigo-font-body-weight:${StudioTheme.typography.bodyWeight};
 
     --rigo-topbar-height:${StudioTheme.layout.topbarHeight}px;
     --rigo-sidebar-column:${StudioTheme.layout.sidebarColumnWidth}px;
     --rigo-sidebar-width:${StudioTheme.layout.sidebarWidth}px;
+
     --rigo-workspace-tabs-height:${StudioTheme.layout.workspaceTabsHeight}px;
     --rigo-statusbar-height:${StudioTheme.layout.statusbarHeight}px;
+
     --rigo-workspace-padding:${StudioTheme.layout.workspacePadding}px;
     --rigo-dashboard-padding:${StudioTheme.layout.dashboardPadding}px;
     --rigo-dashboard-gap:${StudioTheme.layout.dashboardGap}px;
+
     --rigo-metric-card-height:${StudioTheme.layout.metricCardHeight}px;
+    --rigo-dashboard-header-height:${StudioTheme.layout.dashboardHeaderHeight}px;
+    --rigo-dashboard-panels-height:${StudioTheme.layout.dashboardPanelsHeight}px;
+    --rigo-dashboard-debug-height:${StudioTheme.layout.dashboardDebugHeight}px;
 
     --rigo-transition-fast:${StudioTheme.transition.fast};
     --rigo-transition-normal:${StudioTheme.transition.normal};
@@ -301,8 +399,11 @@ function applyStudioTheme(
 
   }
 
-  element.style.cssText +=
+  const variables =
   createThemeVariables();
+
+  element.style.cssText =
+  `${element.style.cssText || ""}${variables}`;
 
   return true;
 
