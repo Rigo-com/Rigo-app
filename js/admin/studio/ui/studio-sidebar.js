@@ -10,36 +10,17 @@ from "./studio-pages.js";
 
 
 // =====================================
-// ICON FACTORY
+// SVG ICON
 // =====================================
 
-function createIcon(
-  content,
-  options = {}
+function svg(
+  content
 ){
-
-  const {
-
-    fill =
-    "none",
-
-    stroke =
-    "currentColor",
-
-    strokeWidth =
-    2
-
-  } = options;
 
   return `
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      fill="${fill}"
-      stroke="${stroke}"
-      stroke-width="${strokeWidth}"
-      stroke-linecap="round"
-      stroke-linejoin="round"
     >
       ${content}
     </svg>
@@ -57,70 +38,115 @@ const ICONS =
 Object.freeze({
 
   dashboard:
-  createIcon(`
-    <path d="M3 11.2 12 4l9 7.2"></path>
-    <path d="M5.5 10v10h13V10"></path>
-    <path d="M9.5 20v-6h5v6"></path>
+  svg(`
+    <path d="M3.5 10.5 12 3.8l8.5 6.7"></path>
+    <path d="M5.7 9.7v10.5h12.6V9.7"></path>
+    <path d="M9.5 20.2v-6h5v6"></path>
   `),
 
   project:
-  createIcon(`
-    <path d="M3 7h7l2 2h9v10H3Z"></path>
-    <path d="M3 9h18"></path>
+  svg(`
+    <path d="M3 7.2h6.5l2 2H21v10.3H3Z"></path>
+    <path d="M3 9.2h18"></path>
   `),
 
   system:
-  createIcon(`
-    <rect x="3" y="4" width="18" height="13" rx="1.5"></rect>
+  svg(`
+    <rect
+      x="3"
+      y="4"
+      width="18"
+      height="13"
+      rx="1.5"
+    ></rect>
+
     <path d="M8 21h8"></path>
     <path d="M12 17v4"></path>
   `),
 
   agents:
-  createIcon(`
-    <circle cx="12" cy="12" r="3"></circle>
-    <path d="M19 13.5v-3l-2-.5a7 7 0 0 0-.8-1.9l1.1-1.8-2.1-2.1-1.8 1.1a7 7 0 0 0-1.9-.8L11 2H8l-.5 2.5a7 7 0 0 0-1.9.8L3.8 4.2 1.7 6.3l1.1 1.8A7 7 0 0 0 2 10l-2 .5v3l2 .5a7 7 0 0 0 .8 1.9l-1.1 1.8 2.1 2.1 1.8-1.1a7 7 0 0 0 1.9.8L8 22h3l.5-2.5a7 7 0 0 0 1.9-.8l1.8 1.1 2.1-2.1-1.1-1.8A7 7 0 0 0 17 14Z"></path>
+  svg(`
+    <circle
+      cx="12"
+      cy="12"
+      r="3.2"
+    ></circle>
+
+    <path
+      d="
+        M19.2 13.5v-3l-2-.5
+        a6.7 6.7 0 0 0-.8-1.8
+        l1.1-1.8-2.1-2.1-1.8 1.1
+        a6.7 6.7 0 0 0-1.8-.8L11.3 2h-3l-.5 2
+        a6.7 6.7 0 0 0-1.8.8L4.2 3.7 2.1 5.8l1.1 1.8
+        a6.7 6.7 0 0 0-.8 1.8L0 10v3l2.4.5
+        a6.7 6.7 0 0 0 .8 1.8l-1.1 1.8 2.1 2.1L6 18.1
+        a6.7 6.7 0 0 0 1.8.8l.5 2.4h3l.5-2.4
+        a6.7 6.7 0 0 0 1.8-.8l1.8 1.1 2.1-2.1-1.1-1.8
+        a6.7 6.7 0 0 0 .8-1.8Z
+      "
+    ></path>
   `),
 
   architecture:
-  createIcon(`
-    <path d="m8 6-5 6 5 6"></path>
-    <path d="m16 6 5 6-5 6"></path>
-    <path d="m14 4-4 16"></path>
+  svg(`
+    <path d="m8.2 6-5 6 5 6"></path>
+    <path d="m15.8 6 5 6-5 6"></path>
+    <path d="m13.8 4-3.6 16"></path>
   `),
 
   memory:
-  createIcon(`
-    <path d="M9 5a4 4 0 0 0-4 4v1a4 4 0 0 0 1 7.9V19a2 2 0 0 0 2 2h2V5Z"></path>
-    <path d="M15 5a4 4 0 0 1 4 4v1a4 4 0 0 1-1 7.9V19a2 2 0 0 1-2 2h-2V5Z"></path>
-    <path d="M7 10h3"></path>
-    <path d="M14 14h3"></path>
+  svg(`
+    <path d="M10 5a4 4 0 0 0-4 4v1a4 4 0 0 0 1 7.8V19a2 2 0 0 0 2 2h1Z"></path>
+    <path d="M14 5a4 4 0 0 1 4 4v1a4 4 0 0 1-1 7.8V19a2 2 0 0 1-2 2h-1Z"></path>
+    <path d="M12 5v16"></path>
+    <path d="M7.5 10H12"></path>
+    <path d="M12 14h4.5"></path>
   `),
 
   debug:
-  createIcon(`
+  svg(`
     <path d="M8 9h8v7a4 4 0 0 1-8 0Z"></path>
     <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
     <path d="M4 12h4"></path>
     <path d="M16 12h4"></path>
-    <path d="M5 7l3 2"></path>
-    <path d="m19 7-3 2"></path>
-    <path d="M5 18l3-2"></path>
-    <path d="m19 18-3-2"></path>
+    <path d="M5 7.5 8 9"></path>
+    <path d="m19 7.5-3 1.5"></path>
+    <path d="M5 18.5 8 17"></path>
+    <path d="m19 18.5-3-1.5"></path>
+    <path d="M12 10v10"></path>
   `),
 
   extensions:
-  createIcon(`
+  svg(`
     <path d="M12 21v-9"></path>
-    <path d="M12 14C7 14 5 11 5 7c4 0 7 2 7 7Z"></path>
-    <path d="M12 11c0-5 3-7 7-8 0 5-2 8-7 8Z"></path>
-    <path d="M12 18c3.5 0 5.5-2 6-5-3.5 0-5.5 1.5-6 5Z"></path>
+    <path d="M12 14c-4.7 0-7-2.7-7-7 4.5 0 7 2.4 7 7Z"></path>
+    <path d="M12 11c0-4.8 2.7-7.4 7-8 0 4.7-2.4 7.4-7 8Z"></path>
+    <path d="M12 18c3.5 0 5.5-1.8 6-5-3.4 0-5.5 1.6-6 5Z"></path>
   `),
 
   settings:
-  createIcon(`
-    <circle cx="12" cy="12" r="3"></circle>
-    <path d="M19 13.5v-3l-2-.5a7 7 0 0 0-.8-1.9l1.1-1.8-2.1-2.1-1.8 1.1a7 7 0 0 0-1.9-.8L11 2H8l-.5 2.5a7 7 0 0 0-1.9.8L3.8 4.2 1.7 6.3l1.1 1.8A7 7 0 0 0 2 10l-2 .5v3l2 .5a7 7 0 0 0 .8 1.9l-1.1 1.8 2.1 2.1 1.8-1.1a7 7 0 0 0 1.9.8L8 22h3l.5-2.5a7 7 0 0 0 1.9-.8l1.8 1.1 2.1-2.1-1.1-1.8A7 7 0 0 0 17 14Z"></path>
+  svg(`
+    <circle
+      cx="12"
+      cy="12"
+      r="3.2"
+    ></circle>
+
+    <path
+      d="
+        M19.2 13.5v-3l-2-.5
+        a6.7 6.7 0 0 0-.8-1.8
+        l1.1-1.8-2.1-2.1-1.8 1.1
+        a6.7 6.7 0 0 0-1.8-.8L11.3 2h-3l-.5 2
+        a6.7 6.7 0 0 0-1.8.8L4.2 3.7 2.1 5.8l1.1 1.8
+        a6.7 6.7 0 0 0-.8 1.8L0 10v3l2.4.5
+        a6.7 6.7 0 0 0 .8 1.8l-1.1 1.8 2.1 2.1L6 18.1
+        a6.7 6.7 0 0 0 1.8.8l.5 2.4h3l.5-2.4
+        a6.7 6.7 0 0 0 1.8-.8l1.8 1.1 2.1-2.1-1.1-1.8
+        a6.7 6.7 0 0 0 .8-1.8Z
+      "
+    ></path>
   `)
 
 });
@@ -195,7 +221,7 @@ Object.freeze([
     id:"settings",
     label:"Settings",
     icon:ICONS.settings,
-    color:"#b8c5d7"
+    color:"#b7c2d3"
   }
 
 ]);
@@ -252,19 +278,21 @@ function createSidebarStyles(){
         min-height:0;
         display:flex;
         flex-direction:column;
+        align-items:stretch;
+        gap:0;
         padding:5px;
         overflow:hidden;
-        border:1px solid var(--rigo-border);
+        border:1px solid rgba(94,126,163,.20);
         border-radius:14px;
         background:
           linear-gradient(
             180deg,
-            rgba(7,18,34,.98),
-            rgba(4,13,27,.99)
+            #071426,
+            #051020
           );
         box-shadow:
-          inset 0 1px 0 rgba(255,255,255,.02),
-          0 12px 28px rgba(0,0,0,.18);
+          inset 0 1px 0 rgba(255,255,255,.018),
+          0 10px 26px rgba(0,0,0,.18);
       }
 
       .rigo-studio-sidebar-button{
@@ -273,48 +301,48 @@ function createSidebarStyles(){
 
         position:relative;
         width:100%;
-        height:66px;
-        min-height:66px;
-        flex:1 1 66px;
+        height:61px;
+        min-height:61px;
+        flex:0 0 61px;
         display:flex;
         flex-direction:column;
         align-items:center;
         justify-content:center;
-        gap:5px;
+        gap:4px;
         padding:4px 2px;
         border:1px solid transparent;
-        border-radius:11px;
+        border-radius:10px;
         color:var(--rigo-text-secondary);
         background:transparent;
         font-family:var(--rigo-font);
         cursor:pointer;
         transition:
+          color var(--rigo-transition-normal),
           background var(--rigo-transition-normal),
-          border-color var(--rigo-transition-normal),
-          color var(--rigo-transition-normal);
+          border-color var(--rigo-transition-normal);
       }
 
       .rigo-studio-sidebar-button:hover{
         color:var(--rigo-text);
-        background:rgba(17,33,54,.62);
-        border-color:rgba(148,163,184,.08);
+        background:rgba(15,35,55,.56);
+        border-color:rgba(148,163,184,.07);
       }
 
       .rigo-studio-sidebar-button:focus-visible{
         outline:none;
-        border-color:rgba(0,230,157,.42);
+        border-color:rgba(0,230,157,.38);
       }
 
       .rigo-studio-sidebar-button[data-active="true"]{
-        height:76px;
-        min-height:76px;
-        flex-grow:1.1;
+        height:75px;
+        min-height:75px;
+        flex-basis:75px;
         color:var(--rigo-primary);
-        border-color:rgba(0,230,157,.15);
+        border-color:rgba(0,230,157,.16);
         background:
           linear-gradient(
             180deg,
-            rgba(0,230,157,.10),
+            rgba(0,230,157,.105),
             rgba(0,230,157,.055)
           );
         box-shadow:
@@ -324,19 +352,20 @@ function createSidebarStyles(){
       .rigo-studio-sidebar-button[data-active="true"]::before{
         content:"";
         position:absolute;
-        top:13px;
-        bottom:13px;
+        top:15px;
+        bottom:15px;
         left:-6px;
         width:4px;
-        border-radius:0 999px 999px 0;
+        border-radius:0 8px 8px 0;
         background:var(--rigo-primary);
         box-shadow:
           0 0 10px var(--rigo-primary-glow);
       }
 
       .rigo-studio-sidebar-icon{
-        width:30px;
-        height:30px;
+        width:29px;
+        height:29px;
+        flex:0 0 29px;
         display:flex;
         align-items:center;
         justify-content:center;
@@ -346,7 +375,7 @@ function createSidebarStyles(){
             0 0 5px
             color-mix(
               in srgb,
-              var(--sidebar-color) 24%,
+              var(--sidebar-color) 22%,
               transparent
             )
           );
@@ -356,6 +385,12 @@ function createSidebarStyles(){
         width:27px;
         height:27px;
         display:block;
+        overflow:visible;
+        fill:none;
+        stroke:currentColor;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
       }
 
       .rigo-studio-sidebar-button[data-active="true"]
@@ -369,7 +404,7 @@ function createSidebarStyles(){
         color:var(--rigo-text-secondary);
         font-size:10px;
         line-height:1.1;
-        font-weight:650;
+        font-weight:600;
         text-align:center;
         text-overflow:ellipsis;
         white-space:nowrap;
@@ -386,35 +421,38 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-separator{
-        width:72%;
+        width:70%;
         height:1px;
         min-height:1px;
+        flex:0 0 1px;
         align-self:center;
-        margin:2px 0;
-        background:rgba(148,163,184,.13);
+        margin:4px 0;
+        background:rgba(112,145,180,.14);
       }
 
-      @media(max-height:800px){
+      @media(max-height:760px){
 
         .rigo-studio-sidebar-shell{
           padding:4px;
         }
 
         .rigo-studio-sidebar-button{
-          height:57px;
-          min-height:57px;
-          flex-basis:57px;
+          height:55px;
+          min-height:55px;
+          flex-basis:55px;
           gap:3px;
         }
 
         .rigo-studio-sidebar-button[data-active="true"]{
-          height:65px;
-          min-height:65px;
+          height:66px;
+          min-height:66px;
+          flex-basis:66px;
         }
 
         .rigo-studio-sidebar-icon{
-          width:27px;
-          height:27px;
+          width:26px;
+          height:26px;
+          flex-basis:26px;
         }
 
         .rigo-studio-sidebar-icon svg{
@@ -426,19 +464,8 @@ function createSidebarStyles(){
           font-size:9px;
         }
 
-      }
-
-      @media(max-width:760px){
-
-        .rigo-studio-sidebar-button{
-          height:58px;
-          min-height:58px;
-          flex-basis:58px;
-        }
-
-        .rigo-studio-sidebar-button[data-active="true"]{
-          height:66px;
-          min-height:66px;
+        .rigo-studio-sidebar-separator{
+          margin:2px 0;
         }
 
       }
@@ -518,6 +545,31 @@ function createSidebarButton(
 
 
 // =====================================
+// CREATE SEPARATOR
+// =====================================
+
+function createSeparator(){
+
+  const separator =
+  document.createElement(
+    "div"
+  );
+
+  separator.className =
+  "rigo-studio-sidebar-separator";
+
+  separator.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+  return separator;
+
+}
+
+
+
+// =====================================
 // ACTIVE STATE
 // =====================================
 
@@ -535,9 +587,9 @@ function markActiveButton(
   }
 
   button.dataset.active =
-  String(
-    isActive
-  );
+  isActive
+  ? "true"
+  : "false";
 
   if(
     isActive
@@ -586,11 +638,12 @@ function updateActiveSidebarItem(){
   const activePageId =
   getActivePageId();
 
-  sidebar
-  .querySelectorAll(
+  const buttons =
+  sidebar.querySelectorAll(
     ".rigo-studio-sidebar-button"
-  )
-  .forEach(
+  );
+
+  buttons.forEach(
     function(button){
 
       markActiveButton(
@@ -701,6 +754,14 @@ function renderSidebar(){
     ".rigo-studio-sidebar-shell"
   );
 
+  if(
+    !navigation
+  ){
+
+    return false;
+
+  }
+
   SIDEBAR_ITEMS
   .forEach(
     function(item){
@@ -732,31 +793,6 @@ function renderSidebar(){
   true;
 
   return true;
-
-}
-
-
-
-// =====================================
-// CREATE SEPARATOR
-// =====================================
-
-function createSeparator(){
-
-  const separator =
-  document.createElement(
-    "div"
-  );
-
-  separator.className =
-  "rigo-studio-sidebar-separator";
-
-  separator.setAttribute(
-    "aria-hidden",
-    "true"
-  );
-
-  return separator;
 
 }
 
@@ -812,9 +848,11 @@ function snapshot(){
 
         return {
 
-          id:item.id,
+          id:
+          item.id,
 
-          label:item.label
+          label:
+          item.label
 
         };
 
