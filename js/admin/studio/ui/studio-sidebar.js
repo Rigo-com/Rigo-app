@@ -35,44 +35,30 @@ function createSvg(
 // ICONS
 // =====================================
 
-const SETTINGS_ICON =
-createSvg(`
-  <circle
-    cx="12"
-    cy="12"
-    r="3.2"
-  ></circle>
-
-  <path
-    d="
-      M19.2 13.5v-3l-2-.5
-      a6.7 6.7 0 0 0-.8-1.8
-      l1.1-1.8-2.1-2.1-1.8 1.1
-      a6.7 6.7 0 0 0-1.8-.8L11.3 2h-3l-.5 2
-      a6.7 6.7 0 0 0-1.8.8L4.2 3.7 2.1 5.8l1.1 1.8
-      a6.7 6.7 0 0 0-.8 1.8L0 10v3l2.4.5
-      a6.7 6.7 0 0 0 .8 1.8l-1.1 1.8 2.1 2.1L6 18.1
-      a6.7 6.7 0 0 0 1.8.8l.5 2.4h3l.5-2.4
-      a6.7 6.7 0 0 0 1.8-.8l1.8 1.1 2.1-2.1-1.1-1.8
-      a6.7 6.7 0 0 0 .8-1.8Z
-    "
-  ></path>
-`);
-
 const ICONS =
 Object.freeze({
 
   dashboard:
   createSvg(`
-    <path d="M3.5 10.5 12 3.8l8.5 6.7"></path>
-    <path d="M5.7 9.7v10.5h12.6V9.7"></path>
-    <path d="M9.5 20.2v-6h5v6"></path>
+    <path d="M3 11.5 12 4l9 7.5"></path>
+    <path d="M5.5 10.5V20h13v-9.5"></path>
+    <path d="M9.5 20v-6h5v6"></path>
   `),
 
   project:
   createSvg(`
-    <path d="M3 7.2h6.5l2 2H21v10.3H3Z"></path>
-    <path d="M3 9.2h18"></path>
+    <path
+      d="
+        M3.5 7.5
+        h6
+        l2 2
+        h9
+        v9.5
+        h-17
+        Z
+      "
+    ></path>
+    <path d="M3.5 9.5h17"></path>
   `),
 
   system:
@@ -82,30 +68,45 @@ Object.freeze({
       y="4"
       width="18"
       height="13"
-      rx="1.5"
+      rx="2"
     ></rect>
-
     <path d="M8 21h8"></path>
     <path d="M12 17v4"></path>
   `),
 
   agents:
-  SETTINGS_ICON,
+  createSvg(`
+    <rect
+      x="5"
+      y="7"
+      width="14"
+      height="11"
+      rx="3"
+    ></rect>
+    <path d="M9 12h.01"></path>
+    <path d="M15 12h.01"></path>
+    <path d="M9.5 15h5"></path>
+    <path d="M12 3v4"></path>
+    <path d="M8 3h8"></path>
+  `),
 
   architecture:
   createSvg(`
-    <path d="m8.2 6-5 6 5 6"></path>
-    <path d="m15.8 6 5 6-5 6"></path>
-    <path d="m13.8 4-3.6 16"></path>
+    <path d="m8 5-5 7 5 7"></path>
+    <path d="m16 5 5 7-5 7"></path>
+    <path d="m14 3-4 18"></path>
   `),
 
   memory:
   createSvg(`
-    <path d="M10 5a4 4 0 0 0-4 4v1a4 4 0 0 0 1 7.8V19a2 2 0 0 0 2 2h1Z"></path>
-    <path d="M14 5a4 4 0 0 1 4 4v1a4 4 0 0 1-1 7.8V19a2 2 0 0 1-2 2h-1Z"></path>
-    <path d="M12 5v16"></path>
-    <path d="M7.5 10H12"></path>
-    <path d="M12 14h4.5"></path>
+    <ellipse
+      cx="12"
+      cy="5"
+      rx="7"
+      ry="3"
+    ></ellipse>
+    <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"></path>
+    <path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"></path>
   `),
 
   debug:
@@ -114,23 +115,94 @@ Object.freeze({
     <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
     <path d="M4 12h4"></path>
     <path d="M16 12h4"></path>
-    <path d="M5 7.5 8 9"></path>
-    <path d="m19 7.5-3 1.5"></path>
-    <path d="M5 18.5 8 17"></path>
-    <path d="m19 18.5-3-1.5"></path>
-    <path d="M12 10v10"></path>
+    <path d="m5 7 3 2"></path>
+    <path d="m19 7-3 2"></path>
+    <path d="m5 19 3-2"></path>
+    <path d="m19 19-3-2"></path>
+    <path d="M12 9v11"></path>
   `),
 
   extensions:
   createSvg(`
-    <path d="M12 21v-9"></path>
-    <path d="M12 14c-4.7 0-7-2.7-7-7 4.5 0 7 2.4 7 7Z"></path>
-    <path d="M12 11c0-4.8 2.7-7.4 7-8 0 4.7-2.4 7.4-7 8Z"></path>
-    <path d="M12 18c3.5 0 5.5-1.8 6-5-3.4 0-5.5 1.6-6 5Z"></path>
+    <path
+      d="
+        M8.5 3
+        H5
+        a2 2 0 0 0-2 2
+        v3.5
+        a2.5 2.5 0 1 1 0 5
+        V17
+        a2 2 0 0 0 2 2
+        h3.5
+        a2.5 2.5 0 1 1 5 0
+        H17
+        a2 2 0 0 0 2-2
+        v-3.5
+        a2.5 2.5 0 1 0 0-5
+        V5
+        a2 2 0 0 0-2-2
+        h-3.5
+        a2.5 2.5 0 1 1-5 0
+        Z
+      "
+    ></path>
   `),
 
   settings:
-  SETTINGS_ICON
+  createSvg(`
+    <circle
+      cx="12"
+      cy="12"
+      r="3"
+    ></circle>
+
+    <path
+      d="
+        M19.4 15
+        a1.7 1.7 0 0 0 .3 1.9
+        l.1.1
+        a2 2 0 0 1-2.8 2.8
+        l-.1-.1
+        a1.7 1.7 0 0 0-1.9-.3
+        a1.7 1.7 0 0 0-1 1.6
+        v.2
+        a2 2 0 0 1-4 0
+        V21
+        a1.7 1.7 0 0 0-1-1.6
+        a1.7 1.7 0 0 0-1.9.3
+        l-.1.1
+        A2 2 0 0 1 4.2 17
+        l.1-.1
+        a1.7 1.7 0 0 0 .3-1.9
+        A1.7 1.7 0 0 0 3 14
+        h-.2
+        a2 2 0 0 1 0-4
+        H3
+        a1.7 1.7 0 0 0 1.6-1
+        a1.7 1.7 0 0 0-.3-1.9
+        l-.1-.1
+        A2 2 0 0 1 7 4.2
+        l.1.1
+        a1.7 1.7 0 0 0 1.9.3
+        A1.7 1.7 0 0 0 10 3
+        v-.2
+        a2 2 0 0 1 4 0
+        V3
+        a1.7 1.7 0 0 0 1 1.6
+        a1.7 1.7 0 0 0 1.9-.3
+        l.1-.1
+        A2 2 0 0 1 19.8 7
+        l-.1.1
+        a1.7 1.7 0 0 0-.3 1.9
+        A1.7 1.7 0 0 0 21 10
+        h.2
+        a2 2 0 0 1 0 4
+        H21
+        a1.7 1.7 0 0 0-1.6 1
+        Z
+      "
+    ></path>
+  `)
 
 });
 
@@ -144,135 +216,68 @@ const SIDEBAR_ITEMS =
 Object.freeze([
 
   {
-    id:
-    "dashboard",
-
-    label:
-    "Dashboard",
-
-    icon:
-    ICONS.dashboard,
-
-    color:
-    "var(--rigo-primary)"
+    id:"dashboard",
+    label:"Dashboard",
+    icon:ICONS.dashboard,
+    color:"var(--rigo-primary)"
   },
 
   {
-    id:
-    "project",
-
-    label:
-    "Project",
-
-    icon:
-    ICONS.project,
-
-    color:
-    "var(--rigo-yellow)"
+    id:"project",
+    label:"Project",
+    icon:ICONS.project,
+    color:"var(--rigo-yellow)"
   },
 
   {
-    id:
-    "code",
-
-    label:
-    "System",
-
-    icon:
-    ICONS.system,
-
-    color:
-    "var(--rigo-blue)"
+    id:"code",
+    label:"System",
+    icon:ICONS.system,
+    color:"var(--rigo-blue)"
   },
 
   {
-    id:
-    "admin-agent",
-
-    label:
-    "Agents",
-
-    icon:
-    ICONS.agents,
-
-    color:
-    "var(--rigo-pink)"
+    id:"admin-agent",
+    label:"Agents",
+    icon:ICONS.agents,
+    color:"var(--rigo-pink)"
   },
 
   {
-    id:
-    "architecture",
-
-    label:
-    "Code Map",
-
-    icon:
-    ICONS.architecture,
-
-    color:
-    "var(--rigo-primary)"
+    id:"architecture",
+    label:"Code Map",
+    icon:ICONS.architecture,
+    color:"var(--rigo-primary)"
   },
 
   {
-    id:
-    "memory",
-
-    label:
-    "Memory",
-
-    icon:
-    ICONS.memory,
-
-    color:
-    "var(--rigo-purple)",
-
-    separatorAfter:
-    true
+    id:"memory",
+    label:"Memory",
+    icon:ICONS.memory,
+    color:"var(--rigo-purple)",
+    separatorAfter:true
   },
 
   {
-    id:
-    "debug",
-
-    label:
-    "Debug",
-
-    icon:
-    ICONS.debug,
-
-    color:
-    "var(--rigo-red)"
+    id:"debug",
+    label:"Debug",
+    icon:ICONS.debug,
+    color:"var(--rigo-red)"
   },
 
   {
-    id:
-    "git",
-
-    label:
-    "Extensions",
-
-    icon:
-    ICONS.extensions,
-
-    color:
-    "var(--rigo-lime)"
+    id:"git",
+    label:"Extensions",
+    icon:ICONS.extensions,
+    color:"var(--rigo-lime)"
   },
 
   {
-    id:
-    "settings",
-
-    label:
-    "Settings",
-
-    icon:
-    ICONS.settings,
-
-    color:
-    "#b7c2d3",
-
-    placement:
-    "bottom"
+    id:"settings",
+    label:"Settings",
+    icon:ICONS.settings,
+    color:"#b7c2d3",
+    placement:"bottom"
   }
 
 ]);
@@ -286,14 +291,11 @@ Object.freeze([
 const studioSidebarState =
 Object.seal({
 
-  mounted:
-  false,
+  mounted:false,
 
-  sidebar:
-  null,
+  sidebar:null,
 
-  hashListenerAttached:
-  false
+  hashListenerAttached:false
 
 });
 
@@ -379,7 +381,7 @@ function createSidebarStyles(){
         flex-direction:column;
         align-items:center;
         justify-content:center;
-        gap:3px;
+        gap:4px;
         padding:3px 2px;
         border:1px solid transparent;
         border-radius:9px;
@@ -430,11 +432,7 @@ function createSidebarStyles(){
         bottom:13px;
         left:-6px;
         width:4px;
-        border-radius:
-          0
-          8px
-          8px
-          0;
+        border-radius:0 8px 8px 0;
         background:var(--rigo-primary);
         box-shadow:
           0 0 10px
@@ -442,9 +440,9 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon{
-        width:24px;
-        height:24px;
-        flex:0 0 24px;
+        width:22px;
+        height:22px;
+        flex:0 0 22px;
         display:flex;
         align-items:center;
         justify-content:center;
@@ -461,36 +459,27 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon svg{
-        width:23px;
-        height:23px;
+        width:22px;
+        height:22px;
         display:block;
         overflow:visible;
         fill:none;
         stroke:currentColor;
-        stroke-width:1.9;
+        stroke-width:2;
         stroke-linecap:round;
         stroke-linejoin:round;
       }
 
       .rigo-studio-sidebar-label{
-
-  width:100%;
-
-  overflow:visible;
-
-  color:var(--rigo-text-secondary);
-
-  font-size:10px;
-
-  line-height:1.35;
-
-  font-weight:600;
-
-  text-align:center;
-
-  white-space:nowrap;
-
-}
+        width:100%;
+        overflow:visible;
+        color:var(--rigo-text-secondary);
+        font-size:10px;
+        line-height:1.35;
+        font-weight:600;
+        text-align:center;
+        white-space:nowrap;
+      }
 
       .rigo-studio-sidebar-button:hover
       .rigo-studio-sidebar-label{
@@ -524,7 +513,7 @@ function createSidebarStyles(){
           height:51px;
           min-height:51px;
           flex-basis:51px;
-          gap:2px;
+          gap:3px;
         }
 
         .rigo-studio-sidebar-button[data-active="true"]{
@@ -538,15 +527,14 @@ function createSidebarStyles(){
           bottom:11px;
         }
 
-        .rigo-studio-sidebar-icon{
-          width:22px;
-          height:22px;
-          flex-basis:22px;
+        .rigo-studio-sidebar-icon,
+        .rigo-studio-sidebar-icon svg{
+          width:20px;
+          height:20px;
         }
 
-        .rigo-studio-sidebar-icon svg{
-          width:21px;
-          height:21px;
+        .rigo-studio-sidebar-icon{
+          flex-basis:20px;
         }
 
         .rigo-studio-sidebar-label{
@@ -917,7 +905,8 @@ function renderSidebar(){
     "bottom"
   );
 
-  SIDEBAR_ITEMS.forEach(
+  SIDEBAR_ITEMS
+  .forEach(
     function(item){
 
       const targetGroup =
