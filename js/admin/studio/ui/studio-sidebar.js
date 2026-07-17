@@ -39,11 +39,33 @@ const ICONS =
 Object.freeze({
 
   dashboard:
-  createSvg(`
-    <path d="M3 11.5 12 4l9 7.5"></path>
-    <path d="M5.5 10.5V20h13v-9.5"></path>
-    <path d="M9.5 20v-6h5v6"></path>
-  `),
+createSvg(`
+  <path
+    d="
+      M3.5 10.2
+      12 3.6
+      20.5 10.2
+    "
+  ></path>
+
+  <path
+    d="
+      M5.8 9.4
+      V20
+      H18.2
+      V9.4
+    "
+  ></path>
+
+  <path
+    d="
+      M9.4 20
+      V13.6
+      H14.6
+      V20
+    "
+  ></path>
+`),
 
   project:
   createSvg(`
