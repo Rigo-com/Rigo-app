@@ -222,7 +222,7 @@ Object.freeze({
   layout:{
 
     topbarHeight:
-    66,
+    64,
 
     sidebarColumnWidth:
     132,
