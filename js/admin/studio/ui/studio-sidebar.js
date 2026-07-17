@@ -363,6 +363,7 @@ function createSidebarStyles(){
       .rigo-studio-sidebar-group[data-placement="bottom"]{
         flex:0 0 auto;
         margin-top:auto;
+        padding-bottom:14px;
       }
 
       .rigo-studio-sidebar-button{
