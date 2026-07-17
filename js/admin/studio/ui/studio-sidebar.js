@@ -473,16 +473,24 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-label{
-        width:100%;
-        overflow:hidden;
-        color:var(--rigo-text-secondary);
-        font-size:9.5px;
-        line-height:1.1;
-        font-weight:600;
-        text-align:center;
-        text-overflow:ellipsis;
-        white-space:nowrap;
-      }
+
+  width:100%;
+
+  overflow:visible;
+
+  color:var(--rigo-text-secondary);
+
+  font-size:10px;
+
+  line-height:1.35;
+
+  font-weight:600;
+
+  text-align:center;
+
+  white-space:nowrap;
+
+}
 
       .rigo-studio-sidebar-button:hover
       .rigo-studio-sidebar-label{
