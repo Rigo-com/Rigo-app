@@ -10,10 +10,10 @@ from "./studio-pages.js";
 
 
 // =====================================
-// SVG
+// SVG FACTORIES
 // =====================================
 
-function createSvg(
+function createOutlineSvg(
   content
 ){
 
@@ -31,6 +31,25 @@ function createSvg(
 
 
 
+function createSolidSvg(
+  content
+){
+
+  return `
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      class="rigo-studio-sidebar-solid-icon"
+    >
+      ${content}
+    </svg>
+  `;
+
+}
+
+
+
 // =====================================
 // ICONS
 // =====================================
@@ -39,105 +58,143 @@ const ICONS =
 Object.freeze({
 
   dashboard:
-  createSvg(`
+  createSolidSvg(`
     <path
       fill="currentColor"
-      stroke="none"
       fill-rule="evenodd"
       clip-rule="evenodd"
-      d="M12 2.8 2.6 10.3l1.7 2.1 1.6-1.3V20h4.2v-6h3.8v6h4.2v-8.9l1.6 1.3 1.7-2.1L12 2.8Z"
+      d="
+        M11.47 2.84
+        a.75.75 0 0 1 1.06 0
+        l8.25 8.25
+        a.75.75 0 1 1-1.06 1.06
+        l-.47-.47
+        v7.57
+        A1.75 1.75 0 0 1 17.5 21
+        h-3.25
+        a.75.75 0 0 1-.75-.75
+        v-4.5
+        h-3
+        v4.5
+        a.75.75 0 0 1-.75.75
+        H6.5
+        a1.75 1.75 0 0 1-1.75-1.75
+        v-7.57
+        l-.47.47
+        a.75.75 0 0 1-1.06-1.06
+        l8.25-8.25
+        Z
+      "
     ></path>
   `),
 
   project:
-  createSvg(`
+  createOutlineSvg(`
     <path
       d="
-        M3.5 7.5
-        h6
-        l2 2
-        h9
-        v9.5
-        h-17
+        M3.75 6.75
+        A1.75 1.75 0 0 1 5.5 5
+        h4.15
+        c.47 0 .92.19 1.25.52
+        l1.08 1.08
+        c.33.33.78.52 1.25.52
+        h5.27
+        a1.75 1.75 0 0 1 1.75 1.75
+        v8.88
+        a1.75 1.75 0 0 1-1.75 1.75
+        h-13
+        a1.75 1.75 0 0 1-1.75-1.75
+        V6.75
         Z
       "
     ></path>
 
-    <path d="M3.5 9.5h17"></path>
+    <path d="M3.75 9.25h16.5"></path>
   `),
 
   system:
-  createSvg(`
+  createOutlineSvg(`
     <rect
-      x="3"
+      x="3.25"
       y="4"
-      width="18"
-      height="13"
-      rx="2"
+      width="17.5"
+      height="12.5"
+      rx="1.75"
     ></rect>
 
-    <path d="M8 21h8"></path>
-    <path d="M12 17v4"></path>
+    <path d="M8.25 20h7.5"></path>
+    <path d="M12 16.5V20"></path>
   `),
 
   agents:
-  createSvg(`
+  createOutlineSvg(`
     <rect
       x="5"
       y="7"
       width="14"
       height="11"
-      rx="3"
+      rx="2.5"
     ></rect>
 
+    <path d="M12 3.5V7"></path>
     <path d="M9 12h.01"></path>
     <path d="M15 12h.01"></path>
     <path d="M9.5 15h5"></path>
-    <path d="M12 3v4"></path>
-    <path d="M8 3h8"></path>
+    <path d="M3 11v3"></path>
+    <path d="M21 11v3"></path>
   `),
 
   architecture:
-  createSvg(`
-    <path d="m8 5-5 7 5 7"></path>
-    <path d="m16 5 5 7-5 7"></path>
-    <path d="m14 3-4 18"></path>
+  createOutlineSvg(`
+    <path d="m8.25 5.25-5.5 6.75 5.5 6.75"></path>
+    <path d="m15.75 5.25 5.5 6.75-5.5 6.75"></path>
+    <path d="m14.25 3.5-4.5 17"></path>
   `),
 
   memory:
-  createSvg(`
+  createOutlineSvg(`
     <ellipse
       cx="12"
-      cy="5"
+      cy="5.25"
       rx="7"
-      ry="3"
+      ry="2.75"
     ></ellipse>
 
     <path
       d="
-        M5 5
+        M5 5.25
         v6
-        c0 1.7 3.1 3 7 3
-        s7-1.3 7-3
-        V5
+        c0 1.52 3.13 2.75 7 2.75
+        s7-1.23 7-2.75
+        v-6
       "
     ></path>
 
     <path
       d="
-        M5 11
+        M5 11.25
         v6
-        c0 1.7 3.1 3 7 3
-        s7-1.3 7-3
+        c0 1.52 3.13 2.75 7 2.75
+        s7-1.23 7-2.75
         v-6
       "
     ></path>
   `),
 
   debug:
-  createSvg(`
-    <path d="M8 9h8v7a4 4 0 0 1-8 0Z"></path>
-    <path d="M9 9V7a3 3 0 0 1 6 0v2"></path>
+  createOutlineSvg(`
+    <path
+      d="
+        M8 9
+        h8
+        v7
+        a4 4 0 0 1-8 0
+        V9
+        Z
+      "
+    ></path>
+
+    <path d="M9 9V7.5a3 3 0 0 1 6 0V9"></path>
     <path d="M4 12h4"></path>
     <path d="M16 12h4"></path>
     <path d="m5 7 3 2"></path>
@@ -148,33 +205,41 @@ Object.freeze({
   `),
 
   extensions:
-  createSvg(`
+  createOutlineSvg(`
     <path
       d="
-        M8.5 3
-        H5
+        M8.5 3.5
+        H5.75
         a2 2 0 0 0-2 2
-        v3.5
+        V8.5
+        h.75
         a2.5 2.5 0 1 1 0 5
-        V17
+        h-.75
+        v3
         a2 2 0 0 0 2 2
-        h3.5
+        h3
+        v-.75
         a2.5 2.5 0 1 1 5 0
-        H17
+        v.75
+        h3
         a2 2 0 0 0 2-2
-        v-3.5
+        v-3
+        h.75
         a2.5 2.5 0 1 0 0-5
-        V5
+        h-.75
+        v-3
         a2 2 0 0 0-2-2
-        h-3.5
+        h-3
+        v.75
         a2.5 2.5 0 1 1-5 0
+        V3.5
         Z
       "
     ></path>
   `),
 
   settings:
-  createSvg(`
+  createOutlineSvg(`
     <circle
       cx="12"
       cy="12"
@@ -184,46 +249,46 @@ Object.freeze({
     <path
       d="
         M19.4 15
-        a1.7 1.7 0 0 0 .3 1.9
-        l.1.1
-        a2 2 0 0 1-2.8 2.8
-        l-.1-.1
-        a1.7 1.7 0 0 0-1.9-.3
-        a1.7 1.7 0 0 0-1 1.6
-        v.2
-        a2 2 0 0 1-4 0
+        a1.65 1.65 0 0 0 .33 1.82
+        l.06.06
+        a2 2 0 1 1-2.83 2.83
+        l-.06-.06
+        a1.65 1.65 0 0 0-1.82-.33
+        a1.65 1.65 0 0 0-.98 1.52
         V21
-        a1.7 1.7 0 0 0-1-1.6
-        a1.7 1.7 0 0 0-1.9.3
-        l-.1.1
-        A2 2 0 0 1 4.2 17
-        l.1-.1
-        a1.7 1.7 0 0 0 .3-1.9
-        A1.7 1.7 0 0 0 3 14
-        h-.2
-        a2 2 0 0 1 0-4
+        a2 2 0 1 1-4 0
+        v-.16
+        a1.65 1.65 0 0 0-.98-1.52
+        a1.65 1.65 0 0 0-1.82.33
+        l-.06.06
+        a2 2 0 1 1-2.83-2.83
+        l.06-.06
+        A1.65 1.65 0 0 0 4.6 15
+        a1.65 1.65 0 0 0-1.52-.98
         H3
-        a1.7 1.7 0 0 0 1.6-1
-        a1.7 1.7 0 0 0-.3-1.9
-        l-.1-.1
-        A2 2 0 0 1 7 4.2
-        l.1.1
-        a1.7 1.7 0 0 0 1.9.3
-        A1.7 1.7 0 0 0 10 3
-        v-.2
-        a2 2 0 0 1 4 0
+        a2 2 0 1 1 0-4
+        h.08
+        A1.65 1.65 0 0 0 4.6 9.04
+        a1.65 1.65 0 0 0-.33-1.82
+        l-.06-.06
+        a2 2 0 1 1 2.83-2.83
+        l.06.06
+        a1.65 1.65 0 0 0 1.82.33
+        A1.65 1.65 0 0 0 9.9 3.2
         V3
-        a1.7 1.7 0 0 0 1 1.6
-        a1.7 1.7 0 0 0 1.9-.3
-        l.1-.1
-        A2 2 0 0 1 19.8 7
-        l-.1.1
-        a1.7 1.7 0 0 0-.3 1.9
-        A1.7 1.7 0 0 0 21 10
-        h.2
-        a2 2 0 0 1 0 4
+        a2 2 0 1 1 4 0
+        v.2
+        a1.65 1.65 0 0 0 .98 1.52
+        a1.65 1.65 0 0 0 1.82-.33
+        l.06-.06
+        a2 2 0 1 1 2.83 2.83
+        l-.06.06
+        a1.65 1.65 0 0 0-.33 1.82
+        a1.65 1.65 0 0 0 1.52.98
         H21
-        a1.7 1.7 0 0 0-1.6 1
+        a2 2 0 1 1 0 4
+        h-.08
+        A1.65 1.65 0 0 0 19.4 15
         Z
       "
     ></path>
@@ -527,7 +592,11 @@ function createSidebarStyles(){
         bottom:13px;
         left:-6px;
         width:4px;
-        border-radius:0 8px 8px 0;
+        border-radius:
+          0
+          8px
+          8px
+          0;
         background:var(--rigo-primary);
         box-shadow:
           0 0 10px
@@ -535,9 +604,9 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon{
-        width:22px;
-        height:22px;
-        flex:0 0 22px;
+        width:24px;
+        height:24px;
+        flex:0 0 24px;
         display:flex;
         align-items:center;
         justify-content:center;
@@ -554,15 +623,21 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon svg{
-        width:22px;
-        height:22px;
+        width:24px;
+        height:24px;
         display:block;
         overflow:visible;
         fill:none;
         stroke:currentColor;
-        stroke-width:2;
+        stroke-width:1.9;
         stroke-linecap:round;
         stroke-linejoin:round;
+      }
+
+      .rigo-studio-sidebar-icon
+      .rigo-studio-sidebar-solid-icon{
+        fill:currentColor;
+        stroke:none;
       }
 
       .rigo-studio-sidebar-button[data-page="dashboard"]
@@ -576,8 +651,20 @@ function createSidebarStyles(){
       .rigo-studio-sidebar-icon svg{
         width:28px;
         height:28px;
-        fill:currentColor;
-        stroke:none;
+      }
+
+      .rigo-studio-sidebar-button[data-page="project"]
+      .rigo-studio-sidebar-icon{
+        width:26px;
+        height:26px;
+        flex-basis:26px;
+      }
+
+      .rigo-studio-sidebar-button[data-page="project"]
+      .rigo-studio-sidebar-icon svg{
+        width:26px;
+        height:26px;
+        stroke-width:1.9;
       }
 
       .rigo-studio-sidebar-label{
@@ -639,12 +726,12 @@ function createSidebarStyles(){
 
         .rigo-studio-sidebar-icon,
         .rigo-studio-sidebar-icon svg{
-          width:20px;
-          height:20px;
+          width:21px;
+          height:21px;
         }
 
         .rigo-studio-sidebar-icon{
-          flex-basis:20px;
+          flex-basis:21px;
         }
 
         .rigo-studio-sidebar-button[data-page="dashboard"]
@@ -658,6 +745,19 @@ function createSidebarStyles(){
         .rigo-studio-sidebar-button[data-page="dashboard"]
         .rigo-studio-sidebar-icon{
           flex-basis:25px;
+        }
+
+        .rigo-studio-sidebar-button[data-page="project"]
+        .rigo-studio-sidebar-icon,
+        .rigo-studio-sidebar-button[data-page="project"]
+        .rigo-studio-sidebar-icon svg{
+          width:23px;
+          height:23px;
+        }
+
+        .rigo-studio-sidebar-button[data-page="project"]
+        .rigo-studio-sidebar-icon{
+          flex-basis:23px;
         }
 
         .rigo-studio-sidebar-label{
