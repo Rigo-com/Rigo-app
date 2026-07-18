@@ -10,11 +10,12 @@ from "./studio-pages.js";
 
 
 // =====================================
-// SVG FACTORIES
+// ICON FACTORY
 // =====================================
 
-function createOutlineSvg(
-  content
+function createIcon(
+  content,
+  style = "outline"
 ){
 
   return `
@@ -22,25 +23,7 @@ function createOutlineSvg(
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
-    >
-      ${content}
-    </svg>
-  `;
-
-}
-
-
-
-function createSolidSvg(
-  content
-){
-
-  return `
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-      class="rigo-studio-sidebar-solid-icon"
+      data-icon-style="${style}"
     >
       ${content}
     </svg>
@@ -58,62 +41,65 @@ const ICONS =
 Object.freeze({
 
   dashboard:
-  createSolidSvg(`
-    <path
-      fill="currentColor"
-      fill-rule="evenodd"
-      clip-rule="evenodd"
-      d="
-        M11.47 2.84
-        a.75.75 0 0 1 1.06 0
-        l8.25 8.25
-        a.75.75 0 1 1-1.06 1.06
-        l-.47-.47
-        v7.57
-        A1.75 1.75 0 0 1 17.5 21
-        h-3.25
-        a.75.75 0 0 1-.75-.75
-        v-4.5
-        h-3
-        v4.5
-        a.75.75 0 0 1-.75.75
-        H6.5
-        a1.75 1.75 0 0 1-1.75-1.75
-        v-7.57
-        l-.47.47
-        a.75.75 0 0 1-1.06-1.06
-        l8.25-8.25
-        Z
-      "
-    ></path>
-  `),
+  createIcon(
+    `
+      <path
+        fill="currentColor"
+        fill-rule="evenodd"
+        clip-rule="evenodd"
+        d="
+          M11.47 2.84
+          a.75.75 0 0 1 1.06 0
+          l8.25 8.25
+          a.75.75 0 1 1-1.06 1.06
+          l-.47-.47
+          v7.57
+          A1.75 1.75 0 0 1 17.5 21
+          h-3.25
+          a.75.75 0 0 1-.75-.75
+          v-4.5
+          h-3
+          v4.5
+          a.75.75 0 0 1-.75.75
+          H6.5
+          a1.75 1.75 0 0 1-1.75-1.75
+          v-7.57
+          l-.47.47
+          a.75.75 0 0 1-1.06-1.06
+          l8.25-8.25
+          Z
+        "
+      ></path>
+    `,
+    "solid"
+  ),
 
   project:
-  createOutlineSvg(`
+  createIcon(`
     <path
       d="
-        M3.75 6.75
-        A1.75 1.75 0 0 1 5.5 5
-        h4.15
-        c.47 0 .92.19 1.25.52
-        l1.08 1.08
-        c.33.33.78.52 1.25.52
-        h5.27
+        M3.75 7.25
+        A1.75 1.75 0 0 1 5.5 5.5
+        h4
+        c.5 0 .97.2 1.32.55
+        l1.13 1.13
+        c.35.35.82.55 1.32.55
+        h5.23
         a1.75 1.75 0 0 1 1.75 1.75
-        v8.88
+        v8.27
         a1.75 1.75 0 0 1-1.75 1.75
         h-13
         a1.75 1.75 0 0 1-1.75-1.75
-        V6.75
+        V7.25
         Z
       "
     ></path>
 
-    <path d="M3.75 9.25h16.5"></path>
+    <path d="M3.75 9.5h16.5"></path>
   `),
 
   system:
-  createOutlineSvg(`
+  createIcon(`
     <rect
       x="3.25"
       y="4"
@@ -127,7 +113,7 @@ Object.freeze({
   `),
 
   agents:
-  createOutlineSvg(`
+  createIcon(`
     <rect
       x="5"
       y="7"
@@ -145,14 +131,14 @@ Object.freeze({
   `),
 
   architecture:
-  createOutlineSvg(`
+  createIcon(`
     <path d="m8.25 5.25-5.5 6.75 5.5 6.75"></path>
     <path d="m15.75 5.25 5.5 6.75-5.5 6.75"></path>
     <path d="m14.25 3.5-4.5 17"></path>
   `),
 
   memory:
-  createOutlineSvg(`
+  createIcon(`
     <ellipse
       cx="12"
       cy="5.25"
@@ -182,7 +168,7 @@ Object.freeze({
   `),
 
   debug:
-  createOutlineSvg(`
+  createIcon(`
     <path
       d="
         M8 9
@@ -205,7 +191,7 @@ Object.freeze({
   `),
 
   extensions:
-  createOutlineSvg(`
+  createIcon(`
     <path
       d="
         M8.5 3.5
@@ -239,7 +225,7 @@ Object.freeze({
   `),
 
   settings:
-  createOutlineSvg(`
+  createIcon(`
     <circle
       cx="12"
       cy="12"
@@ -306,135 +292,68 @@ const SIDEBAR_ITEMS =
 Object.freeze([
 
   {
-    id:
-    "dashboard",
-
-    label:
-    "Dashboard",
-
-    icon:
-    ICONS.dashboard,
-
-    color:
-    "var(--rigo-primary)"
+    id:"dashboard",
+    label:"Dashboard",
+    icon:ICONS.dashboard,
+    color:"var(--rigo-primary)"
   },
 
   {
-    id:
-    "project",
-
-    label:
-    "Project",
-
-    icon:
-    ICONS.project,
-
-    color:
-    "var(--rigo-yellow)"
+    id:"project",
+    label:"Project",
+    icon:ICONS.project,
+    color:"var(--rigo-yellow)"
   },
 
   {
-    id:
-    "code",
-
-    label:
-    "System",
-
-    icon:
-    ICONS.system,
-
-    color:
-    "var(--rigo-blue)"
+    id:"code",
+    label:"System",
+    icon:ICONS.system,
+    color:"var(--rigo-blue)"
   },
 
   {
-    id:
-    "admin-agent",
-
-    label:
-    "Agents",
-
-    icon:
-    ICONS.agents,
-
-    color:
-    "var(--rigo-pink)"
+    id:"admin-agent",
+    label:"Agents",
+    icon:ICONS.agents,
+    color:"var(--rigo-pink)"
   },
 
   {
-    id:
-    "architecture",
-
-    label:
-    "Code Map",
-
-    icon:
-    ICONS.architecture,
-
-    color:
-    "var(--rigo-primary)"
+    id:"architecture",
+    label:"Code Map",
+    icon:ICONS.architecture,
+    color:"var(--rigo-primary)"
   },
 
   {
-    id:
-    "memory",
-
-    label:
-    "Memory",
-
-    icon:
-    ICONS.memory,
-
-    color:
-    "var(--rigo-purple)",
-
-    separatorAfter:
-    true
+    id:"memory",
+    label:"Memory",
+    icon:ICONS.memory,
+    color:"var(--rigo-purple)",
+    separatorAfter:true
   },
 
   {
-    id:
-    "debug",
-
-    label:
-    "Debug",
-
-    icon:
-    ICONS.debug,
-
-    color:
-    "var(--rigo-red)"
+    id:"debug",
+    label:"Debug",
+    icon:ICONS.debug,
+    color:"var(--rigo-red)"
   },
 
   {
-    id:
-    "git",
-
-    label:
-    "Extensions",
-
-    icon:
-    ICONS.extensions,
-
-    color:
-    "var(--rigo-lime)"
+    id:"git",
+    label:"Extensions",
+    icon:ICONS.extensions,
+    color:"var(--rigo-lime)"
   },
 
   {
-    id:
-    "settings",
-
-    label:
-    "Settings",
-
-    icon:
-    ICONS.settings,
-
-    color:
-    "#b7c2d3",
-
-    placement:
-    "bottom"
+    id:"settings",
+    label:"Settings",
+    icon:ICONS.settings,
+    color:"#b7c2d3",
+    placement:"bottom"
   }
 
 ]);
@@ -448,29 +367,13 @@ Object.freeze([
 const studioSidebarState =
 Object.seal({
 
-  mounted:
-  false,
+  mounted:false,
 
-  sidebar:
-  null,
+  sidebar:null,
 
-  hashListenerAttached:
-  false
+  hashListenerAttached:false
 
 });
-
-
-
-// =====================================
-// ACTIVE PAGE
-// =====================================
-
-function getActivePageId(){
-
-  return StudioPages
-  .getPageFromHash();
-
-}
 
 
 
@@ -502,8 +405,8 @@ function createSidebarStyles(){
         background:
           linear-gradient(
             180deg,
-            #071426 0%,
-            #051020 100%
+            #071426,
+            #051020
           );
         box-shadow:
           inset 0 1px 0 rgba(255,255,255,.018),
@@ -512,18 +415,12 @@ function createSidebarStyles(){
 
       .rigo-studio-sidebar-group{
         width:100%;
-        min-width:0;
         display:flex;
         flex-direction:column;
         align-items:stretch;
       }
 
-      .rigo-studio-sidebar-group[data-placement="top"]{
-        flex:0 0 auto;
-      }
-
       .rigo-studio-sidebar-group[data-placement="bottom"]{
-        flex:0 0 auto;
         margin-top:auto;
         padding-bottom:16px;
       }
@@ -581,8 +478,6 @@ function createSidebarStyles(){
             rgba(0,230,157,.105),
             rgba(0,230,157,.055)
           );
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,.025);
       }
 
       .rigo-studio-sidebar-button[data-active="true"]::before{
@@ -592,11 +487,7 @@ function createSidebarStyles(){
         bottom:13px;
         left:-6px;
         width:4px;
-        border-radius:
-          0
-          8px
-          8px
-          0;
+        border-radius:0 8px 8px 0;
         background:var(--rigo-primary);
         box-shadow:
           0 0 10px
@@ -627,6 +518,10 @@ function createSidebarStyles(){
         height:24px;
         display:block;
         overflow:visible;
+      }
+
+      .rigo-studio-sidebar-icon
+      svg[data-icon-style="outline"]{
         fill:none;
         stroke:currentColor;
         stroke-width:1.9;
@@ -635,36 +530,35 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon
-      .rigo-studio-sidebar-solid-icon{
+      svg[data-icon-style="solid"]{
         fill:currentColor;
         stroke:none;
       }
 
       .rigo-studio-sidebar-button[data-page="dashboard"]
-      .rigo-studio-sidebar-icon{
-        width:28px;
-        height:28px;
-        flex-basis:28px;
-      }
-
+      .rigo-studio-sidebar-icon,
       .rigo-studio-sidebar-button[data-page="dashboard"]
       .rigo-studio-sidebar-icon svg{
         width:28px;
         height:28px;
       }
 
-      .rigo-studio-sidebar-button[data-page="project"]
+      .rigo-studio-sidebar-button[data-page="dashboard"]
       .rigo-studio-sidebar-icon{
-        width:26px;
-        height:26px;
-        flex-basis:26px;
+        flex-basis:28px;
       }
 
+      .rigo-studio-sidebar-button[data-page="project"]
+      .rigo-studio-sidebar-icon,
       .rigo-studio-sidebar-button[data-page="project"]
       .rigo-studio-sidebar-icon svg{
         width:26px;
         height:26px;
-        stroke-width:1.9;
+      }
+
+      .rigo-studio-sidebar-button[data-page="project"]
+      .rigo-studio-sidebar-icon{
+        flex-basis:26px;
       }
 
       .rigo-studio-sidebar-label{
@@ -693,7 +587,6 @@ function createSidebarStyles(){
       .rigo-studio-sidebar-separator{
         width:68%;
         height:1px;
-        min-height:1px;
         flex:0 0 1px;
         align-self:center;
         margin:4px 0;
@@ -717,11 +610,6 @@ function createSidebarStyles(){
           height:59px;
           min-height:59px;
           flex-basis:59px;
-        }
-
-        .rigo-studio-sidebar-button[data-active="true"]::before{
-          top:11px;
-          bottom:11px;
         }
 
         .rigo-studio-sidebar-icon,
@@ -778,7 +666,7 @@ function createSidebarStyles(){
 
 
 // =====================================
-// CREATE BUTTON
+// BUTTON
 // =====================================
 
 function createSidebarButton(
@@ -830,8 +718,7 @@ function createSidebarButton(
     "click",
     function(){
 
-      return StudioPages
-      .navigate(
+      StudioPages.navigate(
         item.id
       );
 
@@ -845,32 +732,7 @@ function createSidebarButton(
 
 
 // =====================================
-// CREATE SEPARATOR
-// =====================================
-
-function createSeparator(){
-
-  const separator =
-  document.createElement(
-    "div"
-  );
-
-  separator.className =
-  "rigo-studio-sidebar-separator";
-
-  separator.setAttribute(
-    "aria-hidden",
-    "true"
-  );
-
-  return separator;
-
-}
-
-
-
-// =====================================
-// CREATE GROUP
+// GROUP
 // =====================================
 
 function createSidebarGroup(
@@ -895,31 +757,25 @@ function createSidebarGroup(
 
 
 // =====================================
-// APPEND ITEM
+// SEPARATOR
 // =====================================
 
-function appendSidebarItem(
-  container,
-  item
-){
+function createSeparator(){
 
-  container.appendChild(
-    createSidebarButton(
-      item
-    )
+  const separator =
+  document.createElement(
+    "div"
   );
 
-  if(
-    item.separatorAfter
-  ){
+  separator.className =
+  "rigo-studio-sidebar-separator";
 
-    container.appendChild(
-      createSeparator()
-    );
+  separator.setAttribute(
+    "aria-hidden",
+    "true"
+  );
 
-  }
-
-  return true;
+  return separator;
 
 }
 
@@ -929,59 +785,10 @@ function appendSidebarItem(
 // ACTIVE STATE
 // =====================================
 
-function markActiveButton(
-  button,
-  isActive
-){
-
-  if(
-    !button
-  ){
-
-    return false;
-
-  }
-
-  button.dataset.active =
-  isActive
-  ? "true"
-  : "false";
-
-  if(
-    isActive
-  ){
-
-    button.setAttribute(
-      "aria-current",
-      "page"
-    );
-
-  }
-  else{
-
-    button.removeAttribute(
-      "aria-current"
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UPDATE ACTIVE ITEM
-// =====================================
-
 function updateActiveSidebarItem(){
 
   const sidebar =
-  studioSidebarState.sidebar ||
-  document.getElementById(
-    "rigo-studio-sidebar"
-  );
+  studioSidebarState.sidebar;
 
   if(
     !sidebar
@@ -992,21 +799,41 @@ function updateActiveSidebarItem(){
   }
 
   const activePageId =
-  getActivePageId();
+  StudioPages.getPageFromHash();
 
-  const buttons =
-  sidebar.querySelectorAll(
+  sidebar
+  .querySelectorAll(
     ".rigo-studio-sidebar-button"
-  );
-
-  buttons.forEach(
+  )
+  .forEach(
     function(button){
 
-      markActiveButton(
-        button,
-        button.dataset.page ===
-        activePageId
-      );
+      const isActive =
+      button.dataset.page ===
+      activePageId;
+
+      button.dataset.active =
+      isActive
+      ? "true"
+      : "false";
+
+      if(
+        isActive
+      ){
+
+        button.setAttribute(
+          "aria-current",
+          "page"
+        );
+
+      }
+      else{
+
+        button.removeAttribute(
+          "aria-current"
+        );
+
+      }
 
     }
   );
@@ -1028,7 +855,7 @@ function attachHashListener(){
     .hashListenerAttached
   ){
 
-    return true;
+    return;
 
   }
 
@@ -1041,8 +868,6 @@ function attachHashListener(){
   .hashListenerAttached =
   true;
 
-  return true;
-
 }
 
 
@@ -1054,7 +879,7 @@ function detachHashListener(){
     .hashListenerAttached
   ){
 
-    return true;
+    return;
 
   }
 
@@ -1066,8 +891,6 @@ function detachHashListener(){
   studioSidebarState
   .hashListenerAttached =
   false;
-
-  return true;
 
 }
 
@@ -1092,9 +915,6 @@ function renderSidebar(){
 
   }
 
-  studioSidebarState.sidebar =
-  sidebar;
-
   sidebar.innerHTML =
   `
     ${createSidebarStyles()}
@@ -1110,14 +930,6 @@ function renderSidebar(){
     ".rigo-studio-sidebar-shell"
   );
 
-  if(
-    !navigation
-  ){
-
-    return false;
-
-  }
-
   const topGroup =
   createSidebarGroup(
     "top"
@@ -1128,19 +940,29 @@ function renderSidebar(){
     "bottom"
   );
 
-  SIDEBAR_ITEMS
-  .forEach(
+  SIDEBAR_ITEMS.forEach(
     function(item){
 
-      const targetGroup =
+      const group =
       item.placement === "bottom"
       ? bottomGroup
       : topGroup;
 
-      appendSidebarItem(
-        targetGroup,
-        item
+      group.appendChild(
+        createSidebarButton(
+          item
+        )
       );
+
+      if(
+        item.separatorAfter
+      ){
+
+        group.appendChild(
+          createSeparator()
+        );
+
+      }
 
     }
   );
@@ -1150,12 +972,15 @@ function renderSidebar(){
     bottomGroup
   );
 
-  attachHashListener();
-
-  updateActiveSidebarItem();
+  studioSidebarState.sidebar =
+  sidebar;
 
   studioSidebarState.mounted =
   true;
+
+  attachHashListener();
+
+  updateActiveSidebarItem();
 
   return true;
 
@@ -1171,22 +996,21 @@ function unmountSidebar(){
 
   detachHashListener();
 
-  const sidebar =
-  studioSidebarState.sidebar;
-
   if(
-    sidebar
+    studioSidebarState.sidebar
   ){
 
-    sidebar.replaceChildren();
+    studioSidebarState
+    .sidebar
+    .replaceChildren();
 
   }
 
-  studioSidebarState.sidebar =
-  null;
-
   studioSidebarState.mounted =
   false;
+
+  studioSidebarState.sidebar =
+  null;
 
   return true;
 
@@ -1206,7 +1030,7 @@ function snapshot(){
     studioSidebarState.mounted,
 
     activePage:
-    getActivePageId(),
+    StudioPages.getPageFromHash(),
 
     items:
     SIDEBAR_ITEMS.map(
@@ -1236,28 +1060,6 @@ function snapshot(){
 
 
 // =====================================
-// API
-// =====================================
-
-const StudioSidebar =
-Object.freeze({
-
-  render:
-  renderSidebar,
-
-  unmount:
-  unmountSidebar,
-
-  updateActive:
-  updateActiveSidebarItem,
-
-  snapshot
-
-});
-
-
-
-// =====================================
 // EXPORTS
 // =====================================
 
@@ -1271,23 +1073,13 @@ export {
 
   createSidebarButton,
 
-  createSeparator,
-
-  createSidebarGroup,
-
-  appendSidebarItem,
-
-  markActiveButton,
-
   updateActiveSidebarItem,
 
   renderSidebar,
 
   unmountSidebar,
 
-  snapshot,
-
-  StudioSidebar
+  snapshot
 
 };
 
