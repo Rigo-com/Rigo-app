@@ -10,7 +10,7 @@ from "./studio-pages.js";
 
 
 // =====================================
-// ICON FACTORY
+// ICON HELPERS
 // =====================================
 
 function createIcon(
@@ -33,6 +33,33 @@ function createIcon(
 
 
 
+function createPathIcon(
+  paths,
+  variant = "outline"
+){
+
+  const content =
+  paths
+  .map(
+    function(path){
+
+      return `
+        <path d="${path}"></path>
+      `;
+
+    }
+  )
+  .join("");
+
+  return createIcon(
+    content,
+    variant
+  );
+
+}
+
+
+
 // =====================================
 // ICONS
 // =====================================
@@ -45,237 +72,136 @@ Object.freeze({
     `
       <path
         fill-rule="evenodd"
+        clip-rule="evenodd"
         d="
-          M11.47 3.84
-          a.75.75 0 0 1 1.06 0
-          l8.25 8.25
-          a.75.75 0 1 1-1.06 1.06
-          l-.97-.97
-          v7.07
-          A1.75 1.75 0 0 1 17 21
-          h-3.25
-          a.75.75 0 0 1-.75-.75
-          v-4.5
-          h-2
-          v4.5
-          a.75.75 0 0 1-.75.75
-          H7
-          a1.75 1.75 0 0 1-1.75-1.75
-          v-7.07
-          l-.97.97
-          a.75.75 0 1 1-1.06-1.06
-          l8.25-8.25
+          M3.25 11.35
+          12 3.5
+          l8.75 7.85
+          v8.15
+          a1.5 1.5 0 0 1-1.5 1.5
+          H14.5
+          v-6
+          h-5
+          v6
+          H4.75
+          a1.5 1.5 0 0 1-1.5-1.5
+          v-8.15
           Z
         "
-        clip-rule="evenodd"
       ></path>
     `,
     "solid"
   ),
 
   project:
-  createIcon(`
-    <path
-      d="
-        M2.75 7.75
-        A2.25 2.25 0 0 1 5 5.5
-        h3.25
-        c.5 0 .97.2 1.32.55
-        l1.13 1.13
-        c.35.35.82.55 1.32.55
-        H19
-        a2.25 2.25 0 0 1 2.25 2.25
-        v7.75
-        A2.25 2.25 0 0 1 19 19.5
-        H5
-        a2.25 2.25 0 0 1-2.25-2.25
-        v-9.5
-        Z
-      "
-    ></path>
-
-    <path d="M2.75 9.5h18.5"></path>
-  `),
+  createPathIcon([
+    "M3 8.5V7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5Z",
+    "M3 9h18"
+  ]),
 
   system:
-  createIcon(`
-    <rect
-      x="3"
-      y="4"
-      width="18"
-      height="13"
-      rx="2"
-    ></rect>
-
-    <path d="M8 21h8"></path>
-    <path d="M12 17v4"></path>
-  `),
+  createPathIcon([
+    "M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
+    "M8 22h8",
+    "M12 18v4"
+  ]),
 
   agents:
-  createIcon(`
-    <rect
-      x="5"
-      y="7"
-      width="14"
-      height="11"
-      rx="3"
-    ></rect>
-
-    <path d="M12 3v4"></path>
-    <path d="M9 12h.01"></path>
-    <path d="M15 12h.01"></path>
-    <path d="M9.5 15h5"></path>
-    <path d="M3 11v3"></path>
-    <path d="M21 11v3"></path>
-  `),
+  createPathIcon([
+    "M7 8h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3Z",
+    "M12 4v4",
+    "M9 13h.01",
+    "M15 13h.01",
+    "M9.5 16h5",
+    "M2 12v4",
+    "M22 12v4"
+  ]),
 
   architecture:
-  createIcon(`
-    <path d="m8.5 4.5-6 7.5 6 7.5"></path>
-    <path d="m15.5 4.5 6 7.5-6 7.5"></path>
-    <path d="m14.5 3-5 18"></path>
-  `),
+  createPathIcon([
+    "m8 5-6 7 6 7",
+    "m16 5 6 7-6 7",
+    "m14.5 3-5 18"
+  ]),
 
   memory:
   createIcon(`
-    <ellipse
-      cx="12"
-      cy="5.5"
-      rx="7"
-      ry="2.5"
-    ></ellipse>
-
     <path
       d="
-        M5 5.5
-        v6
-        c0 1.38 3.13 2.5 7 2.5
-        s7-1.12 7-2.5
-        v-6
+        M12 3
+        a7 7 0 0 0-7 7
+        v4
+        a7 7 0 0 0 7 7
+        h1
+        a3 3 0 0 0 3-3
+        4 4 0 0 0 3-3.87
+        A6 6 0 0 0 12 3
+        Z
       "
     ></path>
 
-    <path
-      d="
-        M5 11.5
-        v6
-        c0 1.38 3.13 2.5 7 2.5
-        s7-1.12 7-2.5
-        v-6
-      "
-    ></path>
+    <path d="M8 8.5a2.5 2.5 0 0 1 4-2"></path>
+    <path d="M7.5 13a3 3 0 0 0 4.5 2.6"></path>
+    <path d="M12 6v12"></path>
+    <path d="M12 9a3 3 0 0 0 4.5 2.6"></path>
+    <path d="M12 14a3 3 0 0 1 4 3"></path>
   `),
 
   debug:
-  createIcon(`
-    <path
-      d="
-        M8 9
-        h8
-        v7
-        a4 4 0 0 1-8 0
-        V9
-        Z
-      "
-    ></path>
-
-    <path d="M9 9V7.5a3 3 0 0 1 6 0V9"></path>
-    <path d="M4 12h4"></path>
-    <path d="M16 12h4"></path>
-    <path d="m5 7 3 2"></path>
-    <path d="m19 7-3 2"></path>
-    <path d="m5 19 3-2"></path>
-    <path d="m19 19-3-2"></path>
-    <path d="M12 9v11"></path>
-  `),
+  createPathIcon([
+    "M8 9h8v7a4 4 0 0 1-8 0V9Z",
+    "M9 9V7.5a3 3 0 0 1 6 0V9",
+    "M4 12h4",
+    "M16 12h4",
+    "m5 7 3 2",
+    "m19 7-3 2",
+    "m5 19 3-2",
+    "m19 19-3-2",
+    "M12 9v11"
+  ]),
 
   extensions:
-  createIcon(`
-    <path
-      d="
-        M8.25 3
-        H5.5
-        A2.5 2.5 0 0 0 3 5.5
-        v3.25
-        h1
-        a2.25 2.25 0 1 1 0 4.5
-        H3
-        v3.25
-        A2.5 2.5 0 0 0 5.5 19
-        h3.25
-        v-1
-        a2.25 2.25 0 1 1 4.5 0
-        v1
-        h3.25
-        a2.5 2.5 0 0 0 2.5-2.5
-        v-3.25
-        h1
-        a2.25 2.25 0 1 0 0-4.5
-        h-1
-        V5.5
-        A2.5 2.5 0 0 0 16.5 3
-        h-3.25
-        v1
-        a2.25 2.25 0 1 1-4.5 0
-        V3
-        Z
-      "
-    ></path>
-  `),
+  createPathIcon([
+    "M8 3v3a2 2 0 1 0 4 0V3h4a2 2 0 0 1 2 2v4h1a2 2 0 1 1 0 4h-1v4a2 2 0 0 1-2 2h-4v-1a2 2 0 1 0-4 0v1H4a2 2 0 0 1-2-2v-4h1a2 2 0 1 0 0-4H2V5a2 2 0 0 1 2-2h4Z"
+  ]),
 
   settings:
   createIcon(`
     <path
       d="
-        M9.59 3.17
-        A1.5 1.5 0 0 1 11.06 2
-        h1.88
-        a1.5 1.5 0 0 1 1.47 1.17
-        l.2.88
-        c.09.4.35.73.7.93
-        l.22.13
-        c.35.2.77.24 1.15.11
-        l.86-.3
-        a1.5 1.5 0 0 1 1.77.62
-        l.94 1.62
-        a1.5 1.5 0 0 1-.3 1.86
-        l-.67.59
-        c-.31.27-.47.67-.47 1.08
-        v.26
-        c0 .41.16.81.47 1.08
-        l.67.59
-        a1.5 1.5 0 0 1 .3 1.86
-        l-.94 1.62
-        a1.5 1.5 0 0 1-1.77.62
-        l-.86-.3
-        c-.38-.13-.8-.09-1.15.11
-        l-.22.13
-        c-.35.2-.61.53-.7.93
-        l-.2.88
-        A1.5 1.5 0 0 1 12.94 22
-        h-1.88
-        a1.5 1.5 0 0 1-1.47-1.17
-        l-.2-.88
-        a1.42 1.42 0 0 0-.7-.93
-        l-.22-.13
-        a1.42 1.42 0 0 0-1.15-.11
-        l-.86.3
-        a1.5 1.5 0 0 1-1.77-.62
-        l-.94-1.62
-        a1.5 1.5 0 0 1 .3-1.86
-        l.67-.59
-        c.31-.27.47-.67.47-1.08
-        v-.26
-        c0-.41-.16-.81-.47-1.08
-        l-.67-.59
-        a1.5 1.5 0 0 1-.3-1.86
-        l.94-1.62
-        a1.5 1.5 0 0 1 1.77-.62
-        l.86.3
-        c.38.13.8.09 1.15-.11
-        l.22-.13
-        c.35-.2.61-.53.7-.93
-        l.2-.88
+        M10.33 3.23
+        a1.75 1.75 0 0 1 3.34 0
+        l.2.7
+        a1.75 1.75 0 0 0 2.45 1.06
+        l.66-.34
+        a1.75 1.75 0 0 1 2.29.7
+        l.4.69
+        a1.75 1.75 0 0 1-.4 2.24
+        l-.57.48
+        a1.75 1.75 0 0 0 0 2.68
+        l.57.48
+        a1.75 1.75 0 0 1 .4 2.24
+        l-.4.69
+        a1.75 1.75 0 0 1-2.29.7
+        l-.66-.34
+        a1.75 1.75 0 0 0-2.45 1.06
+        l-.2.7
+        a1.75 1.75 0 0 1-3.34 0
+        l-.2-.7
+        a1.75 1.75 0 0 0-2.45-1.06
+        l-.66.34
+        a1.75 1.75 0 0 1-2.29-.7
+        l-.4-.69
+        a1.75 1.75 0 0 1 .4-2.24
+        l.57-.48
+        a1.75 1.75 0 0 0 0-2.68
+        l-.57-.48
+        a1.75 1.75 0 0 1-.4-2.24
+        l.4-.69
+        a1.75 1.75 0 0 1 2.29-.7
+        l.66.34
+        a1.75 1.75 0 0 0 2.45-1.06
+        l.2-.7
         Z
       "
     ></path>
@@ -292,7 +218,7 @@ Object.freeze({
 
 
 // =====================================
-// SIDEBAR ITEMS
+// SIDEBAR CONFIGURATION
 // =====================================
 
 const SIDEBAR_ITEMS =
@@ -330,15 +256,14 @@ Object.freeze([
     id:"architecture",
     label:"Code Map",
     icon:ICONS.architecture,
-    color:"var(--rigo-primary)"
+    color:"var(--rigo-yellow)"
   },
 
   {
     id:"memory",
     label:"Memory",
     icon:ICONS.memory,
-    color:"var(--rigo-purple)",
-    separatorAfter:true
+    color:"var(--rigo-purple)"
   },
 
   {
@@ -360,7 +285,7 @@ Object.freeze([
     label:"Settings",
     icon:ICONS.settings,
     color:"#aebbd0",
-    placement:"bottom"
+    bottom:true
   }
 
 ]);
@@ -375,6 +300,8 @@ const sidebarState =
 Object.seal({
 
   root:null,
+
+  navigation:null,
 
   listening:false
 
@@ -396,53 +323,58 @@ function createSidebarStyles(){
         min-height:0;
       }
 
-      .rigo-studio-sidebar-shell{
+      .rigo-studio-sidebar{
         width:100%;
         height:100%;
         display:flex;
         flex-direction:column;
-        padding:5px;
+        padding:6px;
         overflow:hidden;
         border:1px solid rgba(94,126,163,.2);
         border-radius:14px;
         background:
+          radial-gradient(
+            circle at 50% 0%,
+            rgba(25,46,68,.18),
+            transparent 42%
+          ),
           linear-gradient(
             180deg,
-            #071426 0%,
-            #051020 100%
+            #071426,
+            #051020
           );
         box-shadow:
           inset 0 1px 0 rgba(255,255,255,.018),
           0 10px 26px rgba(0,0,0,.18);
       }
 
-      .rigo-studio-sidebar-group{
+      .rigo-studio-sidebar-list{
         width:100%;
         display:flex;
         flex-direction:column;
+        gap:1px;
       }
 
-      .rigo-studio-sidebar-group[data-placement="bottom"]{
+      .rigo-studio-sidebar-list[data-position="bottom"]{
         margin-top:auto;
-        padding-bottom:16px;
+        padding-bottom:14px;
       }
 
-      .rigo-studio-sidebar-button{
+      .rigo-studio-sidebar-item{
         --sidebar-color:
         var(--rigo-text-secondary);
 
         position:relative;
         width:100%;
-        height:58px;
         min-height:58px;
         display:flex;
         flex-direction:column;
         align-items:center;
         justify-content:center;
         gap:5px;
-        padding:4px 2px;
+        padding:5px 2px;
         border:1px solid transparent;
-        border-radius:9px;
+        border-radius:10px;
         color:var(--rigo-text-secondary);
         background:transparent;
         font-family:var(--rigo-font);
@@ -451,41 +383,41 @@ function createSidebarStyles(){
           color var(--rigo-transition-normal),
           background var(--rigo-transition-normal),
           border-color var(--rigo-transition-normal),
-          box-shadow var(--rigo-transition-normal);
+          transform var(--rigo-transition-normal);
       }
 
-      .rigo-studio-sidebar-button:hover{
+      .rigo-studio-sidebar-item:hover{
         color:var(--rigo-text);
-        border-color:rgba(148,163,184,.07);
+        border-color:rgba(148,163,184,.08);
         background:rgba(15,35,55,.56);
+        transform:translateY(-1px);
       }
 
-      .rigo-studio-sidebar-button:focus-visible{
+      .rigo-studio-sidebar-item:focus-visible{
         outline:none;
         border-color:rgba(0,230,157,.38);
         box-shadow:
           0 0 0 2px rgba(0,230,157,.08);
       }
 
-      .rigo-studio-sidebar-button[data-active="true"]{
-        height:66px;
+      .rigo-studio-sidebar-item[data-active="true"]{
         min-height:66px;
         color:var(--rigo-primary);
         border-color:rgba(0,230,157,.16);
         background:
           linear-gradient(
-            180deg,
-            rgba(0,230,157,.105),
-            rgba(0,230,157,.055)
+            145deg,
+            rgba(8,40,43,.94),
+            rgba(8,31,39,.88)
           );
       }
 
-      .rigo-studio-sidebar-button[data-active="true"]::before{
+      .rigo-studio-sidebar-item[data-active="true"]::before{
         content:"";
         position:absolute;
         top:13px;
         bottom:13px;
-        left:-6px;
+        left:-7px;
         width:4px;
         border-radius:0 8px 8px 0;
         background:var(--rigo-primary);
@@ -495,27 +427,22 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon{
-        width:26px;
-        height:26px;
-        flex:0 0 26px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
+        width:28px;
+        height:28px;
+        flex:0 0 28px;
+        display:grid;
+        place-items:center;
         color:var(--sidebar-color);
         filter:
           drop-shadow(
-            0 0 4px
-            color-mix(
-              in srgb,
-              var(--sidebar-color) 20%,
-              transparent
-            )
+            0 3px 4px
+            rgba(0,0,0,.32)
           );
       }
 
       .rigo-studio-sidebar-icon svg{
-        width:26px;
-        height:26px;
+        width:100%;
+        height:100%;
         display:block;
         overflow:visible;
       }
@@ -537,69 +464,55 @@ function createSidebarStyles(){
 
       .rigo-studio-sidebar-label{
         width:100%;
-        overflow:visible;
+        overflow:hidden;
         color:var(--rigo-text-secondary);
         font-size:10px;
-        line-height:1.35;
+        line-height:1.25;
         font-weight:600;
         text-align:center;
+        text-overflow:ellipsis;
         white-space:nowrap;
       }
 
-      .rigo-studio-sidebar-button:hover
+      .rigo-studio-sidebar-item:hover
       .rigo-studio-sidebar-label{
         color:var(--rigo-text);
       }
 
-      .rigo-studio-sidebar-button[data-active="true"]
+      .rigo-studio-sidebar-item[data-active="true"]
       .rigo-studio-sidebar-icon,
-      .rigo-studio-sidebar-button[data-active="true"]
+      .rigo-studio-sidebar-item[data-active="true"]
       .rigo-studio-sidebar-label{
         color:var(--rigo-primary);
       }
 
-      .rigo-studio-sidebar-separator{
-        width:68%;
-        height:1px;
-        flex:0 0 1px;
-        align-self:center;
-        margin:4px 0;
-        background:rgba(112,145,180,.14);
-      }
-
       @media(max-height:760px){
 
-        .rigo-studio-sidebar-shell{
+        .rigo-studio-sidebar{
           padding:4px;
         }
 
-        .rigo-studio-sidebar-button{
-          height:52px;
+        .rigo-studio-sidebar-item{
           min-height:52px;
           gap:3px;
         }
 
-        .rigo-studio-sidebar-button[data-active="true"]{
-          height:59px;
-          min-height:59px;
-        }
-
-        .rigo-studio-sidebar-icon,
-        .rigo-studio-sidebar-icon svg{
-          width:23px;
-          height:23px;
+        .rigo-studio-sidebar-item[data-active="true"]{
+          min-height:58px;
         }
 
         .rigo-studio-sidebar-icon{
-          flex-basis:23px;
+          width:24px;
+          height:24px;
+          flex-basis:24px;
         }
 
         .rigo-studio-sidebar-label{
           font-size:9px;
         }
 
-        .rigo-studio-sidebar-separator{
-          margin:2px 0;
+        .rigo-studio-sidebar-list[data-position="bottom"]{
+          padding-bottom:8px;
         }
 
       }
@@ -612,7 +525,7 @@ function createSidebarStyles(){
 
 
 // =====================================
-// CREATE BUTTON
+// CREATE SIDEBAR BUTTON
 // =====================================
 
 function createSidebarButton(
@@ -628,7 +541,7 @@ function createSidebarButton(
   "button";
 
   button.className =
-  "rigo-studio-sidebar-button";
+  "rigo-studio-sidebar-item";
 
   button.dataset.page =
   item.id;
@@ -651,7 +564,10 @@ function createSidebarButton(
 
   button.innerHTML =
   `
-    <span class="rigo-studio-sidebar-icon">
+    <span
+      class="rigo-studio-sidebar-icon"
+      aria-hidden="true"
+    >
       ${item.icon}
     </span>
 
@@ -678,63 +594,38 @@ function createSidebarButton(
 
 
 // =====================================
-// CREATE GROUP
+// CREATE LIST
 // =====================================
 
-function createSidebarGroup(
-  placement
+function createSidebarList(
+  position
 ){
 
-  const group =
+  const list =
   document.createElement(
     "div"
   );
 
-  group.className =
-  "rigo-studio-sidebar-group";
+  list.className =
+  "rigo-studio-sidebar-list";
 
-  group.dataset.placement =
-  placement;
+  list.dataset.position =
+  position;
 
-  return group;
+  return list;
 
 }
 
 
 
 // =====================================
-// CREATE SEPARATOR
-// =====================================
-
-function createSeparator(){
-
-  const separator =
-  document.createElement(
-    "div"
-  );
-
-  separator.className =
-  "rigo-studio-sidebar-separator";
-
-  separator.setAttribute(
-    "aria-hidden",
-    "true"
-  );
-
-  return separator;
-
-}
-
-
-
-// =====================================
-// ACTIVE STATE
+// ACTIVE PAGE
 // =====================================
 
 function updateActiveSidebarItem(){
 
   if(
-    !sidebarState.root
+    !sidebarState.navigation
   ){
 
     return false;
@@ -744,11 +635,13 @@ function updateActiveSidebarItem(){
   const activePage =
   StudioPages.getPageFromHash();
 
-  sidebarState.root
+  const buttons =
+  sidebarState.navigation
   .querySelectorAll(
-    ".rigo-studio-sidebar-button"
-  )
-  .forEach(
+    ".rigo-studio-sidebar-item"
+  );
+
+  buttons.forEach(
     function(button){
 
       const isActive =
@@ -758,6 +651,11 @@ function updateActiveSidebarItem(){
       button.dataset.active =
       String(isActive);
 
+      button.toggleAttribute(
+        "aria-current",
+        isActive
+      );
+
       if(
         isActive
       ){
@@ -765,13 +663,6 @@ function updateActiveSidebarItem(){
         button.setAttribute(
           "aria-current",
           "page"
-        );
-
-      }
-      else{
-
-        button.removeAttribute(
-          "aria-current"
         );
 
       }
@@ -786,7 +677,7 @@ function updateActiveSidebarItem(){
 
 
 // =====================================
-// LISTENERS
+// HASH LISTENER
 // =====================================
 
 function attachHashListener(){
@@ -795,7 +686,7 @@ function attachHashListener(){
     sidebarState.listening
   ){
 
-    return;
+    return false;
 
   }
 
@@ -807,6 +698,8 @@ function attachHashListener(){
   sidebarState.listening =
   true;
 
+  return true;
+
 }
 
 
@@ -817,7 +710,7 @@ function detachHashListener(){
     !sidebarState.listening
   ){
 
-    return;
+    return false;
 
   }
 
@@ -828,6 +721,8 @@ function detachHashListener(){
 
   sidebarState.listening =
   false;
+
+  return true;
 
 }
 
@@ -852,65 +747,60 @@ function renderSidebar(){
 
   }
 
+  unmountSidebar();
+
   root.innerHTML =
   `
     ${createSidebarStyles()}
 
     <nav
-      class="rigo-studio-sidebar-shell"
+      class="rigo-studio-sidebar"
       aria-label="Studio navigation"
     ></nav>
   `;
 
   const navigation =
   root.querySelector(
-    ".rigo-studio-sidebar-shell"
+    ".rigo-studio-sidebar"
   );
 
-  const topGroup =
-  createSidebarGroup(
+  const topList =
+  createSidebarList(
     "top"
   );
 
-  const bottomGroup =
-  createSidebarGroup(
+  const bottomList =
+  createSidebarList(
     "bottom"
   );
 
   SIDEBAR_ITEMS.forEach(
     function(item){
 
-      const group =
-      item.placement === "bottom"
-      ? bottomGroup
-      : topGroup;
+      const targetList =
+      item.bottom
+      ? bottomList
+      : topList;
 
-      group.appendChild(
+      targetList.appendChild(
         createSidebarButton(
           item
         )
       );
 
-      if(
-        item.separatorAfter
-      ){
-
-        group.appendChild(
-          createSeparator()
-        );
-
-      }
-
     }
   );
 
   navigation.append(
-    topGroup,
-    bottomGroup
+    topList,
+    bottomList
   );
 
   sidebarState.root =
   root;
+
+  sidebarState.navigation =
+  navigation;
 
   attachHashListener();
 
@@ -942,6 +832,9 @@ function unmountSidebar(){
   sidebarState.root =
   null;
 
+  sidebarState.navigation =
+  null;
+
   return true;
 
 }
@@ -961,6 +854,9 @@ function snapshot(){
       sidebarState.root
     ),
 
+    listening:
+    sidebarState.listening,
+
     activePage:
     StudioPages.getPageFromHash(),
 
@@ -976,9 +872,10 @@ function snapshot(){
           label:
           item.label,
 
-          placement:
-          item.placement ||
-          "top"
+          position:
+          item.bottom
+          ? "bottom"
+          : "top"
 
         };
 
