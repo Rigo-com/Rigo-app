@@ -481,15 +481,15 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon svg{
-  width:25px;
-  height:25px;
+  width:22px;
+  height:22px;
   display:block;
   overflow:visible;
   fill:none;
   stroke:currentColor;
-  stroke-width:2.35;
-  stroke-linecap:square;
-  stroke-linejoin:miter;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
 }
 
       .rigo-studio-sidebar-label{
