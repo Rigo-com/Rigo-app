@@ -39,31 +39,16 @@ const ICONS =
 Object.freeze({
 
   dashboard:
-createSvg(`
-  <path
-    fill="currentColor"
-    stroke="none"
-    fill-rule="evenodd"
-    clip-rule="evenodd"
-    d="
-      M12 3
-      2.8 10.4
-      4.5 12.5
-      6 11.3
-      V20
-      H10
-      V14
-      H14
-      V20
-      H18
-      V11.3
-      L19.5 12.5
-      21.2 10.4
-      Z
-    "
-  ></path>
-`),
-  
+  createSvg(`
+    <path
+      fill="currentColor"
+      stroke="none"
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M12 2.8 2.6 10.3l1.7 2.1 1.6-1.3V20h4.2v-6h3.8v6h4.2v-8.9l1.6 1.3 1.7-2.1L12 2.8Z"
+    ></path>
+  `),
+
   project:
   createSvg(`
     <path
@@ -77,6 +62,7 @@ createSvg(`
         Z
       "
     ></path>
+
     <path d="M3.5 9.5h17"></path>
   `),
 
@@ -89,6 +75,7 @@ createSvg(`
       height="13"
       rx="2"
     ></rect>
+
     <path d="M8 21h8"></path>
     <path d="M12 17v4"></path>
   `),
@@ -102,6 +89,7 @@ createSvg(`
       height="11"
       rx="3"
     ></rect>
+
     <path d="M9 12h.01"></path>
     <path d="M15 12h.01"></path>
     <path d="M9.5 15h5"></path>
@@ -124,8 +112,26 @@ createSvg(`
       rx="7"
       ry="3"
     ></ellipse>
-    <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"></path>
-    <path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"></path>
+
+    <path
+      d="
+        M5 5
+        v6
+        c0 1.7 3.1 3 7 3
+        s7-1.3 7-3
+        V5
+      "
+    ></path>
+
+    <path
+      d="
+        M5 11
+        v6
+        c0 1.7 3.1 3 7 3
+        s7-1.3 7-3
+        v-6
+      "
+    ></path>
   `),
 
   debug:
@@ -226,14 +232,6 @@ createSvg(`
 });
 
 
-.rigo-studio-sidebar-button[data-page="dashboard"]
-.rigo-studio-sidebar-icon svg{
-  width:28px;
-  height:28px;
-  fill:currentColor;
-  stroke:none;
-}
-
 
 // =====================================
 // SIDEBAR ITEMS
@@ -243,68 +241,135 @@ const SIDEBAR_ITEMS =
 Object.freeze([
 
   {
-    id:"dashboard",
-    label:"Dashboard",
-    icon:ICONS.dashboard,
-    color:"var(--rigo-primary)"
+    id:
+    "dashboard",
+
+    label:
+    "Dashboard",
+
+    icon:
+    ICONS.dashboard,
+
+    color:
+    "var(--rigo-primary)"
   },
 
   {
-    id:"project",
-    label:"Project",
-    icon:ICONS.project,
-    color:"var(--rigo-yellow)"
+    id:
+    "project",
+
+    label:
+    "Project",
+
+    icon:
+    ICONS.project,
+
+    color:
+    "var(--rigo-yellow)"
   },
 
   {
-    id:"code",
-    label:"System",
-    icon:ICONS.system,
-    color:"var(--rigo-blue)"
+    id:
+    "code",
+
+    label:
+    "System",
+
+    icon:
+    ICONS.system,
+
+    color:
+    "var(--rigo-blue)"
   },
 
   {
-    id:"admin-agent",
-    label:"Agents",
-    icon:ICONS.agents,
-    color:"var(--rigo-pink)"
+    id:
+    "admin-agent",
+
+    label:
+    "Agents",
+
+    icon:
+    ICONS.agents,
+
+    color:
+    "var(--rigo-pink)"
   },
 
   {
-    id:"architecture",
-    label:"Code Map",
-    icon:ICONS.architecture,
-    color:"var(--rigo-primary)"
+    id:
+    "architecture",
+
+    label:
+    "Code Map",
+
+    icon:
+    ICONS.architecture,
+
+    color:
+    "var(--rigo-primary)"
   },
 
   {
-    id:"memory",
-    label:"Memory",
-    icon:ICONS.memory,
-    color:"var(--rigo-purple)",
-    separatorAfter:true
+    id:
+    "memory",
+
+    label:
+    "Memory",
+
+    icon:
+    ICONS.memory,
+
+    color:
+    "var(--rigo-purple)",
+
+    separatorAfter:
+    true
   },
 
   {
-    id:"debug",
-    label:"Debug",
-    icon:ICONS.debug,
-    color:"var(--rigo-red)"
+    id:
+    "debug",
+
+    label:
+    "Debug",
+
+    icon:
+    ICONS.debug,
+
+    color:
+    "var(--rigo-red)"
   },
 
   {
-    id:"git",
-    label:"Extensions",
-    icon:ICONS.extensions,
-    color:"var(--rigo-lime)"
+    id:
+    "git",
+
+    label:
+    "Extensions",
+
+    icon:
+    ICONS.extensions,
+
+    color:
+    "var(--rigo-lime)"
   },
 
   {
-    id:"settings",
-    label:"Settings",
-    icon:ICONS.settings,
-    color:"#b7c2d3",
-    placement:"bottom"
+    id:
+    "settings",
+
+    label:
+    "Settings",
+
+    icon:
+    ICONS.settings,
+
+    color:
+    "#b7c2d3",
+
+    placement:
+    "bottom"
   }
 
 ]);
@@ -318,11 +383,14 @@ Object.freeze([
 const studioSidebarState =
 Object.seal({
 
-  mounted:false,
+  mounted:
+  false,
 
-  sidebar:null,
+  sidebar:
+  null,
 
-  hashListenerAttached:false
+  hashListenerAttached:
+  false
 
 });
 
@@ -486,16 +554,31 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-sidebar-icon svg{
-  width:22px;
-  height:22px;
-  display:block;
-  overflow:visible;
-  fill:none;
-  stroke:currentColor;
-  stroke-width:2;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-}
+        width:22px;
+        height:22px;
+        display:block;
+        overflow:visible;
+        fill:none;
+        stroke:currentColor;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .rigo-studio-sidebar-button[data-page="dashboard"]
+      .rigo-studio-sidebar-icon{
+        width:28px;
+        height:28px;
+        flex-basis:28px;
+      }
+
+      .rigo-studio-sidebar-button[data-page="dashboard"]
+      .rigo-studio-sidebar-icon svg{
+        width:28px;
+        height:28px;
+        fill:currentColor;
+        stroke:none;
+      }
 
       .rigo-studio-sidebar-label{
         width:100%;
@@ -562,6 +645,19 @@ function createSidebarStyles(){
 
         .rigo-studio-sidebar-icon{
           flex-basis:20px;
+        }
+
+        .rigo-studio-sidebar-button[data-page="dashboard"]
+        .rigo-studio-sidebar-icon,
+        .rigo-studio-sidebar-button[data-page="dashboard"]
+        .rigo-studio-sidebar-icon svg{
+          width:25px;
+          height:25px;
+        }
+
+        .rigo-studio-sidebar-button[data-page="dashboard"]
+        .rigo-studio-sidebar-icon{
+          flex-basis:25px;
         }
 
         .rigo-studio-sidebar-label{
