@@ -41,32 +41,29 @@ Object.freeze({
   dashboard:
 createSvg(`
   <path
+    fill="currentColor"
+    stroke="none"
+    fill-rule="evenodd"
+    clip-rule="evenodd"
     d="
-      M3.5 10.2
-      12 3.6
-      20.5 10.2
-    "
-  ></path>
-
-  <path
-    d="
-      M5.8 9.4
+      M12 3
+      2.8 10.4
+      4.5 12.5
+      6 11.3
       V20
-      H18.2
-      V9.4
-    "
-  ></path>
-
-  <path
-    d="
-      M9.4 20
-      V13.6
-      H14.6
+      H10
+      V14
+      H14
       V20
+      H18
+      V11.3
+      L19.5 12.5
+      21.2 10.4
+      Z
     "
   ></path>
 `),
-
+  
   project:
   createSvg(`
     <path
@@ -228,6 +225,14 @@ createSvg(`
 
 });
 
+
+.rigo-studio-sidebar-button[data-page="dashboard"]
+.rigo-studio-sidebar-icon svg{
+  width:28px;
+  height:28px;
+  fill:currentColor;
+  stroke:none;
+}
 
 
 // =====================================
