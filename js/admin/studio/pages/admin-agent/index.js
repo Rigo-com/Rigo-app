@@ -4,18 +4,20 @@
 // =====================================
 
 import {
+
   getAdminStatus,
+
   executeAdminCommand
+
 }
 from "./admin-agent-loader.js";
 
 import {
+
   renderLayout
+
 }
 from "./admin-agent-layout.js";
-
-import AdminAgentActions
-from "./admin-agent-actions.js";
 
 
 
@@ -26,23 +28,35 @@ from "./admin-agent-actions.js";
 const adminAgentPageState =
 Object.seal({
 
-  initialized:false,
+  initialized:
+  false,
 
-  mounted:false,
+  mounted:
+  false,
 
-  loading:false,
+  loading:
+  false,
 
-  error:null,
+  error:
+  null,
 
-  input:"",
+  input:
+  "",
 
-  container:null,
+  container:
+  null,
 
-  messages:[],
+  messages:
+  [],
 
   admin:{
-    available:false,
-    status:"unknown"
+
+    available:
+    false,
+
+    status:
+    "unknown"
+
   }
 
 });
@@ -50,7 +64,32 @@ Object.seal({
 
 
 // =====================================
-// MESSAGES
+// MESSAGE ID
+// =====================================
+
+let messageSequence =
+0;
+
+
+
+function createMessageId(){
+
+  messageSequence +=
+  1;
+
+  return [
+    "admin-agent-message",
+    Date.now(),
+    messageSequence
+  ]
+  .join("-");
+
+}
+
+
+
+// =====================================
+// ADD MESSAGE
 // =====================================
 
 function addMessage(
@@ -58,10 +97,12 @@ function addMessage(
   content
 ){
 
-  adminAgentPageState.messages.push({
+  adminAgentPageState
+  .messages
+  .push({
 
     id:
-    "admin-agent-message-" + Date.now(),
+    createMessageId(),
 
     role,
 
@@ -71,6 +112,45 @@ function addMessage(
     Date.now()
 
   });
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SCROLL CONSOLE
+// =====================================
+
+function scrollConsoleToBottom(){
+
+  const container =
+  adminAgentPageState.container;
+
+  if(
+    !container
+  ){
+
+    return false;
+
+  }
+
+  const consoleElement =
+  container.querySelector(
+    "[data-admin-agent-console]"
+  );
+
+  if(
+    !consoleElement
+  ){
+
+    return false;
+
+  }
+
+  consoleElement.scrollTop =
+  consoleElement.scrollHeight;
 
   return true;
 
@@ -95,34 +175,241 @@ function render(){
 
   }
 
-  adminAgentPageState.admin =
-  getAdminStatus();
+  try{
+
+    adminAgentPageState.admin =
+    getAdminStatus() || {
+
+      available:
+      false,
+
+      status:
+      "unknown"
+
+    };
+
+  }
+  catch(error){
+
+    adminAgentPageState.admin = {
+
+      available:
+      false,
+
+      status:
+      "error"
+
+    };
+
+    adminAgentPageState.error =
+    error;
+
+  }
 
   container.innerHTML =
   renderLayout(
     adminAgentPageState
   );
 
-  AdminAgentActions.mount(
-    container,
-    {
-      onCommand:runCommand
-    }
+  requestAnimationFrame(
+    scrollConsoleToBottom
   );
 
-  const consoleElement =
-  container.querySelector(
-    ".rigo-admin-agent-console"
+  return true;
+
+}
+
+
+
+// =====================================
+// INPUT EVENT
+// =====================================
+
+function handleInput(
+  event
+){
+
+  const input =
+  event.target.closest(
+    "[data-admin-agent-input]"
   );
 
   if(
-    consoleElement
+    !input
   ){
 
-    consoleElement.scrollTop =
-    consoleElement.scrollHeight;
+    return false;
 
   }
+
+  adminAgentPageState.input =
+  input.value;
+
+  return true;
+
+}
+
+
+
+// =====================================
+// CLICK EVENT
+// =====================================
+
+function handleClick(
+  event
+){
+
+  const button =
+  event.target.closest(
+    "[data-admin-command]"
+  );
+
+  if(
+    !button
+    ||
+    !adminAgentPageState.container
+    ||
+    !adminAgentPageState.container.contains(
+      button
+    )
+  ){
+
+    return false;
+
+  }
+
+  event.preventDefault();
+
+  const command =
+  button.dataset.adminCommand;
+
+  runCommand(
+    command
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// SUBMIT EVENT
+// =====================================
+
+function handleSubmit(
+  event
+){
+
+  const form =
+  event.target.closest(
+    "[data-admin-agent-form]"
+  );
+
+  if(
+    !form
+    ||
+    !adminAgentPageState.container
+    ||
+    !adminAgentPageState.container.contains(
+      form
+    )
+  ){
+
+    return false;
+
+  }
+
+  event.preventDefault();
+
+  const input =
+  form.querySelector(
+    "[data-admin-agent-input]"
+  );
+
+  const command =
+  input?.value ||
+  adminAgentPageState.input;
+
+  runCommand(
+    command
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// BIND EVENTS
+// =====================================
+
+function bindEvents(){
+
+  const container =
+  adminAgentPageState.container;
+
+  if(
+    !container
+  ){
+
+    return false;
+
+  }
+
+  container.addEventListener(
+    "click",
+    handleClick
+  );
+
+  container.addEventListener(
+    "submit",
+    handleSubmit
+  );
+
+  container.addEventListener(
+    "input",
+    handleInput
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// UNBIND EVENTS
+// =====================================
+
+function unbindEvents(){
+
+  const container =
+  adminAgentPageState.container;
+
+  if(
+    !container
+  ){
+
+    return false;
+
+  }
+
+  container.removeEventListener(
+    "click",
+    handleClick
+  );
+
+  container.removeEventListener(
+    "submit",
+    handleSubmit
+  );
+
+  container.removeEventListener(
+    "input",
+    handleInput
+  );
 
   return true;
 
@@ -169,6 +456,14 @@ async function mount(
 
   }
 
+  if(
+    adminAgentPageState.mounted
+  ){
+
+    unmount();
+
+  }
+
   initialize();
 
   adminAgentPageState.container =
@@ -177,12 +472,16 @@ async function mount(
   adminAgentPageState.mounted =
   true;
 
-  container.style.cssText =
-  `
-    height:100%;
-    overflow:auto;
-    background:#020817;
-  `;
+  container.style.height =
+  "100%";
+
+  container.style.overflow =
+  "auto";
+
+  container.style.background =
+  "#020817";
+
+  bindEvents();
 
   render();
 
@@ -201,10 +500,14 @@ async function runCommand(
 ){
 
   const input =
-  String(command || "").trim();
+  String(
+    command || ""
+  )
+  .trim();
 
   if(
-    !input ||
+    !input
+    ||
     adminAgentPageState.loading
   ){
 
@@ -217,6 +520,9 @@ async function runCommand(
 
   adminAgentPageState.input =
   "";
+
+  adminAgentPageState.error =
+  null;
 
   addMessage(
     "user",
@@ -233,12 +539,9 @@ async function runCommand(
     );
 
     addMessage(
-      "admin-agent",
+      "assistant",
       result
     );
-
-    adminAgentPageState.error =
-    null;
 
   }
   catch(error){
@@ -248,15 +551,21 @@ async function runCommand(
 
     addMessage(
       "error",
-      error?.message || String(error)
+      error?.message ||
+      String(
+        error
+      )
     );
 
   }
+  finally{
 
-  adminAgentPageState.loading =
-  false;
+    adminAgentPageState.loading =
+    false;
 
-  render();
+    render();
+
+  }
 
   return true;
 
@@ -270,9 +579,15 @@ async function runCommand(
 
 async function refresh(){
 
-  render();
+  if(
+    !adminAgentPageState.mounted
+  ){
 
-  return true;
+    return false;
+
+  }
+
+  return render();
 
 }
 
@@ -284,13 +599,25 @@ async function refresh(){
 
 function unmount(){
 
-  AdminAgentActions.unmount();
+  unbindEvents();
+
+  const container =
+  adminAgentPageState.container;
 
   if(
-    adminAgentPageState.container
+    container
   ){
 
-    adminAgentPageState.container.innerHTML =
+    container.innerHTML =
+    "";
+
+    container.style.height =
+    "";
+
+    container.style.overflow =
+    "";
+
+    container.style.background =
     "";
 
   }
@@ -331,9 +658,17 @@ function reset(){
   [];
 
   adminAgentPageState.admin = {
-    available:false,
-    status:"unknown"
+
+    available:
+    false,
+
+    status:
+    "unknown"
+
   };
+
+  messageSequence =
+  0;
 
   return true;
 
@@ -348,13 +683,44 @@ function reset(){
 function snapshot(){
 
   return {
-    id:"admin-agent",
-    initialized:adminAgentPageState.initialized,
-    mounted:adminAgentPageState.mounted,
-    loading:adminAgentPageState.loading,
-    messages:adminAgentPageState.messages.length,
-    admin:adminAgentPageState.admin,
-    actions:AdminAgentActions.snapshot()
+
+    id:
+    "admin-agent",
+
+    initialized:
+    adminAgentPageState.initialized,
+
+    mounted:
+    adminAgentPageState.mounted,
+
+    loading:
+    adminAgentPageState.loading,
+
+    error:
+    adminAgentPageState.error
+    ? {
+
+        name:
+        adminAgentPageState.error.name,
+
+        message:
+        adminAgentPageState.error.message
+
+      }
+    : null,
+
+    input:
+    adminAgentPageState.input,
+
+    messages:
+    adminAgentPageState.messages.length,
+
+    admin:{
+
+      ...adminAgentPageState.admin
+
+    }
+
   };
 
 }
@@ -368,9 +734,11 @@ function snapshot(){
 const AdminAgentPage =
 Object.freeze({
 
-  id:"admin-agent",
+  id:
+  "admin-agent",
 
-  title:"Admin Agent",
+  title:
+  "Admin Agent",
 
   initialize,
 
