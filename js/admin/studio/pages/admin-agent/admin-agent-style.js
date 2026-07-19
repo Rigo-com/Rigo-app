@@ -9,6 +9,10 @@ const STYLE_ID =
 
 
 
+// =====================================
+// MOUNT STYLE
+// =====================================
+
 function mountStyle(){
 
   if(
@@ -31,45 +35,73 @@ function mountStyle(){
 
   style.textContent = `
 
-:root{
+/* =====================================
+   ROOT VARIABLES
+===================================== */
 
-  --admin-radius:16px;
-
-  --admin-gap:16px;
+.rigo-admin-agent-page{
 
   --admin-border:
   rgba(255,255,255,.08);
 
-  --admin-surface:
-  rgba(10,18,32,.96);
+  --admin-border-green:
+  rgba(25,227,156,.22);
 
-  --admin-surface-2:
-  rgba(13,23,40,.96);
+  --admin-surface:
+  rgba(8,18,33,.96);
+
+  --admin-surface-strong:
+  rgba(5,14,27,.98);
+
+  --admin-text:
+  #f4f8fd;
+
+  --admin-text-soft:
+  #93a4ba;
+
+  --admin-text-muted:
+  #64748b;
 
   --admin-green:
   #19e39c;
+
+  --admin-blue:
+  #29b9ff;
+
+  --admin-yellow:
+  #ffd029;
+
+  --admin-purple:
+  #b75cff;
+
+  --admin-danger:
+  #ff5577;
 
 }
 
 
 
-/* ========================= */
+/* =====================================
+   SVG RESET
+===================================== */
 
-.rigo-admin-agent-page{
+.rigo-admin-agent-page svg{
 
-  display:flex;
+  display:block;
 
-  flex-direction:column;
+  flex:none;
 
-  width:100%;
+  max-width:none;
 
-  height:100%;
+  max-height:none;
 
-  min-height:100%;
+  fill:none;
 
-  padding:20px;
+  stroke:currentColor;
 
-  gap:16px;
+  stroke-linecap:round;
+
+  stroke-linejoin:round;
 
   box-sizing:border-box;
 
@@ -77,51 +109,105 @@ function mountStyle(){
 
 
 
-/* ========================= */
+/* =====================================
+   PAGE
+===================================== */
 
-.rigo-admin-agent-header{
+.rigo-admin-agent-page{
 
-  display:grid;
+  position:relative;
 
-  grid-template-columns:
+  width:100%;
 
-  1fr auto;
+  height:100%;
 
-  align-items:center;
+  min-width:0;
 
-  gap:24px;
+  min-height:0;
 
-  padding:20px;
+  display:flex;
+
+  flex-direction:column;
+
+  gap:12px;
+
+  padding:16px;
+
+  overflow:hidden;
+
+  box-sizing:border-box;
+
+  color:var(--admin-text);
+
+  border:1px solid
+  var(--admin-border);
 
   border-radius:18px;
 
-  border:1px solid var(--admin-border);
-
   background:
 
-  linear-gradient(
+    radial-gradient(
+      circle at 86% 20%,
+      rgba(25,227,156,.045),
+      transparent 30%
+    ),
 
-    180deg,
-
-    #09111f,
-
-    #060d19
-
-  );
+    linear-gradient(
+      145deg,
+      #050e1d,
+      #020817
+    );
 
 }
 
 
 
-/* ========================= */
+/* =====================================
+   HEADER
+===================================== */
+
+.rigo-admin-agent-header{
+
+  flex:0 0 auto;
+
+  display:grid;
+
+  grid-template-columns:
+  minmax(0,1fr)
+  auto;
+
+  align-items:center;
+
+  gap:18px;
+
+  padding:15px 17px;
+
+  border:1px solid
+  var(--admin-border);
+
+  border-radius:15px;
+
+  background:
+
+    linear-gradient(
+      145deg,
+      rgba(9,21,38,.98),
+      rgba(5,14,27,.98)
+    );
+
+}
+
+
 
 .rigo-admin-agent-identity{
+
+  min-width:0;
 
   display:flex;
 
   align-items:center;
 
-  gap:18px;
+  gap:13px;
 
 }
 
@@ -129,25 +215,27 @@ function mountStyle(){
 
 .rigo-admin-agent-avatar{
 
-  width:72px;
+  width:54px;
 
-  height:72px;
+  height:54px;
 
-  border-radius:20px;
+  flex:0 0 54px;
 
-  display:flex;
+  display:grid;
 
-  align-items:center;
+  place-items:center;
 
-  justify-content:center;
+  overflow:hidden;
+
+  color:var(--admin-green);
+
+  border:1px solid
+  rgba(25,227,156,.18);
+
+  border-radius:15px;
 
   background:
-
-  rgba(25,227,156,.08);
-
-  border:
-
-  1px solid rgba(25,227,156,.15);
+  rgba(25,227,156,.07);
 
 }
 
@@ -155,47 +243,69 @@ function mountStyle(){
 
 .rigo-admin-agent-avatar svg{
 
-  width:36px;
+  width:27px !important;
 
-  height:36px;
+  height:27px !important;
+
+  stroke-width:1.8;
 
 }
 
 
 
-/* ========================= */
+.rigo-admin-agent-heading{
 
-.rigo-admin-agent-title{
+  min-width:0;
 
-  font-size:28px;
+}
 
-  font-weight:700;
 
-  color:white;
+
+.rigo-admin-agent-title-line{
+
+  min-width:0;
+
+  display:flex;
+
+  align-items:center;
+
+  gap:8px;
+
+}
+
+
+
+.rigo-admin-agent-title-line h1{
 
   margin:0;
 
-}
+  color:#ffffff;
 
+  font-size:25px;
 
+  font-weight:750;
 
-.rigo-admin-agent-description{
+  line-height:1.1;
 
-  margin-top:6px;
-
-  font-size:14px;
-
-  color:#8fa1b7;
+  letter-spacing:-.55px;
 
 }
 
 
 
-.rigo-admin-agent-status{
+.rigo-admin-agent-shield{
 
-  margin-top:12px;
+  width:19px;
 
-  font-size:13px;
+  height:19px;
+
+  flex:0 0 19px;
+
+  display:grid;
+
+  place-items:center;
+
+  overflow:hidden;
 
   color:var(--admin-green);
 
@@ -203,71 +313,254 @@ function mountStyle(){
 
 
 
-/* ========================= */
+.rigo-admin-agent-shield svg{
+
+  width:19px !important;
+
+  height:19px !important;
+
+  stroke-width:1.8;
+
+}
+
+
+
+.rigo-admin-agent-description{
+
+  margin:5px 0 0;
+
+  color:var(--admin-text-soft);
+
+  font-size:12px;
+
+  line-height:1.45;
+
+}
+
+
+
+.rigo-admin-agent-status{
+
+  width:max-content;
+
+  display:inline-flex;
+
+  align-items:center;
+
+  gap:7px;
+
+  margin-top:7px;
+
+  color:var(--admin-text-muted);
+
+  font-size:10px;
+
+  font-weight:750;
+
+  letter-spacing:.4px;
+
+}
+
+
+
+.rigo-admin-agent-status::before{
+
+  content:"";
+
+  width:7px;
+
+  height:7px;
+
+  flex:0 0 7px;
+
+  border-radius:50%;
+
+  background:#66758a;
+
+}
+
+
+
+.rigo-admin-agent-status[data-available="true"]{
+
+  color:var(--admin-green);
+
+}
+
+
+
+.rigo-admin-agent-status[data-available="true"]::before{
+
+  background:var(--admin-green);
+
+  box-shadow:
+  0 0 10px
+  rgba(25,227,156,.75);
+
+}
+
+
+
+.rigo-admin-agent-status[data-status="error"],
+.rigo-admin-agent-status[data-status="missing"]{
+
+  color:var(--admin-danger);
+
+}
+
+
+
+.rigo-admin-agent-status[data-status="error"]::before,
+.rigo-admin-agent-status[data-status="missing"]::before{
+
+  background:var(--admin-danger);
+
+}
+
+
+
+/* =====================================
+   ACCESS BADGE
+===================================== */
 
 .rigo-admin-agent-access{
 
-  padding:
-
-  12px 18px;
-
-  border-radius:14px;
-
-  background:
-
-  rgba(255,255,255,.03);
-
-  border:
-
-  1px solid var(--admin-border);
-
-}
-
-
-
-/* ========================= */
-
-.rigo-admin-agent-quick-actions{
-
-  display:grid;
-
-  grid-template-columns:
-
-  repeat(6,1fr);
-
-  gap:14px;
-
-}
-
-
-
-/* ========================= */
-
-.rigo-admin-agent-action{
-
-  height:56px;
-
-  border-radius:14px;
-
-  border:
-
-  1px solid var(--admin-border);
-
-  background:
-
-  var(--admin-surface);
+  flex:0 0 auto;
 
   display:flex;
 
   align-items:center;
 
-  gap:10px;
+  gap:8px;
 
-  padding:0 18px;
+  padding:9px 12px;
+
+  color:#c7d3e3;
+
+  font-size:11px;
+
+  font-weight:650;
+
+  white-space:nowrap;
+
+  border:1px solid
+  var(--admin-border);
+
+  border-radius:11px;
+
+  background:
+  rgba(255,255,255,.025);
+
+}
+
+
+
+.rigo-admin-agent-access-icon{
+
+  width:17px;
+
+  height:17px;
+
+  flex:0 0 17px;
+
+  display:grid;
+
+  place-items:center;
+
+  overflow:hidden;
+
+  color:var(--admin-green);
+
+}
+
+
+
+.rigo-admin-agent-access-icon svg{
+
+  width:17px !important;
+
+  height:17px !important;
+
+  stroke-width:1.8;
+
+}
+
+
+
+/* =====================================
+   QUICK ACTIONS
+===================================== */
+
+.rigo-admin-agent-quick-actions{
+
+  flex:0 0 auto;
+
+  width:100%;
+
+  display:grid;
+
+  grid-template-columns:
+  repeat(
+    6,
+    minmax(0,1fr)
+  );
+
+  gap:9px;
+
+}
+
+
+
+.rigo-admin-agent-action{
+
+  position:relative;
+
+  min-width:0;
+
+  height:42px;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:flex-start;
+
+  gap:8px;
+
+  padding:0 12px;
+
+  overflow:hidden;
+
+  color:#dce5f1;
+
+  font-family:inherit;
+
+  font-size:11px;
+
+  font-weight:650;
+
+  white-space:nowrap;
 
   cursor:pointer;
 
-  transition:.2s;
+  border:1px solid
+  var(--admin-border);
+
+  border-radius:11px;
+
+  background:
+
+    linear-gradient(
+      145deg,
+      rgba(10,23,40,.96),
+      rgba(5,15,28,.96)
+    );
+
+  transition:
+
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease;
 
 }
 
@@ -276,98 +569,584 @@ function mountStyle(){
 .rigo-admin-agent-action:hover{
 
   transform:
-
-  translateY(-2px);
+  translateY(-1px);
 
   border-color:
+  rgba(25,227,156,.28);
 
-  rgba(25,227,156,.25);
+  background:
+
+    linear-gradient(
+      145deg,
+      rgba(12,31,47,.98),
+      rgba(6,20,33,.98)
+    );
 
 }
 
 
 
+.rigo-admin-agent-action:active{
+
+  transform:none;
+
+}
+
+
+
+.rigo-admin-agent-action:disabled{
+
+  opacity:.5;
+
+  cursor:not-allowed;
+
+  transform:none;
+
+}
+
+
+
+.rigo-admin-agent-action-icon{
+
+  width:17px;
+
+  height:17px;
+
+  flex:0 0 17px;
+
+  display:grid;
+
+  place-items:center;
+
+  overflow:hidden;
+
+}
+
+
+
+.rigo-admin-agent-action-icon svg,
 .rigo-admin-agent-action svg{
 
-  width:20px;
+  width:17px !important;
 
-  height:20px;
+  height:17px !important;
+
+  stroke-width:1.85;
 
 }
 
 
 
-/* ========================= */
+.rigo-admin-agent-action-label{
+
+  min-width:0;
+
+  overflow:hidden;
+
+  color:#e5edf7;
+
+  text-overflow:ellipsis;
+
+}
+
+
+
+.rigo-admin-agent-action.scan,
+.rigo-admin-agent-action.snapshot{
+
+  color:var(--admin-green);
+
+}
+
+
+
+.rigo-admin-agent-action.files{
+
+  color:var(--admin-blue);
+
+}
+
+
+
+.rigo-admin-agent-action.folders{
+
+  color:var(--admin-yellow);
+
+}
+
+
+
+.rigo-admin-agent-action.systems{
+
+  color:#65d9c3;
+
+}
+
+
+
+.rigo-admin-agent-action.analyze{
+
+  color:var(--admin-purple);
+
+}
+
+
+
+/* =====================================
+   CONSOLE
+===================================== */
 
 .rigo-admin-agent-console{
 
-  flex:1;
+  position:relative;
 
-  min-height:0;
+  flex:1 1 auto;
 
-  overflow:auto;
+  min-width:0;
+
+  min-height:150px;
 
   display:flex;
 
   flex-direction:column;
 
-  gap:14px;
+  gap:10px;
 
-  padding:18px;
+  padding:14px;
 
-  border-radius:18px;
+  overflow:auto;
 
-  border:
+  overscroll-behavior:contain;
 
-  1px solid var(--admin-border);
+  scrollbar-width:thin;
+
+  scrollbar-color:
+  rgba(110,145,186,.28)
+  transparent;
+
+  border:1px solid
+  var(--admin-border);
+
+  border-radius:14px;
 
   background:
 
-  linear-gradient(
+    radial-gradient(
+      circle at 90% 40%,
+      rgba(25,227,156,.025),
+      transparent 28%
+    ),
 
-    180deg,
-
-    #07101d,
-
-    #040b16
-
-  );
+    linear-gradient(
+      145deg,
+      rgba(4,14,27,.96),
+      rgba(2,9,20,.98)
+    );
 
 }
 
 
 
-/* ========================= */
+.rigo-admin-agent-console::-webkit-scrollbar{
+
+  width:6px;
+
+}
+
+
+
+.rigo-admin-agent-console::-webkit-scrollbar-thumb{
+
+  border-radius:999px;
+
+  background:
+  rgba(110,145,186,.28);
+
+}
+
+
+
+/* =====================================
+   EMPTY STATE
+===================================== */
+
+.rigo-admin-agent-empty{
+
+  display:flex;
+
+  align-items:flex-start;
+
+  gap:10px;
+
+}
+
+
+
+.rigo-admin-agent-empty-avatar{
+
+  width:37px;
+
+  height:37px;
+
+  flex:0 0 37px;
+
+  display:grid;
+
+  place-items:center;
+
+  overflow:hidden;
+
+  color:var(--admin-green);
+
+  border:1px solid
+  rgba(25,227,156,.13);
+
+  border-radius:11px;
+
+  background:
+  rgba(25,227,156,.07);
+
+}
+
+
+
+.rigo-admin-agent-empty-avatar svg{
+
+  width:20px !important;
+
+  height:20px !important;
+
+  stroke-width:1.8;
+
+}
+
+
+
+.rigo-admin-agent-empty-content{
+
+  min-width:0;
+
+}
+
+
+
+.rigo-admin-agent-empty-heading{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:8px;
+
+  margin-bottom:4px;
+
+}
+
+
+
+.rigo-admin-agent-empty-name{
+
+  color:#f3f7fc;
+
+  font-size:12px;
+
+  font-weight:700;
+
+}
+
+
+
+.rigo-admin-agent-empty-time{
+
+  color:var(--admin-text-muted);
+
+  font-size:10px;
+
+}
+
+
+
+.rigo-admin-agent-empty-message{
+
+  color:#d9e3ef;
+
+  font-size:12px;
+
+  line-height:1.45;
+
+}
+
+
+
+.rigo-admin-agent-empty-subtitle{
+
+  margin-top:4px;
+
+  color:#75859c;
+
+  font-size:11px;
+
+}
+
+
+
+/* =====================================
+   MESSAGES
+===================================== */
 
 .rigo-admin-agent-message{
 
-  border-radius:16px;
+  width:min(760px,90%);
 
-  padding:18px;
+  display:flex;
 
-  border:
+  align-items:flex-start;
 
-  1px solid rgba(255,255,255,.05);
-
-  background:
-
-  rgba(255,255,255,.015);
+  gap:9px;
 
 }
 
 
 
-/* ========================= */
+.rigo-admin-agent-message.user{
+
+  margin-left:auto;
+
+  flex-direction:row-reverse;
+
+}
+
+
+
+.rigo-admin-agent-message-icon{
+
+  width:31px;
+
+  height:31px;
+
+  flex:0 0 31px;
+
+  display:grid;
+
+  place-items:center;
+
+  overflow:hidden;
+
+  color:var(--admin-green);
+
+  border:1px solid
+  rgba(25,227,156,.13);
+
+  border-radius:10px;
+
+  background:
+  rgba(25,227,156,.07);
+
+}
+
+
+
+.rigo-admin-agent-message.user
+.rigo-admin-agent-message-icon{
+
+  color:var(--admin-blue);
+
+  border-color:
+  rgba(41,185,255,.14);
+
+  background:
+  rgba(41,185,255,.07);
+
+}
+
+
+
+.rigo-admin-agent-message.error
+.rigo-admin-agent-message-icon{
+
+  color:var(--admin-danger);
+
+}
+
+
+
+.rigo-admin-agent-message-icon svg{
+
+  width:17px !important;
+
+  height:17px !important;
+
+  stroke-width:1.85;
+
+}
+
+
+
+.rigo-admin-agent-message-main{
+
+  min-width:0;
+
+  flex:1;
+
+}
+
+
+
+.rigo-admin-agent-message-header{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:7px;
+
+  margin-bottom:5px;
+
+}
+
+
+
+.rigo-admin-agent-message.user
+.rigo-admin-agent-message-header{
+
+  justify-content:flex-end;
+
+}
+
+
+
+.rigo-admin-agent-role{
+
+  color:#eef4fb;
+
+  font-size:11px;
+
+  font-weight:700;
+
+}
+
+
+
+.rigo-admin-agent-message-time{
+
+  color:var(--admin-text-muted);
+
+  font-size:9px;
+
+}
+
+
+
+.rigo-admin-agent-message pre{
+
+  width:100%;
+
+  margin:0;
+
+  padding:9px 11px;
+
+  overflow:auto;
+
+  box-sizing:border-box;
+
+  color:#ccd7e6;
+
+  white-space:pre-wrap;
+
+  overflow-wrap:anywhere;
+
+  font-family:
+
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+
+  font-size:10px;
+
+  line-height:1.55;
+
+  border:1px solid
+  rgba(255,255,255,.06);
+
+  border-radius:10px;
+
+  background:
+  rgba(8,20,35,.72);
+
+}
+
+
+
+/* =====================================
+   FORM
+===================================== */
 
 .rigo-admin-agent-form{
+
+  flex:0 0 auto;
+
+  width:100%;
 
   display:grid;
 
   grid-template-columns:
+  minmax(0,1fr)
+  100px;
 
-  1fr 130px;
+  gap:9px;
 
-  gap:12px;
+}
+
+
+
+.rigo-admin-agent-input-wrap{
+
+  position:relative;
+
+  min-width:0;
+
+}
+
+
+
+.rigo-admin-agent-input-icon{
+
+  position:absolute;
+
+  left:13px;
+
+  top:50%;
+
+  z-index:2;
+
+  width:16px;
+
+  height:16px;
+
+  display:grid;
+
+  place-items:center;
+
+  overflow:hidden;
+
+  color:#77889f;
+
+  transform:
+  translateY(-50%);
+
+  pointer-events:none;
+
+}
+
+
+
+.rigo-admin-agent-input-icon svg{
+
+  width:16px !important;
+
+  height:16px !important;
+
+  stroke-width:1.8;
 
 }
 
@@ -375,25 +1154,59 @@ function mountStyle(){
 
 .rigo-admin-agent-form input{
 
-  height:56px;
+  width:100%;
 
-  border-radius:14px;
+  height:43px;
 
-  border:
-
-  1px solid rgba(25,227,156,.20);
-
-  background:
-
-  #08111f;
+  box-sizing:border-box;
 
   padding:
+  0
+  13px
+  0
+  39px;
 
-  0 18px;
+  color:#eef5fd;
 
-  color:white;
+  font-family:inherit;
 
-  font-size:15px;
+  font-size:12px;
+
+  outline:none;
+
+  border:1px solid
+  rgba(25,227,156,.22);
+
+  border-radius:11px;
+
+  background:
+  #07111f;
+
+  transition:
+
+    border-color .18s ease,
+    box-shadow .18s ease;
+
+}
+
+
+
+.rigo-admin-agent-form input::placeholder{
+
+  color:#718096;
+
+}
+
+
+
+.rigo-admin-agent-form input:focus{
+
+  border-color:
+  rgba(25,227,156,.65);
+
+  box-shadow:
+  0 0 0 3px
+  rgba(25,227,156,.06);
 
 }
 
@@ -401,41 +1214,161 @@ function mountStyle(){
 
 .rigo-admin-agent-submit{
 
-  border:none;
+  width:100px;
 
-  border-radius:14px;
+  height:43px;
+
+  display:inline-flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  gap:7px;
+
+  padding:0 14px;
+
+  overflow:hidden;
+
+  color:#ffffff;
+
+  font-family:inherit;
+
+  font-size:12px;
+
+  font-weight:700;
+
+  cursor:pointer;
+
+  border:1px solid
+  rgba(255,255,255,.08);
+
+  border-radius:11px;
 
   background:
 
-  linear-gradient(
+    linear-gradient(
+      135deg,
+      #087654,
+      #15c98d
+    );
 
-    135deg,
+  transition:
 
-    #0b7b57,
-
-    #18d692
-
-  );
-
-  color:white;
-
-  font-weight:600;
-
-  cursor:pointer;
+    transform .18s ease,
+    filter .18s ease;
 
 }
 
 
 
-/* ========================= */
+.rigo-admin-agent-submit:hover{
 
-@media(max-width:1400px){
+  transform:
+  translateY(-1px);
 
-  .rigo-admin-agent-quick-actions{
+  filter:
+  brightness(1.08);
 
-    grid-template-columns:
+}
 
-    repeat(3,1fr);
+
+
+.rigo-admin-agent-submit:disabled{
+
+  opacity:.55;
+
+  cursor:not-allowed;
+
+  transform:none;
+
+}
+
+
+
+.rigo-admin-agent-submit svg{
+
+  width:16px !important;
+
+  height:16px !important;
+
+  flex:0 0 16px;
+
+  stroke-width:1.8;
+
+}
+
+
+
+/* =====================================
+   LOADING
+===================================== */
+
+.rigo-admin-agent-loading{
+
+  display:inline-flex;
+
+  align-items:center;
+
+  gap:4px;
+
+}
+
+
+
+.rigo-admin-agent-loading-dot{
+
+  width:4px;
+
+  height:4px;
+
+  border-radius:50%;
+
+  background:currentColor;
+
+  animation:
+  rigoAdminLoading
+  1s ease-in-out infinite;
+
+}
+
+
+
+.rigo-admin-agent-loading-dot:nth-child(2){
+
+  animation-delay:.12s;
+
+}
+
+
+
+.rigo-admin-agent-loading-dot:nth-child(3){
+
+  animation-delay:.24s;
+
+}
+
+
+
+@keyframes
+rigoAdminLoading{
+
+  0%,
+  100%{
+
+    opacity:.35;
+
+    transform:
+    translateY(0);
+
+  }
+
+  50%{
+
+    opacity:1;
+
+    transform:
+    translateY(-2px);
 
   }
 
@@ -443,7 +1376,43 @@ function mountStyle(){
 
 
 
-@media(max-width:900px){
+/* =====================================
+   RESPONSIVE
+===================================== */
+
+@media(
+  max-width:1200px
+){
+
+  .rigo-admin-agent-quick-actions{
+
+    grid-template-columns:
+    repeat(
+      3,
+      minmax(0,1fr)
+    );
+
+  }
+
+}
+
+
+
+@media(
+  max-width:760px
+){
+
+  .rigo-admin-agent-page{
+
+    height:auto;
+
+    min-height:100%;
+
+    overflow:visible;
+
+    padding:12px;
+
+  }
 
   .rigo-admin-agent-header{
 
@@ -451,11 +1420,39 @@ function mountStyle(){
 
   }
 
+  .rigo-admin-agent-access{
+
+    width:max-content;
+
+  }
+
   .rigo-admin-agent-quick-actions{
 
     grid-template-columns:
+    repeat(
+      2,
+      minmax(0,1fr)
+    );
 
-    repeat(2,1fr);
+  }
+
+  .rigo-admin-agent-console{
+
+    min-height:280px;
+
+  }
+
+}
+
+
+
+@media(
+  max-width:480px
+){
+
+  .rigo-admin-agent-quick-actions{
+
+    grid-template-columns:1fr;
 
   }
 
@@ -465,15 +1462,9 @@ function mountStyle(){
 
   }
 
-}
+  .rigo-admin-agent-submit{
 
-
-
-@media(max-width:600px){
-
-  .rigo-admin-agent-quick-actions{
-
-    grid-template-columns:1fr;
+    width:100%;
 
   }
 
@@ -490,6 +1481,10 @@ function mountStyle(){
 }
 
 
+
+// =====================================
+// EXPORTS
+// =====================================
 
 export {
 
