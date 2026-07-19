@@ -3,27 +3,86 @@
 // STUDIO ADMIN AGENT ACTIONS
 // =====================================
 
-const adminAgentActionsState =
+const AdminAgentActionsState =
 Object.seal({
 
-  mounted:false,
+  mounted:
+  false,
 
-  root:null,
+  root:
+  null,
 
-  handlers:null
+  handlers:
+  null
 
 });
 
 
+
+// =====================================
+// HELPERS
+// =====================================
+
+function getHandler(
+  name
+){
+
+  return
+  AdminAgentActionsState
+  .handlers?.[
+    name
+  ];
+
+}
+
+
+
+function executeCommand(
+  command
+){
+
+  if(
+    !command
+  ){
+
+    return false;
+
+  }
+
+  const handler =
+  getHandler(
+    "onCommand"
+  );
+
+  if(
+    typeof handler !==
+    "function"
+  ){
+
+    return false;
+
+  }
+
+  handler(
+    command
+  );
+
+  return true;
+
+}
+
+
+
+// =====================================
+// INPUT SUBMIT
+// =====================================
 
 function handleSubmit(
   event
 ){
 
   const form =
-  event
-  .target
-  ?.closest(
+  event.target.closest(
     "[data-admin-agent-form]"
   );
 
@@ -42,34 +101,27 @@ function handleSubmit(
     "[data-admin-agent-input]"
   );
 
-  const value =
-  input?.value?.trim() || "";
+  return executeCommand(
 
-  if(
-    value &&
-    typeof adminAgentActionsState.handlers?.onCommand === "function"
-  ){
+    input?.value
+    ?.trim()
 
-    adminAgentActionsState.handlers.onCommand(
-      value
-    );
-
-  }
-
-  return true;
+  );
 
 }
 
 
+
+// =====================================
+// QUICK ACTION
+// =====================================
 
 function handleClick(
   event
 ){
 
   const button =
-  event
-  .target
-  ?.closest(
+  event.target.closest(
     "[data-admin-command]"
   );
 
@@ -81,31 +133,22 @@ function handleClick(
 
   }
 
-  const command =
-  button.getAttribute(
-    "data-admin-command"
+  return executeCommand(
+
+    button.dataset
+    .adminCommand
+
   );
-
-  if(
-    command &&
-    typeof adminAgentActionsState.handlers?.onCommand === "function"
-  ){
-
-    adminAgentActionsState.handlers.onCommand(
-      command
-    );
-
-    return true;
-
-  }
-
-  return false;
 
 }
 
 
 
-function mountActions(
+// =====================================
+// MOUNT
+// =====================================
+
+function mount(
   root,
   handlers = {}
 ){
@@ -118,12 +161,12 @@ function mountActions(
 
   }
 
-  unmountActions();
+  unmount();
 
-  adminAgentActionsState.root =
+  AdminAgentActionsState.root =
   root;
 
-  adminAgentActionsState.handlers =
+  AdminAgentActionsState.handlers =
   handlers;
 
   root.addEventListener(
@@ -136,7 +179,7 @@ function mountActions(
     handleClick
   );
 
-  adminAgentActionsState.mounted =
+  AdminAgentActionsState.mounted =
   true;
 
   return true;
@@ -145,31 +188,39 @@ function mountActions(
 
 
 
-function unmountActions(){
+// =====================================
+// UNMOUNT
+// =====================================
+
+function unmount(){
+
+  const root =
+  AdminAgentActionsState
+  .root;
 
   if(
-    adminAgentActionsState.root
+    root
   ){
 
-    adminAgentActionsState.root.removeEventListener(
+    root.removeEventListener(
       "submit",
       handleSubmit
     );
 
-    adminAgentActionsState.root.removeEventListener(
+    root.removeEventListener(
       "click",
       handleClick
     );
 
   }
 
-  adminAgentActionsState.root =
+  AdminAgentActionsState.root =
   null;
 
-  adminAgentActionsState.handlers =
+  AdminAgentActionsState.handlers =
   null;
 
-  adminAgentActionsState.mounted =
+  AdminAgentActionsState.mounted =
   false;
 
   return true;
@@ -178,28 +229,56 @@ function unmountActions(){
 
 
 
+// =====================================
+// SNAPSHOT
+// =====================================
+
 function snapshot(){
 
   return {
-    mounted:adminAgentActionsState.mounted
+
+    mounted:
+    AdminAgentActionsState
+    .mounted
+
   };
 
 }
 
 
 
+// =====================================
+// API
+// =====================================
+
+const AdminAgentActions =
+Object.freeze({
+
+  mount,
+
+  unmount,
+
+  snapshot
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
 export {
 
-  mountActions,
+  mount,
 
-  unmountActions,
+  unmount,
 
-  snapshot
+  snapshot,
+
+  AdminAgentActions
 
 };
 
-export default {
-  mount:mountActions,
-  unmount:unmountActions,
-  snapshot
-};
+export default
+AdminAgentActions;
