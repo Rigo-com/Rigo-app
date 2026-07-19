@@ -9,13 +9,180 @@ from "../../../index.js";
 
 
 // =====================================
+// RESULT HELPERS
+// =====================================
+
+function success(
+  data = {}
+){
+
+  return {
+
+    ok:
+    true,
+
+    ...data
+
+  };
+
+}
+
+
+
+function failure(
+  error
+){
+
+  return {
+
+    ok:
+    false,
+
+    error:
+    String(
+      error ||
+      "UNKNOWN_ADMIN_ERROR"
+    )
+
+  };
+
+}
+
+
+
+// =====================================
+// STATE HELPERS
+// =====================================
+
+function isInitialized(
+  snapshot = {}
+){
+
+  return Boolean(
+
+    snapshot.initialized ||
+
+    snapshot.state
+    ?.initialized ||
+
+    snapshot.runtime
+    ?.initialized
+
+  );
+
+}
+
+
+
+function isBooted(
+  snapshot = {}
+){
+
+  return Boolean(
+
+    snapshot.booted ||
+
+    snapshot.state
+    ?.booted ||
+
+    snapshot.runtime
+    ?.booted
+
+  );
+
+}
+
+
+
+// =====================================
+// ADMIN METHOD CALL
+// =====================================
+
+async function callAdminMethod(
+  admin,
+  method
+){
+
+  const handler =
+  admin?.[
+    method
+  ];
+
+  if(
+    typeof handler !==
+    "function"
+  ){
+
+    return true;
+
+  }
+
+  const result =
+  await handler.call(
+    admin
+  );
+
+  if(
+    result === false
+  ){
+
+    throw new Error(
+      `ADMIN_${method.toUpperCase()}_FAILED`
+    );
+
+  }
+
+  return true;
+
+}
+
+
+
+// =====================================
+// GET ADMIN SNAPSHOT
+// =====================================
+
+function getAdminSnapshot(
+  admin
+){
+
+  if(
+    typeof admin?.snapshot !==
+    "function"
+  ){
+
+    return {};
+
+  }
+
+  try{
+
+    return (
+      admin.snapshot() ||
+      {}
+    );
+
+  }
+  catch{
+
+    return {};
+
+  }
+
+}
+
+
+
+// =====================================
 // GET ADMIN
 // =====================================
 
 function getAdmin(){
 
   if(
-    typeof window !== "undefined" &&
+    typeof window !==
+    "undefined"
+    &&
     window.Admin
   ){
 
@@ -24,6 +191,32 @@ function getAdmin(){
   }
 
   return Admin || null;
+
+}
+
+
+
+// =====================================
+// PUBLISH ADMIN
+// =====================================
+
+function publishAdmin(
+  admin
+){
+
+  if(
+    typeof window ===
+    "undefined"
+  ){
+
+    return false;
+
+  }
+
+  window.Admin =
+  admin;
+
+  return true;
 
 }
 
@@ -42,107 +235,72 @@ async function ensureAdminReady(){
     !admin
   ){
 
-    return {
-
-      ok:false,
-
-      error:
+    return failure(
       "ADMIN_API_NOT_AVAILABLE"
-
-    };
+    );
 
   }
 
   try{
 
-    const state =
-    typeof admin.snapshot === "function"
-    ? admin.snapshot()
-    : null;
-
-    const initialized =
-    Boolean(
-      state?.initialized ||
-      state?.state?.initialized ||
-      state?.runtime?.initialized
-    );
-
-    const booted =
-    Boolean(
-      state?.booted ||
-      state?.state?.booted ||
-      state?.runtime?.booted
+    let snapshot =
+    getAdminSnapshot(
+      admin
     );
 
     if(
-      !initialized &&
-      typeof admin.initialize === "function"
+      !isInitialized(
+        snapshot
+      )
     ){
 
-      const initializedResult =
-      await admin.initialize();
+      await callAdminMethod(
+        admin,
+        "initialize"
+      );
 
-      if(
-        initializedResult === false
-      ){
-
-        throw new Error(
-          "ADMIN_INITIALIZATION_FAILED"
-        );
-
-      }
+      snapshot =
+      getAdminSnapshot(
+        admin
+      );
 
     }
 
     if(
-      !booted &&
-      typeof admin.boot === "function"
+      !isBooted(
+        snapshot
+      )
     ){
 
-      const bootResult =
-      await admin.boot();
-
-      if(
-        bootResult === false
-      ){
-
-        throw new Error(
-          "ADMIN_BOOT_FAILED"
-        );
-
-      }
+      await callAdminMethod(
+        admin,
+        "boot"
+      );
 
     }
 
-    if(
-      typeof window !== "undefined"
-    ){
+    publishAdmin(
+      admin
+    );
 
-      window.Admin =
-      admin;
-
-    }
-
-    return {
-
-      ok:true,
+    return success({
 
       admin
 
-    };
+    });
 
   }
   catch(error){
 
-    return {
+    return failure(
 
-      ok:false,
-
-      error:
       error?.message ||
-      String(error)
 
-    };
+      String(
+        error
+      )
+
+    );
 
   }
 
@@ -165,7 +323,8 @@ function getAdminStatus(){
 
     return {
 
-      available:false,
+      available:
+      false,
 
       status:
       "missing"
@@ -175,12 +334,14 @@ function getAdminStatus(){
   }
 
   if(
-    typeof admin.command !== "function"
+    typeof admin.command !==
+    "function"
   ){
 
     return {
 
-      available:false,
+      available:
+      false,
 
       status:
       "command-unavailable"
@@ -191,7 +352,8 @@ function getAdminStatus(){
 
   return {
 
-    available:true,
+    available:
+    true,
 
     status:
     "connected"
@@ -210,6 +372,22 @@ async function executeAdminCommand(
   input
 ){
 
+  const command =
+  String(
+    input || ""
+  )
+  .trim();
+
+  if(
+    !command
+  ){
+
+    return failure(
+      "ADMIN_COMMAND_REQUIRED"
+    );
+
+  }
+
   const readiness =
   await ensureAdminReady();
 
@@ -217,14 +395,7 @@ async function executeAdminCommand(
     !readiness.ok
   ){
 
-    return {
-
-      ok:false,
-
-      error:
-      readiness.error
-
-    };
+    return readiness;
 
   }
 
@@ -232,25 +403,57 @@ async function executeAdminCommand(
   readiness.admin;
 
   if(
-    typeof admin.command !== "function"
+    typeof admin.command !==
+    "function"
   ){
 
-    return {
-
-      ok:false,
-
-      error:
+    return failure(
       "ADMIN_COMMAND_API_NOT_AVAILABLE"
-
-    };
+    );
 
   }
 
-  return admin.command(
-    input
-  );
+  try{
+
+    return await admin.command(
+      command
+    );
+
+  }
+  catch(error){
+
+    return failure(
+
+      error?.message ||
+
+      String(
+        error
+      )
+
+    );
+
+  }
 
 }
+
+
+
+// =====================================
+// API
+// =====================================
+
+const AdminAgentLoader =
+Object.freeze({
+
+  getAdmin,
+
+  ensureAdminReady,
+
+  getAdminStatus,
+
+  executeAdminCommand
+
+});
 
 
 
@@ -266,18 +469,11 @@ export {
 
   getAdminStatus,
 
-  executeAdminCommand
+  executeAdminCommand,
+
+  AdminAgentLoader
 
 };
 
-export default {
-
-  getAdmin,
-
-  ensureAdminReady,
-
-  getAdminStatus,
-
-  executeAdminCommand
-
-};
+export default
+AdminAgentLoader;
