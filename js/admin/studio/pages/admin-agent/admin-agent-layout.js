@@ -26,7 +26,7 @@ import {
 from "./admin-agent-messages.js";
 
 import renderActionList
-from "./admin-agent-actions.js";
+from "./admin-agent-action-list.js";
 
 
 
@@ -35,7 +35,7 @@ from "./admin-agent-actions.js";
 // =====================================
 
 function renderHeader(
-  admin
+  admin = {}
 ){
 
   const available =
@@ -54,7 +54,10 @@ function renderHeader(
 
       <div class="rigo-admin-agent-identity">
 
-        <div class="rigo-admin-agent-avatar">
+        <div
+          class="rigo-admin-agent-avatar"
+          aria-hidden="true"
+        >
           ${AdminAgentIcons.admin}
         </div>
 
@@ -122,7 +125,7 @@ function renderHeader(
 // =====================================
 
 function renderQuickActions(
-  loading
+  loading = false
 ){
 
   return `
@@ -143,7 +146,7 @@ function renderQuickActions(
 // =====================================
 
 function renderConsole(
-  messages
+  messages = []
 ){
 
   return `
@@ -166,7 +169,7 @@ function renderConsole(
 // =====================================
 
 function renderForm(
-  state
+  state = {}
 ){
 
   const loading =
