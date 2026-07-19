@@ -1,9 +1,16 @@
 // =====================================
 // RIGO AI
 // STUDIO ADMIN AGENT ACTIONS
+// CHAT CONTROLLER
 // =====================================
 
-const AdminAgentActionsState =
+
+
+// =====================================
+// STATE
+// =====================================
+
+const adminAgentActionsState =
 Object.seal({
 
   mounted:
@@ -20,74 +27,77 @@ Object.seal({
 
 
 // =====================================
-// HELPERS
+// GET COMMAND HANDLER
 // =====================================
 
-function getHandler(
-  name
-){
-
-  return
-  AdminAgentActionsState
-  .handlers?.[
-    name
-  ];
-
-}
-
-
-
-function executeCommand(
-  command
-){
-
-  if(
-    !command
-  ){
-
-    return false;
-
-  }
+function getCommandHandler(){
 
   const handler =
-  getHandler(
-    "onCommand"
-  );
+  adminAgentActionsState
+  .handlers
+  ?.onCommand;
 
   if(
     typeof handler !==
     "function"
   ){
 
-    return false;
+    return null;
 
   }
 
-  handler(
-    command
-  );
-
-  return true;
+  return handler;
 
 }
 
 
 
 // =====================================
-// INPUT SUBMIT
+// GET FORM INPUT
 // =====================================
 
-function handleSubmit(
+function getFormInput(
+  form
+){
+
+  if(
+    !form
+  ){
+
+    return null;
+
+  }
+
+  return form.querySelector(
+    "[data-admin-agent-input]"
+  );
+
+}
+
+
+
+// =====================================
+// HANDLE SUBMIT
+// =====================================
+
+async function handleSubmit(
   event
 ){
 
   const form =
-  event.target.closest(
+  event.target
+  ?.closest(
     "[data-admin-agent-form]"
   );
 
   if(
     !form
+    ||
+    !adminAgentActionsState.root
+    ||
+    !adminAgentActionsState.root.contains(
+      form
+    )
   ){
 
     return false;
@@ -97,48 +107,42 @@ function handleSubmit(
   event.preventDefault();
 
   const input =
-  form.querySelector(
-    "[data-admin-agent-input]"
+  getFormInput(
+    form
   );
 
-  return executeCommand(
-
-    input?.value
-    ?.trim()
-
-  );
-
-}
-
-
-
-// =====================================
-// QUICK ACTION
-// =====================================
-
-function handleClick(
-  event
-){
-
-  const button =
-  event.target.closest(
-    "[data-admin-command]"
-  );
+  const command =
+  String(
+    input?.value || ""
+  )
+  .trim();
 
   if(
-    !button
+    !command
+  ){
+
+    input?.focus();
+
+    return false;
+
+  }
+
+  const handler =
+  getCommandHandler();
+
+  if(
+    !handler
   ){
 
     return false;
 
   }
 
-  return executeCommand(
-
-    button.dataset
-    .adminCommand
-
+  await handler(
+    command
   );
+
+  return true;
 
 }
 
@@ -163,10 +167,10 @@ function mount(
 
   unmount();
 
-  AdminAgentActionsState.root =
+  adminAgentActionsState.root =
   root;
 
-  AdminAgentActionsState.handlers =
+  adminAgentActionsState.handlers =
   handlers;
 
   root.addEventListener(
@@ -174,13 +178,15 @@ function mount(
     handleSubmit
   );
 
-  root.addEventListener(
-    "click",
-    handleClick
+  adminAgentActionsState.mounted =
+  true;
+
+  const input =
+  root.querySelector(
+    "[data-admin-agent-input]"
   );
 
-  AdminAgentActionsState.mounted =
-  true;
+  input?.focus();
 
   return true;
 
@@ -195,8 +201,7 @@ function mount(
 function unmount(){
 
   const root =
-  AdminAgentActionsState
-  .root;
+  adminAgentActionsState.root;
 
   if(
     root
@@ -207,20 +212,15 @@ function unmount(){
       handleSubmit
     );
 
-    root.removeEventListener(
-      "click",
-      handleClick
-    );
-
   }
 
-  AdminAgentActionsState.root =
+  adminAgentActionsState.root =
   null;
 
-  AdminAgentActionsState.handlers =
+  adminAgentActionsState.handlers =
   null;
 
-  AdminAgentActionsState.mounted =
+  adminAgentActionsState.mounted =
   false;
 
   return true;
@@ -238,8 +238,17 @@ function snapshot(){
   return {
 
     mounted:
-    AdminAgentActionsState
-    .mounted
+    adminAgentActionsState.mounted,
+
+    hasRoot:
+    Boolean(
+      adminAgentActionsState.root
+    ),
+
+    hasCommandHandler:
+    Boolean(
+      getCommandHandler()
+    )
 
   };
 
