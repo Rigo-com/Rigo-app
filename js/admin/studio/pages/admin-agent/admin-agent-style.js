@@ -129,7 +129,7 @@ function mountStyle(){
 
   flex-direction:column;
 
-  gap:12px;
+  gap:10px;
 
   padding:16px;
 
@@ -178,14 +178,14 @@ function mountStyle(){
 
   align-items:center;
 
-  gap:18px;
+  gap:16px;
 
-  padding:15px 17px;
+  padding:13px 15px;
 
   border:1px solid
   var(--admin-border);
 
-  border-radius:15px;
+  border-radius:14px;
 
   background:
 
@@ -215,11 +215,11 @@ function mountStyle(){
 
 .rigo-admin-agent-avatar{
 
-  width:54px;
+  width:50px;
 
-  height:54px;
+  height:50px;
 
-  flex:0 0 54px;
+  flex:0 0 50px;
 
   display:grid;
 
@@ -243,10 +243,10 @@ function mountStyle(){
 
 .rigo-admin-agent-avatar svg{
 
-  width:27px !important;
+  width:25px !important;
 
-  height:27px !important;
-
+  height:25px !important;
+  
   stroke-width:1.8;
 
 }
@@ -281,7 +281,7 @@ function mountStyle(){
 
   color:#ffffff;
 
-  font-size:25px;
+  font-size:23px;
 
   font-weight:750;
 
@@ -517,17 +517,17 @@ function mountStyle(){
 
   min-width:0;
 
-  height:42px;
+  height:40px;
 
   display:flex;
 
   align-items:center;
 
-  justify-content:flex-start;
+  justify-content:center;
 
   gap:8px;
 
-  padding:0 12px;
+  padding:0 10px;
 
   overflow:hidden;
 
@@ -710,9 +710,9 @@ function mountStyle(){
 
   flex-direction:column;
 
-  gap:10px;
+  gap:9px;
 
-  padding:14px;
+  padding:12px;
 
   overflow:auto;
 
@@ -727,7 +727,7 @@ function mountStyle(){
   border:1px solid
   var(--admin-border);
 
-  border-radius:14px;
+  border-radius:13px;
 
   background:
 
@@ -1091,7 +1091,7 @@ function mountStyle(){
 
   grid-template-columns:
   minmax(0,1fr)
-  100px;
+  92px;
 
   gap:9px;
 
@@ -1156,7 +1156,7 @@ function mountStyle(){
 
   width:100%;
 
-  height:43px;
+  height:41px;
 
   box-sizing:border-box;
 
@@ -1214,9 +1214,9 @@ function mountStyle(){
 
 .rigo-admin-agent-submit{
 
-  width:100px;
+  width:92px;
 
-  height:43px;
+  height:41px;
 
   display:inline-flex;
 
