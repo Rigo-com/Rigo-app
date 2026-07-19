@@ -19,6 +19,9 @@ import {
 }
 from "./admin-agent-layout.js";
 
+import AdminAgentActions
+from "./admin-agent-actions.js";
+
 
 
 // =====================================
@@ -64,13 +67,17 @@ Object.seal({
 
 
 // =====================================
-// MESSAGE ID
+// MESSAGE SEQUENCE
 // =====================================
 
 let messageSequence =
 0;
 
 
+
+// =====================================
+// CREATE MESSAGE ID
+// =====================================
 
 function createMessageId(){
 
@@ -114,6 +121,51 @@ function addMessage(
   });
 
   return true;
+
+}
+
+
+
+// =====================================
+// UPDATE ADMIN STATUS
+// =====================================
+
+function updateAdminStatus(){
+
+  try{
+
+    adminAgentPageState.admin =
+    getAdminStatus() || {
+
+      available:
+      false,
+
+      status:
+      "unknown"
+
+    };
+
+    return true;
+
+  }
+  catch(error){
+
+    adminAgentPageState.admin = {
+
+      available:
+      false,
+
+      status:
+      "error"
+
+    };
+
+    adminAgentPageState.error =
+    error;
+
+    return false;
+
+  }
 
 }
 
@@ -175,36 +227,7 @@ function render(){
 
   }
 
-  try{
-
-    adminAgentPageState.admin =
-    getAdminStatus() || {
-
-      available:
-      false,
-
-      status:
-      "unknown"
-
-    };
-
-  }
-  catch(error){
-
-    adminAgentPageState.admin = {
-
-      available:
-      false,
-
-      status:
-      "error"
-
-    };
-
-    adminAgentPageState.error =
-    error;
-
-  }
+  updateAdminStatus();
 
   container.innerHTML =
   renderLayout(
@@ -213,202 +236,6 @@ function render(){
 
   requestAnimationFrame(
     scrollConsoleToBottom
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// INPUT EVENT
-// =====================================
-
-function handleInput(
-  event
-){
-
-  const input =
-  event.target.closest(
-    "[data-admin-agent-input]"
-  );
-
-  if(
-    !input
-  ){
-
-    return false;
-
-  }
-
-  adminAgentPageState.input =
-  input.value;
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLICK EVENT
-// =====================================
-
-function handleClick(
-  event
-){
-
-  const button =
-  event.target.closest(
-    "[data-admin-command]"
-  );
-
-  if(
-    !button
-    ||
-    !adminAgentPageState.container
-    ||
-    !adminAgentPageState.container.contains(
-      button
-    )
-  ){
-
-    return false;
-
-  }
-
-  event.preventDefault();
-
-  const command =
-  button.dataset.adminCommand;
-
-  runCommand(
-    command
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// SUBMIT EVENT
-// =====================================
-
-function handleSubmit(
-  event
-){
-
-  const form =
-  event.target.closest(
-    "[data-admin-agent-form]"
-  );
-
-  if(
-    !form
-    ||
-    !adminAgentPageState.container
-    ||
-    !adminAgentPageState.container.contains(
-      form
-    )
-  ){
-
-    return false;
-
-  }
-
-  event.preventDefault();
-
-  const input =
-  form.querySelector(
-    "[data-admin-agent-input]"
-  );
-
-  const command =
-  input?.value ||
-  adminAgentPageState.input;
-
-  runCommand(
-    command
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// BIND EVENTS
-// =====================================
-
-function bindEvents(){
-
-  const container =
-  adminAgentPageState.container;
-
-  if(
-    !container
-  ){
-
-    return false;
-
-  }
-
-  container.addEventListener(
-    "click",
-    handleClick
-  );
-
-  container.addEventListener(
-    "submit",
-    handleSubmit
-  );
-
-  container.addEventListener(
-    "input",
-    handleInput
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// UNBIND EVENTS
-// =====================================
-
-function unbindEvents(){
-
-  const container =
-  adminAgentPageState.container;
-
-  if(
-    !container
-  ){
-
-    return false;
-
-  }
-
-  container.removeEventListener(
-    "click",
-    handleClick
-  );
-
-  container.removeEventListener(
-    "submit",
-    handleSubmit
-  );
-
-  container.removeEventListener(
-    "input",
-    handleInput
   );
 
   return true;
@@ -481,9 +308,17 @@ async function mount(
   container.style.background =
   "#020817";
 
-  bindEvents();
-
   render();
+
+  AdminAgentActions.mount(
+    container,
+    {
+
+      onCommand:
+      runCommand
+
+    }
+  );
 
   return true;
 
@@ -599,7 +434,7 @@ async function refresh(){
 
 function unmount(){
 
-  unbindEvents();
+  AdminAgentActions.unmount();
 
   const container =
   adminAgentPageState.container;
@@ -719,7 +554,10 @@ function snapshot(){
 
       ...adminAgentPageState.admin
 
-    }
+    },
+
+    actions:
+    AdminAgentActions.snapshot()
 
   };
 
