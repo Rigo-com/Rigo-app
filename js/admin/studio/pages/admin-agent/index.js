@@ -25,6 +25,15 @@ from "./admin-agent-actions.js";
 
 
 // =====================================
+// CONFIG
+// =====================================
+
+const ADMIN_AI_CHAT_ENDPOINT =
+"/api/admin-ai-chat";
+
+
+
+// =====================================
 // STATE
 // =====================================
 
@@ -211,6 +220,262 @@ function scrollConsoleToBottom(){
 
 
 // =====================================
+// NORMALIZE RESPONSE BODY
+// =====================================
+
+async function readResponseBody(
+  response
+){
+
+  const rawBody =
+  await response.text();
+
+  if(
+    !rawBody
+  ){
+
+    return {};
+
+  }
+
+  try{
+
+    return JSON.parse(
+      rawBody
+    );
+
+  }
+  catch{
+
+    return {
+
+      ok:
+      false,
+
+      error:
+      rawBody
+
+    };
+
+  }
+
+}
+
+
+
+// =====================================
+// UNMATCHED ROUTE CHECK
+// =====================================
+
+function isUnmatchedAdminRoute(
+  result
+){
+
+  if(
+    !result ||
+    typeof result !==
+    "object"
+  ){
+
+    return false;
+
+  }
+
+  if(
+    result.mode ===
+    "admin-agent-router"
+  ){
+
+    return true;
+
+  }
+
+  return (
+    result.message ===
+    "Admin Agent command received. No matching route found."
+  );
+
+}
+
+
+
+// =====================================
+// CHAT HISTORY
+// =====================================
+
+function createChatHistory(){
+
+  return adminAgentPageState
+  .messages
+  .filter(
+    function(message){
+
+      return (
+
+        (
+          message.role ===
+          "user"
+        )
+
+        ||
+
+        (
+          message.role ===
+          "assistant" &&
+
+          typeof message.content ===
+          "string"
+        )
+
+      );
+
+    }
+  )
+  .slice(
+    -20
+  )
+  .map(
+    function(message){
+
+      return {
+
+        role:
+        message.role,
+
+        content:
+        String(
+          message.content || ""
+        )
+
+      };
+
+    }
+  );
+
+}
+
+
+
+// =====================================
+// ADMIN AI CHAT
+// =====================================
+
+async function requestAdminAI(
+  input
+){
+
+  const response =
+  await fetch(
+    ADMIN_AI_CHAT_ENDPOINT,
+    {
+
+      method:
+      "POST",
+
+      credentials:
+      "same-origin",
+
+      headers:{
+
+        "Content-Type":
+        "application/json"
+
+      },
+
+      body:
+      JSON.stringify({
+
+        message:
+        input,
+
+        messages:
+        createChatHistory()
+
+      })
+
+    }
+  );
+
+  const result =
+  await readResponseBody(
+    response
+  );
+
+  if(
+    !response.ok ||
+    result?.ok === false
+  ){
+
+    const error =
+    new Error(
+
+      result?.error ||
+
+      `ADMIN_AI_CHAT_FAILED:${response.status}`
+
+    );
+
+    error.status =
+    response.status;
+
+    error.details =
+    result?.details ||
+    null;
+
+    throw error;
+
+  }
+
+  if(
+    typeof result?.message !==
+    "string" ||
+    !result.message.trim()
+  ){
+
+    throw new Error(
+      "ADMIN_AI_CHAT_EMPTY_RESPONSE"
+    );
+
+  }
+
+  return result.message.trim();
+
+}
+
+
+
+// =====================================
+// PROCESS COMMAND
+// =====================================
+
+async function processCommand(
+  input
+){
+
+  const adminResult =
+  await executeAdminCommand(
+    input
+  );
+
+  if(
+    !isUnmatchedAdminRoute(
+      adminResult
+    )
+  ){
+
+    return adminResult;
+
+  }
+
+  return requestAdminAI(
+    input
+  );
+
+}
+
+
+
+// =====================================
 // RENDER
 // =====================================
 
@@ -341,8 +606,7 @@ async function runCommand(
   .trim();
 
   if(
-    !input
-    ||
+    !input ||
     adminAgentPageState.loading
   ){
 
@@ -369,7 +633,7 @@ async function runCommand(
   try{
 
     const result =
-    await executeAdminCommand(
+    await processCommand(
       input
     );
 
