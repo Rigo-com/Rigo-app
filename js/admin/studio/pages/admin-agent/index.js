@@ -355,6 +355,38 @@ function createChatHistory(){
 }
 
 
+function createProjectContext(){
+
+  return `
+Project: RIGO AI
+
+Architecture:
+
+Bootstrap
+Core
+Container
+Systems
+Agents
+AI
+Memory
+Communication
+UI
+Extensions
+
+Rules:
+
+- Container-first architecture.
+- Modular JavaScript project.
+- Admin Agent has project administration responsibilities.
+- Never claim code execution unless confirmed.
+- Prefer existing modules over creating new ones.
+- Preserve current architecture.
+
+`.trim();
+
+}
+
+
 
 // =====================================
 // ADMIN AI CHAT
