@@ -415,15 +415,18 @@ async function requestAdminAI(
       },
 
       body:
-      JSON.stringify({
+JSON.stringify({
 
-        message:
-        input,
+  message:
+  input,
 
-        messages:
-        createChatHistory()
+  messages:
+  createChatHistory(),
 
-      })
+  context:
+  createProjectContext()
+
+})
 
     }
   );
