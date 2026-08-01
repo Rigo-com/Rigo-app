@@ -15,7 +15,7 @@ const OPENROUTER_URL =
 
 const DEFAULT_MODEL =
 process.env.OPENROUTER_MODEL ||
-"~openai/gpt-latest";
+"openrouter/free";
 
 const MAX_MESSAGE_LENGTH =
 20000;
