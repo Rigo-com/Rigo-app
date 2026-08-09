@@ -37,7 +37,19 @@ async function ensureSchema(){
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS rigo_account_data (
+      user_id TEXT NOT NULL,
+      section TEXT NOT NULL,
+      data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, section)
+    )
+  `;
+
   await sql`CREATE INDEX IF NOT EXISTS rigo_user_data_user_id_idx ON rigo_user_data(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS rigo_account_data_user_id_idx ON rigo_account_data(user_id)`;
+
   schemaReady=true;
   return true;
 }
