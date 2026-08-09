@@ -1,82 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RIGO AI Login</title>
-
-  <link
-    rel="stylesheet"
-    href="./css/login.css">
-
+  <link rel="stylesheet" href="./css/login.css">
 </head>
-
 <body>
-
   <div class="login-screen">
+    <form class="login-content" id="login-form" novalidate>
+      <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
 
-    <div class="login-content">
-
-      <img
-        class="logo"
-        src="./assets/rigo-logo.PNG"
-        alt="RIGO AI">
-
-      <h1 class="title">
-        Welcome Back
-      </h1>
-
-      <p class="subtitle">
-        Sign in to continue
-      </p>
+      <h1 class="title">Welcome Back</h1>
+      <p class="subtitle">Sign in to continue</p>
 
       <input
+        id="login-email"
         class="input-field"
         type="email"
-        placeholder="Email Address">
+        autocomplete="email"
+        placeholder="Email Address"
+        required>
 
       <input
+        id="login-password"
         class="input-field"
         type="password"
-        placeholder="Password">
+        autocomplete="current-password"
+        placeholder="Password"
+        required>
 
       <div class="login-links">
-
-        <a
-          href="./forgot-password.html"
-          class="forgot-password">
+        <a href="./forgot-password.html" class="forgot-password">
           Forgot Password?
         </a>
 
-        <button
-          class="google-link">
+        <button type="button" class="google-link" disabled>
           Continue with Google
         </button>
-
       </div>
 
-      <a
-        href="./home.html"
+      <div
+        id="login-error"
+        role="alert"
+        aria-live="polite"
+        style="min-height:20px;color:#ef4444;font-size:14px;text-align:center;">
+      </div>
+
+      <button
+        id="login-submit"
+        type="submit"
         class="continue-button">
         Continue
-      </a>
+      </button>
 
-      <a
-        href="./register.html"
-        class="create-account">
+      <a href="./register.html" class="create-account">
         Create New Account
       </a>
-
-    </div>
-
+    </form>
   </div>
 
-</body>
+  <script type="module">
+    import Auth
+    from "./js/auth/index.js";
 
+    const form =
+    document.getElementById("login-form");
+
+    const emailInput =
+    document.getElementById("login-email");
+
+    const passwordInput =
+    document.getElementById("login-password");
+
+    const submitButton =
+    document.getElementById("login-submit");
+
+    const errorElement =
+    document.getElementById("login-error");
+
+    await Auth.initialize();
+
+    if(
+      Auth.status()
+      .authenticated
+    ){
+      window.location.replace("./home.html");
+    }
+
+    form.addEventListener(
+      "submit",
+      async function(event){
+        event.preventDefault();
+
+        errorElement.textContent = "";
+        submitButton.disabled = true;
+
+        const success =
+        await Auth.login({
+          email:emailInput.value,
+          password:passwordInput.value
+        });
+
+        if(success){
+          window.location.replace("./home.html");
+          return;
+        }
+
+        const status =
+        Auth.status();
+
+        errorElement.textContent =
+        status.error ||
+        "Unable to sign in.";
+
+        submitButton.disabled = false;
+      }
+    );
+  </script>
+</body>
 </html>
