@@ -18,85 +18,27 @@ from "./studio-layout.js";
 import renderSidebar
 from "./studio-sidebar.js";
 
-
-// =====================================
-// MOUNT
-// =====================================
-
-async function mount(
-  container
-){
-
-  StudioPages
-  .initialize();
-
-  mountStudioLayout(
-    container
-  );
-
+async function mount(container){
+  StudioPages.initialize();
+  mountStudioLayout(container);
   renderSidebar();
 
-  const workspaceContainer =
-  document.getElementById(
-    "rigo-studio-workspace"
-  );
+  const workspaceContainer = document.getElementById("rigo-studio-workspace");
+  await Workspace.mount(workspaceContainer);
 
-  await Workspace.mount(
-    workspaceContainer
-  );
-
-  const pageId =
-  StudioPages.getPageFromHash();
-
-  await Workspace.open(
-    pageId
-  );
-
+  const pageId = StudioPages.getPageFromHash();
+  await Workspace.open(pageId);
   return true;
 }
 
-
-// =====================================
-// UNMOUNT
-// =====================================
-
-function unmount(){
-
+async function unmount(){
   StudioPages.unmount();
-
+  await Workspace.unmount();
   unmountStudioLayout();
-
   return true;
 }
 
+const StudioUI = Object.freeze({mount,unmount});
 
-// =====================================
-// API
-// =====================================
-
-const StudioUI =
-Object.freeze({
-
-  mount,
-
-  unmount
-
-});
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  mount,
-
-  unmount,
-
-  StudioUI
-
-};
-
-export default
-StudioUI;
+export {mount,unmount,StudioUI};
+export default StudioUI;
