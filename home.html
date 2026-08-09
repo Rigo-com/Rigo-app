@@ -6,131 +6,22 @@
   <title>RIGO AI</title>
 
   <style>
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
-    }
-
-    body{
-      min-height:100vh;
-      background:#020817;
-      font-family:Arial,sans-serif;
-      color:white;
-    }
-
-    .menu-button{
-      position:fixed;
-      top:20px;
-      right:20px;
-      width:48px;
-      height:48px;
-      border:none;
-      border-radius:12px;
-      background:#0f172a;
-      color:white;
-      font-size:22px;
-      cursor:pointer;
-      border:1px solid #1e293b;
-      z-index:1001;
-    }
-
-    .sidebar{
-      position:fixed;
-      top:0;
-      right:-280px;
-      width:280px;
-      height:100vh;
-      background:#0f172a;
-      border-left:1px solid #1e293b;
-      transition:.3s;
-      padding:24px;
-      z-index:1000;
-    }
-
-    .sidebar.active{
-      right:0;
-    }
-
-    .sidebar-title{
-      font-size:22px;
-      font-weight:700;
-      margin-bottom:24px;
-    }
-
-    .menu-link{
-      display:block;
-      width:100%;
-      background:none;
-      border:none;
-      color:#cbd5e1;
-      text-decoration:none;
-      padding:14px 0;
-      border-bottom:1px solid #1e293b;
-      font-size:18px;
-      text-align:left;
-      cursor:pointer;
-    }
-
-    .menu-link:hover{
-      color:white;
-    }
-
-    #app-content{
-      min-height:100vh;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      padding:24px;
-    }
-
-    .home-container{
-      width:100%;
-      max-width:420px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-    }
-
-    .logo{
-      width:140px;
-      height:140px;
-      object-fit:contain;
-      margin-bottom:24px;
-    }
-
-    .title{
-      font-size:42px;
-      font-weight:700;
-      margin-bottom:12px;
-    }
-
-    .subtitle{
-      color:#94a3b8;
-      font-size:18px;
-      text-align:center;
-      margin-bottom:48px;
-    }
-
-    .card{
-      width:100%;
-      background:#0f172a;
-      border:1px solid #1e293b;
-      border-radius:20px;
-      padding:24px;
-      text-align:center;
-    }
-
-    .card-title{
-      font-size:24px;
-      font-weight:700;
-      margin-bottom:12px;
-    }
-
-    .card-text{
-      color:#94a3b8;
-      line-height:1.6;
-    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{min-height:100vh;background:#020817;font-family:Arial,sans-serif;color:white;}
+    .menu-button{position:fixed;top:20px;right:20px;width:48px;height:48px;border:none;border-radius:12px;background:#0f172a;color:white;font-size:22px;cursor:pointer;border:1px solid #1e293b;z-index:1001;}
+    .sidebar{position:fixed;top:0;right:-280px;width:280px;height:100vh;background:#0f172a;border-left:1px solid #1e293b;transition:.3s;padding:24px;z-index:1000;}
+    .sidebar.active{right:0;}
+    .sidebar-title{font-size:22px;font-weight:700;margin-bottom:24px;}
+    .menu-link{display:block;width:100%;background:none;border:none;color:#cbd5e1;text-decoration:none;padding:14px 0;border-bottom:1px solid #1e293b;font-size:18px;text-align:left;cursor:pointer;}
+    .menu-link:hover{color:white;}
+    #app-content{min-height:100vh;display:flex;justify-content:center;align-items:center;padding:24px;}
+    .home-container{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;}
+    .logo{width:140px;height:140px;object-fit:contain;margin-bottom:24px;}
+    .title{font-size:42px;font-weight:700;margin-bottom:12px;}
+    .subtitle{color:#94a3b8;font-size:18px;text-align:center;margin-bottom:48px;}
+    .card{width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:20px;padding:24px;text-align:center;}
+    .card-title{font-size:24px;font-weight:700;margin-bottom:12px;}
+    .card-text{color:#94a3b8;line-height:1.6;}
   </style>
 </head>
 
@@ -139,18 +30,9 @@
 
   <div id="sidebar" class="sidebar">
     <div class="sidebar-title">RIGO AI</div>
-
-    <button class="menu-link" onclick="showHome()">
-      🏠 Home
-    </button>
-
-    <button class="menu-link" onclick="showAdminStudio()">
-      🧠 Admin Studio
-    </button>
-
-    <a href="./debug.html" class="menu-link">
-      🐞 Debug Center
-    </a>
+    <button class="menu-link" onclick="showHome()">🏠 Home</button>
+    <button class="menu-link" onclick="showAdminStudio()">🧠 Admin Studio</button>
+    <a href="./debug.html" class="menu-link">🐞 Debug Center</a>
   </div>
 
   <main id="app-content">
@@ -158,7 +40,6 @@
       <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
       <h1 class="title">RIGO AI</h1>
       <p class="subtitle">One App. Unlimited Possibilities.</p>
-
       <div class="card">
         <div class="card-title">Welcome</div>
         <div class="card-text">You have successfully signed in to RIGO AI.</div>
@@ -167,31 +48,27 @@
   </main>
 
   <script>
-    function toggleMenu(){
-      document.getElementById("sidebar").classList.toggle("active");
-    }
-
-    function closeMenu(){
-      document.getElementById("sidebar").classList.remove("active");
-    }
+    function toggleMenu(){document.getElementById("sidebar").classList.toggle("active");}
+    function closeMenu(){document.getElementById("sidebar").classList.remove("active");}
   </script>
 
   <script type="module">
-    import {
-      applicationReady
-    }
-    from "./js/main.js";
-
-    import StudioUI
-    from "./js/admin/studio/ui/index.js";
+    import { applicationReady } from "./js/main.js";
+    import Auth from "./js/auth/index.js";
+    import StudioUI from "./js/admin/studio/ui/index.js";
 
     await applicationReady;
+
+    const authState = Auth.status();
+    if(!authState?.authenticated){
+      window.location.replace("./login.html");
+      throw new Error("AUTHENTICATION_REQUIRED");
+    }
 
     const appContent = document.getElementById("app-content");
 
     function isStudioURL(){
-      return String(window.location.hash || "")
-      .startsWith("#studio/");
+      return String(window.location.hash || "").startsWith("#studio/");
     }
 
     function resetAppContentForHome(){
@@ -211,10 +88,8 @@
     window.showHome = async function(){
       closeMenu();
       window.location.hash = "";
-
       await StudioUI.unmount();
       resetAppContentForHome();
-
       appContent.innerHTML = `
         <div class="home-container" id="home-view">
           <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
@@ -230,14 +105,11 @@
 
     window.showAdminStudio = async function(){
       closeMenu();
-
       if(!isStudioURL()){
         window.location.hash = "studio/dashboard";
       }
-
       appContent.innerHTML = "";
       resetAppContentForStudio();
-
       await StudioUI.mount(appContent);
     };
 
