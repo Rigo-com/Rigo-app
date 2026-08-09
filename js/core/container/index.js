@@ -4,9 +4,19 @@
 // =====================================
 
 export {
-  RIGOContainer
+  RIGOContainer,
+  containerState
 }
 from "./container.js";
+
+export {
+  DEFAULT_CONTAINER_SCOPE,
+  normalizeContainerScope,
+  isValidContainerScope,
+  getDefaultContainerScope,
+  RIGOContainerScopes
+}
+from "./container-scopes.js";
 
 export {
   default
