@@ -1,97 +1,218 @@
 // =====================================
 // RIGO AI
 // AUTH ACTIONS
+// NEON AUTH CLIENT BRIDGE
 // =====================================
-import {AUTH_RUNTIME_CONFIG} from "./auth-config.js";
-import {authRuntimeState,updateAuthRuntimeState,resetAuthRuntimeState} from "./auth-state.js";
-import {validateEmail,validatePassword} from "./auth-validation.js";
-import {createAuthSession,saveAuthSession,loadAuthSession,clearAuthSession,isSessionExpired,isLoginBlocked,registerFailedLogin} from "./auth-session.js";
-import {createSecureToken,getSafeErrorMessage,safeCloneAuth} from "./auth-utils.js";
 
-function normalizeEmail(email){return String(email||"").trim().toLowerCase();}
-function createStableUserId(email){return `user:${normalizeEmail(email)}`;}
-function isConfiguredAdminEmail(email){const normalized=normalizeEmail(email);return AUTH_RUNTIME_CONFIG.ADMIN_EMAILS.map(value=>normalizeEmail(value)).includes(normalized);}
+import {
+  authRuntimeState,
+  updateAuthRuntimeState,
+  resetAuthRuntimeState
+}
+from "./auth-state.js";
 
-async function verifyAdminOnServer({email,password,staySignedIn}){
-  if(typeof window==="undefined")return false;
-  const response=await fetch("/api/admin-session",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password,staySignedIn:Boolean(staySignedIn)})});
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok||!result?.admin){throw new Error(result?.error||"ADMIN_ACCESS_DENIED");}
-  return true;
+import {
+  validateEmail,
+  validatePassword
+}
+from "./auth-validation.js";
+
+import {
+  getSafeErrorMessage,
+  safeCloneAuth
+}
+from "./auth-utils.js";
+
+const AUTH_ENDPOINT="/api/neon-auth";
+
+function extractUser(payload){
+  return payload?.user||payload?.data?.user||payload?.data?.session?.user||null;
 }
 
-async function clearServerAdminSession(){
-  if(typeof window==="undefined")return true;
-  try{await fetch("/api/admin-session",{method:"DELETE",credentials:"same-origin"});}catch{}
+function extractSession(payload){
+  return payload?.session||payload?.data?.session||payload?.data?.session?.session||null;
+}
+
+function extractError(payload,fallback){
+  return payload?.error?.message||payload?.error||payload?.message||fallback;
+}
+
+function expiresAtValue(session){
+  const raw=session?.expiresAt||session?.expires_at||null;
+  if(!raw)return null;
+  const value=typeof raw==="number"?raw:Date.parse(raw);
+  return Number.isFinite(value)?value:null;
+}
+
+async function authRequest(action,{method="GET",body=null}={}){
+  const url=`${AUTH_ENDPOINT}?action=${encodeURIComponent(action)}`;
+  const options={
+    method,
+    credentials:"same-origin",
+    headers:{Accept:"application/json"}
+  };
+
+  if(body!==null){
+    options.headers["Content-Type"]="application/json";
+    options.body=JSON.stringify(body);
+  }
+
+  const response=await fetch(url,options);
+  const text=await response.text();
+  let payload=null;
+  try{payload=text?JSON.parse(text):null}catch{payload=null}
+
+  return {response,payload,text};
+}
+
+async function applyServerSession(payload){
+  const user=extractUser(payload);
+  const session=extractSession(payload);
+
+  if(!user?.id){
+    resetAuthRuntimeState();
+    return false;
+  }
+
+  const role=payload?.role==="admin"?"admin":"user";
+  const normalizedUser={
+    ...user,
+    id:String(user.id),
+    email:String(user.email||"").trim().toLowerCase(),
+    role
+  };
+
+  updateAuthRuntimeState({
+    authenticated:true,
+    user:safeCloneAuth(normalizedUser),
+    token:null,
+    sessionExpiresAt:expiresAtValue(session),
+    lastActivityAt:Date.now(),
+    error:null
+  });
+
   return true;
 }
 
 export async function restoreAuthSession(){
   updateAuthRuntimeState({loading:true,error:null});
+
   try{
-    const session=loadAuthSession();
-    if(isSessionExpired(session)){clearAuthSession();resetAuthRuntimeState();return false;}
-    if(!session){resetAuthRuntimeState();return false;}
-    const email=normalizeEmail(session.user?.email);
-    if(!email){clearAuthSession();resetAuthRuntimeState();return false;}
-    const user={...session.user,id:createStableUserId(email),email,role:"user"};
-    updateAuthRuntimeState({authenticated:true,user:safeCloneAuth(user),token:session.token,sessionExpiresAt:session.expiresAt,lastActivityAt:Date.now()});
-    authRuntimeState.diagnostics.restored++;
-    return true;
-  }catch{authRuntimeState.diagnostics.errors++;resetAuthRuntimeState();return false;}
-  finally{updateAuthRuntimeState({initialized:true,loading:false});}
+    const {response,payload}=await authRequest("session");
+
+    if(!response.ok){
+      resetAuthRuntimeState();
+      return false;
+    }
+
+    const restored=await applyServerSession(payload);
+    if(restored)authRuntimeState.diagnostics.restored++;
+    return restored;
+  }
+  catch(error){
+    authRuntimeState.diagnostics.errors++;
+    resetAuthRuntimeState();
+    return false;
+  }
+  finally{
+    updateAuthRuntimeState({initialized:true,loading:false});
+  }
 }
 
 export async function login({email="",password="",staySignedIn=false}={}){
   updateAuthRuntimeState({loading:true,error:null});
-  try{
-    if(isLoginBlocked())throw new Error("LOGIN_BLOCKED");
-    if(!validateEmail(email)){registerFailedLogin();throw new Error("INVALID_EMAIL");}
-    if(!validatePassword(password)){registerFailedLogin();throw new Error("INVALID_PASSWORD");}
 
-    const normalizedEmail=normalizeEmail(email);
-    if(isConfiguredAdminEmail(normalizedEmail)){
-      await verifyAdminOnServer({email:normalizedEmail,password,staySignedIn});
+  try{
+    if(!validateEmail(email))throw new Error("INVALID_EMAIL");
+    if(!validatePassword(password))throw new Error("INVALID_PASSWORD");
+
+    const normalizedEmail=String(email).trim().toLowerCase();
+    const {response,payload}=await authRequest("login",{
+      method:"POST",
+      body:{
+        email:normalizedEmail,
+        password,
+        staySignedIn:Boolean(staySignedIn)
+      }
+    });
+
+    if(!response.ok){
+      throw new Error(extractError(payload,"INVALID_CREDENTIALS"));
     }
 
-    const user={id:createStableUserId(normalizedEmail),email:normalizedEmail,role:"user"};
-    const token=createSecureToken();
-    const session=createAuthSession({user,token,persistent:Boolean(staySignedIn)});
-    if(!saveAuthSession(session))throw new Error("SESSION_SAVE_FAILED");
+    const restored=await restoreAuthSession();
+    if(!restored)throw new Error("SESSION_RESTORE_FAILED");
 
-    authRuntimeState.failedLoginAttempts=0;
-    authRuntimeState.loginBlockedUntil=null;
-    updateAuthRuntimeState({authenticated:true,user:safeCloneAuth(user),token,sessionExpiresAt:session.expiresAt,lastActivityAt:Date.now()});
     authRuntimeState.diagnostics.logins++;
     return true;
-  }catch(error){
+  }
+  catch(error){
     authRuntimeState.diagnostics.errors++;
     resetAuthRuntimeState();
     updateAuthRuntimeState({error:getSafeErrorMessage(error)});
     return false;
-  }finally{updateAuthRuntimeState({loading:false});}
+  }
+  finally{
+    updateAuthRuntimeState({loading:false});
+  }
 }
 
-export async function register({email="",password="",staySignedIn=false}={}){
-  if(isConfiguredAdminEmail(email)){
-    updateAuthRuntimeState({error:"ADMIN_ACCOUNT_CANNOT_BE_REGISTERED"});
+export async function register({name="",email="",password="",staySignedIn=false}={}){
+  updateAuthRuntimeState({loading:true,error:null});
+
+  try{
+    if(!validateEmail(email))throw new Error("INVALID_EMAIL");
+    if(!validatePassword(password))throw new Error("INVALID_PASSWORD");
+
+    const normalizedEmail=String(email).trim().toLowerCase();
+    const normalizedName=String(name||"").trim()||normalizedEmail.split("@")[0]||"RIGO User";
+
+    const {response,payload}=await authRequest("register",{
+      method:"POST",
+      body:{
+        name:normalizedName,
+        email:normalizedEmail,
+        password,
+        staySignedIn:Boolean(staySignedIn)
+      }
+    });
+
+    if(!response.ok){
+      throw new Error(extractError(payload,"REGISTRATION_FAILED"));
+    }
+
+    const restored=await restoreAuthSession();
+    if(!restored)throw new Error("SESSION_RESTORE_FAILED");
+
+    authRuntimeState.diagnostics.registrations++;
+    return true;
+  }
+  catch(error){
+    authRuntimeState.diagnostics.errors++;
+    resetAuthRuntimeState();
+    updateAuthRuntimeState({error:getSafeErrorMessage(error)});
     return false;
   }
-  const success=await login({email,password,staySignedIn});
-  if(success)authRuntimeState.diagnostics.registrations++;
-  return success;
+  finally{
+    updateAuthRuntimeState({loading:false});
+  }
 }
 
 export async function logout(){
   updateAuthRuntimeState({loading:true,error:null});
+
   try{
-    await clearServerAdminSession();
-    clearAuthSession();
+    await authRequest("logout",{method:"POST",body:{}});
     resetAuthRuntimeState();
-    authRuntimeState.failedLoginAttempts=0;
-    authRuntimeState.loginBlockedUntil=null;
     authRuntimeState.diagnostics.logouts++;
     return true;
-  }catch{authRuntimeState.diagnostics.errors++;return false;}
-  finally{updateAuthRuntimeState({loading:false});}
+  }
+  catch{
+    authRuntimeState.diagnostics.errors++;
+    resetAuthRuntimeState();
+    return false;
+  }
+  finally{
+    updateAuthRuntimeState({loading:false});
+  }
 }
