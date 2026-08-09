@@ -1,4 +1,4 @@
-import {authenticateAdmin,isAdminEmail,issueAdminSession,clearAdminSession} from "./_admin-auth.js";
+import {authenticateAdmin,isAdminEmail,issueAdminSession,clearAdminSession,getAdminSession} from "./_admin-auth.js";
 
 const ACTIONS=Object.freeze({
   session:{method:"GET",path:"get-session"},
@@ -49,16 +49,12 @@ async function forwardAuth({baseUrl,path,request,payload=null,persistent=true}){
 
   if(request.headers.cookie){headers.Cookie=request.headers.cookie;}
 
-  const init={
-    method:payload===null?"GET":"POST",
-    headers,
-    redirect:"manual"
-  };
-
-  if(payload!==null){init.body=JSON.stringify(payload);}
+  const init={method:payload===null?"GET":"POST",headers,redirect:"manual"};
+  if(payload!==null)init.body=JSON.stringify(payload);
 
   const upstream=await fetch(`${baseUrl}/${path}`,init);
   const text=await upstream.text();
+
   return {
     upstream,
     text,
@@ -71,7 +67,11 @@ function parseJson(text){
 }
 
 function applyCookies(response,cookies=[]){
-  if(cookies.length){response.setHeader("Set-Cookie",cookies);}
+  if(cookies.length)response.setHeader("Set-Cookie",cookies);
+}
+
+function extractUser(payload){
+  return payload?.user||payload?.data?.user||payload?.data?.session?.user||null;
 }
 
 export default async function handler(request,response){
@@ -116,6 +116,16 @@ export default async function handler(request,response){
     if(action==="session"){
       const result=await forwardAuth({baseUrl,path:config.path,request,payload:null,persistent:true});
       applyCookies(response,result.cookies);
+
+      const parsed=parseJson(result.text);
+      if(result.upstream.ok&&parsed&&typeof parsed==="object"){
+        const user=extractUser(parsed);
+        const adminSession=getAdminSession(request);
+        const role=adminSession&&user&&isAdminEmail(user.email)?"admin":"user";
+        response.status(200).json({...parsed,role});
+        return;
+      }
+
       response.status(result.upstream.status).send(result.text||"");
       return;
     }
@@ -125,22 +135,21 @@ export default async function handler(request,response){
     delete payload.staySignedIn;
     payload.email=email;
 
-    if(action==="login"&&"rememberMe" in payload===false){
+    if(action==="login"&&!("rememberMe" in payload)){
       payload.rememberMe=persistent;
     }
 
     let result=await forwardAuth({baseUrl,path:config.path,request,payload,persistent});
 
     if(action==="login"&&isAdminEmail(email)&&!result.upstream.ok){
-      const signUpPayload={
-        email,
-        password:body.password,
-        name:"RIGO Admin"
-      };
-      const bootstrap=await forwardAuth({baseUrl,path:ACTIONS.register.path,request,payload:signUpPayload,persistent});
-      if(bootstrap.upstream.ok){
-        result=bootstrap;
-      }
+      const bootstrap=await forwardAuth({
+        baseUrl,
+        path:ACTIONS.register.path,
+        request,
+        payload:{email,password:body.password,name:"RIGO Admin"},
+        persistent
+      });
+      if(bootstrap.upstream.ok)result=bootstrap;
     }
 
     const cookies=[...result.cookies];
