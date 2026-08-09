@@ -1,17 +1,16 @@
 // =====================================
 // RIGO AI
 // SETTINGS STORAGE
-// STORAGE LAYER
+// PER-USER STORAGE LAYER
 // =====================================
 
 import SETTINGS_DEFAULTS
 from "./settings-defaults.js";
 
-
-
-// =====================================
-// STORAGE KEYS
-// =====================================
+import {
+  scopeStorageKey
+}
+from "../storage/storage-scope.js";
 
 const SETTINGS_KEY =
 "rigo.settings";
@@ -19,297 +18,117 @@ const SETTINGS_KEY =
 const BACKUP_KEY =
 "rigo.settings.backup";
 
-
-
-// =====================================
-// LOAD
-// =====================================
+function resolveKey(key){
+  try{
+    return scopeStorageKey(key);
+  }
+  catch{
+    return "";
+  }
+}
 
 function loadSettings(){
-
   try{
-
-    const raw =
-
-      localStorage.getItem(
-        SETTINGS_KEY
-      );
-
-    if(
-      !raw
-    ){
-
-      return structuredClone(
-        SETTINGS_DEFAULTS
-      );
-
-    }
-
-    return JSON.parse(
-      raw
-    );
-
+    const key = resolveKey(SETTINGS_KEY);
+    if(!key){return structuredClone(SETTINGS_DEFAULTS);}
+    const raw = localStorage.getItem(key);
+    if(!raw){return structuredClone(SETTINGS_DEFAULTS);}
+    return JSON.parse(raw);
   }
-
   catch{
-
-    return structuredClone(
-      SETTINGS_DEFAULTS
-    );
-
+    return structuredClone(SETTINGS_DEFAULTS);
   }
-
 }
 
-
-
-// =====================================
-// SAVE
-// =====================================
-
-function saveSettings(
-  settings
-){
-
+function saveSettings(settings){
   try{
-
-    localStorage.setItem(
-
-      SETTINGS_KEY,
-
-      JSON.stringify(
-        settings
-      )
-
-    );
-
+    const key = resolveKey(SETTINGS_KEY);
+    if(!key){return false;}
+    localStorage.setItem(key,JSON.stringify(settings));
     return true;
-
   }
-
   catch{
-
     return false;
-
   }
-
 }
 
-
-
-// =====================================
-// BACKUP
-// =====================================
-
-function createBackup(
-  settings
-){
-
+function createBackup(settings){
   try{
-
-    localStorage.setItem(
-
-      BACKUP_KEY,
-
-      JSON.stringify(
-        settings
-      )
-
-    );
-
+    const key = resolveKey(BACKUP_KEY);
+    if(!key){return false;}
+    localStorage.setItem(key,JSON.stringify(settings));
     return true;
-
   }
-
   catch{
-
     return false;
-
   }
-
 }
-
-
 
 function loadBackup(){
-
   try{
-
-    const raw =
-
-      localStorage.getItem(
-        BACKUP_KEY
-      );
-
-    if(
-      !raw
-    ){
-      return null;
-    }
-
-    return JSON.parse(
-      raw
-    );
-
+    const key = resolveKey(BACKUP_KEY);
+    if(!key){return null;}
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
   }
-
   catch{
-
     return null;
-
   }
-
 }
-
-
-
-// =====================================
-// REMOVE
-// =====================================
 
 function removeSettings(){
-
   try{
-
-    localStorage.removeItem(
-      SETTINGS_KEY
-    );
-
+    const key = resolveKey(SETTINGS_KEY);
+    if(!key){return false;}
+    localStorage.removeItem(key);
     return true;
-
   }
-
   catch{
-
     return false;
-
   }
-
 }
-
-
 
 function removeBackup(){
-
   try{
-
-    localStorage.removeItem(
-      BACKUP_KEY
-    );
-
+    const key = resolveKey(BACKUP_KEY);
+    if(!key){return false;}
+    localStorage.removeItem(key);
     return true;
-
   }
-
   catch{
-
     return false;
-
   }
-
 }
-
-
-
-// =====================================
-// RESET
-// =====================================
 
 function resetStorage(){
-
   removeSettings();
-
   removeBackup();
-
   return true;
-
 }
-
-
-
-// =====================================
-// STORAGE STATUS
-// =====================================
 
 function getStorageStatus(){
-
-  return Object.freeze({
-
-    hasSettings:
-
-    localStorage.getItem(
-      SETTINGS_KEY
-    ) !== null,
-
-    hasBackup:
-
-    localStorage.getItem(
-      BACKUP_KEY
-    ) !== null
-
-  });
-
+  try{
+    const settingsKey = resolveKey(SETTINGS_KEY);
+    const backupKey = resolveKey(BACKUP_KEY);
+    return Object.freeze({
+      hasSettings:Boolean(settingsKey&&localStorage.getItem(settingsKey)!==null),
+      hasBackup:Boolean(backupKey&&localStorage.getItem(backupKey)!==null)
+    });
+  }
+  catch{
+    return Object.freeze({hasSettings:false,hasBackup:false});
+  }
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const SettingsStorage =
-Object.freeze({
-
-  loadSettings,
-
-  saveSettings,
-
-  createBackup,
-
-  loadBackup,
-
-  removeSettings,
-
-  removeBackup,
-
-  resetStorage,
-
-  status:
-  getStorageStatus
-
+const SettingsStorage = Object.freeze({
+  loadSettings,saveSettings,createBackup,loadBackup,
+  removeSettings,removeBackup,resetStorage,status:getStorageStatus
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
-  SETTINGS_KEY,
-
-  BACKUP_KEY,
-
-  loadSettings,
-
-  saveSettings,
-
-  createBackup,
-
-  loadBackup,
-
-  removeSettings,
-
-  removeBackup,
-
-  resetStorage,
-
-  getStorageStatus,
-
+  SETTINGS_KEY,BACKUP_KEY,loadSettings,saveSettings,createBackup,
+  loadBackup,removeSettings,removeBackup,resetStorage,getStorageStatus,
   SettingsStorage
-
 };
 
-export default
-SettingsStorage;
+export default SettingsStorage;
