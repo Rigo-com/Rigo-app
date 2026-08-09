@@ -10,7 +10,10 @@ from "./storage-config.js";
 import { deepClone }
 from "./storage-utils.js";
 
-import { scopeStorageKey }
+import {
+  scopeStorageKey,
+  getCurrentUserNamespace
+}
 from "./storage-scope.js";
 
 const memoryStore = new Map();
@@ -18,6 +21,15 @@ const memoryStore = new Map();
 function resolveKey(key){
   try{
     return scopeStorageKey(key);
+  }
+  catch{
+    return "";
+  }
+}
+
+function currentPrefix(){
+  try{
+    return `${getCurrentUserNamespace()}.`;
   }
   catch{
     return "";
@@ -57,30 +69,24 @@ function removeMemoryItem(key){
 }
 
 function clearMemoryStore(){
-  try{
-    const probe = scopeStorageKey("");
-    const prefix = probe.slice(0,probe.lastIndexOf(".")+1);
-    for(const key of Array.from(memoryStore.keys())){
-      if(key.startsWith(prefix)){
-        memoryStore.delete(key);
-      }
+  const prefix = currentPrefix();
+  if(!prefix){return false;}
+
+  for(const key of Array.from(memoryStore.keys())){
+    if(key.startsWith(prefix)){
+      memoryStore.delete(key);
     }
-    return true;
   }
-  catch{
-    return false;
-  }
+
+  return true;
 }
 
 function getScopedEntries(){
-  try{
-    const probe = scopeStorageKey("");
-    const prefix = probe.slice(0,probe.lastIndexOf(".")+1);
-    return Array.from(memoryStore.entries()).filter(([key])=>key.startsWith(prefix));
-  }
-  catch{
-    return [];
-  }
+  const prefix = currentPrefix();
+  if(!prefix){return [];}
+
+  return Array.from(memoryStore.entries())
+  .filter(([key])=>key.startsWith(prefix));
 }
 
 function getMemoryKeys(){return getScopedEntries().map(([key])=>key);}
