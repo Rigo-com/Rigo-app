@@ -10,17 +10,13 @@ import StudioPages
 from "./studio-pages.js";
 
 import {
-
   mountStudioLayout,
-
   unmountStudioLayout
-
 }
 from "./studio-layout.js";
 
 import renderSidebar
 from "./studio-sidebar.js";
-
 
 
 // =====================================
@@ -30,6 +26,9 @@ from "./studio-sidebar.js";
 async function mount(
   container
 ){
+
+  StudioPages
+  .initialize();
 
   mountStudioLayout(
     container
@@ -54,9 +53,7 @@ async function mount(
   );
 
   return true;
-
 }
-
 
 
 // =====================================
@@ -70,9 +67,7 @@ function unmount(){
   unmountStudioLayout();
 
   return true;
-
 }
-
 
 
 // =====================================
@@ -87,7 +82,6 @@ Object.freeze({
   unmount
 
 });
-
 
 
 // =====================================
