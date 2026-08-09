@@ -3,17 +3,8 @@
 // CONTAINER SCOPES
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
-import {
-  CONTAINER_LIFECYCLE
-}
-from "./container-types.js";
-
+const DEFAULT_CONTAINER_SCOPE =
+"global";
 
 
 // =====================================
@@ -21,17 +12,21 @@ from "./container-types.js";
 // =====================================
 
 function normalizeContainerScope(
-  scope
+  scope = DEFAULT_CONTAINER_SCOPE
 ){
 
-  return String(
-    scope || ""
+  const normalized =
+  String(
+    scope ||
+    DEFAULT_CONTAINER_SCOPE
   )
   .trim()
   .toLowerCase();
 
-}
+  return normalized ||
+  DEFAULT_CONTAINER_SCOPE;
 
+}
 
 
 function isValidContainerScope(
@@ -43,24 +38,19 @@ function isValidContainerScope(
     scope
   );
 
-  return Object.values(
-    CONTAINER_LIFECYCLE
-  )
-  .includes(
+  return /^[a-z0-9:_-]+$/
+  .test(
     normalizedScope
   );
 
 }
 
 
-
 function getDefaultContainerScope(){
 
-  return CONTAINER_LIFECYCLE
-  .SINGLETON;
+  return DEFAULT_CONTAINER_SCOPE;
 
 }
-
 
 
 // =====================================
@@ -82,12 +72,13 @@ Object.freeze({
 });
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
+
+  DEFAULT_CONTAINER_SCOPE,
 
   normalizeContainerScope,
 
