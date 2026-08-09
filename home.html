@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -136,7 +135,6 @@
 </head>
 
 <body>
-
   <button class="menu-button" onclick="toggleMenu()">☰</button>
 
   <div id="sidebar" class="sidebar">
@@ -157,22 +155,14 @@
 
   <main id="app-content">
     <div class="home-container" id="home-view">
-
       <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
-
       <h1 class="title">RIGO AI</h1>
-
-      <p class="subtitle">
-        One App. Unlimited Possibilities.
-      </p>
+      <p class="subtitle">One App. Unlimited Possibilities.</p>
 
       <div class="card">
         <div class="card-title">Welcome</div>
-        <div class="card-text">
-          You have successfully signed in to RIGO AI.
-        </div>
+        <div class="card-text">You have successfully signed in to RIGO AI.</div>
       </div>
-
     </div>
   </main>
 
@@ -187,178 +177,66 @@
   </script>
 
   <script type="module">
+    import "./js/main.js";
     import StudioUI from "./js/admin/studio/ui/index.js";
 
     const appContent = document.getElementById("app-content");
 
-    window.showHome = async function(){
+    function isStudioURL(){
+      return String(window.location.hash || "")
+      .startsWith("#studio/");
+    }
 
-      closeMenu();
-
-      await StudioUI.unmount();
-
+    function resetAppContentForHome(){
       appContent.style.display = "flex";
       appContent.style.padding = "24px";
       appContent.style.alignItems = "center";
       appContent.style.justifyContent = "center";
+    }
 
-      appContent.innerHTML = `
-        <div class="home-container" id="home-view">
-
-          <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
-
-          <h1 class="title">RIGO AI</h1>
-
-          <p class="subtitle">
-            One App. Unlimited Possibilities.
-          </p>
-
-          <div class="card">
-            <div class="card-title">Welcome</div>
-            <div class="card-text">
-              You have successfully signed in to RIGO AI.
-            </div>
-          </div>
-
-        </div>
-      `;
-
-    };
-
-    window.showAdminStudio = async function(){
-
-      closeMenu();
-
-      appContent.innerHTML = "";
-
+    function resetAppContentForStudio(){
       appContent.style.display = "block";
       appContent.style.padding = "0";
       appContent.style.alignItems = "stretch";
       appContent.style.justifyContent = "stretch";
-
-      await StudioUI.mount(appContent);
-
-    };
-  </script>
-
-  <script type="module">
-  import StudioUI from "./js/admin/studio/ui/index.js";
-
-  const appContent =
-  document.getElementById(
-    "app-content"
-  );
-
-  function isStudioURL(){
-
-    return String(
-      window.location.hash || ""
-    )
-    .startsWith(
-      "#studio/"
-    );
-
-  }
-
-  function resetAppContentForHome(){
-
-    appContent.style.display =
-    "flex";
-
-    appContent.style.padding =
-    "24px";
-
-    appContent.style.alignItems =
-    "center";
-
-    appContent.style.justifyContent =
-    "center";
-
-  }
-
-  function resetAppContentForStudio(){
-
-    appContent.style.display =
-    "block";
-
-    appContent.style.padding =
-    "0";
-
-    appContent.style.alignItems =
-    "stretch";
-
-    appContent.style.justifyContent =
-    "stretch";
-
-  }
-
-  window.showHome = async function(){
-
-    closeMenu();
-
-    window.location.hash =
-    "";
-
-    await StudioUI.unmount();
-
-    resetAppContentForHome();
-
-    appContent.innerHTML = `
-      <div class="home-container" id="home-view">
-
-        <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
-
-        <h1 class="title">RIGO AI</h1>
-
-        <p class="subtitle">
-          One App. Unlimited Possibilities.
-        </p>
-
-        <div class="card">
-          <div class="card-title">Welcome</div>
-          <div class="card-text">
-            You have successfully signed in to RIGO AI.
-          </div>
-        </div>
-
-      </div>
-    `;
-
-  };
-
-  window.showAdminStudio = async function(){
-
-    closeMenu();
-
-    if(
-      !isStudioURL()
-    ){
-
-      window.location.hash =
-      "studio/dashboard";
-
     }
 
-    appContent.innerHTML =
-    "";
+    window.showHome = async function(){
+      closeMenu();
+      window.location.hash = "";
 
-    resetAppContentForStudio();
+      await StudioUI.unmount();
+      resetAppContentForHome();
 
-    await StudioUI.mount(
-      appContent
-    );
+      appContent.innerHTML = `
+        <div class="home-container" id="home-view">
+          <img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI">
+          <h1 class="title">RIGO AI</h1>
+          <p class="subtitle">One App. Unlimited Possibilities.</p>
+          <div class="card">
+            <div class="card-title">Welcome</div>
+            <div class="card-text">You have successfully signed in to RIGO AI.</div>
+          </div>
+        </div>
+      `;
+    };
 
-  };
+    window.showAdminStudio = async function(){
+      closeMenu();
 
-  if(
-    isStudioURL()
-  ){
+      if(!isStudioURL()){
+        window.location.hash = "studio/dashboard";
+      }
 
-    window.showAdminStudio();
+      appContent.innerHTML = "";
+      resetAppContentForStudio();
 
-  }
-</script>
+      await StudioUI.mount(appContent);
+    };
 
+    if(isStudioURL()){
+      window.showAdminStudio();
+    }
+  </script>
 </body>
-
 </html>
