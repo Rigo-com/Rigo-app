@@ -4,12 +4,6 @@
 // ENTRY POINT
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import LifecycleConfig
 from "./lifecycle-config.js";
 
@@ -26,80 +20,40 @@ import LifecycleManager
 from "./lifecycle-manager.js";
 
 
-
-// =====================================
-// SHORTCUTS
-// =====================================
-
 async function initializeLifecycle(){
-
   return LifecycleManager
   .initialize();
-
 }
-
-
 
 async function startLifecycle(){
-
   return LifecycleManager
   .start();
-
 }
-
-
 
 async function shutdownLifecycle(){
-
   return LifecycleManager
   .shutdown();
-
 }
-
-
 
 async function restartLifecycle(){
-
   return LifecycleManager
   .restart();
-
 }
-
-
 
 async function resetLifecycle(){
-
   return LifecycleManager
   .reset();
-
 }
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
 
 function createLifecycleSystemSnapshot(){
-
   return Object.freeze({
-
     lifecycle:
-    LifecycleManager
-    .snapshot(),
-
+    LifecycleManager.snapshot(),
     timestamp:
     Date.now()
-
   });
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
 
 const Lifecycle =
 Object.freeze({
@@ -113,7 +67,7 @@ Object.freeze({
   startup:
   LifecycleStartup,
 
-  shutdown:
+  shutdownHandler:
   LifecycleShutdown,
 
   manager:
@@ -124,6 +78,12 @@ Object.freeze({
 
   start:
   startLifecycle,
+
+  boot:
+  startLifecycle,
+
+  shutdown:
+  shutdownLifecycle,
 
   shutdownApp:
   shutdownLifecycle,
@@ -136,41 +96,22 @@ Object.freeze({
 
   snapshot:
   createLifecycleSystemSnapshot
-
 });
 
 
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   LifecycleConfig,
-
   LifecycleState,
-
   LifecycleStartup,
-
   LifecycleShutdown,
-
   LifecycleManager,
-
   initializeLifecycle,
-
   startLifecycle,
-
   shutdownLifecycle,
-
   restartLifecycle,
-
   resetLifecycle,
-
   createLifecycleSystemSnapshot,
-
   Lifecycle
-
 };
 
 export default
