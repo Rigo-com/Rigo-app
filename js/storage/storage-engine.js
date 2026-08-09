@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // STORAGE ENGINE
-// PERSISTENCE ENGINE LAYER
+// PER-USER PERSISTENCE
 // =====================================
 
 import {
@@ -15,282 +15,137 @@ import {
 }
 from "./storage-validators.js";
 
+import {
+  scopeStorageKey,
+  getCurrentUserNamespace
+}
+from "./storage-scope.js";
 
-
-// =====================================
-// SAVE
-// =====================================
-
-function saveItem(
-  key,
-  value
-){
-
-  if(
-    !validateStorageKey(
-      key
-    )
-  ){
-    return false;
+function resolveKey(key){
+  if(!validateStorageKey(key)){
+    return "";
   }
 
   try{
-
-    const serialized =
-
-      serialize(
-        value
-      );
-
-    if(
-      serialized === null
-    ){
-      return false;
-    }
-
-    localStorage.setItem(
-
-      key,
-
-      serialized
-
-    );
-
-    return true;
-
+    return scopeStorageKey(key);
   }
-
   catch{
-
-    return false;
-
+    return "";
   }
-
 }
 
+function saveItem(key,value){
+  const scopedKey = resolveKey(key);
+  if(!scopedKey){return false;}
 
+  try{
+    const serialized = serialize(value);
+    if(serialized === null){return false;}
+    localStorage.setItem(scopedKey,serialized);
+    return true;
+  }
+  catch{
+    return false;
+  }
+}
 
-// =====================================
-// LOAD
-// =====================================
+function loadItem(key){
+  const scopedKey = resolveKey(key);
+  if(!scopedKey){return null;}
 
-function loadItem(
-  key
-){
-
-  if(
-    !validateStorageKey(
-      key
-    )
-  ){
+  try{
+    const value = localStorage.getItem(scopedKey);
+    if(value === null){return null;}
+    return deserialize(value);
+  }
+  catch{
     return null;
   }
-
-  try{
-
-    const value =
-
-      localStorage.getItem(
-        key
-      );
-
-    if(
-      value === null
-    ){
-      return null;
-    }
-
-    return deserialize(
-      value
-    );
-
-  }
-
-  catch{
-
-    return null;
-
-  }
-
 }
 
-
-
-// =====================================
-// REMOVE
-// =====================================
-
-function removeItem(
-  key
-){
-
-  if(
-    !validateStorageKey(
-      key
-    )
-  ){
-    return false;
-  }
+function removeItem(key){
+  const scopedKey = resolveKey(key);
+  if(!scopedKey){return false;}
 
   try{
-
-    localStorage.removeItem(
-      key
-    );
-
+    localStorage.removeItem(scopedKey);
     return true;
-
   }
-
   catch{
-
     return false;
-
   }
-
 }
-
-
-
-// =====================================
-// CLEAR
-// =====================================
 
 function clearStorage(){
-
   try{
+    const prefix = `${getCurrentUserNamespace()}.`;
+    const keys = [];
 
-    localStorage.clear();
+    for(let index=0;index<localStorage.length;index++){
+      const key = localStorage.key(index);
+      if(key?.startsWith(prefix)){
+        keys.push(key);
+      }
+    }
+
+    for(const key of keys){
+      localStorage.removeItem(key);
+    }
 
     return true;
-
   }
-
   catch{
-
     return false;
-
   }
-
 }
 
-
-
-// =====================================
-// EXISTS
-// =====================================
-
-function hasItem(
-  key
-){
-
-  if(
-    !validateStorageKey(
-      key
-    )
-  ){
-    return false;
-  }
+function hasItem(key){
+  const scopedKey = resolveKey(key);
+  if(!scopedKey){return false;}
 
   try{
-
-    return (
-
-      localStorage.getItem(
-        key
-      )
-
-      !== null
-
-    );
-
+    return localStorage.getItem(scopedKey) !== null;
   }
-
   catch{
-
     return false;
-
   }
-
 }
-
-
-
-// =====================================
-// STATS
-// =====================================
 
 function getEngineStats(){
-
   try{
+    const prefix = `${getCurrentUserNamespace()}.`;
+    let entries = 0;
 
-    return Object.freeze({
+    for(let index=0;index<localStorage.length;index++){
+      if(localStorage.key(index)?.startsWith(prefix)){
+        entries++;
+      }
+    }
 
-      entries:
-      localStorage.length
-
-    });
-
+    return Object.freeze({entries});
   }
-
   catch{
-
-    return Object.freeze({
-
-      entries:0
-
-    });
-
+    return Object.freeze({entries:0});
   }
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const StorageEngine =
-Object.freeze({
-
+const StorageEngine = Object.freeze({
   saveItem,
-
   loadItem,
-
   removeItem,
-
   clearStorage,
-
   hasItem,
-
   getEngineStats
-
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   saveItem,
-
   loadItem,
-
   removeItem,
-
   clearStorage,
-
   hasItem,
-
   getEngineStats,
-
   StorageEngine
-
 };
 
-export default
-StorageEngine;
+export default StorageEngine;
