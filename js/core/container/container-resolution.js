@@ -9,16 +9,17 @@ import {
 from "./container-types.js";
 
 import {
+  normalizeContainerScope,
+  getDefaultContainerScope
+}
+from "./container-scopes.js";
+
+import {
   normalizeServiceName,
   getService
 }
 from "./container-registry.js";
 
-
-
-// =====================================
-// CREATE INSTANCE
-// =====================================
 
 async function createServiceInstance(
   container,
@@ -26,116 +27,80 @@ async function createServiceInstance(
   scope
 ){
 
-  if(
-    !definition
-  ){
-
+  if(!definition){
     throw new Error(
       "INVALID_SERVICE_DEFINITION"
     );
-
   }
 
   if(
     typeof definition.factory !==
     "function"
   ){
-
     throw new Error(
       "INVALID_SERVICE_FACTORY"
     );
-
   }
 
-  const dependencies =
-  {};
-
+  const dependencies = {};
   const dependencyList =
-
-    definition.dependencies ||
-
-    [];
+  definition.dependencies || [];
 
   for(
     const dependency
     of dependencyList
   ){
-
     dependencies[
       dependency
     ] = await resolveService(
-
       container,
-
       dependency,
-
       scope
-
     );
-
   }
 
   return await definition.factory({
-
     container,
-
     services:
     dependencies,
-
     scope
-
   });
-
 }
 
-
-
-// =====================================
-// RESOLVE MANY
-// =====================================
 
 async function resolveServices(
   container,
   services = [],
-  scope = "global"
+  scope = getDefaultContainerScope()
 ){
 
-  const resolved =
-  {};
+  const resolved = {};
+  const normalizedScope =
+  normalizeContainerScope(
+    scope
+  );
 
   for(
     const service
     of services
   ){
-
     resolved[
       service
     ] = await resolveService(
-
       container,
-
       service,
-
-      scope
-
+      normalizedScope
     );
-
   }
 
   return resolved;
-
 }
 
-
-
-// =====================================
-// RESOLVE
-// =====================================
 
 async function resolveService(
   container,
   serviceName,
-  scope = "global"
+  scope = getDefaultContainerScope()
 ){
 
   const normalizedName =
@@ -143,32 +108,27 @@ async function resolveService(
     serviceName
   );
 
-  if(
-    !normalizedName
-  ){
+  const normalizedScope =
+  normalizeContainerScope(
+    scope
+  );
 
+  if(!normalizedName){
     throw new Error(
       "INVALID_SERVICE_NAME"
     );
-
   }
 
   if(
-
     container.state
     .resolutionStack
     .has(
       normalizedName
     )
-
   ){
-
     throw new Error(
-
       `CIRCULAR_DEPENDENCY:${normalizedName}`
-
     );
-
   }
 
   container.state
@@ -181,115 +141,77 @@ async function resolveService(
 
     const definition =
     getService(
-
       container.state,
-
       normalizedName
-
     );
 
-    if(
-      !definition
-    ){
-
+    if(!definition){
       throw new Error(
         `SERVICE_NOT_FOUND:${normalizedName}`
       );
-
     }
 
-
-
-    // ===============================
-    // SINGLETON
-    // ===============================
-
     if(
-
       definition.lifecycle ===
       CONTAINER_LIFECYCLE.SINGLETON
-
     ){
 
       if(
-
         container.state
         .singletons
         .has(
           normalizedName
         )
-
       ){
-
         return container.state
         .singletons
         .get(
           normalizedName
         );
-
       }
 
       const instance =
       await createServiceInstance(
-
         container,
         definition,
-        scope
-
+        normalizedScope
       );
 
       container.state
       .singletons
       .set(
-
         normalizedName,
-
         instance
-
       );
 
       return instance;
-
     }
 
-
-
-    // ===============================
-    // SCOPED
-    // ===============================
-
     if(
-
       definition.lifecycle ===
       CONTAINER_LIFECYCLE.SCOPED
-
     ){
 
       if(
-
         !container.state
         .scopes
-        .has(scope)
-
+        .has(
+          normalizedScope
+        )
       ){
-
         container.state
         .scopes
         .set(
-
-          scope,
-
+          normalizedScope,
           new Map()
-
         );
-
       }
 
       const scopeStore =
       container.state
       .scopes
       .get(
-        scope
+        normalizedScope
       );
 
       if(
@@ -297,75 +219,45 @@ async function resolveService(
           normalizedName
         )
       ){
-
-        return scopeStore
-        .get(
+        return scopeStore.get(
           normalizedName
         );
-
       }
 
       const instance =
       await createServiceInstance(
-
         container,
         definition,
-        scope
-
+        normalizedScope
       );
 
       scopeStore.set(
-
         normalizedName,
-
         instance
-
       );
 
       return instance;
-
     }
 
-
-
-    // ===============================
-    // TRANSIENT
-    // ===============================
-
     return createServiceInstance(
-
       container,
       definition,
-      scope
-
+      normalizedScope
     );
 
   }
-
   finally{
-
     container.state
     .resolutionStack
     .delete(
       normalizedName
     );
-
   }
-
 }
 
 
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   createServiceInstance,
-
   resolveServices,
-
   resolveService
-
 };
