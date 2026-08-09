@@ -13,9 +13,6 @@ from "../chat/chat-runtime/chat-runtime.js";
 import Debug
 from "../debug/index.js";
 
-import Memory
-from "../memory/index.js";
-
 import Admin
 from "../admin/index.js";
 
@@ -23,7 +20,6 @@ import {
   registerBootstrapSystem
 }
 from "./bootstrap-registry.js";
-
 
 
 // =====================================
@@ -53,6 +49,7 @@ function registerCoreSystem(){
 
 }
 
+
 function registerChatSystem(){
 
   return registerBootstrapSystem({
@@ -72,6 +69,7 @@ function registerChatSystem(){
   });
 
 }
+
 
 function registerDebugSystem(){
 
@@ -93,29 +91,9 @@ function registerDebugSystem(){
 
 }
 
-function registerMemorySystem(){
-
-  return registerBootstrapSystem({
-
-    id:
-    "memory",
-
-    priority:
-    20,
-
-    initialize:
-    Memory.initialize,
-
-    shutdown:
-    Memory.shutdown
-
-  });
-
-}
 
 function registerAdminSystem(){
 
-  
   return registerBootstrapSystem({
 
     id:
@@ -138,7 +116,6 @@ function registerAdminSystem(){
 }
 
 
-
 // =====================================
 // REGISTER ALL
 // =====================================
@@ -149,8 +126,6 @@ function registerBootstrapSystems(){
 
   registerChatSystem();
 
-  registerMemorySystem();
-
   registerDebugSystem();
 
   registerAdminSystem();
@@ -160,25 +135,16 @@ function registerBootstrapSystems(){
 }
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
-
   registerCoreSystem,
-
   registerChatSystem,
-
   registerDebugSystem,
-
-  registerMemorySystem,
-
   registerAdminSystem,
-
   registerBootstrapSystems
-
 };
 
 export default
