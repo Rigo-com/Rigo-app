@@ -4,7 +4,6 @@
 // SYSTEM REGISTRATION
 // =====================================
 
-
 import ModuleRegistry
 from "./module-registry.js";
 
@@ -46,6 +45,40 @@ from "../../voice/index.js";
 
 
 // =====================================
+// LIFECYCLE ADAPTERS
+// =====================================
+
+const SearchModule =
+Object.freeze({
+  ...Search,
+
+  initialize:
+  async() => Search.core.initialize(),
+
+  shutdown:
+  async() => Search.core.destroy(),
+
+  snapshot:
+  () => Search.health.getHealthReport()
+});
+
+
+const CommunicationModule =
+Object.freeze({
+  ...Communication,
+
+  initialize:
+  async() => Communication.core.initialize(),
+
+  shutdown:
+  async() => Communication.core.destroy(),
+
+  snapshot:
+  () => Communication.health.getHealthReport()
+});
+
+
+// =====================================
 // HELPERS
 // =====================================
 
@@ -54,14 +87,12 @@ function registerModule(
   instance,
   options = {}
 ){
-
   return ModuleRegistry
   .registerModuleDefinition(
     name,
     async () => instance,
     options
   );
-
 }
 
 
@@ -137,7 +168,7 @@ function registerCoreModules(){
 
   registerModule(
     "search",
-    Search,
+    SearchModule,
     {
       priority:40,
       dependencies:[
@@ -148,7 +179,7 @@ function registerCoreModules(){
 
   registerModule(
     "communication",
-    Communication,
+    CommunicationModule,
     {
       priority:50,
       dependencies:[
@@ -208,7 +239,6 @@ function registerCoreModules(){
   );
 
   return true;
-
 }
 
 
@@ -217,6 +247,8 @@ function registerCoreModules(){
 // =====================================
 
 export {
+  SearchModule,
+  CommunicationModule,
   registerCoreModules
 };
 
