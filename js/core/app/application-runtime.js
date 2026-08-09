@@ -3,12 +3,6 @@
 // APPLICATION RUNTIME
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import AppState
 from "./app-state.js";
 
@@ -18,21 +12,24 @@ from "./app-dom.js";
 import AppRecovery
 from "./app-recovery.js";
 
-import Runtime
-from "../runtime/index.js";
+import Lifecycle
+from "../lifecycle/index.js";
 
+import Health
+from "../health/index.js";
 
-
-// =====================================
-// INITIALIZE
-// =====================================
 
 async function initializeApplication(){
 
   try{
-
     await AppDOM
     .waitForDOMReady();
+
+    await Lifecycle
+    .initialize();
+
+    await Health
+    .initialize();
 
     AppState
     .setInitialized(
@@ -40,11 +37,8 @@ async function initializeApplication(){
     );
 
     return true;
-
   }
-
   catch(error){
-
     AppState
     .setLastError(
       error?.message ||
@@ -52,16 +46,9 @@ async function initializeApplication(){
     );
 
     return false;
-
   }
-
 }
 
-
-
-// =====================================
-// BOOT
-// =====================================
 
 async function bootApplication(){
 
@@ -70,9 +57,7 @@ async function bootApplication(){
     .state
     .booted
   ){
-
     return true;
-
   }
 
   AppState
@@ -81,22 +66,27 @@ async function bootApplication(){
   );
 
   try{
-
     const initialized =
     await initializeApplication();
 
-    if(
-      !initialized
-    ){
-
+    if(!initialized){
       throw new Error(
         "APPLICATION INITIALIZATION FAILED"
       );
-
     }
 
-    await Runtime
-    .boot();
+    const lifecycleStarted =
+    await Lifecycle
+    .start();
+
+    if(!lifecycleStarted){
+      throw new Error(
+        "APPLICATION LIFECYCLE START FAILED"
+      );
+    }
+
+    await Health
+    .start();
 
     AppDOM
     .showApp();
@@ -107,16 +97,18 @@ async function bootApplication(){
     );
 
     AppState
+    .setReady(
+      true
+    );
+
+    AppState
     .setLastBootAt(
       Date.now()
     );
 
     return true;
-
   }
-
   catch(error){
-
     AppState
     .setLastError(
       error?.message ||
@@ -129,24 +121,15 @@ async function bootApplication(){
     );
 
     return false;
-
   }
-
   finally{
-
     AppState
     .setBooting(
       false
     );
-
   }
-
 }
 
-
-// =====================================
-// SHUTDOWN
-// =====================================
 
 async function shutdownApplication(){
 
@@ -155,9 +138,7 @@ async function shutdownApplication(){
     .state
     .booted
   ){
-
     return true;
-
   }
 
   AppState
@@ -166,17 +147,26 @@ async function shutdownApplication(){
   );
 
   try{
-
     AppDOM
     .hideApp();
 
-    await Runtime
-      .shutdown();
+    await Health
+    .stop();
+
+    const lifecycleStopped =
+    await Lifecycle
+    .shutdown();
+
+    if(!lifecycleStopped){
+      throw new Error(
+        "APPLICATION LIFECYCLE SHUTDOWN FAILED"
+      );
+    }
 
     AppState
-      .setBooted(
-        false
-      );
+    .setBooted(
+      false
+    );
 
     AppState
     .setReady(
@@ -189,11 +179,8 @@ async function shutdownApplication(){
     );
 
     return true;
-
   }
-
   catch(error){
-
     AppState
     .setLastError(
       error?.message ||
@@ -201,75 +188,59 @@ async function shutdownApplication(){
     );
 
     return false;
-
   }
-
   finally{
-
     AppState
     .setShuttingDown(
       false
     );
-
   }
-
 }
 
-
-
-// =====================================
-// RESET
-// =====================================
 
 async function resetApplication(){
 
   await shutdownApplication();
 
+  await Health
+  .reset();
+
+  await Lifecycle
+  .reset();
+
   AppState
   .reset();
 
   return true;
-
 }
 
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
 
 function createApplicationSnapshot(){
 
   return Object.freeze({
-
     app:
-    AppState
-    .snapshot(),
+    AppState.snapshot(),
 
     dom:
-    AppDOM
-    .snapshot(),
+    AppDOM.snapshot(),
 
     recovery:
-    AppRecovery
-    .snapshot(),
+    AppRecovery.snapshot(),
+
+    lifecycle:
+    Lifecycle.snapshot(),
+
+    health:
+    Health.snapshot(),
 
     timestamp:
     Date.now()
-
   });
-
 }
 
 
-
-// =====================================
-// PUBLIC API
-// =====================================
-
 const ApplicationRuntime =
 Object.freeze({
-
   initialize:
   initializeApplication,
 
@@ -284,29 +255,16 @@ Object.freeze({
 
   snapshot:
   createApplicationSnapshot
-
 });
 
 
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   initializeApplication,
-
   bootApplication,
-
   shutdownApplication,
-
   resetApplication,
-
   createApplicationSnapshot,
-
   ApplicationRuntime
-
 };
 
 export default
