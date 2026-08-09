@@ -4,21 +4,12 @@
 // =====================================
 
 
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import ModuleRuntime
 from "../modules/module-runtime.js";
 
 import AI
 from "../../ai/index.js";
 
-
-// =====================================
-// INTERNAL STATE
-// =====================================
 
 const runtimeBootSequenceState =
 Object.seal({
@@ -30,7 +21,6 @@ Object.seal({
   []
 
 });
-
 
 
 // =====================================
@@ -45,17 +35,13 @@ function registerBootStep(
   runtimeBootSequenceState
   .bootSteps
   .push({
-
     name,
-
     handler
-
   });
 
   return true;
 
 }
-
 
 
 function registerShutdownStep(
@@ -66,11 +52,8 @@ function registerShutdownStep(
   runtimeBootSequenceState
   .shutdownSteps
   .push({
-
     name,
-
     handler
-
   });
 
   return true;
@@ -78,9 +61,8 @@ function registerShutdownStep(
 }
 
 
-
 // =====================================
-// BOOT EXECUTION
+// EXECUTION
 // =====================================
 
 async function executeBootSequence(){
@@ -101,18 +83,14 @@ async function executeBootSequence(){
 }
 
 
-
-// =====================================
-// SHUTDOWN EXECUTION
-// =====================================
-
 async function executeShutdownSequence(){
 
   const steps =
-
-    [...runtimeBootSequenceState
-    .shutdownSteps]
-    .reverse();
+  [
+    ...runtimeBootSequenceState
+    .shutdownSteps
+  ]
+  .reverse();
 
   for(
     const step
@@ -129,67 +107,53 @@ async function executeShutdownSequence(){
 }
 
 
-
 // =====================================
-// DEFAULT RUNTIME STEP
+// DEFAULT RUNTIME STEPS
+// SYSTEMS FIRST, AI SECOND
 // =====================================
 
 registerBootStep(
-
-  "ai-system",
-
-  async() => {
-
-    await AI
-    .initialize();
-
-  }
-
-);
-
-
-registerBootStep(
-
   "modules-runtime",
-
   async() => {
 
     await ModuleRuntime
     .boot();
 
   }
-
 );
 
 
+registerBootStep(
+  "ai-system",
+  async() => {
+
+    await AI
+    .initialize();
+
+  }
+);
+
 
 registerShutdownStep(
-
   "modules-runtime",
-
   async() => {
 
     await ModuleRuntime
     .shutdown();
 
   }
-
 );
 
 
 registerShutdownStep(
-
   "ai-system",
-
   async() => {
 
     await AI
     .shutdown();
 
   }
-
 );
-
 
 
 // =====================================
@@ -201,24 +165,18 @@ function createBootSequenceSnapshot(){
   return Object.freeze({
 
     bootSteps:
-
-      runtimeBootSequenceState
-      .bootSteps
-      .map((step) => {
-
-        return step.name;
-
-      }),
+    runtimeBootSequenceState
+    .bootSteps
+    .map((step) => {
+      return step.name;
+    }),
 
     shutdownSteps:
-
-      runtimeBootSequenceState
-      .shutdownSteps
-      .map((step) => {
-
-        return step.name;
-
-      }),
+    runtimeBootSequenceState
+    .shutdownSteps
+    .map((step) => {
+      return step.name;
+    }),
 
     timestamp:
     Date.now()
@@ -226,7 +184,6 @@ function createBootSequenceSnapshot(){
   });
 
 }
-
 
 
 // =====================================
@@ -250,25 +207,17 @@ Object.freeze({
 });
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
-
   registerBootStep,
-
   registerShutdownStep,
-
   executeBootSequence,
-
   executeShutdownSequence,
-
   createBootSequenceSnapshot,
-
   RuntimeBootSequence
-
 };
 
 export default
