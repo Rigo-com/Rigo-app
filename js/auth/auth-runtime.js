@@ -4,12 +4,6 @@
 // ENTERPRISE AUTH ENGINE FINAL
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import {
   AUTH_RUNTIME_CONFIG
 }
@@ -45,20 +39,11 @@ import {
 from "./auth-utils.js";
 
 
-
 // =====================================
 // SESSION MONITOR
 // =====================================
 
-function startSessionMonitor(){
-
-  if(
-    !isBrowserEnvironment()
-  ){
-
-    return false;
-
-  }
+function stopSessionMonitor(){
 
   if(
     authRuntimeState
@@ -70,7 +55,28 @@ function startSessionMonitor(){
       .sessionMonitorTimer
     );
 
+    authRuntimeState
+    .sessionMonitorTimer =
+    null;
+
   }
+
+  return true;
+
+}
+
+
+function startSessionMonitor(){
+
+  if(
+    !isBrowserEnvironment()
+  ){
+
+    return false;
+
+  }
+
+  stopSessionMonitor();
 
   authRuntimeState
   .sessionMonitorTimer =
@@ -112,7 +118,6 @@ function startSessionMonitor(){
 }
 
 
-
 // =====================================
 // INITIALIZE
 // =====================================
@@ -120,26 +125,17 @@ function startSessionMonitor(){
 async function initializeAuthRuntime(){
 
   if(
-
-    authRuntimeState
-    .initialized ||
-
-    authRuntimeState
-    .initializing
-
+    authRuntimeState.initialized ||
+    authRuntimeState.initializing
   ){
 
-    return authRuntimeState
-    .authenticated;
+    return true;
 
   }
 
   updateAuthRuntimeState({
-
     initializing:true,
-
     error:null
-
   });
 
   try{
@@ -149,10 +145,13 @@ async function initializeAuthRuntime(){
 
     startSessionMonitor();
 
+    authRuntimeState
+    .initialized =
+    true;
+
     return restored;
 
   }
-
   catch(error){
 
     authRuntimeState
@@ -162,19 +161,36 @@ async function initializeAuthRuntime(){
     return false;
 
   }
-
   finally{
 
     updateAuthRuntimeState({
-
       initializing:false
-
     });
 
   }
 
 }
 
+
+// =====================================
+// SHUTDOWN
+// =====================================
+
+async function shutdownAuthRuntime(){
+
+  stopSessionMonitor();
+
+  authRuntimeState
+  .initialized =
+  false;
+
+  authRuntimeState
+  .initializing =
+  false;
+
+  return true;
+
+}
 
 
 // =====================================
@@ -183,27 +199,11 @@ async function initializeAuthRuntime(){
 
 function resetAuthRuntime(){
 
+  stopSessionMonitor();
+
   clearAuthSession();
 
   resetAuthRuntimeState();
-
-  if(
-    authRuntimeState
-    .sessionMonitorTimer
-  ){
-
-    clearInterval(
-
-      authRuntimeState
-      .sessionMonitorTimer
-
-    );
-
-    authRuntimeState
-    .sessionMonitorTimer =
-    null;
-
-  }
 
   authRuntimeState
   .initialized =
@@ -223,27 +223,18 @@ function resetAuthRuntime(){
 
   authRuntimeState
   .diagnostics = {
-
     logins:0,
-
     logouts:0,
-
     registrations:0,
-
     restored:0,
-
     expired:0,
-
     blocked:0,
-
     errors:0
-
   };
 
   return true;
 
 }
-
 
 
 // =====================================
@@ -255,6 +246,9 @@ freezeAuthObject({
 
   initialize:
   initializeAuthRuntime,
+
+  shutdown:
+  shutdownAuthRuntime,
 
   login,
 
@@ -274,29 +268,22 @@ freezeAuthObject({
 });
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
-
   AuthRuntime,
-
   initializeAuthRuntime,
-
+  shutdownAuthRuntime,
+  startSessionMonitor,
+  stopSessionMonitor,
   login,
-
   register,
-
   logout,
-
   restoreAuthSession,
-
   getAuthRuntimeState,
-
   resetAuthRuntime
-
 };
 
 export default
