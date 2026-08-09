@@ -5,10 +5,14 @@
 
 import Bootstrap from "./bootstrap/index.js";
 import applyAdminUIAccess from "./auth/admin-ui-access.js";
+import AccountSync from "./storage/account-sync.js";
 
 async function startApplication(){
   const started=await Bootstrap.boot();
   if(started===false){throw new Error("RIGO BOOTSTRAP FAILED");}
+
+  try{await AccountSync.sync();}catch{}
+
   return true;
 }
 
@@ -19,7 +23,9 @@ const applicationReady=startApplication()
 })
 .catch((error)=>{
   console.error("RIGO startup failed:",error);
-  if(typeof document!=="undefined"){document.body.innerHTML=`<pre>${error?.stack||error}</pre>`;}
+  if(typeof document!=="undefined"){
+    document.body.innerHTML=`<pre>${error?.stack||error}</pre>`;
+  }
   throw error;
 });
 
