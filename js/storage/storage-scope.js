@@ -1,61 +1,34 @@
 // =====================================
 // RIGO AI
 // STORAGE USER SCOPE
+// NEON AUTH RUNTIME IDENTITY
 // =====================================
 
-import { AUTH_RUNTIME_CONFIG }
-from "../auth/auth-config.js";
+import {
+  authRuntimeState
+}
+from "../auth/auth-state.js";
 
-const USER_SCOPE_PREFIX =
+const USER_SCOPE_PREFIX=
 "rigo.user";
 
-function readAuthSession(){
-  if(typeof window === "undefined"){
-    return null;
-  }
-
-  const key =
-  AUTH_RUNTIME_CONFIG.STORAGE_KEY;
-
-  const candidates = [
-    window.localStorage?.getItem(key),
-    window.sessionStorage?.getItem(key)
-  ];
-
-  for(const raw of candidates){
-    if(!raw){
-      continue;
-    }
-
-    try{
-      const session = JSON.parse(raw);
-      if(session?.user?.email){
-        return session;
-      }
-    }
-    catch{}
-  }
-
-  return null;
-}
-
 function normalizeUserIdentity(value){
-  return String(value || "")
+  return String(value||"")
   .trim()
   .toLowerCase();
 }
 
 function getCurrentUserIdentity(){
-  const session =
-  readAuthSession();
+  const user=
+  authRuntimeState?.user;
 
   return normalizeUserIdentity(
-    session?.user?.email
+    user?.id||user?.email
   );
 }
 
 function requireCurrentUserIdentity(){
-  const identity =
+  const identity=
   getCurrentUserIdentity();
 
   if(!identity){
@@ -68,15 +41,15 @@ function requireCurrentUserIdentity(){
 }
 
 function getCurrentUserNamespace(){
-  const identity =
+  const identity=
   requireCurrentUserIdentity();
 
   return `${USER_SCOPE_PREFIX}.${encodeURIComponent(identity)}`;
 }
 
 function scopeStorageKey(key){
-  const normalizedKey =
-  String(key || "").trim();
+  const normalizedKey=
+  String(key||"").trim();
 
   if(!normalizedKey){
     return "";
@@ -87,18 +60,14 @@ function scopeStorageKey(key){
 
 function isCurrentUserScopedKey(key){
   try{
-    return String(key || "")
-    .startsWith(
-      `${getCurrentUserNamespace()}.`
-    );
+    return String(key||"").startsWith(`${getCurrentUserNamespace()}.`);
   }
   catch{
     return false;
   }
 }
 
-const StorageScope =
-Object.freeze({
+const StorageScope=Object.freeze({
   getCurrentUserIdentity,
   requireCurrentUserIdentity,
   getCurrentUserNamespace,
