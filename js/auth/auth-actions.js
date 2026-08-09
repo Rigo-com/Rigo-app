@@ -6,12 +6,11 @@ import {AUTH_RUNTIME_CONFIG} from "./auth-config.js";
 import {authRuntimeState,updateAuthRuntimeState,resetAuthRuntimeState} from "./auth-state.js";
 import {validateEmail,validatePassword} from "./auth-validation.js";
 import {createAuthSession,saveAuthSession,loadAuthSession,clearAuthSession,isSessionExpired,isLoginBlocked,registerFailedLogin} from "./auth-session.js";
-import {createUniqueId,createSecureToken,getSafeErrorMessage,safeCloneAuth} from "./auth-utils.js";
+import {createSecureToken,getSafeErrorMessage,safeCloneAuth} from "./auth-utils.js";
 
-function isConfiguredAdminEmail(email){
-  const normalized=String(email||"").trim().toLowerCase();
-  return AUTH_RUNTIME_CONFIG.ADMIN_EMAILS.map(value=>String(value).trim().toLowerCase()).includes(normalized);
-}
+function normalizeEmail(email){return String(email||"").trim().toLowerCase();}
+function createStableUserId(email){return `user:${normalizeEmail(email)}`;}
+function isConfiguredAdminEmail(email){const normalized=normalizeEmail(email);return AUTH_RUNTIME_CONFIG.ADMIN_EMAILS.map(value=>normalizeEmail(value)).includes(normalized);}
 
 async function verifyAdminOnServer({email,password,staySignedIn}){
   if(typeof window==="undefined")return false;
@@ -33,7 +32,9 @@ export async function restoreAuthSession(){
     const session=loadAuthSession();
     if(isSessionExpired(session)){clearAuthSession();resetAuthRuntimeState();return false;}
     if(!session){resetAuthRuntimeState();return false;}
-    const user={...session.user,role:"user"};
+    const email=normalizeEmail(session.user?.email);
+    if(!email){clearAuthSession();resetAuthRuntimeState();return false;}
+    const user={...session.user,id:createStableUserId(email),email,role:"user"};
     updateAuthRuntimeState({authenticated:true,user:safeCloneAuth(user),token:session.token,sessionExpiresAt:session.expiresAt,lastActivityAt:Date.now()});
     authRuntimeState.diagnostics.restored++;
     return true;
@@ -48,12 +49,12 @@ export async function login({email="",password="",staySignedIn=false}={}){
     if(!validateEmail(email)){registerFailedLogin();throw new Error("INVALID_EMAIL");}
     if(!validatePassword(password)){registerFailedLogin();throw new Error("INVALID_PASSWORD");}
 
-    const normalizedEmail=String(email).trim().toLowerCase();
+    const normalizedEmail=normalizeEmail(email);
     if(isConfiguredAdminEmail(normalizedEmail)){
       await verifyAdminOnServer({email:normalizedEmail,password,staySignedIn});
     }
 
-    const user={id:createUniqueId("user"),email:normalizedEmail,role:"user"};
+    const user={id:createStableUserId(normalizedEmail),email:normalizedEmail,role:"user"};
     const token=createSecureToken();
     const session=createAuthSession({user,token,persistent:Boolean(staySignedIn)});
     if(!saveAuthSession(session))throw new Error("SESSION_SAVE_FAILED");
