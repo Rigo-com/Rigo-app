@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY SYNC CLOUD
-// CLOUD SYNC LAYER
+// USER-BOUND CLOUD SYNC LAYER
 // =====================================
 
 import {
@@ -21,259 +21,111 @@ import {
 }
 from "./memory-constants.js";
 
+import {
+  getCurrentUserIdentity
+}
+from "../storage/storage-scope.js";
 
-
-// =====================================
-// SYNC STATE
-// =====================================
-
-let lastSyncAt =
-null;
-
-
-
-// =====================================
-// EXPORT PAYLOAD
-// =====================================
+let lastSyncAt = null;
 
 function createSyncPayload(){
+  const owner = getCurrentUserIdentity();
+  if(!owner){
+    return null;
+  }
 
   return Object.freeze({
-
-    timestamp:
-    Date.now(),
-
-    memories:
-    loadMemories()
-
+    owner,
+    timestamp:Date.now(),
+    memories:loadMemories()
   });
-
 }
 
-
-
-// =====================================
-// IMPORT PAYLOAD
-// =====================================
-
-function applySyncPayload(
-  payload
-){
-
-  if(
-    !payload
-  ){
+function applySyncPayload(payload){
+  if(!payload||!Array.isArray(payload.memories)){
     return false;
   }
 
-  if(
-    !Array.isArray(
-      payload.memories
-    )
-  ){
+  const currentOwner = getCurrentUserIdentity();
+  const payloadOwner = String(payload.owner||"").trim().toLowerCase();
+
+  if(!currentOwner||!payloadOwner||payloadOwner!==currentOwner){
+    incrementFailures();
     return false;
   }
 
-  return saveMemories(
-    payload.memories
-  );
-
+  return saveMemories(payload.memories);
 }
 
-
-
-// =====================================
-// SYNC
-// =====================================
-
-async function syncToCloud(
-  provider = null
-){
-
-  if(
-    !MEMORY_FEATURES
-    .ENABLE_CLOUD_SYNC
-  ){
-
+async function syncToCloud(provider=null){
+  if(!MEMORY_FEATURES.ENABLE_CLOUD_SYNC||typeof provider!=="function"){
     return false;
-
-  }
-
-  if(
-    typeof provider !==
-    "function"
-  ){
-
-    return false;
-
   }
 
   try{
-
-    const payload =
-
-      createSyncPayload();
-
-    await provider(
-      payload
-    );
-
-    lastSyncAt =
-    Date.now();
-
+    const payload = createSyncPayload();
+    if(!payload){return false;}
+    await provider(payload);
+    lastSyncAt=Date.now();
     incrementSynced();
-
     return true;
-
   }
-
-  catch(error){
-
+  catch{
     incrementFailures();
-
     return false;
-
   }
-
 }
 
-
-
-// =====================================
-// RESTORE
-// =====================================
-
-async function restoreFromCloud(
-  provider = null
-){
-
-  if(
-    typeof provider !==
-    "function"
-  ){
-
+async function restoreFromCloud(provider=null){
+  if(typeof provider!=="function"){
     return false;
-
   }
 
   try{
-
-    const payload =
-    await provider();
-
-    const restored =
-
-      applySyncPayload(
-        payload
-      );
-
-    if(
-      restored
-    ){
-
-      lastSyncAt =
-      Date.now();
-
+    const payload=await provider();
+    const restored=applySyncPayload(payload);
+    if(restored){
+      lastSyncAt=Date.now();
       incrementSynced();
-
     }
-
     return restored;
-
   }
-
-  catch(error){
-
+  catch{
     incrementFailures();
-
     return false;
-
   }
-
 }
-
-
-
-// =====================================
-// STATUS
-// =====================================
 
 function getCloudSyncStatus(){
-
   return Object.freeze({
-
-    enabled:
-
-    MEMORY_FEATURES
-    .ENABLE_CLOUD_SYNC,
-
+    enabled:MEMORY_FEATURES.ENABLE_CLOUD_SYNC,
+    owner:getCurrentUserIdentity()||null,
     lastSyncAt
-
   });
-
 }
-
-
-
-// =====================================
-// RESET
-// =====================================
 
 function resetCloudSync(){
-
-  lastSyncAt =
-  null;
-
+  lastSyncAt=null;
   return true;
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const MemorySyncCloud =
-Object.freeze({
-
+const MemorySyncCloud = Object.freeze({
   createSyncPayload,
-
   applySyncPayload,
-
   syncToCloud,
-
   restoreFromCloud,
-
   getCloudSyncStatus,
-
   resetCloudSync
-
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   createSyncPayload,
-
   applySyncPayload,
-
   syncToCloud,
-
   restoreFromCloud,
-
   getCloudSyncStatus,
-
   resetCloudSync,
-
   MemorySyncCloud
-
 };
 
-export default
-MemorySyncCloud;
+export default MemorySyncCloud;
