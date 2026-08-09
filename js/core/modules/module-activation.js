@@ -1,33 +1,19 @@
 // =====================================
 // RIGO AI
 // MODULE ACTIVATION
-// PURE EXECUTION LAYER
+// LIFECYCLE EXECUTION LAYER
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
 
 import {
-
-  MODULE_EVENTS,
-
-  MODULE_STATES,
-
-  MODULE_LOADER_CONFIG
-
+  MODULE_STATES
 }
 from "./module-constants.js";
 
 import ModuleRegistry, {
-
   normalizeModuleName
-
 }
 from "./module-registry.js";
-
 
 
 // =====================================
@@ -42,7 +28,6 @@ function isFunction(
   "function";
 
 }
-
 
 
 function createModuleContext(
@@ -76,6 +61,115 @@ function createModuleContext(
 }
 
 
+async function initializeModuleInstance(
+  instance,
+  context
+){
+
+  if(
+    !instance
+  ){
+
+    return false;
+
+  }
+
+  if(
+    isFunction(
+      instance.initialize
+    )
+  ){
+
+    await instance
+    .initialize(
+      context
+    );
+
+  }
+
+  if(
+    isFunction(
+      instance.boot
+    )
+  ){
+
+    await instance
+    .boot(
+      context
+    );
+
+  }
+  else if(
+    isFunction(
+      instance.start
+    )
+  ){
+
+    await instance
+    .start(
+      context
+    );
+
+  }
+
+  return true;
+
+}
+
+
+async function shutdownModuleInstance(
+  instance
+){
+
+  if(
+    !instance
+  ){
+
+    return true;
+
+  }
+
+  if(
+    isFunction(
+      instance.shutdown
+    )
+  ){
+
+    await instance
+    .shutdown();
+
+    return true;
+
+  }
+
+  if(
+    isFunction(
+      instance.stop
+    )
+  ){
+
+    await instance
+    .stop();
+
+    return true;
+
+  }
+
+  if(
+    isFunction(
+      instance.destroy
+    )
+  ){
+
+    await instance
+    .destroy();
+
+  }
+
+  return true;
+
+}
+
 
 // =====================================
 // DEPENDENCY LOADING
@@ -86,10 +180,9 @@ async function loadModuleDependencies(
 ){
 
   const dependencies =
-
-    moduleDefinition
-    .metadata
-    .dependencies;
+  moduleDefinition
+  .metadata
+  .dependencies;
 
   for(
     const dependency
@@ -106,9 +199,7 @@ async function loadModuleDependencies(
     ){
 
       throw new Error(
-
         `DEPENDENCY LOAD FAILED: ${dependency}`
-
       );
 
     }
@@ -120,7 +211,6 @@ async function loadModuleDependencies(
 }
 
 
-
 // =====================================
 // ACTIVATE MODULE
 // =====================================
@@ -130,10 +220,9 @@ async function activateModule(
 ){
 
   const moduleName =
-
-    moduleDefinition
-    .metadata
-    .name;
+  moduleDefinition
+  .metadata
+  .name;
 
   const runtimeState =
   ModuleRegistry
@@ -153,17 +242,12 @@ async function activateModule(
 
     ModuleRegistry
     .updateModuleRuntimeState(
-
       moduleName,
-
       {
-
         state:
         MODULE_STATES
         .INITIALIZING
-
       }
-
     );
 
     const context =
@@ -177,22 +261,31 @@ async function activateModule(
       context
     );
 
+    if(
+      !instance
+    ){
+
+      throw new Error(
+        `MODULE FACTORY RETURNED EMPTY INSTANCE: ${moduleName}`
+      );
+
+    }
+
+    await initializeModuleInstance(
+      instance,
+      context
+    );
+
     ModuleRegistry
     .setModuleInstance(
-
       moduleName,
-
       instance
-
     );
 
     ModuleRegistry
     .updateModuleRuntimeState(
-
       moduleName,
-
       {
-
         state:
         MODULE_STATES
         .ACTIVE,
@@ -202,38 +295,29 @@ async function activateModule(
 
         failedAt:
         null
-
       }
-
     );
 
     return instance;
 
   }
-
   catch(error){
 
     ModuleRegistry
     .updateModuleRuntimeState(
-
       moduleName,
-
       {
-
         state:
         MODULE_STATES
         .FAILED,
 
         retries:
-
-          runtimeState
-          .retries + 1,
+        runtimeState
+        .retries + 1,
 
         failedAt:
         Date.now()
-
       }
-
     );
 
     return null;
@@ -241,7 +325,6 @@ async function activateModule(
   }
 
 }
-
 
 
 // =====================================
@@ -294,10 +377,8 @@ async function loadModule(
   }
 
   if(
-
     runtimeState.state ===
     MODULE_STATES.ACTIVE
-
   ){
 
     return true;
@@ -308,17 +389,12 @@ async function loadModule(
 
     ModuleRegistry
     .updateModuleRuntimeState(
-
       normalizedName,
-
       {
-
         state:
         MODULE_STATES
         .LOADING
-
       }
-
     );
 
     await loadModuleDependencies(
@@ -335,7 +411,7 @@ async function loadModule(
     ){
 
       throw new Error(
-        "ACTIVATION FAILED"
+        `ACTIVATION FAILED: ${normalizedName}`
       );
 
     }
@@ -343,30 +419,23 @@ async function loadModule(
     return true;
 
   }
-
   catch(error){
 
     ModuleRegistry
     .updateModuleRuntimeState(
-
       normalizedName,
-
       {
-
         state:
         MODULE_STATES
         .FAILED,
 
         retries:
-
-          runtimeState
-          .retries + 1,
+        runtimeState
+        .retries + 1,
 
         failedAt:
         Date.now()
-
       }
-
     );
 
     return false;
@@ -374,7 +443,6 @@ async function loadModule(
   }
 
 }
-
 
 
 // =====================================
@@ -420,39 +488,22 @@ async function unloadModule(
 
   ModuleRegistry
   .updateModuleRuntimeState(
-
     normalizedName,
-
     {
-
       state:
       MODULE_STATES
       .UNLOADING
-
     }
-
   );
 
-  if(
+  try{
 
-    instance &&
-
-    isFunction(
-      instance.destroy
-    )
-
-  ){
-
-    try{
-
-      await instance
-      .destroy();
-
-    }
-
-    catch(error){}
+    await shutdownModuleInstance(
+      instance
+    );
 
   }
+  catch(error){}
 
   ModuleRegistry
   .removeModuleInstance(
@@ -461,23 +512,17 @@ async function unloadModule(
 
   ModuleRegistry
   .updateModuleRuntimeState(
-
     normalizedName,
-
     {
-
       state:
       MODULE_STATES
       .UNLOADED
-
     }
-
   );
 
   return true;
 
 }
-
 
 
 // =====================================
@@ -499,25 +544,19 @@ Object.freeze({
 });
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
-
   loadModule,
-
   unloadModule,
-
   activateModule,
-
   loadModuleDependencies,
-
   createModuleContext,
-
+  initializeModuleInstance,
+  shutdownModuleInstance,
   ModuleActivation
-
 };
 
 export default
