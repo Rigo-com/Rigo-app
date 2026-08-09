@@ -5,28 +5,35 @@
 // =====================================
 
 
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import ModuleRegistry
 from "./module-registry.js";
 
-import Memory
-from "../../memory/index.js";
+import Shared
+from "../../shared/index.js";
+
+import Security
+from "../../security/index.js";
 
 import Storage
 from "../../storage/index.js";
 
+import Auth
+from "../../auth/index.js";
+
 import Settings
 from "../../settings/index.js";
+
+import Memory
+from "../../memory/index.js";
 
 import Search
 from "../../search/index.js";
 
 import Communication
 from "../../communication/index.js";
+
+import API
+from "../../api/index.js";
 
 import Services
 from "../../services/index.js";
@@ -36,7 +43,6 @@ from "../../ui/index.js";
 
 import Voice
 from "../../voice/index.js";
-
 
 
 // =====================================
@@ -51,17 +57,12 @@ function registerModule(
 
   return ModuleRegistry
   .registerModuleDefinition(
-
     name,
-
     async () => instance,
-
     options
-
   );
 
 }
-
 
 
 // =====================================
@@ -71,128 +72,139 @@ function registerModule(
 function registerCoreModules(){
 
   registerModule(
-
-    "storage",
-
-    Storage,
-
+    "shared",
+    Shared,
     {
-      priority:10
+      priority:0
     }
-
   );
 
-
+  registerModule(
+    "security",
+    Security,
+    {
+      priority:5,
+      dependencies:[
+        "shared"
+      ]
+    }
+  );
 
   registerModule(
+    "storage",
+    Storage,
+    {
+      priority:10,
+      dependencies:[
+        "shared"
+      ]
+    }
+  );
 
+  registerModule(
+    "auth",
+    Auth,
+    {
+      priority:15,
+      dependencies:[
+        "storage",
+        "security"
+      ]
+    }
+  );
+
+  registerModule(
     "settings",
-
     Settings,
-
     {
       priority:20,
       dependencies:[
         "storage"
       ]
     }
-
   );
 
-
-
   registerModule(
-
     "memory",
-
     Memory,
-
     {
       priority:30,
       dependencies:[
         "storage"
       ]
     }
-
   );
 
-
-
   registerModule(
-
     "search",
-
     Search,
-
     {
       priority:40,
       dependencies:[
         "memory"
       ]
     }
-
   );
 
-
-
   registerModule(
-
     "communication",
-
     Communication,
-
     {
-      priority:50
+      priority:50,
+      dependencies:[
+        "security"
+      ]
     }
-
   );
 
-
+  registerModule(
+    "api",
+    API,
+    {
+      priority:55,
+      dependencies:[
+        "communication",
+        "auth",
+        "security"
+      ]
+    }
+  );
 
   registerModule(
-
     "services",
-
     Services,
-
     {
       priority:60,
       dependencies:[
-        "communication"
+        "communication",
+        "api"
       ]
     }
-
   );
 
-
-
   registerModule(
-
     "ui",
-
     UI,
-
     {
-      priority:70
+      priority:70,
+      dependencies:[
+        "settings",
+        "auth",
+        "services"
+      ]
     }
-
   );
 
-
-
   registerModule(
-
     "voice",
-
     Voice,
-
     {
       priority:80,
       dependencies:[
-        "ui"
+        "ui",
+        "services"
       ]
     }
-
   );
 
   return true;
@@ -200,15 +212,12 @@ function registerCoreModules(){
 }
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
-
   registerCoreModules
-
 };
 
 export default
