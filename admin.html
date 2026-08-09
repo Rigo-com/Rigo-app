@@ -25,8 +25,15 @@
   <div id="studio-root"></div>
 
   <script type="module">
-    import "./js/main.js";
-    import StudioUI from "./js/admin/studio/ui/index.js";
+    import {
+      applicationReady
+    }
+    from "./js/main.js";
+
+    import StudioUI
+    from "./js/admin/studio/ui/index.js";
+
+    await applicationReady;
 
     await StudioUI.mount(
       document.getElementById("studio-root")
