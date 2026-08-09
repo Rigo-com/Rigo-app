@@ -4,17 +4,27 @@
 // =====================================
 
 
-import {
-  Bootstrap
-}
-from "./index.js";
+import Bootstrap
+from "./bootstrap/index.js";
 
 
 async function startApplication(){
 
   try{
 
-    await Bootstrap.boot();
+    const started =
+    await Bootstrap
+    .boot();
+
+    if(
+      started === false
+    ){
+
+      throw new Error(
+        "RIGO BOOTSTRAP FAILED"
+      );
+
+    }
 
   }
   catch(error){
