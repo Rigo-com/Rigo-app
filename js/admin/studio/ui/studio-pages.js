@@ -8,7 +8,6 @@ import Workspace
 from "../workspace/index.js";
 
 
-
 // =====================================
 // INTERNAL STATE
 // =====================================
@@ -16,17 +15,13 @@ from "../workspace/index.js";
 const studioPagesState =
 Object.seal({
 
-  initialized:
-  false,
+  initialized:false,
 
-  activePageId:
-  null,
+  activePageId:null,
 
-  listening:
-  false
+  listening:false
 
 });
-
 
 
 // =====================================
@@ -61,7 +56,6 @@ function getPageFromHash(){
 }
 
 
-
 function setPageHash(
   pageId
 ){
@@ -85,7 +79,6 @@ function setPageHash(
 }
 
 
-
 // =====================================
 // INITIALIZE
 // =====================================
@@ -95,9 +88,7 @@ function initialize(){
   if(
     studioPagesState.initialized
   ){
-
     return true;
-
   }
 
   if(
@@ -118,9 +109,7 @@ function initialize(){
   true;
 
   return true;
-
 }
-
 
 
 // =====================================
@@ -140,9 +129,7 @@ async function openFromHash(){
   return Workspace.open(
     pageId
   );
-
 }
-
 
 
 // =====================================
@@ -166,9 +153,7 @@ async function navigate(
   if(
     hashChanged
   ){
-
     return true;
-
   }
 
   studioPagesState.activePageId =
@@ -177,9 +162,7 @@ async function navigate(
   return Workspace.open(
     targetPageId
   );
-
 }
-
 
 
 // =====================================
@@ -187,41 +170,26 @@ async function navigate(
 // =====================================
 
 function handleHashChange(){
-
   openFromHash();
-
 }
 
 
-
 // =====================================
-// RENDER FROM URL
-// COMPATIBILITY ALIAS
+// COMPATIBILITY ALIASES
 // =====================================
 
 async function renderFromURL(){
-
   return openFromHash();
-
 }
 
-
-
-// =====================================
-// RENDER PAGE
-// COMPATIBILITY ALIAS
-// =====================================
 
 async function renderPage(
   pageId = "dashboard"
 ){
-
   return navigate(
     pageId
   );
-
 }
-
 
 
 // =====================================
@@ -237,9 +205,7 @@ async function refresh(){
   return Workspace.open(
     pageId
   );
-
 }
-
 
 
 // =====================================
@@ -248,13 +214,28 @@ async function refresh(){
 
 function unmount(){
 
+  if(
+    studioPagesState.listening
+  ){
+
+    window.removeEventListener(
+      "hashchange",
+      handleHashChange
+    );
+
+    studioPagesState.listening =
+    false;
+
+  }
+
   studioPagesState.activePageId =
   null;
 
+  studioPagesState.initialized =
+  false;
+
   return true;
-
 }
-
 
 
 // =====================================
@@ -278,9 +259,7 @@ function snapshot(){
     Workspace.snapshot()
 
   };
-
 }
-
 
 
 // =====================================
@@ -309,7 +288,6 @@ Object.freeze({
   snapshot
 
 });
-
 
 
 // =====================================
