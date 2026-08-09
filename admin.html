@@ -4,36 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RIGO Admin Studio</title>
-
   <style>
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
-    }
-
-    body{
-      background:#020817;
-      color:white;
-      font-family:Arial,sans-serif;
-      min-height:100vh;
-    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#020817;color:white;font-family:Arial,sans-serif;min-height:100vh;}
   </style>
 </head>
-
 <body>
   <div id="studio-root"></div>
 
   <script type="module">
-    import {
-      applicationReady
-    }
-    from "./js/main.js";
-
-    import StudioUI
-    from "./js/admin/studio/ui/index.js";
+    import { applicationReady } from "./js/main.js";
+    import Auth from "./js/auth/index.js";
+    import StudioUI from "./js/admin/studio/ui/index.js";
 
     await applicationReady;
+
+    const authState = Auth.status();
+    if(!authState?.authenticated){
+      window.location.replace("./login.html");
+      throw new Error("AUTHENTICATION_REQUIRED");
+    }
 
     await StudioUI.mount(
       document.getElementById("studio-root")
