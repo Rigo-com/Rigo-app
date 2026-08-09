@@ -1,18 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RIGO Admin Studio</title>
 
   <style>
-
     *{
       margin:0;
       padding:0;
@@ -20,38 +13,24 @@
     }
 
     body{
-
       background:#020817;
-
       color:white;
-
       font-family:Arial,sans-serif;
-
       min-height:100vh;
-
     }
-
   </style>
-
 </head>
 
 <body>
-
   <div id="studio-root"></div>
 
   <script type="module">
+    import "./js/main.js";
+    import StudioUI from "./js/admin/studio/ui/index.js";
 
-    import StudioUI
-    from "./js/admin/studio/ui/index.js";
-
-    StudioUI.mount(
-      document.getElementById(
-        "studio-root"
-      )
+    await StudioUI.mount(
+      document.getElementById("studio-root")
     );
-
   </script>
-
 </body>
-
 </html>
