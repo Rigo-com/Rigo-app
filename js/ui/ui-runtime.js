@@ -29,29 +29,18 @@ import {
 }
 from "./ui-utils.js";
 
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
 function initializeUi(){
-
   if(
     UiState
     .snapshot()
     .initialized
   ){
-
     return true;
-
   }
 
   UiState
   .setMobile(
-
     isMobileDevice()
-
   );
 
   UiState
@@ -60,38 +49,22 @@ function initializeUi(){
   );
 
   return true;
-
 }
-
-
-
-// =====================================
-// DOM REGISTRATION
-// =====================================
 
 function registerUiElements(
   elements = {}
 ){
-
   UiElements
   .registerElements(
     elements
   );
 
   return true;
-
 }
-
-
-
-// =====================================
-// RENDER
-// =====================================
 
 function render(
   callback
 ){
-
   UiRenderer
   .enqueueRender(
     callback
@@ -101,116 +74,58 @@ function render(
   .renderFrame();
 
   return true;
-
 }
 
-
-
-// =====================================
-// REFRESH
-// =====================================
-
 function refresh(){
-
   UiRenderer
   .renderFrame();
 
   return true;
-
 }
 
-
-
-// =====================================
-// RESIZE
-// =====================================
-
 function handleResize(){
-
   UiState
   .setMobile(
-
     isMobileDevice()
-
   );
 
   return true;
-
 }
 
-
-
-// =====================================
-// START LISTENERS
-// =====================================
-
 function startListeners(){
+  if(
+    typeof window ===
+    "undefined"
+  ){
+    return false;
+  }
 
   UiEvents
   .addListener(
-
     window,
-
     "resize",
-
     handleResize
-
   );
 
   return true;
-
 }
 
-
-
-// =====================================
-// STOP LISTENERS
-// =====================================
-
 function stopListeners(){
-
   UiEvents
   .removeAllListeners();
 
   return true;
-
 }
-
-
-
-// =====================================
-// STATUS
-// =====================================
 
 function getRuntimeStatus(){
-
   return Object.freeze({
-
-    ui:
-    UiState
-    .snapshot(),
-
-    renderer:
-    UiRenderer
-    .getRenderStats(),
-
-    listeners:
-
-    UiEvents
-    .getListenerCount()
-
+    ui:UiState.snapshot(),
+    renderer:UiRenderer.getRenderStats(),
+    listeners:UiEvents.getListenerCount()
   });
-
 }
 
-
-
-// =====================================
-// DESTROY
-// =====================================
-
 function destroyUi(){
-
   stopListeners();
 
   UiRenderer
@@ -220,19 +135,11 @@ function destroyUi(){
   .reset();
 
   return true;
-
 }
-
-
-
-// =====================================
-// BOOTSTRAP
-// =====================================
 
 function bootstrapUi(
   elements = {}
 ){
-
   initializeUi();
 
   registerUiElements(
@@ -242,71 +149,63 @@ function bootstrapUi(
   startListeners();
 
   return true;
-
 }
 
+async function initialize(){
+  return initializeUi();
+}
 
+async function boot(){
+  return bootstrapUi();
+}
 
-// =====================================
-// PUBLIC API
-// =====================================
+async function shutdown(){
+  return destroyUi();
+}
 
-const UiRuntime =
-Object.freeze({
+async function reset(){
+  return destroyUi();
+}
 
+function snapshot(){
+  return getRuntimeStatus();
+}
+
+const UiRuntime = Object.freeze({
+  initialize,
+  boot,
+  shutdown,
+  reset,
+  snapshot,
   initializeUi,
-
   registerUiElements,
-
   render,
-
   refresh,
-
   handleResize,
-
   startListeners,
-
   stopListeners,
-
   getRuntimeStatus,
-
   destroyUi,
-
   bootstrapUi
-
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
+  initialize,
+  boot,
+  shutdown,
+  reset,
+  snapshot,
   initializeUi,
-
   registerUiElements,
-
   render,
-
   refresh,
-
   handleResize,
-
   startListeners,
-
   stopListeners,
-
   getRuntimeStatus,
-
   destroyUi,
-
   bootstrapUi,
-
   UiRuntime
-
 };
 
-export default
-UiRuntime;
+export default UiRuntime;
