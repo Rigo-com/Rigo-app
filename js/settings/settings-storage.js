@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // SETTINGS STORAGE
-// PER-USER STORAGE LAYER
+// LOCAL CACHE + NEON BACKEND
 // =====================================
 
 import SETTINGS_DEFAULTS
@@ -12,27 +12,25 @@ import {
 }
 from "../storage/storage-scope.js";
 
-const SETTINGS_KEY =
-"rigo.settings";
+import {
+  saveAccountSection
+}
+from "../storage/account-data-client.js";
 
-const BACKUP_KEY =
-"rigo.settings.backup";
+const SETTINGS_KEY="rigo.settings";
+const BACKUP_KEY="rigo.settings.backup";
 
 function resolveKey(key){
-  try{
-    return scopeStorageKey(key);
-  }
-  catch{
-    return "";
-  }
+  try{return scopeStorageKey(key)}
+  catch{return ""}
 }
 
 function loadSettings(){
   try{
-    const key = resolveKey(SETTINGS_KEY);
-    if(!key){return structuredClone(SETTINGS_DEFAULTS);}
-    const raw = localStorage.getItem(key);
-    if(!raw){return structuredClone(SETTINGS_DEFAULTS);}
+    const key=resolveKey(SETTINGS_KEY);
+    if(!key)return structuredClone(SETTINGS_DEFAULTS);
+    const raw=localStorage.getItem(key);
+    if(!raw)return structuredClone(SETTINGS_DEFAULTS);
     return JSON.parse(raw);
   }
   catch{
@@ -42,9 +40,15 @@ function loadSettings(){
 
 function saveSettings(settings){
   try{
-    const key = resolveKey(SETTINGS_KEY);
-    if(!key){return false;}
+    const key=resolveKey(SETTINGS_KEY);
+    if(!key)return false;
+
     localStorage.setItem(key,JSON.stringify(settings));
+
+    if(typeof window!=="undefined"){
+      saveAccountSection("settings",settings).catch(()=>{});
+    }
+
     return true;
   }
   catch{
@@ -54,50 +58,42 @@ function saveSettings(settings){
 
 function createBackup(settings){
   try{
-    const key = resolveKey(BACKUP_KEY);
-    if(!key){return false;}
+    const key=resolveKey(BACKUP_KEY);
+    if(!key)return false;
     localStorage.setItem(key,JSON.stringify(settings));
     return true;
   }
-  catch{
-    return false;
-  }
+  catch{return false}
 }
 
 function loadBackup(){
   try{
-    const key = resolveKey(BACKUP_KEY);
-    if(!key){return null;}
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    const key=resolveKey(BACKUP_KEY);
+    if(!key)return null;
+    const raw=localStorage.getItem(key);
+    return raw?JSON.parse(raw):null;
   }
-  catch{
-    return null;
-  }
+  catch{return null}
 }
 
 function removeSettings(){
   try{
-    const key = resolveKey(SETTINGS_KEY);
-    if(!key){return false;}
+    const key=resolveKey(SETTINGS_KEY);
+    if(!key)return false;
     localStorage.removeItem(key);
     return true;
   }
-  catch{
-    return false;
-  }
+  catch{return false}
 }
 
 function removeBackup(){
   try{
-    const key = resolveKey(BACKUP_KEY);
-    if(!key){return false;}
+    const key=resolveKey(BACKUP_KEY);
+    if(!key)return false;
     localStorage.removeItem(key);
     return true;
   }
-  catch{
-    return false;
-  }
+  catch{return false}
 }
 
 function resetStorage(){
@@ -108,8 +104,8 @@ function resetStorage(){
 
 function getStorageStatus(){
   try{
-    const settingsKey = resolveKey(SETTINGS_KEY);
-    const backupKey = resolveKey(BACKUP_KEY);
+    const settingsKey=resolveKey(SETTINGS_KEY);
+    const backupKey=resolveKey(BACKUP_KEY);
     return Object.freeze({
       hasSettings:Boolean(settingsKey&&localStorage.getItem(settingsKey)!==null),
       hasBackup:Boolean(backupKey&&localStorage.getItem(backupKey)!==null)
@@ -120,7 +116,7 @@ function getStorageStatus(){
   }
 }
 
-const SettingsStorage = Object.freeze({
+const SettingsStorage=Object.freeze({
   loadSettings,saveSettings,createBackup,loadBackup,
   removeSettings,removeBackup,resetStorage,status:getStorageStatus
 });
