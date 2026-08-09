@@ -29,7 +29,15 @@ import {
 }
 from "./ui-utils.js";
 
+import LanguageRuntime
+from "./i18n/index.js";
+
+import SidebarRuntime
+from "./sidebar/index.js";
+
+
 function initializeUi(){
+
   if(
     UiState
     .snapshot()
@@ -51,9 +59,11 @@ function initializeUi(){
   return true;
 }
 
+
 function registerUiElements(
   elements = {}
 ){
+
   UiElements
   .registerElements(
     elements
@@ -62,9 +72,11 @@ function registerUiElements(
   return true;
 }
 
+
 function render(
   callback
 ){
+
   UiRenderer
   .enqueueRender(
     callback
@@ -76,14 +88,21 @@ function render(
   return true;
 }
 
+
 function refresh(){
+
   UiRenderer
   .renderFrame();
+
+  SidebarRuntime
+  .refresh();
 
   return true;
 }
 
+
 function handleResize(){
+
   UiState
   .setMobile(
     isMobileDevice()
@@ -92,7 +111,9 @@ function handleResize(){
   return true;
 }
 
+
 function startListeners(){
+
   if(
     typeof window ===
     "undefined"
@@ -110,22 +131,33 @@ function startListeners(){
   return true;
 }
 
+
 function stopListeners(){
+
   UiEvents
   .removeAllListeners();
 
   return true;
 }
 
+
 function getRuntimeStatus(){
+
   return Object.freeze({
     ui:UiState.snapshot(),
     renderer:UiRenderer.getRenderStats(),
-    listeners:UiEvents.getListenerCount()
+    listeners:UiEvents.getListenerCount(),
+    language:LanguageRuntime.snapshot(),
+    sidebar:SidebarRuntime.status()
   });
 }
 
+
 function destroyUi(){
+
+  SidebarRuntime
+  .destroy();
+
   stopListeners();
 
   UiRenderer
@@ -137,39 +169,70 @@ function destroyUi(){
   return true;
 }
 
-function bootstrapUi(
+
+async function bootstrapUi(
   elements = {}
 ){
+
   initializeUi();
 
   registerUiElements(
     elements
   );
 
+  await LanguageRuntime
+  .initialize();
+
+  SidebarRuntime
+  .initialize();
+
   startListeners();
 
   return true;
 }
 
+
 async function initialize(){
-  return initializeUi();
+
+  initializeUi();
+
+  await LanguageRuntime
+  .initialize();
+
+  return true;
 }
 
+
 async function boot(){
+
   return bootstrapUi();
 }
 
+
 async function shutdown(){
-  return destroyUi();
+
+  destroyUi();
+
+  await LanguageRuntime
+  .reset();
+
+  return true;
 }
+
 
 async function reset(){
-  return destroyUi();
+
+  await shutdown();
+
+  return initialize();
 }
 
+
 function snapshot(){
+
   return getRuntimeStatus();
 }
+
 
 const UiRuntime = Object.freeze({
   initialize,
@@ -186,8 +249,11 @@ const UiRuntime = Object.freeze({
   stopListeners,
   getRuntimeStatus,
   destroyUi,
-  bootstrapUi
+  bootstrapUi,
+  language:LanguageRuntime,
+  sidebar:SidebarRuntime
 });
+
 
 export {
   initialize,
