@@ -3,41 +3,33 @@
 // CORE CONTAINER
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import {
   CONTAINER_LIFECYCLE
 }
 from "./container-types.js";
 
 import {
+  normalizeContainerScope,
+  isValidContainerScope,
+  getDefaultContainerScope
+}
+from "./container-scopes.js";
 
+import {
   registerService,
   removeService,
   hasService,
   getService,
   getServices
-
 }
 from "./container-registry.js";
 
 import {
-
   resolveService,
   resolveServices
-
 }
 from "./container-resolution.js";
 
-
-
-// =====================================
-// CONTAINER STATE
-// =====================================
 
 const containerState =
 Object.seal({
@@ -57,28 +49,18 @@ Object.seal({
 });
 
 
-
-// =====================================
-// CONTAINER API
-// =====================================
-
 async function register(
   definition
 ){
 
   if(
-
     !definition ||
-
     typeof definition !==
     "object"
-
   ){
-
     throw new Error(
       "INVALID_SERVICE_DEFINITION"
     );
-
   }
 
   const serviceName =
@@ -87,70 +69,47 @@ async function register(
   )
   .trim();
 
-  if(
-    !serviceName
-  ){
-
+  if(!serviceName){
     throw new Error(
       "INVALID_SERVICE_NAME"
     );
-
   }
 
   if(
-
     typeof definition.factory !==
     "function"
-
   ){
-
     throw new Error(
       "INVALID_SERVICE_FACTORY"
     );
-
   }
 
   const lifecycle =
-
-    definition.lifecycle ||
-
-    CONTAINER_LIFECYCLE
-    .SINGLETON;
+  definition.lifecycle ||
+  CONTAINER_LIFECYCLE.SINGLETON;
 
   if(
-
     !Object.values(
       CONTAINER_LIFECYCLE
     )
     .includes(
       lifecycle
     )
-
   ){
-
     throw new Error(
       "INVALID_SERVICE_LIFECYCLE"
     );
-
   }
 
   const dependencies =
-
-    Array.isArray(
-      definition.dependencies
-    )
-
-    ?
-
+  Array.isArray(
     definition.dependencies
-
-    :
-
-    [];
+  )
+  ? definition.dependencies
+  : [];
 
   const serviceDefinition =
   Object.freeze({
-
     name:
     serviceName,
 
@@ -160,21 +119,14 @@ async function register(
     dependencies,
 
     lifecycle
-
   });
 
   return registerService(
-
     containerState,
-
     serviceName,
-
     serviceDefinition
-
   );
-
 }
-
 
 
 function remove(
@@ -183,19 +135,12 @@ function remove(
 
   const removed =
   removeService(
-
     containerState,
-
     serviceName
-
   );
 
-  if(
-    !removed
-  ){
-
+  if(!removed){
     return false;
-
   }
 
   const normalizedName =
@@ -214,195 +159,171 @@ function remove(
   containerState
   .scopes
   .forEach((scopeStore) => {
-
-    scopeStore
-    .delete(
+    scopeStore.delete(
       normalizedName
     );
-
   });
 
   return true;
-
 }
-
 
 
 function has(
   serviceName
 ){
-
   return hasService(
-
     containerState,
-
     serviceName
-
   );
-
 }
-
 
 
 function get(
   serviceName
 ){
-
   return getService(
-
     containerState,
-
     serviceName
-
   );
-
 }
-
 
 
 function services(){
-
   return getServices(
     containerState
   );
-
 }
-
 
 
 async function resolve(
   serviceName,
-  scope = "global"
+  scope = getDefaultContainerScope()
 ){
 
-  return resolveService(
-
-    RIGOContainer,
-
-    serviceName,
-
+  const normalizedScope =
+  normalizeContainerScope(
     scope
-
   );
 
-}
+  if(
+    !isValidContainerScope(
+      normalizedScope
+    )
+  ){
+    throw new Error(
+      "INVALID_SCOPE_NAME"
+    );
+  }
 
+  return resolveService(
+    RIGOContainer,
+    serviceName,
+    normalizedScope
+  );
+}
 
 
 async function resolveMany(
   serviceNames,
-  scope = "global"
+  scope = getDefaultContainerScope()
 ){
 
-  return resolveServices(
-
-    RIGOContainer,
-
-    serviceNames,
-
+  const normalizedScope =
+  normalizeContainerScope(
     scope
-
   );
 
-}
+  if(
+    !isValidContainerScope(
+      normalizedScope
+    )
+  ){
+    throw new Error(
+      "INVALID_SCOPE_NAME"
+    );
+  }
 
+  return resolveServices(
+    RIGOContainer,
+    serviceNames,
+    normalizedScope
+  );
+}
 
 
 function createScope(
   scopeName
 ){
 
-  if(
-    !scopeName
-  ){
+  const normalizedScope =
+  normalizeContainerScope(
+    scopeName
+  );
 
+  if(
+    !isValidContainerScope(
+      normalizedScope
+    )
+  ){
     throw new Error(
       "INVALID_SCOPE_NAME"
     );
-
   }
 
   if(
-
     !containerState
     .scopes
     .has(
-      scopeName
+      normalizedScope
     )
-
   ){
-
     containerState
     .scopes
     .set(
-
-      scopeName,
-
+      normalizedScope,
       new Map()
-
     );
-
   }
 
-  return true;
-
+  return normalizedScope;
 }
-
 
 
 function removeScope(
   scopeName
 ){
 
-  return containerState
-  .scopes
-  .delete(
+  const normalizedScope =
+  normalizeContainerScope(
     scopeName
   );
 
+  return containerState
+  .scopes
+  .delete(
+    normalizedScope
+  );
 }
-
 
 
 function clearScopes(){
-
   containerState
   .scopes
   .clear();
 
   return true;
-
 }
-
 
 
 function clear(){
-
-  containerState
-  .services
-  .clear();
-
-  containerState
-  .singletons
-  .clear();
-
-  containerState
-  .scopes
-  .clear();
-
-  containerState
-  .resolutionStack
-  .clear();
+  containerState.services.clear();
+  containerState.singletons.clear();
+  containerState.scopes.clear();
+  containerState.resolutionStack.clear();
 
   return true;
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
 
 const RIGOContainer =
 Object.freeze({
@@ -410,69 +331,39 @@ Object.freeze({
   state:
   containerState,
 
-
-
   register,
-
-
-
   remove,
-
-
-
   has,
-
-
-
   get,
-
-
-
   services,
-
-
-
   resolve,
-
-
-
   resolveMany,
-
-
-
   createScope,
-
-
-
   removeScope,
-
-
-
   clearScopes,
-
-
-
   clear,
 
-
-
   lifecycles:
-  CONTAINER_LIFECYCLE
+  CONTAINER_LIFECYCLE,
+
+  scopes:
+  Object.freeze({
+    normalize:
+    normalizeContainerScope,
+
+    validate:
+    isValidContainerScope,
+
+    getDefault:
+    getDefaultContainerScope
+  })
 
 });
 
 
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   RIGOContainer,
-
   containerState
-
 };
 
 export default
