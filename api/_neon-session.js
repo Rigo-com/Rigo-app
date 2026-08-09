@@ -1,20 +1,21 @@
 function normalizeBaseUrl(value){return String(value||"").replace(/\/+$/,"");}
 
+function getAuthBaseUrl(){
+  return normalizeBaseUrl(
+    process.env.NEON_AUTH_BASE_URL||
+    process.env.DATABASE_NEON_AUTH_BASE_URL
+  );
+}
+
 function extractSession(payload){
   if(!payload)return null;
 
   if(payload.user){
-    return {
-      user:payload.user,
-      session:payload.session||null
-    };
+    return {user:payload.user,session:payload.session||null};
   }
 
   if(payload.data?.user){
-    return {
-      user:payload.data.user,
-      session:payload.data.session||null
-    };
+    return {user:payload.data.user,session:payload.data.session||null};
   }
 
   if(payload.data?.session?.user){
@@ -28,7 +29,7 @@ function extractSession(payload){
 }
 
 async function getNeonSession(request){
-  const baseUrl=normalizeBaseUrl(process.env.NEON_AUTH_BASE_URL);
+  const baseUrl=getAuthBaseUrl();
   if(!baseUrl)return null;
 
   const headers={
@@ -36,7 +37,7 @@ async function getNeonSession(request){
     Origin:`https://${request.headers.host}`
   };
 
-  if(request.headers.cookie){headers.Cookie=request.headers.cookie;}
+  if(request.headers.cookie)headers.Cookie=request.headers.cookie;
 
   const response=await fetch(`${baseUrl}/get-session`,{
     method:"GET",
