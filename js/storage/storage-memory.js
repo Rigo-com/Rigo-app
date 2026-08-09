@@ -1,313 +1,104 @@
 // =====================================
 // RIGO AI
 // STORAGE MEMORY
-// IN-MEMORY STORAGE LAYER
+// PER-USER IN-MEMORY STORAGE
 // =====================================
 
-import {
-  STORAGE_LIMITS
-}
+import { STORAGE_LIMITS }
 from "./storage-config.js";
 
-import {
-  deepClone
-}
+import { deepClone }
 from "./storage-utils.js";
 
+import { scopeStorageKey }
+from "./storage-scope.js";
 
+const memoryStore = new Map();
 
-// =====================================
-// MEMORY STORE
-// =====================================
-
-const memoryStore =
-new Map();
-
-
-
-// =====================================
-// SET
-// =====================================
-
-function setMemoryItem(
-  key,
-  value
-){
-
-  if(
-    !key
-  ){
-    return false;
+function resolveKey(key){
+  try{
+    return scopeStorageKey(key);
   }
+  catch{
+    return "";
+  }
+}
 
-  memoryStore.set(
+function setMemoryItem(key,value){
+  const scopedKey = resolveKey(key);
+  if(!scopedKey){return false;}
 
-    key,
+  memoryStore.set(scopedKey,deepClone(value));
 
-    deepClone(
-      value
-    )
-
-  );
-
-  while(
-
-    memoryStore.size >
-
-    STORAGE_LIMITS
-    .MAX_CACHE_ITEMS
-
-  ){
-
-    const oldestKey =
-
-      memoryStore
-      .keys()
-      .next()
-      .value;
-
-    memoryStore.delete(
-      oldestKey
-    );
-
+  while(memoryStore.size > STORAGE_LIMITS.MAX_CACHE_ITEMS){
+    const oldestKey = memoryStore.keys().next().value;
+    memoryStore.delete(oldestKey);
   }
 
   return true;
-
 }
 
+function getMemoryItem(key){
+  const scopedKey = resolveKey(key);
+  if(!scopedKey){return null;}
 
-
-// =====================================
-// GET
-// =====================================
-
-function getMemoryItem(
-  key
-){
-
-  const value =
-
-    memoryStore.get(
-      key
-    );
-
-  if(
-    value === undefined
-  ){
-    return null;
-  }
-
-  return deepClone(
-    value
-  );
-
+  const value = memoryStore.get(scopedKey);
+  return value === undefined ? null : deepClone(value);
 }
 
-
-
-// =====================================
-// HAS
-// =====================================
-
-function hasMemoryItem(
-  key
-){
-
-  return memoryStore.has(
-    key
-  );
-
+function hasMemoryItem(key){
+  const scopedKey = resolveKey(key);
+  return scopedKey ? memoryStore.has(scopedKey) : false;
 }
 
-
-
-// =====================================
-// REMOVE
-// =====================================
-
-function removeMemoryItem(
-  key
-){
-
-  return memoryStore.delete(
-    key
-  );
-
+function removeMemoryItem(key){
+  const scopedKey = resolveKey(key);
+  return scopedKey ? memoryStore.delete(scopedKey) : false;
 }
-
-
-
-// =====================================
-// CLEAR
-// =====================================
 
 function clearMemoryStore(){
-
-  memoryStore.clear();
-
-  return true;
-
+  try{
+    const probe = scopeStorageKey("");
+    const prefix = probe.slice(0,probe.lastIndexOf(".")+1);
+    for(const key of Array.from(memoryStore.keys())){
+      if(key.startsWith(prefix)){
+        memoryStore.delete(key);
+      }
+    }
+    return true;
+  }
+  catch{
+    return false;
+  }
 }
 
-
-
-// =====================================
-// KEYS
-// =====================================
-
-function getMemoryKeys(){
-
-  return Array.from(
-
-    memoryStore
-    .keys()
-
-  );
-
+function getScopedEntries(){
+  try{
+    const probe = scopeStorageKey("");
+    const prefix = probe.slice(0,probe.lastIndexOf(".")+1);
+    return Array.from(memoryStore.entries()).filter(([key])=>key.startsWith(prefix));
+  }
+  catch{
+    return [];
+  }
 }
 
+function getMemoryKeys(){return getScopedEntries().map(([key])=>key);}
+function getMemoryValues(){return getScopedEntries().map(([,value])=>deepClone(value));}
+function getMemoryEntries(){return getScopedEntries().map(([key,value])=>[key,deepClone(value)]);}
+function getMemorySize(){return getScopedEntries().length;}
+function getMemoryStats(){return Object.freeze({items:getMemorySize()});}
 
-
-// =====================================
-// VALUES
-// =====================================
-
-function getMemoryValues(){
-
-  return Array.from(
-
-    memoryStore
-    .values()
-
-  )
-  .map(
-    deepClone
-  );
-
-}
-
-
-
-// =====================================
-// ENTRIES
-// =====================================
-
-function getMemoryEntries(){
-
-  return Array.from(
-
-    memoryStore
-    .entries()
-
-  )
-  .map(([
-    key,
-    value
-  ]) => [
-
-    key,
-
-    deepClone(
-      value
-    )
-
-  ]);
-
-}
-
-
-
-// =====================================
-// SIZE
-// =====================================
-
-function getMemorySize(){
-
-  return memoryStore
-  .size;
-
-}
-
-
-
-// =====================================
-// STATS
-// =====================================
-
-function getMemoryStats(){
-
-  return Object.freeze({
-
-    items:
-    memoryStore.size
-
-  });
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const StorageMemory =
-Object.freeze({
-
-  setMemoryItem,
-
-  getMemoryItem,
-
-  hasMemoryItem,
-
-  removeMemoryItem,
-
-  clearMemoryStore,
-
-  getMemoryKeys,
-
-  getMemoryValues,
-
-  getMemoryEntries,
-
-  getMemorySize,
-
-  getMemoryStats
-
+const StorageMemory = Object.freeze({
+  setMemoryItem,getMemoryItem,hasMemoryItem,removeMemoryItem,
+  clearMemoryStore,getMemoryKeys,getMemoryValues,getMemoryEntries,
+  getMemorySize,getMemoryStats
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
-  setMemoryItem,
-
-  getMemoryItem,
-
-  hasMemoryItem,
-
-  removeMemoryItem,
-
-  clearMemoryStore,
-
-  getMemoryKeys,
-
-  getMemoryValues,
-
-  getMemoryEntries,
-
-  getMemorySize,
-
-  getMemoryStats,
-
-  StorageMemory
-
+  setMemoryItem,getMemoryItem,hasMemoryItem,removeMemoryItem,
+  clearMemoryStore,getMemoryKeys,getMemoryValues,getMemoryEntries,
+  getMemorySize,getMemoryStats,StorageMemory
 };
 
-export default
-StorageMemory;
+export default StorageMemory;
