@@ -17,6 +17,7 @@ function bodyOf(request){
 
 function normalizeBaseUrl(value){return String(value||"").replace(/\/+$/,"");}
 function normalizeEmail(value){return String(value||"").trim().toLowerCase();}
+function getAuthBaseUrl(){return normalizeBaseUrl(process.env.NEON_AUTH_BASE_URL||process.env.DATABASE_NEON_AUTH_BASE_URL);}
 
 function sanitizeSetCookie(value,persistent=true){
   if(!value)return value;
@@ -47,7 +48,7 @@ async function forwardAuth({baseUrl,path,request,payload=null,persistent=true}){
     Origin:`https://${request.headers.host}`
   };
 
-  if(request.headers.cookie){headers.Cookie=request.headers.cookie;}
+  if(request.headers.cookie)headers.Cookie=request.headers.cookie;
 
   const init={method:payload===null?"GET":"POST",headers,redirect:"manual"};
   if(payload!==null)init.body=JSON.stringify(payload);
@@ -55,33 +56,18 @@ async function forwardAuth({baseUrl,path,request,payload=null,persistent=true}){
   const upstream=await fetch(`${baseUrl}/${path}`,init);
   const text=await upstream.text();
 
-  return {
-    upstream,
-    text,
-    cookies:upstreamCookies(upstream,persistent)
-  };
+  return {upstream,text,cookies:upstreamCookies(upstream,persistent)};
 }
 
-function parseJson(text){
-  try{return text?JSON.parse(text):null}catch{return null}
-}
-
-function applyCookies(response,cookies=[]){
-  if(cookies.length)response.setHeader("Set-Cookie",cookies);
-}
-
-function extractUser(payload){
-  return payload?.user||payload?.data?.user||payload?.data?.session?.user||null;
-}
+function parseJson(text){try{return text?JSON.parse(text):null}catch{return null}}
+function applyCookies(response,cookies=[]){if(cookies.length)response.setHeader("Set-Cookie",cookies)}
+function extractUser(payload){return payload?.user||payload?.data?.user||payload?.data?.session?.user||null}
 
 export default async function handler(request,response){
   response.setHeader("Cache-Control","no-store");
 
-  const baseUrl=normalizeBaseUrl(process.env.NEON_AUTH_BASE_URL);
-  if(!baseUrl){
-    response.status(503).json({ok:false,error:"NEON_AUTH_NOT_CONFIGURED"});
-    return;
-  }
+  const baseUrl=getAuthBaseUrl();
+  if(!baseUrl){response.status(503).json({ok:false,error:"NEON_AUTH_NOT_CONFIGURED"});return;}
 
   const body=bodyOf(request);
   const action=String(request.query?.action||body.action||"");
@@ -116,8 +102,8 @@ export default async function handler(request,response){
     if(action==="session"){
       const result=await forwardAuth({baseUrl,path:config.path,request,payload:null,persistent:true});
       applyCookies(response,result.cookies);
-
       const parsed=parseJson(result.text);
+
       if(result.upstream.ok&&parsed&&typeof parsed==="object"){
         const user=extractUser(parsed);
         const adminSession=getAdminSession(request);
@@ -135,9 +121,7 @@ export default async function handler(request,response){
     delete payload.staySignedIn;
     payload.email=email;
 
-    if(action==="login"&&!("rememberMe" in payload)){
-      payload.rememberMe=persistent;
-    }
+    if(action==="login"&&!("rememberMe" in payload))payload.rememberMe=persistent;
 
     let result=await forwardAuth({baseUrl,path:config.path,request,payload,persistent});
 
