@@ -5,13 +5,9 @@
 // =====================================
 
 import {
-
   updateChatState,
-
   getChatSnapshot,
-
   resetChatState
-
 }
 from "../chat-state/chat-state.js";
 
@@ -30,6 +26,8 @@ from "../chat-services/chat-stream-service.js";
 import ChatRenderService
 from "../chat-services/chat-render-service.js";
 
+import ChatUIManager
+from "../chat-ui/chat-ui-manager.js";
 
 
 // =====================================
@@ -46,13 +44,12 @@ Object.seal({
 });
 
 
-
 // =====================================
 // INITIALIZE
 // =====================================
 
 function initialize(){
-  
+
   if(
     runtimeState.initialized
   ){
@@ -60,11 +57,8 @@ function initialize(){
   }
 
   updateChatState({
-
     initializing:true,
-
     destroyed:false
-
   });
 
   ChatEvents.initialize();
@@ -77,6 +71,8 @@ function initialize(){
 
   ChatRenderService.initialize();
 
+  ChatUIManager.initialize();
+
   runtimeState.initialized =
   true;
 
@@ -84,17 +80,12 @@ function initialize(){
   Date.now();
 
   updateChatState({
-
     initialized:true,
-
     initializing:false
-
   });
 
   return true;
-
 }
-
 
 
 // =====================================
@@ -109,6 +100,8 @@ function destroy(){
     return true;
   }
 
+  ChatUIManager.destroy();
+
   ChatRenderService.destroy();
 
   ChatStreamService.destroy();
@@ -120,11 +113,8 @@ function destroy(){
   ChatEvents.destroy();
 
   updateChatState({
-
     initialized:false,
-
     destroyed:true
-
   });
 
   runtimeState.initialized =
@@ -134,9 +124,7 @@ function destroy(){
   null;
 
   return true;
-
 }
-
 
 
 // =====================================
@@ -144,6 +132,8 @@ function destroy(){
 // =====================================
 
 function reset(){
+
+  ChatUIManager.reset();
 
   ChatRenderService.reset();
 
@@ -156,9 +146,7 @@ function reset(){
   resetChatState();
 
   return true;
-
 }
-
 
 
 // =====================================
@@ -170,17 +158,16 @@ function getStatus(){
   return Object.freeze({
 
     initialized:
-    runtimeState
-    .initialized,
+    runtimeState.initialized,
 
     startedAt:
-    runtimeState
-    .startedAt
+    runtimeState.startedAt,
+
+    ui:
+    ChatUIManager.status()
 
   });
-
 }
-
 
 
 // =====================================
@@ -200,25 +187,22 @@ function getSnapshot(){
     getChatSnapshot(),
 
     messages:
-    ChatMessageService
-    .snapshot(),
+    ChatMessageService.snapshot(),
 
     queue:
-    ChatQueueService
-    .snapshot(),
+    ChatQueueService.snapshot(),
 
     stream:
-    ChatStreamService
-    .snapshot(),
+    ChatStreamService.snapshot(),
 
     render:
-    ChatRenderService
-    .snapshot()
+    ChatRenderService.snapshot(),
+
+    ui:
+    ChatUIManager.status()
 
   });
-
 }
-
 
 
 // =====================================
@@ -241,7 +225,6 @@ Object.freeze({
   getSnapshot
 
 });
-
 
 
 // =====================================
