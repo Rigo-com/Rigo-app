@@ -20,53 +20,32 @@ import UI
 from "./ui/index.js";
 
 
-
 // =====================================
 // INITIALIZE
 // =====================================
 
 function initializeDebugSystem(){
-  
+
   Diagnostics.start();
 
   Diagnostics.recordEvent(
-  "debug:initialized"
-);
+    "debug:initialized"
+  );
 
-  Monitor
-  .memory
-  .start();
+  Monitor.memory.start();
 
+  Monitor.performance.start();
 
-  Monitor
-  .performance
-  .start();
+  Monitor.network.start();
 
+  Monitor.events.start();
 
-  Monitor
-  .network
-  .start();
-  
+  Monitor.services.start();
 
-  Monitor
-  .events
-  .start();
+  Scanner.runtime.start();
 
-
-  Monitor
-  .services
-  .start();
-
-
-  Scanner
-  .runtime
-  .start();
-
-  
   return true;
-
 }
-
 
 
 // =====================================
@@ -76,58 +55,41 @@ function initializeDebugSystem(){
 function createSystemReport(){
 
   const diagnostics =
-
-    Diagnostics
-    .snapshot();
+  Diagnostics.snapshot();
 
   const runtime =
-
-    Scanner
-    .runtime
-    .snapshot();
+  Scanner.runtime.snapshot();
 
   const circular =
-
-    Scanner
-    .circular
-    .snapshot();
+  Scanner.circular.snapshot();
 
   return Reporter
   .builder
   .health({
 
     healthScore:
-    diagnostics
-    .healthScore,
+    diagnostics.healthScore,
 
     warnings:
-    diagnostics
-    .warnings,
+    diagnostics.warnings,
 
     errors:
-    diagnostics
-    .errors,
+    diagnostics.errors,
 
     critical:
-    diagnostics
-    .critical,
+    diagnostics.critical,
 
     events:
-    diagnostics
-    .eventCount || 0,
+    diagnostics.eventCount || 0,
 
     runtimeErrors:
-    runtime
-    .runtimeErrors || 0,
+    runtime.runtimeErrors || 0,
 
     circularDependencies:
-    circular
-    .circularFound || 0
+    circular.circularFound || 0
 
   });
-
 }
-
 
 
 // =====================================
@@ -137,21 +99,16 @@ function createSystemReport(){
 function openDashboard(){
 
   const snapshot =
+  createDebugSnapshot();
 
-    createDebugSnapshot();
+  UI.dashboard.render(
+    snapshot
+  );
 
-  UI
-  .dashboard
-  .render(snapshot);
-
-  UI
-  .dashboard
-  .show();
+  UI.dashboard.show();
 
   return true;
-
 }
-
 
 
 // =====================================
@@ -160,34 +117,22 @@ function openDashboard(){
 
 function stopDebugSystem(){
 
-  Monitor
-  .memory
-  .stop();
+  Monitor.memory.stop();
 
-  Monitor
-  .performance
-  .stop();
+  Monitor.performance.stop();
 
-  Monitor
-  .network
-  .stop();
+  Monitor.network.stop();
 
-  Monitor
-  .events
-  .stop();
+  Monitor.events.stop();
 
-  Monitor
-  .services
-  .stop();
+  Monitor.services.stop();
 
-  Scanner
-  .runtime
-  .stop();
-  
+  Scanner.runtime.stop();
+
+  Diagnostics.stop();
+
   return true;
-
 }
-
 
 
 // =====================================
@@ -199,81 +144,45 @@ function createDebugSnapshot(){
   return Object.freeze({
 
     diagnostics:
-
-    Diagnostics
-    .snapshot(),
+    Diagnostics.snapshot(),
 
     memory:
-
-    Monitor
-    .memory
-    .snapshot(),
+    Monitor.memory.snapshot(),
 
     performance:
-
-    Monitor
-    .performance
-    .snapshot(),
+    Monitor.performance.snapshot(),
 
     network:
-
-    Monitor
-    .network
-    .snapshot(),
+    Monitor.network.snapshot(),
 
     events:
-
-    Monitor
-    .events
-    .snapshot(),
+    Monitor.events.snapshot(),
 
     services:
-
-    Monitor
-    .services
-    .snapshot(),
+    Monitor.services.snapshot(),
 
     runtime:
-
-    Scanner
-    .runtime
-    .snapshot(),
+    Scanner.runtime.snapshot(),
 
     module:
-
-    Scanner
-    .module
-    .snapshot(),
+    Scanner.module.snapshot(),
 
     dependency:
-
-    Scanner
-    .dependency
-    .snapshot(),
+    Scanner.dependency.snapshot(),
 
     imports:
-
-    Scanner
-    .imports
-    .snapshot(),
+    Scanner.imports.snapshot(),
 
     syntax:
-
-    Scanner
-    .syntax
-    .snapshot(),
+    Scanner.syntax.snapshot(),
 
     circular:
-
-    Scanner
-    .circular
-    .snapshot(),
+    Scanner.circular.snapshot(),
 
     timestamp:
     Date.now()
 
   });
-
 }
 
 
@@ -320,15 +229,12 @@ Object.freeze({
 });
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
-
   Debug
-
 };
 
 export default
