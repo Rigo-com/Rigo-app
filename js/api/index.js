@@ -4,23 +4,13 @@
 // ENTRY POINT
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import {
-
   API_CONFIG
-
 }
 from "./api-config.js";
 
 import {
-
   apiState
-
 }
 from "./api-state.js";
 
@@ -30,140 +20,59 @@ from "./api-runtime.js";
 import APIManager
 from "./api-manager.js";
 
-
-
-// =====================================
-// SHORTCUTS
-// =====================================
-
 async function initializeAPI(){
-
-  return APIManager
-  .initialize();
-
+  return APIManager.initialize();
 }
 
-
+async function bootAPI(){
+  return APIManager.start();
+}
 
 async function startAPI(){
-
-  return APIManager
-  .start();
-
+  return bootAPI();
 }
-
-
 
 async function shutdownAPI(){
-
-  return APIManager
-  .shutdown();
-
+  return APIManager.shutdown();
 }
-
-
 
 async function resetAPI(){
-
-  return APIManager
-  .reset();
-
+  return APIManager.reset();
 }
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
 
 function createAPISnapshot(){
-
   return Object.freeze({
-
-    manager:
-
-      APIManager
-      .snapshot(),
-
-    runtime:
-
-      APIRuntime
-      .snapshot(),
-
-    timestamp:
-    Date.now()
-
+    manager:APIManager.snapshot(),
+    runtime:APIRuntime.snapshot(),
+    timestamp:Date.now()
   });
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const API =
-Object.freeze({
-
-  config:
-  API_CONFIG,
-
-  state:
-  apiState,
-
-  runtime:
-  APIRuntime,
-
-  manager:
-  APIManager,
-
-  initialize:
-  initializeAPI,
-
-  start:
-  startAPI,
-
-  shutdown:
-  shutdownAPI,
-
-  reset:
-  resetAPI,
-
-  snapshot:
-  createAPISnapshot
-
+const API = Object.freeze({
+  config:API_CONFIG,
+  state:apiState,
+  runtime:APIRuntime,
+  manager:APIManager,
+  initialize:initializeAPI,
+  boot:bootAPI,
+  start:startAPI,
+  shutdown:shutdownAPI,
+  reset:resetAPI,
+  snapshot:createAPISnapshot
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   API_CONFIG,
-
   apiState,
-
   APIRuntime,
-
   APIManager,
-
   initializeAPI,
-
+  bootAPI,
   startAPI,
-
   shutdownAPI,
-
   resetAPI,
-
   createAPISnapshot,
-
   API
-
 };
 
-export default
-API;
+export default API;
