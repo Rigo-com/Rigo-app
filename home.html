@@ -177,8 +177,15 @@
   </script>
 
   <script type="module">
-    import "./js/main.js";
-    import StudioUI from "./js/admin/studio/ui/index.js";
+    import {
+      applicationReady
+    }
+    from "./js/main.js";
+
+    import StudioUI
+    from "./js/admin/studio/ui/index.js";
+
+    await applicationReady;
 
     const appContent = document.getElementById("app-content");
 
@@ -235,7 +242,7 @@
     };
 
     if(isStudioURL()){
-      window.showAdminStudio();
+      await window.showAdminStudio();
     }
   </script>
 </body>
