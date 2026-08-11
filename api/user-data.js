@@ -1,5 +1,4 @@
-import {getSql,ensureSchema} from "./_db.js";
-import {getNeonSession} from "./_neon-session.js";
+import {getSql,ensureAccountDataSchema,getUserSession} from "../server/user-data-backend.js";
 
 const ALLOWED_SECTIONS=new Set(["chats","memory","settings","preferences"]);
 
@@ -19,9 +18,9 @@ export default async function handler(request,response){
   response.setHeader("Cache-Control","no-store");
 
   try{
-    await ensureSchema();
+    await ensureAccountDataSchema();
 
-    const auth=await getNeonSession(request);
+    const auth=getUserSession(request);
     if(!auth?.user?.id){
       response.status(401).json({ok:false,error:"AUTHENTICATION_REQUIRED"});
       return;
