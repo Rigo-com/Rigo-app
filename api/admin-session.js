@@ -1,4 +1,4 @@
-import {authenticateAdmin,issueAdminSession,clearAdminSession,getAdminSession,adminAuthConfigured} from "./_admin-auth.js";
+import {authenticateAdmin,issueAdminSession,clearAdminSession,getAdminSession,adminAuthConfigured} from "../server/admin-auth.js";
 
 function bodyOf(request){
   if(request.body&&typeof request.body==="object")return request.body;
