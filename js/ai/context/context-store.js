@@ -21,7 +21,8 @@ import {
   freezeContextObject,
   estimateTokens,
   hashContextContent,
-  createSearchableText
+  createSearchableText,
+  serializeContext
 }
 from "./context-utils.js";
 
@@ -234,6 +235,79 @@ function untrackContextType(
 }
 
 
+function isContextContentWithinLimits(
+  content
+){
+
+  const serialized =
+  serializeContext(content);
+
+  if(
+    serialized.length >
+    CONTEXT_MANAGER_CONFIG.MAX_CONTENT_SIZE
+  ){
+    return false;
+  }
+
+  const itemCount =
+  Array.isArray(content)
+  ? content.length
+  : (
+      content &&
+      typeof content === "object"
+      ? Object.keys(content).length
+      : 1
+    );
+
+  return (
+    itemCount <=
+    CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_ITEMS
+  );
+
+}
+
+
+export function touchContext(
+  contextId,
+  accessedAt = Date.now()
+){
+
+  const normalizedId =
+  normalizeContextId(contextId);
+
+  const existing =
+  contextManagerState
+  .contexts
+  .get(normalizedId);
+
+  if(!existing){
+    return null;
+  }
+
+  const touched =
+  freezeContextObject({
+    ...safeClone(existing),
+    runtime:{
+      ...safeClone(existing.runtime),
+      accessCount:
+      Number(existing.runtime?.accessCount || 0) + 1,
+      lastAccessedAt:
+      Number(accessedAt) || Date.now()
+    }
+  });
+
+  contextManagerState
+  .contexts
+  .set(normalizedId,touched);
+
+  getContextTypeCollection(existing.type)
+  ?.set(normalizedId,touched);
+
+  return touched;
+
+}
+
+
 
 // =====================================
 // CONTEXT OBJECT
@@ -357,6 +431,20 @@ export async function registerContext(
     )
     .trim()
     .toLowerCase();
+
+    if(
+      !isContextContentWithinLimits(
+        config.content || {}
+      )
+    ){
+
+      contextManagerState
+      .diagnostics
+      .rejected++;
+
+      return false;
+
+    }
 
     if(
       !isContextTypeEnabled(requestedType) ||
@@ -524,6 +612,20 @@ export async function updateContext(
       Date.now()
 
     });
+
+    if(
+      !isContextContentWithinLimits(
+        updated.content
+      )
+    ){
+
+      contextManagerState
+      .diagnostics
+      .rejected++;
+
+      return false;
+
+    }
 
     if(
       !isContextTypeEnabled(updated.type) ||

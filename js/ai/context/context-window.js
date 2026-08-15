@@ -34,6 +34,11 @@ import {
 }
 from "./context-indexer.js";
 
+import {
+  touchContext
+}
+from "./context-store.js";
+
 
 
 // =====================================
@@ -141,13 +146,17 @@ export async function rankContexts(
   })
   .map((context) => {
 
+    const accessedContext =
+    touchContext(context.id) ||
+    context;
+
     return {
 
-      ...safeClone(context),
+      ...safeClone(accessedContext),
 
       score:
       calculateContextScore(
-        context,
+        accessedContext,
         normalizedQuery,
         indexedMatches.get(
           context.id
@@ -210,6 +219,11 @@ export async function buildContextWindow(
   );
 
   if(cached){
+
+    cached.contexts
+    .forEach((context) => {
+      touchContext(context.id);
+    });
 
     return cached;
 

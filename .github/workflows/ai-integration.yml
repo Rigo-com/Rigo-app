@@ -126,6 +126,8 @@ jobs:
           await import('./js/ai/context/index.js');
           const {contextManagerState} =
           await import('./js/ai/context/context-state.js');
+          const {CONTEXT_MANAGER_CONFIG} =
+          await import('./js/ai/context/context-config.js');
 
           await ContextManager.initialize();
 
@@ -232,6 +234,108 @@ jobs:
             false
           );
           assert.equal(ContextManager.diagnostics().sessions,100);
+
+          await ContextManager.reset();
+
+          const now = Date.now();
+          const expiredAt =
+          now - CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_AGE - 1000;
+
+          const active = await ContextManager.register({
+            id:'active-old',
+            namespace:'eviction:test',
+            type:'session',
+            content:{text:'active needle'},
+            createdAt:expiredAt,
+            updatedAt:expiredAt
+          });
+          const stale = await ContextManager.register({
+            id:'stale-old',
+            namespace:'eviction:test',
+            type:'session',
+            content:{text:'stale haystack'},
+            createdAt:expiredAt,
+            updatedAt:expiredAt
+          });
+
+          await ContextManager.buildWindow(
+            'needle',
+            {namespace:'eviction:test'}
+          );
+          assert.equal(
+            contextManagerState.contexts.get(active.id).runtime.accessCount,
+            1
+          );
+          assert.ok(
+            contextManagerState.contexts
+            .get(active.id)
+            .runtime
+            .lastAccessedAt >= now
+          );
+
+          await ContextManager.buildWindow(
+            'needle',
+            {namespace:'eviction:test'}
+          );
+          assert.equal(
+            contextManagerState.contexts.get(active.id).runtime.accessCount,
+            2
+          );
+          assert.equal(await ContextManager.evictExpired(now),1);
+          assert.equal(contextManagerState.contexts.has(active.id),true);
+          assert.equal(contextManagerState.contexts.has(stale.id),false);
+
+          const stable = await ContextManager.register({
+            id:'stable',
+            namespace:'limits:test',
+            type:'runtime',
+            content:{text:'keep me'}
+          });
+
+          assert.equal(
+            await ContextManager.register({
+              id:'too-large',
+              namespace:'limits:test',
+              type:'runtime',
+              content:'x'.repeat(
+                CONTEXT_MANAGER_CONFIG.MAX_CONTENT_SIZE + 1
+              )
+            }),
+            false
+          );
+          assert.equal(
+            await ContextManager.register({
+              id:'too-many',
+              namespace:'limits:test',
+              type:'runtime',
+              content:Array.from(
+                {
+                  length:
+                  CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_ITEMS + 1
+                },
+                (_,index) => index
+              )
+            }),
+            false
+          );
+          assert.equal(
+            await ContextManager.update(
+              stable.id,
+              {
+                content:'x'.repeat(
+                  CONTEXT_MANAGER_CONFIG.MAX_CONTENT_SIZE + 1
+                )
+              }
+            ),
+            false
+          );
+          assert.equal(
+            contextManagerState.contexts.get(stable.id).content.text,
+            'keep me'
+          );
+          assert.ok(
+            ContextManager.diagnostics().diagnostics.rejected >= 3
+          );
 
           await ContextManager.shutdown();
 

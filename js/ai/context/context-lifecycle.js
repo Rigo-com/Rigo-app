@@ -70,7 +70,11 @@ async function evictExpiredContexts(
   for(const [contextId,context] of contextManagerState.contexts){
 
     const timestamp =
-    Number(context?.updatedAt || context?.createdAt || 0);
+    Math.max(
+      Number(context?.runtime?.lastAccessedAt || 0),
+      Number(context?.updatedAt || 0),
+      Number(context?.createdAt || 0)
+    );
 
     if(timestamp > 0 && timestamp < cutoff){
       expiredIds.push(contextId);
