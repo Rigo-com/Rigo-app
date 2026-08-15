@@ -122,6 +122,14 @@ export function createAgentObject(
 
       lastHealthcheckAt:null,
 
+      lastFailureAt:null,
+
+      lastRecoveryAt:null,
+
+      lastError:null,
+
+      recoveryAttempts:0,
+
       controller:null
 
     }

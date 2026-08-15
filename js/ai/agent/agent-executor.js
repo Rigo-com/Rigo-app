@@ -94,6 +94,20 @@ export async function executeAgentTask(
   }
 
   if(
+    agent.state ===
+    AGENT_STATES.PAUSED
+  ){
+    throw new Error("AGENT PAUSED");
+  }
+
+  if(
+    agent.state ===
+    AGENT_STATES.FAILED
+  ){
+    throw new Error("AGENT FAILED");
+  }
+
+  if(
 
     !acquireAgentLock(
       normalizedId
@@ -323,6 +337,12 @@ export async function executeAgentTask(
 
     agent.retries = 0;
 
+    agent.runtime
+    .recoveryAttempts = 0;
+
+    agent.runtime
+    .lastError = null;
+
     agentManagerState
     .diagnostics
     .tasksExecuted++;
@@ -355,6 +375,14 @@ export async function executeAgentTask(
   catch(error){
 
     agent.retries++;
+
+    agent.runtime
+    .lastFailureAt =
+    Date.now();
+
+    agent.runtime
+    .lastError =
+    String(error);
 
     agentManagerState
     .diagnostics
@@ -409,6 +437,34 @@ export async function executeAgentTask(
       .failedAgents
       .add(
         normalizedId
+      );
+
+      await emitAgentEvent(
+
+        AGENT_EVENTS
+        .FAILED,
+
+        {
+          agentId:
+          normalizedId,
+
+          error:
+          String(error)
+        }
+
+      );
+
+    }
+
+    else{
+
+      await setAgentState(
+
+        agent,
+
+        AGENT_STATES
+        .READY
+
       );
 
     }
@@ -471,7 +527,8 @@ export async function executeAgentTask(
 // =====================================
 
 export async function recoverAgent(
-  agentId
+  agentId,
+  options = {}
 ){
 
   const agent =
@@ -489,7 +546,67 @@ export async function recoverAgent(
 
   }
 
+  if(
+    !AGENT_MANAGER_CONFIG
+    .ENABLE_AGENT_RECOVERY ||
+    agent.state !==
+    AGENT_STATES.FAILED
+  ){
+    return false;
+  }
+
+  const now =
+  Number(options.now) ||
+  Date.now();
+
+  if(
+    agent.runtime
+    .recoveryAttempts >=
+    AGENT_MANAGER_CONFIG
+    .MAX_AGENT_RECOVERY_ATTEMPTS
+  ){
+
+    agentManagerState
+    .diagnostics
+    .recoveryRejected++;
+
+    return false;
+
+  }
+
+  const recoveryReference =
+  Math.max(
+    Number(
+      agent.runtime.lastFailureAt
+    ) || 0,
+    Number(
+      agent.runtime.lastRecoveryAt
+    ) || 0
+  );
+
+  if(
+    !options.force &&
+    now - recoveryReference <
+    AGENT_MANAGER_CONFIG
+    .AGENT_RECOVERY_COOLDOWN
+  ){
+
+    agentManagerState
+    .diagnostics
+    .recoveryDeferred++;
+
+    return false;
+
+  }
+
   agent.retries = 0;
+
+  agent.runtime
+  .recoveryAttempts++;
+
+  agent.runtime
+  .lastRecoveryAt =
+  now;
 
   await setAgentState(
 
@@ -509,6 +626,22 @@ export async function recoverAgent(
   agentManagerState
   .diagnostics
   .recovered++;
+
+  await emitAgentEvent(
+
+    AGENT_EVENTS
+    .RECOVERED,
+
+    {
+      agentId:
+      agent.id,
+
+      recoveryAttempts:
+      agent.runtime
+      .recoveryAttempts
+    }
+
+  );
 
   return true;
 

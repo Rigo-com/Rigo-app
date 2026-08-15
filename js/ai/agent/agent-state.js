@@ -60,7 +60,11 @@ Object.seal({
 
     eventsFailed:0,
 
-    recovered:0
+    recovered:0,
+
+    recoveryDeferred:0,
+
+    recoveryRejected:0
 
 }),
 

@@ -48,6 +48,11 @@ import {
 }
 from "./agent-reset.js";
 
+import {
+  performAgentHealthchecks
+}
+from "./agent-health.js";
+
 
 
 // =====================================
@@ -74,6 +79,9 @@ Object.freeze({
 
   recover:
   recoverAgent,
+
+  healthcheck:
+  performAgentHealthchecks,
 
   pause:
   pauseAgent,

@@ -31,7 +31,13 @@ from "./agent-executor.js";
 // =====================================
 
 export async function
-performAgentHealthchecks(){
+performAgentHealthchecks(
+  now = Date.now()
+){
+
+  const healthcheckAt =
+  Number(now) ||
+  Date.now();
 
   for(
     const [agentId, agent]
@@ -42,7 +48,7 @@ performAgentHealthchecks(){
 
     agent.runtime
     .lastHealthcheckAt =
-    Date.now();
+    healthcheckAt;
 
     if(
 
@@ -57,10 +63,13 @@ performAgentHealthchecks(){
 
     ){
 
-      recoverAgent(
-        agentId
-      )
-      .catch(() => {});
+      await recoverAgent(
+        agentId,
+        {
+          now:
+          healthcheckAt
+        }
+      );
 
     }
 

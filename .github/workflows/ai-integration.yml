@@ -633,6 +633,116 @@ jobs:
           console.log('Agent event service and diagnostics checks passed.');
           EOF
 
+      - name: Verify agent health and bounded recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ServiceManager from './js/services/service-manager.js';
+          import AgentManager from './js/ai/agent/index.js';
+          import {
+            AGENT_MANAGER_CONFIG
+          } from './js/ai/agent/agent-config.js';
+          import {
+            AGENT_EVENTS,
+            AGENT_STATES
+          } from './js/ai/agent/agent-constants.js';
+
+          const events = [];
+
+          await ServiceManager.register(
+            'events',
+            async () => ({
+              emit:async (name) => {
+                events.push(name);
+                return true;
+              }
+            })
+          );
+
+          await AgentManager.initialize();
+
+          let shouldFail = true;
+
+          await AgentManager.register({
+            id:'recovery-test',
+            execute:async () => {
+              if(shouldFail){
+                throw new Error('RECOVERY TEST FAILURE');
+              }
+              return 'healthy';
+            }
+          });
+
+          for(
+            let attempt = 1;
+            attempt <= AGENT_MANAGER_CONFIG.MAX_AGENT_RETRIES;
+            attempt++
+          ){
+            await assert.rejects(
+              () => AgentManager.execute('recovery-test',{}),
+              /RECOVERY TEST FAILURE/
+            );
+
+            const expectedState =
+            attempt === AGENT_MANAGER_CONFIG.MAX_AGENT_RETRIES
+            ? AGENT_STATES.FAILED
+            : AGENT_STATES.READY;
+
+            assert.equal(
+              AgentManager.get('recovery-test').state,
+              expectedState
+            );
+          }
+
+          await assert.rejects(
+            () => AgentManager.execute('recovery-test',{}),
+            /AGENT FAILED/
+          );
+
+          const failed = AgentManager.get('recovery-test');
+          const earlyHealthcheck =
+          failed.runtime.lastFailureAt +
+          AGENT_MANAGER_CONFIG.AGENT_RECOVERY_COOLDOWN - 1;
+
+          await AgentManager.healthcheck(earlyHealthcheck);
+
+          assert.equal(
+            AgentManager.get('recovery-test').state,
+            AGENT_STATES.FAILED
+          );
+
+          await AgentManager.healthcheck(earlyHealthcheck + 2);
+
+          const recovered = AgentManager.get('recovery-test');
+          assert.equal(recovered.state,AGENT_STATES.READY);
+          assert.equal(recovered.runtime.recoveryAttempts,1);
+          assert.ok(events.includes(AGENT_EVENTS.RECOVERED));
+
+          shouldFail = false;
+
+          assert.equal(
+            await AgentManager.execute('recovery-test',{}),
+            'healthy'
+          );
+
+          const healthy = AgentManager.get('recovery-test');
+          assert.equal(healthy.runtime.recoveryAttempts,0);
+          assert.equal(healthy.runtime.lastError,null);
+
+          const diagnostics =
+          AgentManager.diagnostics().diagnostics;
+
+          assert.equal(diagnostics.failed,3);
+          assert.equal(diagnostics.retries,3);
+          assert.equal(diagnostics.recovered,1);
+          assert.equal(diagnostics.recoveryDeferred,1);
+
+          await AgentManager.shutdown();
+          console.log('Agent health and bounded recovery checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |
