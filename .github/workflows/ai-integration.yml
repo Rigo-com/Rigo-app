@@ -63,6 +63,7 @@ jobs:
           const contextWindow = read('js/ai/context/context-window.js');
           const contextStore = read('js/ai/context/context-store.js');
           const contextState = read('js/ai/context/context-state.js');
+          const toolQueue = read('js/ai/tools/tool-queue.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -121,6 +122,10 @@ jobs:
           assert.match(contextWindow, /MAX_QUERY_LENGTH/, 'Context queries must be bounded');
           assert.match(contextStore, /ENABLE_CONTEXT_MEMORY/, 'Memory context type flag must control registration');
           assert.match(contextState, /ENABLE_DIAGNOSTICS/, 'Context diagnostics flag must control metric collection');
+          assert.match(toolQueue, /ENABLE_TOOL_QUEUE/, 'Tool queue flag must control queue admission');
+          assert.match(toolQueue, /ENABLE_QUEUE_DEDUPLICATION/, 'Tool queue deduplication flag must control duplicate detection');
+          assert.match(toolQueue, /ENABLE_PRIORITY_QUEUE/, 'Tool priority flag must control queue ordering');
+          assert.match(toolQueue, /ENABLE_EXECUTION_CANCELLATION/, 'Tool cancellation flag must control cancellation');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -794,6 +799,72 @@ jobs:
             memory.health().scheduler.diagnostics.timersStopped
           );
           console.log('Memory module runtime service checks passed.');
+          EOF
+
+      - name: Verify tool queue runtime controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:ToolExecutor} =
+          await import('./js/ai/tools/index.js');
+          const {toolExecutorState} =
+          await import('./js/ai/tools/tool-state.js');
+
+          const low = ToolExecutor.queue(
+            'low-tool',
+            {value:1},
+            {},
+            1
+          );
+          const high = ToolExecutor.queue(
+            'high-tool',
+            {value:2},
+            {},
+            10
+          );
+
+          assert.equal(low.queued,true);
+          assert.equal(high.queued,true);
+          assert.deepEqual(
+            toolExecutorState.executionQueue.map(
+              item => item.toolId
+            ),
+            ['high-tool','low-tool']
+          );
+
+          const duplicate = ToolExecutor.queue(
+            'low-tool',
+            {value:1},
+            {},
+            1
+          );
+
+          assert.equal(duplicate.duplicate,true);
+          assert.equal(duplicate.queueId,low.queueId);
+          assert.equal(toolExecutorState.executionQueue.length,2);
+
+          assert.equal(await ToolExecutor.cancel(high.queueId),true);
+          assert.equal(toolExecutorState.executionQueue.length,1);
+          assert.equal(
+            toolExecutorState.executionQueue[0].id,
+            low.queueId
+          );
+          assert.equal(toolExecutorState.diagnostics.cancelled,1);
+          assert.equal(
+            await ToolExecutor.cancel('missing-execution'),
+            false
+          );
+
+          await ToolExecutor.reset();
+
+          assert.equal(toolExecutorState.executionQueue.length,0);
+
+          console.log(
+            'Tool queue runtime control checks passed.'
+          );
           EOF
 
       - name: Verify AI event service wiring
