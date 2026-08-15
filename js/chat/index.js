@@ -87,6 +87,113 @@ from "./chat-ui/index.js";
 
 
 // =====================================
+// MEMORY SHORTCUT
+// =====================================
+
+function mountMemoryShortcut(){
+
+  if(
+    typeof document === "undefined"
+  ){
+    return false;
+  }
+
+  const sidebar =
+  document.getElementById(
+    "sidebar"
+  );
+
+  if(
+    !sidebar
+    ||
+    document.getElementById(
+      "memory-manager"
+    )
+  ){
+    return false;
+  }
+
+  const adminButton =
+  document.getElementById(
+    "admin"
+  );
+
+  const memoryButton =
+  document.createElement(
+    "button"
+  );
+
+  memoryButton.id =
+  "memory-manager";
+
+  memoryButton.type =
+  "button";
+
+  memoryButton.className =
+  "side-btn";
+
+  memoryButton.textContent =
+  "Memory";
+
+  memoryButton.onclick =
+  () => {
+
+    window.location.href =
+    "./memory.html";
+
+  };
+
+  if(
+    adminButton
+    &&
+    adminButton.parentNode === sidebar
+  ){
+
+    sidebar.insertBefore(
+      memoryButton,
+      adminButton
+    );
+
+  }
+  else{
+
+    sidebar.appendChild(
+      memoryButton
+    );
+
+  }
+
+  return true;
+
+}
+
+if(
+  typeof document !== "undefined"
+){
+
+  if(
+    document.readyState ===
+    "loading"
+  ){
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      mountMemoryShortcut,
+      {once:true}
+    );
+
+  }
+  else{
+
+    mountMemoryShortcut();
+
+  }
+
+}
+
+
+
+// =====================================
 // CHAT MODULE
 // =====================================
 
@@ -121,7 +228,9 @@ Object.freeze({
 
 export {
 
-  Chat
+  Chat,
+
+  mountMemoryShortcut
 
 };
 
