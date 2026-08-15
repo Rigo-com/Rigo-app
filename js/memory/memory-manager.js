@@ -65,7 +65,9 @@ function shutdown(){
 function reset(){
 
   MemorySubsystem
-  .shutdown();
+  .shutdown({
+    preserveCloudProvider:true
+  });
 
   return MemorySubsystem
   .initialize();
@@ -257,6 +259,14 @@ function restore(provider){
 }
 
 
+function configureSync(provider){
+
+  return MemorySubsystem
+  .configureCloudSync(provider);
+
+}
+
+
 
 // =====================================
 // DIAGNOSTICS
@@ -326,6 +336,8 @@ Object.freeze({
 
   restore,
 
+  configureSync,
+
   health,
 
   debug,
@@ -373,6 +385,8 @@ export {
   sync,
 
   restore,
+
+  configureSync,
 
   health,
 

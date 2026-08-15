@@ -178,6 +178,21 @@ jobs:
           const memory =
           await ServiceManager.resolve('memory');
 
+          assert.deepEqual(
+            {
+              cleanup:memory.health().scheduler.cleanup,
+              summary:memory.health().scheduler.summary,
+              indexing:memory.health().scheduler.indexing,
+              cloudSync:memory.health().scheduler.cloudSync
+            },
+            {
+              cleanup:true,
+              summary:true,
+              indexing:true,
+              cloudSync:false
+            }
+          );
+
           const created = memory.create(
             'RIGO memory runtime bridge',
             {
@@ -252,6 +267,12 @@ jobs:
           let uploadedPayload = null;
 
           assert.equal(
+            memory.configureSync(async () => true),
+            true
+          );
+          assert.equal(memory.health().scheduler.cloudSync,true);
+
+          assert.equal(
             await memory.sync(async (payload) => {
               uploadedPayload = payload;
               return true;
@@ -300,6 +321,28 @@ jobs:
           await AI.shutdown();
 
           await ModuleActivation.unload('memory');
+          assert.deepEqual(
+            {
+              cleanup:memory.health().scheduler.cleanup,
+              summary:memory.health().scheduler.summary,
+              indexing:memory.health().scheduler.indexing,
+              cloudSync:memory.health().scheduler.cloudSync
+            },
+            {
+              cleanup:false,
+              summary:false,
+              indexing:false,
+              cloudSync:false
+            }
+          );
+          assert.equal(
+            memory.health().scheduler.cloudProviderConfigured,
+            false
+          );
+          assert.equal(
+            memory.health().scheduler.diagnostics.timersStarted,
+            memory.health().scheduler.diagnostics.timersStopped
+          );
           console.log('Memory module runtime service checks passed.');
           EOF
 
