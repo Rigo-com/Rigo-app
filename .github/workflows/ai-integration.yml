@@ -143,6 +143,8 @@ jobs:
           await import('./js/memory/memory-events.js');
           const {MEMORY_EVENTS} =
           await import('./js/memory/memory-constants.js');
+          const {memoryState} =
+          await import('./js/memory/memory-state.js');
 
           const coreEvents = [];
           let localCreated = null;
@@ -231,6 +233,64 @@ jobs:
           assert.equal(memory.health().memory.diagnostics.summarized,1);
           assert.equal(typeof memory.reset,'function');
           assert.equal(typeof memory.snapshot,'function');
+
+          memoryState.embeddings.set('orphan-memory',[1,0,0]);
+          memoryState.indexes
+          .get('memory')
+          .set('orphan-token',new Set(['orphan-memory']));
+
+          const maintenance = memory.maintenance();
+
+          assert.equal(maintenance.cleanup.removedEmbeddings,1);
+          assert.equal(maintenance.cleanup.removedIndexes,1);
+          assert.equal(memoryState.embeddings.has('orphan-memory'),false);
+          assert.equal(
+            memoryState.indexes.get('memory').has('orphan-token'),
+            false
+          );
+
+          let uploadedPayload = null;
+
+          assert.equal(
+            await memory.sync(async (payload) => {
+              uploadedPayload = payload;
+              return true;
+            }),
+            true
+          );
+          assert.equal(uploadedPayload.owner,'memory-runtime-test');
+          assert.equal(uploadedPayload.memories.length,1);
+
+          assert.equal(
+            await memory.restore(async () => uploadedPayload),
+            true
+          );
+          assert.equal(
+            await memory.restore(async () => ({
+              ...uploadedPayload,
+              owner:'another-user'
+            })),
+            false
+          );
+
+          await new Promise((resolve) => setTimeout(resolve,0));
+
+          assert.equal(
+            coreEvents.filter((event) => {
+              return event.name === MEMORY_EVENTS.SYNCED;
+            }).length,
+            2
+          );
+          assert.ok(
+            coreEvents.some((event) => {
+              return (
+                event.name === MEMORY_EVENTS.FAILED &&
+                event.payload.data.reason === 'SYNC_OWNER_MISMATCH'
+              );
+            })
+          );
+          assert.equal(memory.health().memory.diagnostics.synced,2);
+          assert.equal(memory.health().memory.diagnostics.failures,1);
 
           assert.equal(memory.reset(),true);
           assert.equal(memory.search('runtime bridge',{limit:5}).length,1);

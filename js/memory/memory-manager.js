@@ -34,6 +34,11 @@ import {
 }
 from "./memory-debug.js";
 
+import {
+  MemorySyncCloud
+}
+from "./memory-sync-cloud.js";
+
 
 
 // =====================================
@@ -236,6 +241,22 @@ function maintenance(){
 }
 
 
+function sync(provider){
+
+  return MemorySyncCloud
+  .syncToCloud(provider);
+
+}
+
+
+function restore(provider){
+
+  return MemorySyncCloud
+  .restoreFromCloud(provider);
+
+}
+
+
 
 // =====================================
 // DIAGNOSTICS
@@ -301,6 +322,10 @@ Object.freeze({
 
   maintenance,
 
+  sync,
+
+  restore,
+
   health,
 
   debug,
@@ -344,6 +369,10 @@ export {
   summary,
 
   maintenance,
+
+  sync,
+
+  restore,
 
   health,
 

@@ -144,6 +144,17 @@ function cleanupOrphanIndexes(){
 
   let removed = 0;
 
+  const index =
+  memoryState
+  .indexes
+  .get(
+    "memory"
+  );
+
+  if(!(index instanceof Map)){
+    return 0;
+  }
+
   for(
     const [
 
@@ -155,8 +166,7 @@ function cleanupOrphanIndexes(){
 
     of
 
-    memoryState
-    .indexes
+    index
   ){
 
     for(
@@ -184,8 +194,7 @@ function cleanupOrphanIndexes(){
       ids.size === 0
     ){
 
-      memoryState
-      .indexes
+      index
       .delete(
         token
       );
