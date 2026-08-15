@@ -3,12 +3,6 @@
 // MAIN AI ENTRY POINT
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import AIKernel
 from "./ai-kernel/index.js";
 
@@ -27,6 +21,42 @@ from "./planner-engine/index.js";
 import WorkflowEngine
 from "./workflow-engine/index.js";
 
+import ServiceManager
+from "../services/service-manager.js";
+
+
+
+// =====================================
+// SERVICE REGISTRATION
+// =====================================
+
+async function registerAIServices(){
+
+  const services = [
+    ["contexts",ContextManager],
+    ["tools",ToolExecutor],
+    ["agents",AgentManager],
+    ["planner",PlannerEngine],
+    ["workflows",WorkflowEngine]
+  ];
+
+  for(const [name,service] of services){
+
+    if(ServiceManager.has(name)){
+      continue;
+    }
+
+    await ServiceManager.register(
+      name,
+      async () => service
+    );
+
+  }
+
+  return true;
+
+}
+
 
 
 // =====================================
@@ -35,17 +65,11 @@ from "./workflow-engine/index.js";
 
 async function initialize(){
 
+  await registerAIServices();
+
+  // The kernel owns synchronization/initialization of all
+  // registered AI subsystems through the central container.
   await AIKernel.initialize();
-
-  await ContextManager.initialize();
-
-  await ToolExecutor.initialize();
-
-  await AgentManager.initialize();
-
-  await PlannerEngine.initialize();
-
-  await WorkflowEngine.initialize();
 
   return true;
 
@@ -56,15 +80,10 @@ async function initialize(){
 async function shutdown(){
 
   await WorkflowEngine.shutdown();
-
   await PlannerEngine.shutdown();
-
   await AgentManager.shutdown();
-
   await ToolExecutor.shutdown();
-
   await ContextManager.shutdown();
-
   await AIKernel.shutdown();
 
   return true;
@@ -76,22 +95,13 @@ async function shutdown(){
 async function reset(){
 
   await WorkflowEngine.reset();
-
   await PlannerEngine.reset();
-
   await AgentManager.reset();
-
   await ToolExecutor.reset();
-
   await ContextManager.reset();
 
-  if(
-    typeof AIKernel.destroy ===
-    "function"
-  ){
-
+  if(typeof AIKernel.destroy === "function"){
     await AIKernel.destroy();
-
   }
 
   return true;
@@ -107,63 +117,29 @@ async function reset(){
 function diagnostics(){
 
   return Object.freeze({
-
-    kernel:
-    AIKernel.diagnostics(),
-
-    context:
-    ContextManager.diagnostics(),
-
-    tools:
-    ToolExecutor.diagnostics(),
-
-    agents:
-    AgentManager.diagnostics(),
-
-    planner:
-    PlannerEngine.diagnostics(),
-
-    workflow:
-    WorkflowEngine.diagnostics(),
-
-    timestamp:
-    Date.now()
-
+    kernel:AIKernel.diagnostics(),
+    context:ContextManager.diagnostics(),
+    tools:ToolExecutor.diagnostics(),
+    agents:AgentManager.diagnostics(),
+    planner:PlannerEngine.diagnostics(),
+    workflow:WorkflowEngine.diagnostics(),
+    timestamp:Date.now()
   });
 
 }
 
 
 
-// =====================================
-// SNAPSHOT
-// =====================================
-
 function snapshot(){
 
   return Object.freeze({
-
-    kernel:
-    AIKernel.state(),
-
-    context:
-    ContextManager.snapshot(),
-
-    tools:
-    ToolExecutor.snapshot(),
-
-    agents:
-    AgentManager.snapshot(),
-
-    planner:
-    PlannerEngine.snapshot(),
-
-    workflow:
-    WorkflowEngine.snapshot(),
-
-    timestamp:
-    Date.now()
-
+    kernel:AIKernel.state(),
+    context:ContextManager.snapshot(),
+    tools:ToolExecutor.snapshot(),
+    agents:AgentManager.snapshot(),
+    planner:PlannerEngine.snapshot(),
+    workflow:WorkflowEngine.snapshot(),
+    timestamp:Date.now()
   });
 
 }
@@ -176,62 +152,28 @@ function snapshot(){
 
 export const AI =
 Object.freeze({
-
   initialize,
-
   shutdown,
-
   reset,
-
   diagnostics,
-
   snapshot,
-
+  registerServices:registerAIServices,
   AIKernel,
-
   ContextManager,
-
   ToolExecutor,
-
   AgentManager,
-
   PlannerEngine,
-
   WorkflowEngine
-
 });
 
 
 
-// =====================================
-// GLOBAL EXPORTS
-// =====================================
-
-if(
-  typeof window !==
-  "undefined"
-){
-
-  window.AI =
-  AI;
-
+if(typeof window !== "undefined"){
+  window.AI = AI;
 }
 
-if(
-  typeof globalThis !==
-  "undefined"
-){
-
-  globalThis.AI =
-  AI;
-
+if(typeof globalThis !== "undefined"){
+  globalThis.AI = AI;
 }
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export default
-AI;
+export default AI;
