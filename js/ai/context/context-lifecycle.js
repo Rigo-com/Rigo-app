@@ -3,47 +3,36 @@
 // CONTEXT LIFECYCLE
 // =====================================
 
+import {
+  CONTEXT_MANAGER_CONFIG
+}
+from "./context-config.js";
+
+import {
+  contextManagerState
+}
+from "./context-state.js";
+
+import {
+  evictOldContexts
+}
+from "./context-eviction.js";
+
+
+
 async function resetContextManager(){
 
-  contextManagerState
-  .contexts
-  .clear();
+  contextManagerState.contexts.clear();
+  contextManagerState.sessions.clear();
+  contextManagerState.runtimeContexts.clear();
+  contextManagerState.sharedContexts.clear();
+  contextManagerState.indexes.clear();
+  contextManagerState.contextTokens.clear();
+  contextManagerState.retrievalCache.clear();
+  contextManagerState.contentHashes.clear();
 
-  contextManagerState
-  .sessions
-  .clear();
-
-  contextManagerState
-  .runtimeContexts
-  .clear();
-
-  contextManagerState
-  .sharedContexts
-  .clear();
-
-  contextManagerState
-  .indexes
-  .clear();
-
-  contextManagerState
-  .contextTokens
-  .clear();
-
-  contextManagerState
-  .retrievalCache
-  .clear();
-
-  contextManagerState
-  .contentHashes
-  .clear();
-
-  contextManagerState
-  .startupPromise =
-  null;
-
-  contextManagerState
-  .operationLock =
-  false;
+  contextManagerState.startupPromise = null;
+  contextManagerState.operationLock = false;
 
   return true;
 
@@ -57,25 +46,14 @@ async function resetContextManager(){
 
 function startEvictionLoop(){
 
-  if(
-    contextManagerState
-    .evictionTimer
-  ){
-
+  if(contextManagerState.evictionTimer){
     return true;
-
   }
 
-  contextManagerState
-  .evictionTimer =
+  contextManagerState.evictionTimer =
   setInterval(() => {
-
     evictOldContexts();
-
-  },
-
-  CONTEXT_MANAGER_CONFIG
-  .EVICTION_INTERVAL);
+  },CONTEXT_MANAGER_CONFIG.EVICTION_INTERVAL);
 
   return true;
 
@@ -85,23 +63,12 @@ function startEvictionLoop(){
 
 function stopEvictionLoop(){
 
-  if(
-    !contextManagerState
-    .evictionTimer
-  ){
-
+  if(!contextManagerState.evictionTimer){
     return true;
-
   }
 
-  clearInterval(
-    contextManagerState
-    .evictionTimer
-  );
-
-  contextManagerState
-  .evictionTimer =
-  null;
+  clearInterval(contextManagerState.evictionTimer);
+  contextManagerState.evictionTimer = null;
 
   return true;
 
@@ -115,17 +82,12 @@ function stopEvictionLoop(){
 
 async function shutdownContextManager(){
 
-  contextManagerState
-  .shuttingDown =
-  true;
+  contextManagerState.shuttingDown = true;
 
   stopEvictionLoop();
-
   await resetContextManager();
 
-  contextManagerState
-  .initialized =
-  false;
+  contextManagerState.initialized = false;
 
   return true;
 
@@ -139,71 +101,40 @@ async function shutdownContextManager(){
 
 async function initializeContextManager(){
 
-  if(
-    contextManagerState
-    .initialized
-  ){
-
+  if(contextManagerState.initialized){
     return true;
-
   }
 
-  if(
-    contextManagerState
-    .startupPromise
-  ){
-
-    return contextManagerState
-    .startupPromise;
-
+  if(contextManagerState.startupPromise){
+    return contextManagerState.startupPromise;
   }
 
-  contextManagerState
-  .startupPromise =
-
+  contextManagerState.startupPromise =
   (async() => {
 
-    contextManagerState
-    .initializing =
-    true;
+    contextManagerState.initializing = true;
 
     try{
 
       startEvictionLoop();
 
-      contextManagerState
-      .initialized =
-      true;
-
-      contextManagerState
-      .shuttingDown =
-      false;
-
-      contextManagerState
-      .lastUpdatedAt =
-      Date.now();
-
+      contextManagerState.initialized = true;
+      contextManagerState.shuttingDown = false;
+      contextManagerState.lastUpdatedAt = Date.now();
 
       return true;
 
     }
-
     finally{
 
-      contextManagerState
-      .initializing =
-      false;
-
-      contextManagerState
-      .startupPromise =
-      null;
+      contextManagerState.initializing = false;
+      contextManagerState.startupPromise = null;
 
     }
 
   })();
 
-  return contextManagerState
-  .startupPromise;
+  return contextManagerState.startupPromise;
 
 }
 
@@ -214,11 +145,7 @@ async function initializeContextManager(){
 // =====================================
 
 export {
-
   initializeContextManager,
-
   shutdownContextManager,
-
   resetContextManager
-
 };
