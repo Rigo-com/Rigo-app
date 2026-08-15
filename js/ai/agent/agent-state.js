@@ -54,7 +54,13 @@ Object.seal({
 
     queued:0,
 
-    aborted:0
+    aborted:0,
+
+    eventsEmitted:0,
+
+    eventsFailed:0,
+
+    recovered:0
 
 }),
 

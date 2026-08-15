@@ -220,6 +220,22 @@ export async function executeAgentTask(
 
   );
 
+  await emitAgentEvent(
+
+    AGENT_EVENTS
+    .TASK_STARTED,
+
+    {
+      agentId:
+      normalizedId
+    }
+
+  );
+
+  agentManagerState
+  .diagnostics
+  .running++;
+
   let timeoutId =
   null;
 
@@ -344,6 +360,33 @@ export async function executeAgentTask(
     .diagnostics
     .failed++;
 
+    agentManagerState
+    .diagnostics
+    .retries++;
+
+    if(controller?.signal.aborted){
+
+      agentManagerState
+      .diagnostics
+      .aborted++;
+
+      await emitAgentEvent(
+
+        AGENT_EVENTS
+        .TASK_ABORTED,
+
+        {
+          agentId:
+          normalizedId,
+
+          error:
+          String(error)
+        }
+
+      );
+
+    }
+
     if(
 
       agent.retries >=
@@ -462,6 +505,10 @@ export async function recoverAgent(
   .delete(
     agent.id
   );
+
+  agentManagerState
+  .diagnostics
+  .recovered++;
 
   return true;
 
@@ -625,6 +672,18 @@ export async function terminateAgent(
   agentManagerState
   .diagnostics
   .terminated++;
+
+  await emitAgentEvent(
+
+    AGENT_EVENTS
+    .TERMINATED,
+
+    {
+      agentId:
+      normalizedId
+    }
+
+  );
 
   return true;
 

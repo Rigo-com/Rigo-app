@@ -94,6 +94,12 @@ getAgentDiagnostics(){
       .failedAgents
       .size,
 
+    queuedTasks:
+
+      agentManagerState
+      .taskQueue
+      .length,
+
     diagnostics:
     cloneAgentObject(
 

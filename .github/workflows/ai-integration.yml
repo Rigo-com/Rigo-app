@@ -51,6 +51,7 @@ jobs:
           const selection = read('js/ai/planner-engine/planner-selection.js');
           const workflow = read('js/ai/workflow-engine/workflow-executor.js');
           const workflowDefinition = read('js/ai/workflow-engine/workflow-workflow.js');
+          const agentEvents = read('js/ai/agent/agent-events.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -81,11 +82,14 @@ jobs:
           assert.doesNotMatch(home, /API\.runtime\.(get|post)\s*\(/, 'Home chat must not call backend APIs directly');
 
           assert.match(bootstrapSetup, /id:\s*["']ai["']/, 'Bootstrap must own the AI system');
+          assert.match(bootstrapSetup, /ServiceManager\.register\s*\(\s*["']events["']/, 'Bootstrap must register Core Events as a service');
           assert.match(bootstrapSetup, /initialize:\s*AI\.initialize/, 'Bootstrap must initialize AI');
           assert.match(bootstrapSetup, /shutdown:\s*AI\.shutdown/, 'Bootstrap must shut down AI');
           assert.doesNotMatch(runtimeBootSequence, /from\s+["'][^"']*ai\/index\.js["']/, 'Core runtime must not import AI');
           assert.doesNotMatch(runtimeBootSequence, /AI\.(initialize|shutdown)\s*\(/, 'Core runtime must not own the AI lifecycle');
           assert.doesNotMatch(runtimeBootSequence, /["']ai-system["']/, 'Core runtime must not register a duplicate AI step');
+          assert.match(agentEvents, /ServiceManager\.resolve\s*\(\s*["']events["']\s*\)/, 'Agent events must resolve Core Events from ServiceManager');
+          assert.doesNotMatch(agentEvents, /\bemitSystemEvent\b/, 'Agent events must not depend on a global emitter');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -518,6 +522,115 @@ jobs:
 
           await AgentManager.shutdown();
           console.log('Agent cloning and queue serialization checks passed.');
+          EOF
+
+      - name: Verify agent event service and diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ServiceManager from './js/services/service-manager.js';
+          import AgentManager from './js/ai/agent/index.js';
+          import {
+            AGENT_EVENTS
+          } from './js/ai/agent/agent-constants.js';
+
+          const emitted = [];
+
+          await ServiceManager.register(
+            'events',
+            async () => ({
+              emit:async (name,payload) => {
+                emitted.push({name,payload});
+                return true;
+              }
+            })
+          );
+
+          await AgentManager.initialize();
+
+          await AgentManager.register({
+            id:'event-test',
+            execute:async ({sequence}) => {
+              await new Promise((resolve) => {
+                setTimeout(resolve,15);
+              });
+              return sequence;
+            }
+          });
+
+          const first =
+          AgentManager.execute('event-test',{sequence:1});
+
+          const second =
+          AgentManager.execute('event-test',{sequence:2});
+
+          assert.deepEqual(
+            await Promise.all([first,second]),
+            [1,2]
+          );
+
+          await AgentManager.register({
+            id:'failure-test',
+            execute:async () => {
+              throw new Error('EXPECTED FAILURE');
+            }
+          });
+
+          await assert.rejects(
+            () => AgentManager.execute('failure-test',{}),
+            /EXPECTED FAILURE/
+          );
+
+          await AgentManager.terminate('event-test');
+
+          const names = emitted.map((event) => event.name);
+
+          assert.ok(names.includes(AGENT_EVENTS.CREATED));
+          assert.equal(
+            names.filter((name) => name === AGENT_EVENTS.TASK_STARTED).length,
+            3
+          );
+          assert.equal(
+            names.filter((name) => name === AGENT_EVENTS.TASK_COMPLETED).length,
+            2
+          );
+          assert.equal(
+            names.filter((name) => name === AGENT_EVENTS.TASK_QUEUED).length,
+            1
+          );
+          assert.equal(
+            names.filter((name) => name === AGENT_EVENTS.TASK_FAILED).length,
+            1
+          );
+          assert.ok(names.includes(AGENT_EVENTS.TERMINATED));
+          assert.ok(
+            emitted.every((event) => {
+              return event.payload.source === 'agent-manager';
+            })
+          );
+
+          const diagnostics = AgentManager.diagnostics();
+          assert.equal(diagnostics.queuedTasks,0);
+          assert.equal(diagnostics.diagnostics.running,3);
+          assert.equal(diagnostics.diagnostics.failed,1);
+          assert.equal(diagnostics.diagnostics.retries,1);
+          assert.equal(diagnostics.diagnostics.eventsFailed,0);
+          assert.equal(
+            diagnostics.diagnostics.eventsEmitted,
+            emitted.length
+          );
+
+          await AgentManager.reset();
+
+          const reset = AgentManager.diagnostics().diagnostics;
+          assert.ok(
+            Object.values(reset).every((value) => value === 0)
+          );
+
+          await AgentManager.shutdown();
+          console.log('Agent event service and diagnostics checks passed.');
           EOF
 
       - name: Verify no legacy DependencySystem usage in AI layer

@@ -19,6 +19,9 @@ from "../debug/index.js";
 import Admin
 from "../admin/index.js";
 
+import ServiceManager
+from "../services/service-manager.js";
+
 import {
   registerBootstrapSystem
 }
@@ -30,12 +33,27 @@ from "./bootstrap-registry.js";
 // REGISTER CORE
 // =====================================
 
+async function initializeCoreSystem(){
+
+  if(!ServiceManager.has("events")){
+
+    await ServiceManager.register(
+      "events",
+      async () => Core.events
+    );
+
+  }
+
+  return Core.initialize();
+
+}
+
 function registerCoreSystem(){
 
   return registerBootstrapSystem({
     id:"core",
     priority:0,
-    initialize:Core.initialize,
+    initialize:initializeCoreSystem,
     boot:Core.boot,
     shutdown:Core.shutdown
   });
@@ -124,6 +142,7 @@ function registerBootstrapSystems(){
 // =====================================
 
 export {
+  initializeCoreSystem,
   registerCoreSystem,
   registerAISystem,
   registerChatSystem,

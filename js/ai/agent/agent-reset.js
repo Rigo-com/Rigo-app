@@ -51,6 +51,19 @@ resetAgentManager(){
   .queueProcessing =
   false;
 
+  Object.keys(
+    agentManagerState
+    .diagnostics
+  )
+  .forEach((key) => {
+    agentManagerState
+    .diagnostics[key] = 0;
+  });
+
+  agentManagerState
+  .lastAgentCreatedAt =
+  null;
+
   return true;
 
 }
