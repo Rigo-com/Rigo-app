@@ -52,6 +52,10 @@ jobs:
           const workflow = read('js/ai/workflow-engine/workflow-executor.js');
           const workflowDefinition = read('js/ai/workflow-engine/workflow-workflow.js');
           const agentEvents = read('js/ai/agent/agent-events.js');
+          const kernelEvents = read('js/ai/ai-kernel/kernel-events.js');
+          const plannerEvents = read('js/ai/planner-engine/planner-events.js');
+          const workflowEvents = read('js/ai/workflow-engine/workflow-events.js');
+          const toolEvents = read('js/ai/tools/tool-events.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -90,8 +94,71 @@ jobs:
           assert.doesNotMatch(runtimeBootSequence, /["']ai-system["']/, 'Core runtime must not register a duplicate AI step');
           assert.match(agentEvents, /ServiceManager\.resolve\s*\(\s*["']events["']\s*\)/, 'Agent events must resolve Core Events from ServiceManager');
           assert.doesNotMatch(agentEvents, /\bemitSystemEvent\b/, 'Agent events must not depend on a global emitter');
+          for(const eventModule of [kernelEvents,plannerEvents,workflowEvents,toolEvents]){
+            assert.match(eventModule, /ServiceManager\.resolve\s*\(\s*["']events["']\s*\)/, 'AI events must resolve Core Events from ServiceManager');
+            assert.doesNotMatch(eventModule, /\bemitSystemEvent\b/, 'AI events must not depend on a global emitter');
+          }
 
           console.log('RIGO AI architecture wiring checks passed.');
+          EOF
+
+      - name: Verify AI event service wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ServiceManager from './js/services/service-manager.js';
+          import {
+            emitKernelEvent,
+            logKernelError
+          } from './js/ai/ai-kernel/kernel-events.js';
+          import {emitPlannerEvent} from './js/ai/planner-engine/planner-events.js';
+          import {emitWorkflowEvent} from './js/ai/workflow-engine/workflow-events.js';
+          import {emitToolEvent} from './js/ai/tools/tool-events.js';
+
+          const emitted = [];
+
+          await ServiceManager.register(
+            'events',
+            async () => ({
+              emit:async (name,payload) => {
+                emitted.push({name,payload});
+                return true;
+              }
+            })
+          );
+
+          assert.equal(await emitKernelEvent('test.kernel',{value:1}),true);
+          assert.equal(await emitPlannerEvent('test.planner',{value:2}),true);
+          assert.equal(await emitWorkflowEvent('test.workflow',{value:3}),true);
+          assert.equal(await emitToolEvent('test.tool',{value:4}),true);
+          assert.equal(await logKernelError('EXPECTED TEST ERROR',{value:5}),true);
+
+          assert.deepEqual(
+            emitted.map((event) => event.name),
+            [
+              'test.kernel',
+              'test.planner',
+              'test.workflow',
+              'test.tool',
+              'ai.kernel.error'
+            ]
+          );
+
+          assert.deepEqual(
+            emitted.map((event) => event.payload.source),
+            [
+              'ai-kernel',
+              'planner-engine',
+              'workflow-engine',
+              'tool-executor',
+              'ai-kernel'
+            ]
+          );
+
+          assert.ok(emitted.every((event) => Object.isFrozen(event.payload)));
+          console.log('AI event service wiring checks passed.');
           EOF
 
       - name: Verify context isolation and cache invalidation

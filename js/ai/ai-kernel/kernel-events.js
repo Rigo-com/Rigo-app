@@ -8,6 +8,9 @@ import {
 }
 from "./kernel-utils.js";
 
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 
 // =====================================
@@ -21,24 +24,30 @@ export async function logKernelError(
 
   try{
 
-    if(
-      typeof logDiagnosticError ===
-      "function"
-    ){
+    const events =
+    await ServiceManager.resolve(
+      "events"
+    );
 
-      await logDiagnosticError(
-        message,
-        metadata
+    if(events?.emit){
+      await events.emit(
+        "ai.kernel.error",
+        freezeKernelObject({
+          source:"ai-kernel",
+          timestamp:Date.now(),
+          message,
+          ...metadata
+        })
       );
-
-      return;
-
+      return true;
     }
 
     console.error(
       message,
       metadata
     );
+
+    return false;
 
   }
 
@@ -47,6 +56,8 @@ export async function logKernelError(
     console.error(
       error
     );
+
+    return false;
 
   }
 
@@ -63,18 +74,19 @@ export async function emitKernelEvent(
   payload = {}
 ){
 
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    await emitSystemEvent(
+    const events =
+    await ServiceManager.resolve(
+      "events"
+    );
+
+    if(!events?.emit){
+      return false;
+    }
+
+    const emitted =
+    await events.emit(
 
       eventName,
 
@@ -92,7 +104,7 @@ export async function emitKernelEvent(
 
     );
 
-    return true;
+    return Boolean(emitted);
 
   }
 
