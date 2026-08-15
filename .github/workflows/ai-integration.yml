@@ -1,0 +1,90 @@
+name: RIGO AI Integration
+
+on:
+  push:
+    branches:
+      - ai-bootstrap-wiring
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  ai-architecture-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Syntax check AI modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          find js/ai -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
+
+      - name: Verify AI architecture wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+
+          const read = path => fs.readFileSync(path, 'utf8');
+
+          const ai = read('js/ai/index.js');
+          const router = read('js/ai/ai-kernel/kernel-router.js');
+          const planner = read('js/ai/planner-engine/planner-executor.js');
+          const plan = read('js/ai/planner-engine/planner-plan.js');
+          const selection = read('js/ai/planner-engine/planner-selection.js');
+          const workflow = read('js/ai/workflow-engine/workflow-executor.js');
+          const workflowDefinition = read('js/ai/workflow-engine/workflow-workflow.js');
+          const home = read('home.html');
+
+          assert.match(ai, /AIKernel\.process\s*\(/, 'AI.process must route through AIKernel');
+          assert.match(ai, /ToolExecutor\.execute\s*\(/, 'Main AI must execute registered tools through ToolExecutor');
+          assert.match(ai, /id:\s*\n\s*WEATHER_TOOL/, 'Weather tool must be registered');
+
+          assert.match(router, /agents\s*\.process\s*\(/, 'Kernel router must route agent requests through AgentManager');
+          assert.match(router, /planner\s*\.process\s*\(/, 'Kernel router must route planner requests');
+          assert.match(router, /workflows\s*\.process\s*\(/, 'Kernel router must route workflow requests');
+          assert.match(router, /tools\s*\.execute\s*\(/, 'Kernel router must route tool requests');
+
+          assert.match(planner, /ServiceManager\.resolve\s*\(\s*["']tools["']\s*\)/, 'Planner must resolve ToolExecutor from ServiceManager');
+          assert.match(planner, /ServiceManager\.resolve\s*\(\s*["']agents["']\s*\)/, 'Planner must resolve AgentManager from ServiceManager');
+          assert.match(plan, /selectToolsForGoal\s*\(\s*step\.objective\s*\)/, 'Planner must select tools per step');
+          assert.match(selection, /طقس/, 'Planner tool selection must support Arabic weather intent');
+          assert.match(selection, /weather/, 'Planner tool selection must support English weather intent');
+
+          assert.match(workflow, /ServiceManager\.resolve\s*\(\s*["']tools["']\s*\)/, 'Workflow must resolve ToolExecutor from ServiceManager');
+          assert.match(workflow, /ServiceManager\.resolve\s*\(\s*["']agents["']\s*\)/, 'Workflow must resolve AgentManager from ServiceManager');
+          assert.match(workflowDefinition, /assignedTool/, 'Workflow definition must preserve assignedTool');
+          assert.match(workflowDefinition, /assignedAgent/, 'Workflow definition must preserve assignedAgent');
+
+          assert.match(home, /AI\.process\s*\(/, 'Home chat must use AI.process');
+          assert.doesNotMatch(home, /API\.runtime\.(get|post)\s*\(/, 'Home chat must not call backend APIs directly');
+
+          console.log('RIGO AI architecture wiring checks passed.');
+          EOF
+
+      - name: Verify no legacy DependencySystem usage in AI layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '\bDependency(System)?\b' js/ai; then
+            echo 'Legacy dependency architecture detected in js/ai.'
+            exit 1
+          fi
+          echo 'AI layer is clean of legacy Dependency/DependencySystem references.'
