@@ -9,6 +9,9 @@ import {
 }
 from "./memory-constants.js";
 
+import ServiceManager
+from "../services/service-manager.js";
+
 
 
 // =====================================
@@ -17,6 +20,44 @@ from "./memory-constants.js";
 
 const listeners =
 new Map();
+
+
+
+// =====================================
+// CORE EVENT BRIDGE
+// =====================================
+
+async function publishCoreMemoryEvent(
+  eventName,
+  payload
+){
+
+  try{
+    const events =
+    await ServiceManager.resolve(
+      "events"
+    );
+
+    if(!events?.emit){
+      return false;
+    }
+
+    return Boolean(
+      await events.emit(
+        eventName,
+        Object.freeze({
+          source:"memory-manager",
+          timestamp:Date.now(),
+          data:payload
+        })
+      )
+    );
+  }
+  catch(error){
+    return false;
+  }
+
+}
 
 
 
@@ -185,6 +226,12 @@ function emit(
     }
 
   }
+
+  publishCoreMemoryEvent(
+    eventName,
+    payload
+  )
+  .catch(() => {});
 
   return true;
 

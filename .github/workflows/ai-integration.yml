@@ -58,6 +58,7 @@ jobs:
           const plannerEvents = read('js/ai/planner-engine/planner-events.js');
           const workflowEvents = read('js/ai/workflow-engine/workflow-events.js');
           const toolEvents = read('js/ai/tools/tool-events.js');
+          const memoryEvents = read('js/memory/memory-events.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -105,6 +106,8 @@ jobs:
             assert.match(eventModule, /ServiceManager\.resolve\s*\(\s*["']events["']\s*\)/, 'AI events must resolve Core Events from ServiceManager');
             assert.doesNotMatch(eventModule, /\bemitSystemEvent\b/, 'AI events must not depend on a global emitter');
           }
+          assert.match(memoryEvents, /ServiceManager\.resolve\s*\(\s*["']events["']\s*\)/, 'Memory events must bridge to Core Events through ServiceManager');
+          assert.doesNotMatch(memoryEvents, /\bemitSystemEvent\b/, 'Memory events must not depend on a global emitter');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -136,6 +139,30 @@ jobs:
           await import('./js/services/service-manager.js');
           const {default:AI} =
           await import('./js/ai/index.js');
+          const {MemoryEvents} =
+          await import('./js/memory/memory-events.js');
+          const {MEMORY_EVENTS} =
+          await import('./js/memory/memory-constants.js');
+
+          const coreEvents = [];
+          let localCreated = null;
+
+          await ServiceManager.register(
+            'events',
+            async () => ({
+              emit:async (name,payload) => {
+                coreEvents.push({name,payload});
+                return true;
+              }
+            })
+          );
+
+          MemoryEvents.on(
+            MEMORY_EVENTS.CREATED,
+            payload => {
+              localCreated = payload;
+            }
+          );
 
           updateAuthRuntimeState({
             authenticated:true,
@@ -160,6 +187,19 @@ jobs:
 
           assert.ok(created?.id);
 
+          await new Promise((resolve) => setTimeout(resolve,0));
+
+          assert.equal(localCreated?.id,created.id);
+          assert.ok(
+            coreEvents.some((event) => {
+              return (
+                event.name === MEMORY_EVENTS.CREATED &&
+                event.payload.source === 'memory-manager' &&
+                event.payload.data.id === created.id
+              );
+            })
+          );
+
           const results = memory.search(
             'runtime bridge',
             {limit:5}
@@ -176,11 +216,6 @@ jobs:
 
           assert.equal(memory.reset(),true);
           assert.equal(memory.search('runtime bridge',{limit:5}).length,1);
-
-          await ServiceManager.register(
-            'events',
-            async () => ({emit:async () => true})
-          );
 
           assert.equal(await AI.initialize(),true);
           assert.equal(AI.diagnostics().kernel.state,'ready');
