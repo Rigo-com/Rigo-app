@@ -135,6 +135,105 @@ function getContextHashEntries(
 }
 
 
+function getContextTypeCollection(
+  type
+){
+
+  switch(String(type || "").toLowerCase()){
+
+    case CONTEXT_TYPES.SESSION:
+      return contextManagerState.sessions;
+
+    case CONTEXT_TYPES.RUNTIME:
+      return contextManagerState.runtimeContexts;
+
+    case CONTEXT_TYPES.SHARED:
+      return contextManagerState.sharedContexts;
+
+    default:
+      return null;
+
+  }
+
+}
+
+
+function isContextTypeEnabled(
+  type
+){
+
+  switch(String(type || "").toLowerCase()){
+
+    case CONTEXT_TYPES.SESSION:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_SESSION_CONTEXT;
+
+    case CONTEXT_TYPES.RUNTIME:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_RUNTIME_CONTEXT;
+
+    case CONTEXT_TYPES.SHARED:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_SHARED_CONTEXT;
+
+    default:
+      return true;
+
+  }
+
+}
+
+
+function hasContextTypeCapacity(
+  type,
+  existingId = null
+){
+
+  const collection =
+  getContextTypeCollection(type);
+
+  if(!collection){
+    return true;
+  }
+
+  if(existingId && collection.has(existingId)){
+    return true;
+  }
+
+  if(type === CONTEXT_TYPES.SESSION){
+    return collection.size < CONTEXT_MANAGER_CONFIG.MAX_SESSION_CONTEXTS;
+  }
+
+  if(type === CONTEXT_TYPES.RUNTIME){
+    return collection.size < CONTEXT_MANAGER_CONFIG.MAX_RUNTIME_CONTEXTS;
+  }
+
+  return true;
+
+}
+
+
+function trackContextType(
+  context
+){
+
+  getContextTypeCollection(context?.type)
+  ?.set(context.id,context);
+
+  return true;
+
+}
+
+
+function untrackContextType(
+  context
+){
+
+  getContextTypeCollection(context?.type)
+  ?.delete(context.id);
+
+  return true;
+
+}
+
+
 
 // =====================================
 // CONTEXT OBJECT
@@ -178,10 +277,12 @@ export function createContextObject(
 
     type:
 
-      config.type ||
-
-      CONTEXT_TYPES
-      .RUNTIME,
+      String(
+        config.type ||
+        CONTEXT_TYPES.RUNTIME
+      )
+      .trim()
+      .toLowerCase(),
 
     priority:
 
@@ -249,6 +350,27 @@ export async function registerContext(
 
     }
 
+    const requestedType =
+    String(
+      config.type ||
+      CONTEXT_TYPES.RUNTIME
+    )
+    .trim()
+    .toLowerCase();
+
+    if(
+      !isContextTypeEnabled(requestedType) ||
+      !hasContextTypeCapacity(requestedType)
+    ){
+
+      contextManagerState
+      .diagnostics
+      .rejected++;
+
+      return false;
+
+    }
+
     if(
 
       contextManagerState
@@ -310,6 +432,10 @@ export async function registerContext(
     .contexts
     .set(
       context.id,
+      context
+    );
+
+    trackContextType(
       context
     );
 
@@ -399,6 +525,24 @@ export async function updateContext(
 
     });
 
+    if(
+      !isContextTypeEnabled(updated.type) ||
+      !hasContextTypeCapacity(
+        updated.type,
+        updated.type === existing.type
+        ? normalizedId
+        : null
+      )
+    ){
+
+      contextManagerState
+      .diagnostics
+      .rejected++;
+
+      return false;
+
+    }
+
     const updatedHash =
     createStoredContextHash(
       updated
@@ -448,10 +592,18 @@ export async function updateContext(
         normalizedId
       );
 
+      untrackContextType(
+        existing
+      );
+
       contextManagerState
       .contexts
       .set(
         normalizedId,
+        updated
+      );
+
+      trackContextType(
         updated
       );
 
@@ -478,10 +630,18 @@ export async function updateContext(
         normalizedId
       );
 
+      untrackContextType(
+        updated
+      );
+
       contextManagerState
       .contexts
       .set(
         normalizedId,
+        existing
+      );
+
+      trackContextType(
         existing
       );
 
@@ -544,6 +704,13 @@ export async function removeContext(
       contextId
     );
 
+    const existing =
+    contextManagerState
+    .contexts
+    .get(
+      normalizedId
+    );
+
     const removed =
     contextManagerState
     .contexts
@@ -551,7 +718,7 @@ export async function removeContext(
       normalizedId
     );
 
-    if(!removed){
+    if(!removed || !existing){
 
       return false;
 
@@ -563,6 +730,10 @@ export async function removeContext(
 
     removeContextHash(
       normalizedId
+    );
+
+    untrackContextType(
+      existing
     );
 
     invalidateContextCache(

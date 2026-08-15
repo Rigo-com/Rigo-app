@@ -115,6 +115,132 @@ jobs:
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
 
+      - name: Verify context manager runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:ContextManager} =
+          await import('./js/ai/context/index.js');
+          const {contextManagerState} =
+          await import('./js/ai/context/context-state.js');
+
+          await ContextManager.initialize();
+
+          const session = await ContextManager.register({
+            id:'session-one',
+            namespace:'chat:user:a',
+            type:'session',
+            content:{text:'alpha weather'}
+          });
+          const runtime = await ContextManager.register({
+            id:'runtime-one',
+            namespace:'runtime:test',
+            type:'runtime',
+            content:{text:'runtime beta'}
+          });
+          const shared = await ContextManager.register({
+            id:'shared-one',
+            namespace:'shared:test',
+            type:'shared',
+            content:{text:'shared gamma'}
+          });
+
+          assert.equal(contextManagerState.sessions.get(session.id),session);
+          assert.equal(contextManagerState.runtimeContexts.get(runtime.id),runtime);
+          assert.equal(contextManagerState.sharedContexts.get(shared.id),shared);
+
+          assert.equal(
+            (await ContextManager.buildWindow(
+              'weather',
+              {namespace:'chat:user:a'}
+            )).contexts[0].id,
+            session.id
+          );
+          assert.equal(
+            (await ContextManager.buildWindow(
+              'weather',
+              {namespace:'chat:user:b'}
+            )).contexts.length,
+            0
+          );
+
+          assert.equal(
+            await ContextManager.update(
+              session.id,
+              {
+                type:'shared',
+                content:{text:'updated delta'}
+              }
+            ),
+            true
+          );
+          assert.equal(contextManagerState.sessions.has(session.id),false);
+          assert.equal(contextManagerState.sharedContexts.has(session.id),true);
+          assert.equal(
+            (await ContextManager.buildWindow(
+              'weather',
+              {namespace:'chat:user:a'}
+            )).contexts[0].content.text,
+            'updated delta'
+          );
+          assert.equal(
+            (await ContextManager.buildWindow(
+              'delta',
+              {namespace:'chat:user:a'}
+            )).contexts[0].id,
+            session.id
+          );
+
+          assert.equal(await ContextManager.remove(session.id),true);
+          assert.equal(contextManagerState.sharedContexts.has(session.id),false);
+          assert.deepEqual(
+            {
+              sessions:ContextManager.diagnostics().sessions,
+              runtime:ContextManager.diagnostics().runtimeContexts,
+              shared:ContextManager.diagnostics().sharedContexts
+            },
+            {
+              sessions:0,
+              runtime:1,
+              shared:1
+            }
+          );
+
+          await ContextManager.reset();
+
+          for(let index=0;index<100;index++){
+            assert.ok(
+              await ContextManager.register({
+                id:`session-${index}`,
+                namespace:'limit:test',
+                type:'session',
+                content:{index}
+              })
+            );
+          }
+
+          assert.equal(
+            await ContextManager.register({
+              id:'session-overflow',
+              namespace:'limit:test',
+              type:'session',
+              content:{overflow:true}
+            }),
+            false
+          );
+          assert.equal(ContextManager.diagnostics().sessions,100);
+
+          await ContextManager.shutdown();
+
+          assert.equal(contextManagerState.evictionTimer,null);
+          assert.equal(ContextManager.health().initialized,false);
+
+          console.log('Context manager runtime checks passed.');
+          EOF
+
       - name: Verify memory module runtime service
         shell: bash
         run: |

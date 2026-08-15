@@ -39,6 +39,15 @@ function getContextDiagnostics(){
       .contexts
       .size,
 
+    sessions:
+      contextManagerState.sessions.size,
+
+    runtimeContexts:
+      contextManagerState.runtimeContexts.size,
+
+    sharedContexts:
+      contextManagerState.sharedContexts.size,
+
     indexes:
 
       contextManagerState
@@ -84,6 +93,15 @@ function createContextSnapshot(){
       .contexts
       .size,
 
+    sessions:
+      contextManagerState.sessions.size,
+
+    runtimeContexts:
+      contextManagerState.runtimeContexts.size,
+
+    sharedContexts:
+      contextManagerState.sharedContexts.size,
+
     indexes:
 
       contextManagerState
@@ -127,6 +145,15 @@ function getContextHealthReport(){
       contextManagerState
       .contexts
       .size,
+
+    sessions:
+      contextManagerState.sessions.size,
+
+    runtimeContexts:
+      contextManagerState.runtimeContexts.size,
+
+    sharedContexts:
+      contextManagerState.sharedContexts.size,
 
     cache:
 
