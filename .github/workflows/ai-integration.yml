@@ -743,6 +743,132 @@ jobs:
           console.log('Agent health and bounded recovery checks passed.');
           EOF
 
+      - name: Verify active agent lifecycle controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ServiceManager from './js/services/service-manager.js';
+          import AgentManager from './js/ai/agent/index.js';
+          import {
+            AGENT_EVENTS,
+            AGENT_STATES
+          } from './js/ai/agent/agent-constants.js';
+
+          const events = [];
+
+          await ServiceManager.register(
+            'events',
+            async () => ({
+              emit:async (name) => {
+                events.push(name);
+                return true;
+              }
+            })
+          );
+
+          await AgentManager.initialize();
+
+          await AgentManager.register({
+            id:'abort-test',
+            execute:({signal}) => new Promise((resolve,reject) => {
+              signal.addEventListener(
+                'abort',
+                () => reject(new Error('ABORTED BY SIGNAL')),
+                {once:true}
+              );
+            })
+          });
+
+          const abortedTask =
+          AgentManager.execute('abort-test',{});
+
+          await new Promise((resolve) => setTimeout(resolve,10));
+          assert.equal(await AgentManager.terminate('abort-test'),true);
+          assert.equal(await AgentManager.terminate('abort-test'),true);
+
+          await assert.rejects(
+            () => abortedTask,
+            /ABORTED BY SIGNAL/
+          );
+
+          assert.equal(
+            AgentManager.get('abort-test').state,
+            AGENT_STATES.TERMINATED
+          );
+
+          await AgentManager.register({
+            id:'pause-test',
+            execute:async () => {
+              await new Promise((resolve) => setTimeout(resolve,25));
+              return 'done';
+            }
+          });
+
+          const pausedTask =
+          AgentManager.execute('pause-test',{});
+
+          await new Promise((resolve) => setTimeout(resolve,5));
+          assert.equal(await AgentManager.pause('pause-test'),true);
+          assert.equal(
+            AgentManager.get('pause-test').state,
+            AGENT_STATES.PAUSED
+          );
+          await assert.rejects(
+            () => AgentManager.execute('pause-test',{}),
+            /AGENT PAUSED/
+          );
+          assert.equal(await pausedTask,'done');
+          assert.equal(
+            AgentManager.get('pause-test').state,
+            AGENT_STATES.PAUSED
+          );
+          assert.equal(await AgentManager.resume('pause-test'),true);
+          assert.equal(
+            AgentManager.get('pause-test').state,
+            AGENT_STATES.READY
+          );
+
+          const resumedTask =
+          AgentManager.execute('pause-test',{});
+
+          await new Promise((resolve) => setTimeout(resolve,5));
+          assert.equal(await AgentManager.pause('pause-test'),true);
+          assert.equal(await AgentManager.resume('pause-test'),true);
+          assert.equal(
+            AgentManager.get('pause-test').state,
+            AGENT_STATES.RUNNING
+          );
+          assert.equal(await resumedTask,'done');
+          assert.equal(
+            AgentManager.get('pause-test').state,
+            AGENT_STATES.READY
+          );
+
+          const diagnostics = AgentManager.diagnostics();
+          assert.equal(diagnostics.activeAgents,0);
+          assert.equal(diagnostics.queuedTasks,0);
+          assert.equal(diagnostics.diagnostics.terminated,1);
+          assert.equal(diagnostics.diagnostics.aborted,1);
+          assert.equal(diagnostics.diagnostics.failed,0);
+          assert.equal(
+            events.filter((name) => name === AGENT_EVENTS.TERMINATED).length,
+            1
+          );
+          assert.equal(
+            events.filter((name) => name === AGENT_EVENTS.TASK_ABORTED).length,
+            1
+          );
+          assert.equal(
+            events.filter((name) => name === AGENT_EVENTS.TASK_FAILED).length,
+            0
+          );
+
+          await AgentManager.shutdown();
+          console.log('Active agent lifecycle control checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |

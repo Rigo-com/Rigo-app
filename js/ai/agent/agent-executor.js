@@ -312,6 +312,15 @@ export async function executeAgentTask(
 
     ]);
 
+    if(
+      agent.state ===
+      AGENT_STATES.TERMINATED
+    ){
+      throw new Error(
+        "AGENT TERMINATED"
+      );
+    }
+
     agent.tasks =
     trimAgentTasks(
 
@@ -347,14 +356,19 @@ export async function executeAgentTask(
     .diagnostics
     .tasksExecuted++;
 
-    await setAgentState(
+    if(
+      agent.state !==
+      AGENT_STATES.PAUSED
+    ){
+      await setAgentState(
 
-      agent,
+        agent,
 
-      AGENT_STATES
-      .READY
+        AGENT_STATES
+        .READY
 
-    );
+      );
+    }
 
     await emitAgentEvent(
 
@@ -373,6 +387,38 @@ export async function executeAgentTask(
     }
 
   catch(error){
+
+    if(
+      agent.state ===
+      AGENT_STATES.TERMINATED
+    ){
+
+      if(controller?.signal.aborted){
+
+        agentManagerState
+        .diagnostics
+        .aborted++;
+
+        await emitAgentEvent(
+
+          AGENT_EVENTS
+          .TASK_ABORTED,
+
+          {
+            agentId:
+            normalizedId,
+
+            error:
+            String(error)
+          }
+
+        );
+
+      }
+
+      throw error;
+
+    }
 
     agent.retries++;
 
@@ -672,6 +718,19 @@ export async function pauseAgent(
 
   }
 
+  if(
+    agent.state === AGENT_STATES.TERMINATED ||
+    agent.state === AGENT_STATES.FAILED
+  ){
+    return false;
+  }
+
+  if(
+    agent.state === AGENT_STATES.PAUSED
+  ){
+    return true;
+  }
+
   return setAgentState(
     agent,
     AGENT_STATES.PAUSED
@@ -704,9 +763,18 @@ export async function resumeAgent(
 
   }
 
+  if(
+    agent.state !==
+    AGENT_STATES.PAUSED
+  ){
+    return false;
+  }
+
   return setAgentState(
     agent,
-    AGENT_STATES.READY
+    agent.runtime.running
+    ? AGENT_STATES.RUNNING
+    : AGENT_STATES.READY
   );
 
 }
@@ -739,6 +807,16 @@ export async function terminateAgent(
 
   }
 
+  if(
+    agent.state ===
+    AGENT_STATES.TERMINATED
+  ){
+    return true;
+  }
+
+  const wasRunning =
+  agent.runtime.running;
+
   try{
 
     agent.runtime
@@ -758,21 +836,25 @@ export async function terminateAgent(
 
   );
 
-  agent.runtime.running =
-  false;
+  if(!wasRunning){
 
-  agent.runtime.controller =
-  null;
+    agent.runtime.running =
+    false;
 
-  releaseAgentLock(
-    normalizedId
-  );
+    agent.runtime.controller =
+    null;
 
-  agentManagerState
-  .activeAgents
-  .delete(
-    normalizedId
-  );
+    releaseAgentLock(
+      normalizedId
+    );
+
+    agentManagerState
+    .activeAgents
+    .delete(
+      normalizedId
+    );
+
+  }
 
   const queuedTasks =
   agentManagerState
