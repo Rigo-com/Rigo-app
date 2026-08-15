@@ -5,45 +5,33 @@
 // =====================================
 
 import {
-
   API_CONFIG
-
 }
 from "./api-config.js";
 
 import {
-
   apiState
-
 }
 from "./api-state.js";
 
 import {
-
   APIRequestError,
-
   APINetworkError,
-
   APITimeoutError
-
 }
 from "./api-errors.js";
 
 import {
-
   createRequestId,
-
   wait,
-
   parseResponse,
-
   validateEndpoint,
-
   throwIfAborted
-
 }
 from "./api-helpers.js";
 
+import CommunicationCore
+from "../communication/communication-core.js";
 
 
 // =====================================
@@ -69,43 +57,28 @@ async function fetchWithTimeout(
         controller?.abort();
 
         reject(
-
           new APITimeoutError()
-
         );
 
-      },
-
-      timeout);
+      },timeout);
 
     });
 
     return await Promise.race([
-
       callback(),
-
       timeoutPromise
-
     ]);
 
   }
-
   finally{
 
-    if(
-      timeoutId
-    ){
-
-      clearTimeout(
-        timeoutId
-      );
-
+    if(timeoutId){
+      clearTimeout(timeoutId);
     }
 
   }
 
 }
-
 
 
 // =====================================
@@ -124,54 +97,40 @@ async function executeRequest(
   createRequestId();
 
   const timeout =
-
-    Number.isFinite(
-      options.timeout
-    )
-
-    ?
-
-    options.timeout
-
-    :
-
-    API_CONFIG
-    .DEFAULT_TIMEOUT;
+  Number.isFinite(options.timeout)
+    ? options.timeout
+    : API_CONFIG.DEFAULT_TIMEOUT;
 
   const retries =
-
-    Number.isFinite(
-      options.retries
-    )
-
-    ?
-
-    options.retries
-
-    :
-
-    API_CONFIG
-    .MAX_RETRIES;
+  Number.isFinite(options.retries)
+    ? Math.max(1,options.retries)
+    : Math.max(1,API_CONFIG.MAX_RETRIES);
 
   const controller =
   new AbortController();
 
-  apiState
-  .pendingRequests++;
+  const requestMeta = {
+    endpoint:options.endpoint,
+    method:options.method || "GET",
+    startedAt:Date.now()
+  };
 
-  apiState
-  .activeRequests
-  .set(
-
+  apiState.pendingRequests++;
+  apiState.activeRequests.set(
     requestId,
-
     controller
-
   );
-
-  apiState
-  .lastRequestAt =
+  apiState.lastRequestAt =
   Date.now();
+
+  try{
+    CommunicationCore
+    .startRequest(
+      requestId,
+      requestMeta
+    );
+  }
+  catch{}
 
   const startedAt =
   Date.now();
@@ -179,13 +138,9 @@ async function executeRequest(
   try{
 
     for(
-
       let attempt = 1;
-
       attempt <= retries;
-
       attempt++
-
     ){
 
       try{
@@ -194,40 +149,30 @@ async function executeRequest(
         await fetchWithTimeout(
 
           () => fetch(
-
             options.endpoint,
-
             {
-
               method:
-
-                options.method ||
-
-                "GET",
+              options.method || "GET",
 
               headers:
-
-                options.headers ||
-
-                {},
+              options.headers || {},
 
               body:
+              options.body ?? undefined,
 
-                options.body ??
+              credentials:
+              options.credentials || "same-origin",
 
-                undefined,
+              cache:
+              options.cache,
 
               signal:
               controller.signal
-
             }
-
           ),
 
           timeout,
-
           controller
-
         );
 
         const data =
@@ -235,91 +180,71 @@ async function executeRequest(
           response
         );
 
-        if(
-          !response.ok
-        ){
+        if(!response.ok){
+
+          const message =
+          data?.error ||
+          data?.message ||
+          "HTTP Error";
 
           throw new APIRequestError(
-
-            "HTTP Error",
-
-            String(
-              response.status
-            )
-
+            String(message),
+            String(response.status)
           );
 
         }
 
-        apiState
-        .diagnostics
-        .requests++;
+        apiState.diagnostics.requests++;
+        apiState.diagnostics.successful++;
+        apiState.lastError = null;
 
-        apiState
-        .diagnostics
-        .successful++;
-
-        apiState
-        .lastError =
-        null;
+        try{
+          CommunicationCore
+          .completeRequest(
+            requestId
+          );
+        }
+        catch{}
 
         return Object.freeze({
-
           ok:true,
-
           requestId,
-
-          status:
-          response.status,
-
+          status:response.status,
           data,
-
           duration:
-
-            Date.now() -
-            startedAt,
-
+          Date.now() - startedAt,
           attempt
-
         });
 
       }
-
       catch(error){
 
-        throwIfAborted(
-          error
-        );
+        throwIfAborted(error);
 
-        if(
-          attempt < retries
-        ){
+        if(attempt < retries){
 
-          apiState
-          .diagnostics
-          .retries++;
+          apiState.diagnostics.retries++;
 
           await wait(
-
-            API_CONFIG
-            .RETRY_DELAY
+            API_CONFIG.RETRY_DELAY
           );
 
           continue;
-
         }
 
-        apiState
-        .diagnostics
-        .requests++;
+        apiState.diagnostics.requests++;
+        apiState.diagnostics.failed++;
+        apiState.lastError =
+        error?.message || String(error);
 
-        apiState
-        .diagnostics
-        .failed++;
-
-        apiState
-        .lastError =
-        String(error);
+        try{
+          CommunicationCore
+          .failRequest(
+            requestId,
+            apiState.lastError
+          );
+        }
+        catch{}
 
         throw error;
 
@@ -328,40 +253,24 @@ async function executeRequest(
     }
 
   }
-
   catch(error){
 
-    if(
-
-      error instanceof
-      TypeError
-
-    ){
-
+    if(error instanceof TypeError){
       throw new APINetworkError();
-
     }
 
     throw error;
 
   }
-
   finally{
 
-    apiState
-    .pendingRequests =
+    apiState.pendingRequests =
     Math.max(
-
       0,
-
-      apiState
-      .pendingRequests - 1
-
+      apiState.pendingRequests - 1
     );
 
-    apiState
-    .activeRequests
-    .delete(
+    apiState.activeRequests.delete(
       requestId
     );
 
@@ -370,9 +279,8 @@ async function executeRequest(
 }
 
 
-
 // =====================================
-// GET
+// METHODS
 // =====================================
 
 function get(
@@ -381,22 +289,12 @@ function get(
 ){
 
   return executeRequest({
-
     ...options,
-
     endpoint,
-
     method:"GET"
-
   });
 
 }
-
-
-
-// =====================================
-// POST
-// =====================================
 
 function post(
   endpoint,
@@ -405,24 +303,13 @@ function post(
 ){
 
   return executeRequest({
-
     ...options,
-
     endpoint,
-
     method:"POST",
-
     body
-
   });
 
 }
-
-
-
-// =====================================
-// PUT
-// =====================================
 
 function put(
   endpoint,
@@ -431,24 +318,13 @@ function put(
 ){
 
   return executeRequest({
-
     ...options,
-
     endpoint,
-
     method:"PUT",
-
     body
-
   });
 
 }
-
-
-
-// =====================================
-// PATCH
-// =====================================
 
 function patch(
   endpoint,
@@ -457,24 +333,13 @@ function patch(
 ){
 
   return executeRequest({
-
     ...options,
-
     endpoint,
-
     method:"PATCH",
-
     body
-
   });
 
 }
-
-
-
-// =====================================
-// DELETE
-// =====================================
 
 function remove(
   endpoint,
@@ -482,17 +347,12 @@ function remove(
 ){
 
   return executeRequest({
-
     ...options,
-
     endpoint,
-
     method:"DELETE"
-
   });
 
 }
-
 
 
 // =====================================
@@ -504,43 +364,44 @@ function abortRequest(
 ){
 
   const controller =
-
-    apiState
-    .activeRequests
-    .get(
-      requestId
-    );
+  apiState.activeRequests.get(
+    requestId
+  );
 
   if(!controller){
-
     return false;
-
   }
 
   controller.abort();
+
+  apiState.diagnostics.aborted++;
+
+  try{
+    CommunicationCore
+    .failRequest(
+      requestId,
+      "REQUEST_ABORTED"
+    );
+  }
+  catch{}
 
   return true;
 
 }
 
-
-
-// =====================================
-// ABORT ALL
-// =====================================
-
 function abortAllRequests(){
 
-  apiState
-  .activeRequests
-  .forEach((controller) => {
+  apiState.activeRequests
+  .forEach((controller,requestId) => {
 
     try{
-
       controller.abort();
-
+      apiState.diagnostics.aborted++;
+      CommunicationCore.failRequest(
+        requestId,
+        "REQUEST_ABORTED"
+      );
     }
-
     catch{}
 
   });
@@ -550,27 +411,17 @@ function abortAllRequests(){
 }
 
 
-
 // =====================================
 // EXPORTS
 // =====================================
 
 export {
-
   executeRequest,
-
   get,
-
   post,
-
   put,
-
   patch,
-
   remove,
-
   abortRequest,
-
   abortAllRequests
-
 };
