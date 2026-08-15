@@ -32,7 +32,7 @@ import {
 from "./tool-utils.js";
 
 import {
-  getTool
+  getRegisteredTool
 }
 from "./tool-registry.js";
 
@@ -164,7 +164,7 @@ export async function executeTool(
   );
 
   const tool =
-  getTool(
+  getRegisteredTool(
     normalizedId
   );
 
@@ -247,7 +247,7 @@ export async function executeTool(
   const executionId =
   createExecutionId();
 
-  const controller =
+  let controller =
 
     TOOL_EXECUTOR_CONFIG
     .ENABLE_ABORT_CONTROLLERS
@@ -304,46 +304,80 @@ export async function executeTool(
 
   let attempts = 0;
 
+  const maximumAttempts =
+  TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_RETRIES
+  ? tool.retries
+  : 1;
+
   try{
 
     while(
-      attempts < tool.retries
+      attempts < maximumAttempts
     ){
 
       attempts++;
 
+      if(
+        attempts > 1 &&
+        TOOL_EXECUTOR_CONFIG.ENABLE_ABORT_CONTROLLERS
+      ){
+
+        controller =
+        new AbortController();
+
+        const activeExecution =
+        toolExecutorState
+        .activeExecutions
+        .get(executionId);
+
+        if(activeExecution){
+          activeExecution.controller = controller;
+        }
+
+      }
+
+      const activeExecution =
+      toolExecutorState
+      .activeExecutions
+      .get(executionId);
+
+      if(activeExecution){
+        activeExecution.retries = attempts - 1;
+      }
+
       try{
 
+        const execute = () => {
+
+          return tool.execute({
+
+            payload:
+            cloneToolObject(
+              payload
+            ),
+
+            context:
+            cloneToolObject(
+              context
+            ),
+
+            signal:
+            controller
+            ?.signal || null
+
+          });
+
+        };
+
         const result =
-        await executeWithTimeout(
-
-          () => {
-
-            return tool.execute({
-
-              payload:
-              cloneToolObject(
-                payload
-              ),
-
-              context:
-              cloneToolObject(
-                context
-              ),
-
-              signal:
-              controller
-              ?.signal || null
-
-            });
-
-          },
-
-          tool.timeout,
-
-          controller
-
-        );
+        TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_TIMEOUTS
+        ? await executeWithTimeout(
+            execute,
+            tool.timeout,
+            controller
+          )
+        : await Promise.resolve()
+          .then(execute);
 
         resetCircuitBreaker(
           normalizedId
@@ -428,6 +462,12 @@ export async function executeTool(
 
       catch(error){
 
+        if(error?.message === "TOOL_TIMEOUT"){
+          toolExecutorState
+          .diagnostics
+          .timedOut++;
+        }
+
         registerCircuitFailure(
           normalizedId
         );
@@ -439,7 +479,7 @@ export async function executeTool(
         .failed++;
 
         if(
-          attempts >= tool.retries
+          attempts >= maximumAttempts
         ){
 
           const duration =

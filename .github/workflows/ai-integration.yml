@@ -64,6 +64,9 @@ jobs:
           const contextStore = read('js/ai/context/context-store.js');
           const contextState = read('js/ai/context/context-state.js');
           const toolQueue = read('js/ai/tools/tool-queue.js');
+          const toolExecutor = read('js/ai/tools/tool-executor.js');
+          const toolRegistry = read('js/ai/tools/tool-registry.js');
+          const toolUtils = read('js/ai/tools/tool-utils.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -126,6 +129,10 @@ jobs:
           assert.match(toolQueue, /ENABLE_QUEUE_DEDUPLICATION/, 'Tool queue deduplication flag must control duplicate detection');
           assert.match(toolQueue, /ENABLE_PRIORITY_QUEUE/, 'Tool priority flag must control queue ordering');
           assert.match(toolQueue, /ENABLE_EXECUTION_CANCELLATION/, 'Tool cancellation flag must control cancellation');
+          assert.match(toolExecutor, /ENABLE_TOOL_TIMEOUTS/, 'Tool timeout flag must control execution timeouts');
+          assert.match(toolExecutor, /ENABLE_TOOL_RETRIES/, 'Tool retry flag must control retry attempts');
+          assert.match(toolUtils, /ENABLE_STRUCTURED_ERRORS/, 'Structured tool error flag must control error shape');
+          assert.match(toolRegistry, /getRegisteredTool/, 'Tool execution must use a private mutable registry record');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -864,6 +871,110 @@ jobs:
 
           console.log(
             'Tool queue runtime control checks passed.'
+          );
+          EOF
+
+      - name: Verify tool timeout and retry runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:ToolExecutor} =
+          await import('./js/ai/tools/index.js');
+          const {toolExecutorState} =
+          await import('./js/ai/tools/tool-state.js');
+          const {TOOL_EXECUTOR_CONFIG} =
+          await import('./js/ai/tools/tool-config.js');
+
+          let flakyAttempts = 0;
+
+          const registered = await ToolExecutor.register({
+            id:'flaky',
+            retries:3,
+            timeout:100,
+            execute:async () => {
+              flakyAttempts++;
+              if(flakyAttempts < 3){
+                throw new Error('FLAKY');
+              }
+              return 'ok';
+            }
+          });
+
+          assert.equal(Object.isFrozen(registered.runtime),true);
+          assert.equal(
+            Object.isFrozen(
+              toolExecutorState.tools.get('flaky').runtime
+            ),
+            false
+          );
+
+          const flaky = await ToolExecutor.execute('flaky');
+
+          assert.equal(flaky.success,true);
+          assert.equal(flaky.result,'ok');
+          assert.equal(flakyAttempts,3);
+          assert.equal(toolExecutorState.diagnostics.retries,2);
+
+          const timeoutSignals = [];
+
+          await ToolExecutor.register({
+            id:'slow',
+            retries:2,
+            timeout:5,
+            execute:({signal}) => {
+              timeoutSignals.push(signal);
+              return new Promise((resolve) => {
+                setTimeout(() => resolve('late'),30);
+              });
+            }
+          });
+
+          const timedOut = await ToolExecutor.execute('slow');
+
+          assert.equal(timedOut.success,false);
+          assert.equal(timedOut.error.code,'EXECUTION_FAILED');
+          assert.match(timedOut.error.message,/TOOL_TIMEOUT/);
+          assert.equal(timeoutSignals.length,2);
+          assert.notEqual(timeoutSignals[0],timeoutSignals[1]);
+          assert.equal(
+            timeoutSignals.every(signal => signal.aborted),
+            true
+          );
+          assert.equal(toolExecutorState.diagnostics.timedOut,2);
+
+          await ToolExecutor.register({
+            id:'bounded',
+            retries:-10,
+            timeout:-10,
+            execute:async () => true
+          });
+
+          assert.equal(ToolExecutor.get('bounded').retries,1);
+          assert.equal(
+            ToolExecutor.get('bounded').timeout,
+            TOOL_EXECUTOR_CONFIG.EXECUTION_TIMEOUT
+          );
+          assert.equal(
+            (await ToolExecutor.execute('bounded')).success,
+            true
+          );
+
+          const listed = ToolExecutor.list();
+          assert.equal(Object.isFrozen(listed[0].runtime),true);
+          assert.equal(
+            Object.isFrozen(
+              toolExecutorState.tools.get('flaky').runtime
+            ),
+            false
+          );
+
+          await ToolExecutor.reset();
+
+          console.log(
+            'Tool timeout and retry runtime checks passed.'
           );
           EOF
 

@@ -10,6 +10,7 @@ from "./tool-state.js";
 
 import {
   normalizeToolName,
+  cloneToolObject,
   freezeToolObject
 }
 from "./tool-utils.js";
@@ -144,9 +145,14 @@ export function searchTools(
     [...matchedIds]
     .map((id) => {
 
-      return toolExecutorState
+      const tool =
+      toolExecutorState
       .tools
       .get(id);
+
+      return tool
+      ? cloneToolObject(tool)
+      : null;
 
     })
     .filter(Boolean)

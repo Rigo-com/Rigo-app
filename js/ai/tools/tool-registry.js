@@ -48,6 +48,29 @@ export function createToolObject(
   config = {}
 ){
 
+  const requestedTimeout =
+  Number(config.timeout);
+
+  const timeout =
+  Number.isFinite(requestedTimeout) &&
+  requestedTimeout > 0
+  ? Math.floor(requestedTimeout)
+  : TOOL_EXECUTOR_CONFIG.EXECUTION_TIMEOUT;
+
+  const requestedRetries =
+  Number(config.retries);
+
+  const retries =
+  Number.isFinite(requestedRetries)
+  ? Math.min(
+      Math.max(
+        Math.floor(requestedRetries),
+        1
+      ),
+      TOOL_EXECUTOR_CONFIG.MAX_RETRIES
+    )
+  : TOOL_EXECUTOR_CONFIG.MAX_RETRIES;
+
   const runtime = {
 
     executions:0,
@@ -110,26 +133,10 @@ export function createToolObject(
         .NORMAL,
 
       timeout:
-
-        Number(
-          config.timeout
-        )
-
-        ||
-
-        TOOL_EXECUTOR_CONFIG
-        .EXECUTION_TIMEOUT,
+      timeout,
 
       retries:
-
-        Number(
-          config.retries
-        )
-
-        ||
-
-        TOOL_EXECUTOR_CONFIG
-        .MAX_RETRIES,
+      retries,
 
       sandboxed:
       config.sandboxed !==
@@ -248,7 +255,7 @@ export async function registerTool(
 // GET TOOL
 // =====================================
 
-export function getTool(
+export function getRegisteredTool(
   toolId
 ){
 
@@ -258,6 +265,24 @@ export function getTool(
     normalizeToolName(
       toolId
     )
+  );
+
+}
+
+
+export function getTool(
+  toolId
+){
+
+  const tool =
+  getRegisteredTool(toolId);
+
+  if(!tool){
+    return null;
+  }
+
+  return freezeToolObject(
+    cloneToolObject(tool)
   );
 
 }
@@ -385,6 +410,9 @@ export function listTools(){
     .tools
     .values()
 
-  ]);
+  ]
+  .map((tool) => {
+    return cloneToolObject(tool);
+  }));
 
 }

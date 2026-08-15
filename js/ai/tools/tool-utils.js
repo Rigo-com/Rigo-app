@@ -91,7 +91,8 @@ export function createExecutionId(){
 // =====================================
 
 export function cloneToolObject(
-  value
+  value,
+  visited = new WeakMap()
 ){
 
   try{
@@ -111,42 +112,49 @@ export function cloneToolObject(
 
   catch(error){}
 
-  try{
-
-    if(
-      Array.isArray(value)
-    ){
-
-      return [
-        ...value
-      ];
-
-    }
-
-    if(
-
-      value &&
-
-      typeof value ===
-      "object"
-
-    ){
-
-      return {
-        ...value
-      };
-
-    }
-
+  if(
+    !value ||
+    typeof value !== "object"
+  ){
     return value;
+  }
+
+  if(visited.has(value)){
+    return visited.get(value);
+  }
+
+  if(
+    value instanceof AbortController ||
+    value instanceof AbortSignal
+  ){
+    return value;
+  }
+
+  if(Array.isArray(value)){
+
+    const cloned = [];
+    visited.set(value,cloned);
+
+    value.forEach((item) => {
+      cloned.push(
+        cloneToolObject(item,visited)
+      );
+    });
+
+    return cloned;
 
   }
 
-  catch(error){
+  const cloned = {};
+  visited.set(value,cloned);
 
-    return null;
+  Object.entries(value)
+  .forEach(([key,nested]) => {
+    cloned[key] =
+    cloneToolObject(nested,visited);
+  });
 
-  }
+  return cloned;
 
 }
 
@@ -242,6 +250,18 @@ export function createStructuredError(
   message,
   metadata = {}
 ){
+
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_STRUCTURED_ERRORS){
+
+    return freezeToolObject({
+      success:false,
+      code,
+      message,
+      metadata,
+      timestamp:Date.now()
+    });
+
+  }
 
   return freezeToolObject({
 
