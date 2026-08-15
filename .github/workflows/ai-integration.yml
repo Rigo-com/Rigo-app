@@ -59,6 +59,9 @@ jobs:
           const workflowEvents = read('js/ai/workflow-engine/workflow-events.js');
           const toolEvents = read('js/ai/tools/tool-events.js');
           const memoryEvents = read('js/memory/memory-events.js');
+          const contextCache = read('js/ai/context/context-cache.js');
+          const contextWindow = read('js/ai/context/context-window.js');
+          const contextStore = read('js/ai/context/context-store.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -111,6 +114,11 @@ jobs:
           }
           assert.match(memoryEvents, /ServiceManager\.resolve\s*\(\s*["']events["']\s*\)/, 'Memory events must bridge to Core Events through ServiceManager');
           assert.doesNotMatch(memoryEvents, /\bemitSystemEvent\b/, 'Memory events must not depend on a global emitter');
+          assert.match(contextCache, /ENABLE_CONTEXT_CACHE/, 'Context cache flag must control runtime caching');
+          assert.match(contextCache, /ENABLE_NAMESPACE_ISOLATION/, 'Context cache keys must respect namespace isolation');
+          assert.match(contextWindow, /ENABLE_CONTEXT_RANKING/, 'Context ranking flag must control runtime ranking');
+          assert.match(contextWindow, /MAX_QUERY_LENGTH/, 'Context queries must be bounded');
+          assert.match(contextStore, /ENABLE_CONTEXT_MEMORY/, 'Memory context type flag must control registration');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -336,6 +344,60 @@ jobs:
           assert.ok(
             ContextManager.diagnostics().diagnostics.rejected >= 3
           );
+
+          await ContextManager.reset();
+
+          const bounded = await ContextManager.register({
+            id:'bounded-query',
+            namespace:'query:test',
+            type:'memory',
+            content:{text:'needle context'}
+          });
+          const queryPrefix =
+          'needle ' + 'x'.repeat(
+            CONTEXT_MANAGER_CONFIG.MAX_QUERY_LENGTH
+          );
+          const firstQueryWindow =
+          await ContextManager.buildWindow(
+            queryPrefix + 'first-suffix',
+            {namespace:'query:test'}
+          );
+
+          assert.equal(
+            firstQueryWindow.query.length,
+            CONTEXT_MANAGER_CONFIG.MAX_QUERY_LENGTH
+          );
+          assert.equal(firstQueryWindow.contexts[0].id,bounded.id);
+          assert.equal(ContextManager.diagnostics().cache,1);
+
+          const cachedQueryWindow =
+          await ContextManager.buildWindow(
+            queryPrefix + 'second-suffix',
+            {namespace:'query:test'}
+          );
+
+          assert.equal(cachedQueryWindow,firstQueryWindow);
+          assert.equal(ContextManager.diagnostics().cache,1);
+          assert.equal(
+            ContextManager.diagnostics().diagnostics.cacheHits,
+            1
+          );
+          assert.equal(
+            contextManagerState.contexts
+            .get(bounded.id)
+            .runtime
+            .accessCount,
+            2
+          );
+
+          const isolatedQueryWindow =
+          await ContextManager.buildWindow(
+            queryPrefix + 'second-suffix',
+            {namespace:'query:other'}
+          );
+
+          assert.equal(isolatedQueryWindow.contexts.length,0);
+          assert.equal(ContextManager.diagnostics().cache,2);
 
           await ContextManager.shutdown();
 

@@ -165,6 +165,9 @@ function isContextTypeEnabled(
 
   switch(String(type || "").toLowerCase()){
 
+    case CONTEXT_TYPES.MEMORY:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_MEMORY;
+
     case CONTEXT_TYPES.SESSION:
       return CONTEXT_MANAGER_CONFIG.ENABLE_SESSION_CONTEXT;
 

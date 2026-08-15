@@ -38,7 +38,11 @@ export function createCacheKey(
 
   return (
 
-    normalizeContextId(namespace) +
+    (
+      CONTEXT_MANAGER_CONFIG.ENABLE_NAMESPACE_ISOLATION
+      ? normalizeContextId(namespace)
+      : "context:shared"
+    ) +
 
     "::" +
 
@@ -71,6 +75,10 @@ export function readContextCache(
   maxTokens,
   namespace
 ){
+
+  if(!CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_CACHE){
+    return null;
+  }
 
   const key =
   createCacheKey(
@@ -132,6 +140,10 @@ export function writeContextCache(
   value,
   namespace
 ){
+
+  if(!CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_CACHE){
+    return false;
+  }
 
   const key =
   createCacheKey(

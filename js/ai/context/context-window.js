@@ -45,6 +45,19 @@ from "./context-store.js";
 // RANKING
 // =====================================
 
+function normalizeContextQuery(
+  query
+){
+
+  return String(query || "")
+  .trim()
+  .slice(
+    0,
+    CONTEXT_MANAGER_CONFIG.MAX_QUERY_LENGTH
+  );
+
+}
+
 export function calculateContextScore(
   context,
   query = "",
@@ -91,7 +104,9 @@ export async function rankContexts(
 ){
 
   const normalizedQuery =
-  normalizeContextId(query);
+  normalizeContextId(
+    normalizeContextQuery(query)
+  );
 
   const contexts = [
 
@@ -115,6 +130,13 @@ export async function rankContexts(
   const namespaceContexts =
   contexts
   .filter((context) => {
+
+    if(
+      !CONTEXT_MANAGER_CONFIG
+      .ENABLE_NAMESPACE_ISOLATION
+    ){
+      return true;
+    }
 
     return normalizeContextId(
       context.namespace
@@ -155,18 +177,27 @@ export async function rankContexts(
       ...safeClone(accessedContext),
 
       score:
-      calculateContextScore(
-        accessedContext,
-        normalizedQuery,
-        indexedMatches.get(
-          context.id
-        ) || 0
-      )
+      CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_RANKING
+      ? calculateContextScore(
+          accessedContext,
+          normalizedQuery,
+          indexedMatches.get(
+            context.id
+          ) || 0
+        )
+      : 0
 
     };
 
   })
   .sort((a,b) => {
+
+    if(
+      !CONTEXT_MANAGER_CONFIG
+      .ENABLE_CONTEXT_RANKING
+    ){
+      return 0;
+    }
 
     return (
       b.score -
@@ -194,6 +225,9 @@ export async function buildContextWindow(
   options = {}
 ){
 
+  const boundedQuery =
+  normalizeContextQuery(query);
+
   const maxTokens =
 
     Number(
@@ -213,7 +247,7 @@ export async function buildContextWindow(
 
   const cached =
   readContextCache(
-    query,
+    boundedQuery,
     maxTokens,
     namespace
   );
@@ -231,7 +265,7 @@ export async function buildContextWindow(
 
   const ranked =
   await rankContexts(
-    query,
+    boundedQuery,
     {
       namespace
     }
@@ -302,7 +336,7 @@ export async function buildContextWindow(
   const windowObject =
   freezeContextObject({
 
-    query,
+    query:boundedQuery,
 
     namespace,
 
@@ -322,7 +356,7 @@ export async function buildContextWindow(
 
   writeContextCache(
 
-    query,
+    boundedQuery,
 
     maxTokens,
 
