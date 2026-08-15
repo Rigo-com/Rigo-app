@@ -48,7 +48,6 @@ import {
 from "./kernel-request.js";
 
 
-
 // =====================================
 // ROUTE REQUEST
 // =====================================
@@ -130,8 +129,32 @@ routeKernelRequest(
     .diagnostics
     .routedToTools++;
 
+    const toolId =
+    request.metadata?.toolId ||
+    request.input?.toolId ||
+    request.input?.tool ||
+    "";
+
+    if(!toolId){
+      throw new Error(
+        "TOOL_ID_REQUIRED"
+      );
+    }
+
     return tools
-    .execute(request);
+    .execute(
+      toolId,
+      request.input?.payload ||
+      request.input || {},
+      {
+        requestId:
+        request.id,
+        metadata:
+        request.metadata || {},
+        signal:
+        request.runtime?.signal || null
+      }
+    );
 
   }
 
@@ -143,8 +166,25 @@ routeKernelRequest(
     .diagnostics
     .routedToAgents++;
 
+    const agentId =
+    request.metadata?.agentId ||
+    request.input?.agentId ||
+    null;
+
     return agents
-    .process(request);
+    .process({
+      agentId,
+      requestId:
+      request.id,
+      type:
+      request.type,
+      input:
+      request.input || {},
+      metadata:
+      request.metadata || {},
+      signal:
+      request.runtime?.signal || null
+    });
 
   }
 
@@ -153,7 +193,6 @@ routeKernelRequest(
   );
 
 }
-
 
 
 // =====================================
@@ -382,7 +421,6 @@ executeKernelRequest(
   }
 
 }
-
 
 
 // =====================================
