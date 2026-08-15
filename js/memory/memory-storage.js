@@ -1,7 +1,7 @@
 // =====================================
 // RIGO AI
 // MEMORY STORAGE
-// LOCAL CACHE + NEON BACKEND
+// LOCAL CACHE + POSTGRES ACCOUNT SYNC
 // =====================================
 
 import {
@@ -16,6 +16,7 @@ import {
 from "../storage/storage-runtime.js";
 
 import {
+  loadAccountSection,
   saveAccountSection
 }
 from "../storage/account-data-client.js";
@@ -30,26 +31,47 @@ import {
 }
 from "./memory-validation.js";
 
+function normalizeMemories(memories){
+  const list=Array.isArray(memories)?memories:[];
+  const sanitized=sanitizeMemories(list);
+  return validateMemoryCollection(sanitized)?sanitized:[];
+}
+
 function loadMemories(){
   try{
-    const memories=load(STORAGE_KEYS.MEMORY);
-    if(!memories)return [];
-
-    const sanitized=sanitizeMemories(memories);
-    if(!validateMemoryCollection(sanitized))return [];
-
-    return sanitized;
+    return normalizeMemories(load(STORAGE_KEYS.MEMORY));
   }
   catch{
     return [];
   }
 }
 
+async function hydrateMemories(){
+  try{
+    const remote=await loadAccountSection("memory");
+
+    if(Array.isArray(remote)){
+      const sanitized=normalizeMemories(remote);
+      save(STORAGE_KEYS.MEMORY,sanitized);
+      return sanitized;
+    }
+
+    const local=loadMemories();
+
+    if(local.length){
+      await saveAccountSection("memory",local);
+    }
+
+    return local;
+  }
+  catch{
+    return loadMemories();
+  }
+}
+
 function saveMemories(memories=[]){
   try{
-    const sanitized=sanitizeMemories(memories);
-    if(!validateMemoryCollection(sanitized))return false;
-
+    const sanitized=normalizeMemories(memories);
     const saved=save(STORAGE_KEYS.MEMORY,sanitized);
 
     if(saved&&typeof window!=="undefined"){
@@ -80,6 +102,7 @@ function getStorageStats(){return Object.freeze({memories:getStoredMemoryCount()
 
 const MemoryStorage=Object.freeze({
   loadMemories,
+  hydrateMemories,
   saveMemories,
   appendMemory,
   removeStoredMemory,
@@ -90,6 +113,7 @@ const MemoryStorage=Object.freeze({
 
 export {
   loadMemories,
+  hydrateMemories,
   saveMemories,
   appendMemory,
   removeStoredMemory,
