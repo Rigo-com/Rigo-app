@@ -41,6 +41,31 @@ const WEATHER_ENDPOINT =
 "/api/weather";
 
 
+function createConversationNamespace(
+  metadata = {}
+){
+
+  const userId =
+  String(
+    metadata.userId ||
+    "anonymous"
+  );
+
+  const conversationId =
+  String(
+    metadata.conversationId ||
+    "default"
+  );
+
+  return (
+    `chat:${userId}:${conversationId}`
+  )
+  .trim()
+  .toLowerCase();
+
+}
+
+
 function serializeContextWindow(
   contextWindow
 ){
@@ -273,12 +298,18 @@ async function executeMainAssistant(
     );
   }
 
+  const namespace =
+  createConversationNamespace(
+    input.metadata || {}
+  );
+
   const contextWindow =
   await ContextManager
   .buildWindow(
     message,
     {
-      maxTokens:4000
+      maxTokens:4000,
+      namespace
     }
   );
 
@@ -354,6 +385,27 @@ async function executeMainAssistant(
       "RIGO_AI_EMPTY_RESPONSE"
     );
   }
+
+  await ContextManager.register({
+    namespace,
+    type:"session",
+    priority:5,
+    content:{
+      user:message,
+      assistant:
+      result.message.trim()
+    },
+    metadata:{
+      userId:
+      input.metadata?.userId ||
+      null,
+      conversationId:
+      input.metadata?.conversationId ||
+      null,
+      source:
+      MAIN_ASSISTANT_AGENT
+    }
+  });
 
   return {
     message:

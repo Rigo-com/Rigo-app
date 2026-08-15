@@ -74,6 +74,25 @@ export function releaseContextLock(){
 }
 
 
+function removeContextHash(
+  contextId
+){
+
+  contextManagerState
+  .contentHashes
+  .forEach((storedContextId,hash) => {
+
+    if(storedContextId === contextId){
+      contextManagerState
+      .contentHashes
+      .delete(hash);
+    }
+
+  });
+
+}
+
+
 
 // =====================================
 // CONTEXT OBJECT
@@ -208,7 +227,16 @@ export async function registerContext(
 
     const hash =
     hashContextContent(
-      config.content
+      {
+        namespace:
+        config.namespace ||
+        "runtime:default",
+        type:
+        config.type ||
+        CONTEXT_TYPES.RUNTIME,
+        content:
+        config.content
+      }
     );
 
     if(
@@ -316,6 +344,10 @@ export async function updateContext(
       normalizedId
     );
 
+    removeContextHash(
+      normalizedId
+    );
+
     const updated =
     createContextObject({
 
@@ -340,6 +372,17 @@ export async function updateContext(
 
     indexContext(
       updated
+    );
+
+    contextManagerState
+    .contentHashes
+    .set(
+      hashContextContent({
+        namespace:updated.namespace,
+        type:updated.type,
+        content:updated.content
+      }),
+      normalizedId
     );
 
     invalidateContextCache(
@@ -399,6 +442,10 @@ export async function removeContext(
     }
 
     removeIndexedContext(
+      normalizedId
+    );
+
+    removeContextHash(
       normalizedId
     );
 

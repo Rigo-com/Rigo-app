@@ -76,7 +76,8 @@ export function calculateContextScore(
 
 
 export async function rankContexts(
-  query = ""
+  query = "",
+  options = {}
 ){
 
   const normalizedQuery =
@@ -90,8 +91,21 @@ export async function rankContexts(
 
   ];
 
+  const namespace =
+  normalizeContextId(
+    options.namespace ||
+    "runtime:default"
+  );
+
   const ranked =
   contexts
+  .filter((context) => {
+
+    return normalizeContextId(
+      context.namespace
+    ) === namespace;
+
+  })
   .map((context) => {
 
     return {
@@ -146,10 +160,17 @@ export async function buildContextWindow(
     CONTEXT_MANAGER_CONFIG
     .MAX_CONTEXT_TOKENS;
 
+  const namespace =
+  normalizeContextId(
+    options.namespace ||
+    "runtime:default"
+  );
+
   const cached =
   readContextCache(
     query,
-    maxTokens
+    maxTokens,
+    namespace
   );
 
   if(cached){
@@ -160,7 +181,10 @@ export async function buildContextWindow(
 
   const ranked =
   await rankContexts(
-    query
+    query,
+    {
+      namespace
+    }
   );
 
   const contexts = [];
@@ -171,6 +195,16 @@ export async function buildContextWindow(
     const context
     of ranked
   ){
+
+    if(
+      contexts.length >=
+      CONTEXT_MANAGER_CONFIG
+      .MAX_WINDOW_CONTEXTS
+    ){
+
+      break;
+
+    }
 
     if(
 
@@ -199,6 +233,8 @@ export async function buildContextWindow(
 
     query,
 
+    namespace,
+
     totalContexts:
     contexts.length,
 
@@ -217,7 +253,9 @@ export async function buildContextWindow(
 
     maxTokens,
 
-    windowObject
+    windowObject,
+
+    namespace
 
   );
 

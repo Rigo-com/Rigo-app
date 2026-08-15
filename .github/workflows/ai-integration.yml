@@ -58,6 +58,8 @@ jobs:
           assert.match(ai, /AIKernel\.process\s*\(/, 'AI.process must route through AIKernel');
           assert.match(ai, /ToolExecutor\.execute\s*\(/, 'Main AI must execute registered tools through ToolExecutor');
           assert.match(ai, /id:\s*\n\s*WEATHER_TOOL/, 'Weather tool must be registered');
+          assert.match(ai, /ContextManager\.register\s*\(/, 'Successful assistant exchanges must enter managed context');
+          assert.match(ai, /createConversationNamespace\s*\(/, 'Managed context must use a conversation namespace');
 
           assert.match(router, /agents\s*\.process\s*\(/, 'Kernel router must route agent requests through AgentManager');
           assert.match(router, /planner\s*\.process\s*\(/, 'Kernel router must route planner requests');
@@ -86,6 +88,60 @@ jobs:
           assert.doesNotMatch(runtimeBootSequence, /["']ai-system["']/, 'Core runtime must not register a duplicate AI step');
 
           console.log('RIGO AI architecture wiring checks passed.');
+          EOF
+
+      - name: Verify context isolation and cache invalidation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ContextManager from './js/ai/context/index.js';
+
+          await ContextManager.initialize();
+
+          await ContextManager.register({
+            namespace:'chat:user-a:one',
+            type:'session',
+            content:{user:'alpha',assistant:'one'}
+          });
+
+          await ContextManager.register({
+            namespace:'chat:user-b:two',
+            type:'session',
+            content:{user:'beta',assistant:'two'}
+          });
+
+          const first = await ContextManager.buildWindow(
+            'alpha',
+            {namespace:'chat:user-a:one',maxTokens:4000}
+          );
+
+          const isolated = await ContextManager.buildWindow(
+            'alpha',
+            {namespace:'chat:user-b:two',maxTokens:4000}
+          );
+
+          assert.equal(first.contexts.length,1);
+          assert.equal(first.contexts[0].content.assistant,'one');
+          assert.equal(isolated.contexts.length,1);
+          assert.equal(isolated.contexts[0].content.assistant,'two');
+
+          await ContextManager.register({
+            namespace:'chat:user-a:one',
+            type:'session',
+            content:{user:'gamma',assistant:'three'}
+          });
+
+          const refreshed = await ContextManager.buildWindow(
+            'alpha',
+            {namespace:'chat:user-a:one',maxTokens:4000}
+          );
+
+          assert.equal(refreshed.contexts.length,2);
+
+          await ContextManager.shutdown();
+          console.log('Context isolation and cache invalidation checks passed.');
           EOF
 
       - name: Verify no legacy DependencySystem usage in AI layer

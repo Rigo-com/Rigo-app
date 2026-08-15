@@ -32,10 +32,15 @@ export function clearContextCache(){
 
 export function createCacheKey(
   query,
-  maxTokens
+  maxTokens,
+  namespace = "runtime:default"
 ){
 
   return (
+
+    normalizeContextId(namespace) +
+
+    "::" +
 
     normalizeContextId(query) +
 
@@ -53,36 +58,7 @@ export function invalidateContextCache(
   contextId = null
 ){
 
-  if(!contextId){
-
-    clearContextCache();
-
-    return true;
-
-  }
-
-  const normalizedId =
-  normalizeContextId(
-    contextId
-  );
-
-  contextManagerState
-  .retrievalCache
-  .forEach((_,key) => {
-
-    if(
-      key.includes(
-        normalizedId
-      )
-    ){
-
-      contextManagerState
-      .retrievalCache
-      .delete(key);
-
-    }
-
-  });
+  clearContextCache();
 
   return true;
 
@@ -92,13 +68,15 @@ export function invalidateContextCache(
 
 export function readContextCache(
   query,
-  maxTokens
+  maxTokens,
+  namespace
 ){
 
   const key =
   createCacheKey(
     query,
-    maxTokens
+    maxTokens,
+    namespace
   );
 
   const cached =
@@ -151,13 +129,15 @@ export function readContextCache(
 export function writeContextCache(
   query,
   maxTokens,
-  value
+  value,
+  namespace
 ){
 
   const key =
   createCacheKey(
     query,
-    maxTokens
+    maxTokens,
+    namespace
   );
 
   contextManagerState

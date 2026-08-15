@@ -205,27 +205,49 @@ export function hashContextContent(
   value
 ){
 
-  try{
+  const serialized =
+  serializeContext(
+    value
+  );
 
-    return btoa(
-      encodeURIComponent(
-        serializeContext(value)
-      )
-    )
-    .slice(
-      0,
-      128
+  let first =
+  2166136261;
+
+  let second =
+  2246822507;
+
+  for(
+    let index = 0;
+    index < serialized.length;
+    index++
+  ){
+
+    const code =
+    serialized
+    .charCodeAt(index);
+
+    first =
+    Math.imul(
+      first ^ code,
+      16777619
+    );
+
+    second =
+    Math.imul(
+      second ^ code,
+      3266489909
     );
 
   }
 
-  catch(error){
-
-    return String(
-      Date.now()
-    );
-
-  }
+  return (
+    (first >>> 0)
+    .toString(16)
+    .padStart(8,"0") +
+    (second >>> 0)
+    .toString(16)
+    .padStart(8,"0")
+  );
 
 }
 
