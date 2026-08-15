@@ -8,7 +8,7 @@ const SESSION_AGE_PERSISTENT=60*60*24*400;
 function bodyOf(req){if(req.body&&typeof req.body==="object")return req.body;if(typeof req.body==="string"){try{return JSON.parse(req.body)}catch{return {}}}return {}}
 function emailOf(v){return String(v||"").trim().toLowerCase()}
 function databaseUrl(){return process.env.DATABASE_URL||process.env.DATABASE_POSTGRES_URL||process.env.POSTGRES_URL||process.env.DATABASE_NEON_URL||""}
-function secret(){return process.env.RIGO_SESSION_SECRET||process.env.RIGO_ADMIN_SESSION_SECRET||""}
+function secret(){return process.env.RIGO_SESSION_SECRET||process.env.RIGO_ADMIN_SESSION_SECRET||process.env.OPENROUTER_API_KEY||""}
 function sql(){const url=databaseUrl();if(!url)throw new Error("DATABASE_URL_NOT_CONFIGURED");return neon(url)}
 function b64(v){return Buffer.from(v,"utf8").toString("base64url")}
 function unb64(v){return Buffer.from(v,"base64url").toString("utf8")}
