@@ -24,6 +24,178 @@ from "./workflow-engine/index.js";
 import ServiceManager
 from "../services/service-manager.js";
 
+import API
+from "../api/index.js";
+
+
+const MAIN_ASSISTANT_AGENT =
+"rigo-main-assistant";
+
+const AI_CHAT_ENDPOINT =
+"/api/ai-chat";
+
+
+function serializeContextWindow(
+  contextWindow
+){
+
+  const contexts =
+  contextWindow?.contexts || [];
+
+  if(!contexts.length){
+    return "";
+  }
+
+  return contexts
+  .map((context) => {
+
+    try{
+      return JSON.stringify(
+        context.content
+      );
+    }
+    catch(error){
+      return String(
+        context.content || ""
+      );
+    }
+
+  })
+  .filter(Boolean)
+  .join("\n");
+
+}
+
+
+async function executeMainAssistant(
+  task = {}
+){
+
+  const input =
+  task.input || task;
+
+  const message =
+  String(
+    input.message || ""
+  )
+  .trim();
+
+  if(!message){
+    throw new Error(
+      "RIGO_AI_MESSAGE_REQUIRED"
+    );
+  }
+
+  const contextWindow =
+  await ContextManager
+  .buildWindow(
+    message,
+    {
+      maxTokens:4000
+    }
+  );
+
+  const managedContext =
+  serializeContextWindow(
+    contextWindow
+  );
+
+  const baseContext =
+  String(
+    input.context ||
+    "You are the main user-facing RIGO AI assistant."
+  );
+
+  const context =
+  managedContext
+  ? `${baseContext}\n\nRIGO MANAGED CONTEXT:\n${managedContext}`
+  : baseContext;
+
+  const response =
+  await API.runtime.post(
+    AI_CHAT_ENDPOINT,
+    JSON.stringify({
+      message,
+      messages:
+      Array.isArray(input.messages)
+      ? input.messages
+      : [],
+      maxTokens:
+      Number(input.maxTokens) ||
+      4000,
+      context
+    }),
+    {
+      headers:{
+        "Content-Type":"application/json",
+        "Accept":"application/json"
+      },
+      retries:2
+    }
+  );
+
+  const result =
+  response?.data || {};
+
+  if(result?.ok === false){
+    throw new Error(
+      result?.error ||
+      "RIGO_AI_REQUEST_FAILED"
+    );
+  }
+
+  if(
+    typeof result?.message !==
+    "string" ||
+    !result.message.trim()
+  ){
+    throw new Error(
+      "RIGO_AI_EMPTY_RESPONSE"
+    );
+  }
+
+  return {
+    message:
+    result.message.trim(),
+    requestId:
+    response.requestId || null,
+    contextWindow
+  };
+
+}
+
+
+async function ensureMainAssistantAgent(){
+
+  if(
+    AgentManager.get(
+      MAIN_ASSISTANT_AGENT
+    )
+  ){
+    return true;
+  }
+
+  const agent =
+  await AgentManager.register({
+    id:
+    MAIN_ASSISTANT_AGENT,
+    name:
+    "RIGO Main Assistant",
+    description:
+    "Primary user-facing RIGO AI assistant",
+    capabilities:[
+      "chat",
+      "context",
+      "memory",
+      "tools"
+    ],
+    execute:
+    executeMainAssistant
+  });
+
+  return Boolean(agent);
+
+}
 
 
 // =====================================
@@ -58,7 +230,6 @@ async function registerAIServices(){
 }
 
 
-
 // =====================================
 // LIFECYCLE
 // =====================================
@@ -71,10 +242,11 @@ async function initialize(){
   // registered AI subsystems through the central container.
   await AIKernel.initialize();
 
+  await ensureMainAssistantAgent();
+
   return true;
 
 }
-
 
 
 async function shutdown(){
@@ -89,7 +261,6 @@ async function shutdown(){
   return true;
 
 }
-
 
 
 async function reset(){
@@ -108,6 +279,30 @@ async function reset(){
 
 }
 
+
+// =====================================
+// USER-FACING PROCESSING
+// =====================================
+
+async function process(
+  payload = {}
+){
+
+  await ensureMainAssistantAgent();
+
+  return AIKernel.process({
+    type:
+    "agent:main-assistant",
+    input:
+    payload,
+    metadata:{
+      ...(payload.metadata || {}),
+      agentId:
+      MAIN_ASSISTANT_AGENT
+    }
+  });
+
+}
 
 
 // =====================================
@@ -129,7 +324,6 @@ function diagnostics(){
 }
 
 
-
 function snapshot(){
 
   return Object.freeze({
@@ -145,7 +339,6 @@ function snapshot(){
 }
 
 
-
 // =====================================
 // AI API
 // =====================================
@@ -155,9 +348,11 @@ Object.freeze({
   initialize,
   shutdown,
   reset,
+  process,
   diagnostics,
   snapshot,
   registerServices:registerAIServices,
+  ensureMainAssistantAgent,
   AIKernel,
   ContextManager,
   ToolExecutor,
@@ -165,7 +360,6 @@ Object.freeze({
   PlannerEngine,
   WorkflowEngine
 });
-
 
 
 if(typeof window !== "undefined"){
