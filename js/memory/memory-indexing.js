@@ -32,7 +32,9 @@ import {
 from "./memory-utils.js";
 
 import {
-  generateEmbedding
+  generateEmbedding,
+  deleteEmbedding,
+  resetEmbeddings
 }
 from "./memory-embeddings.js";
 
@@ -105,8 +107,20 @@ function createMemoryIndex(){
 
 function buildIndex(){
 
+  const memories =
+  loadMemories();
+
   const index =
   createMemoryIndex();
+
+  resetEmbeddings();
+
+  for(const memory of memories){
+    generateEmbedding(
+      memory.id,
+      memory.content
+    );
+  }
 
   setIndex(
     "memory",
@@ -276,6 +290,10 @@ function removeIndexedMemory(
   setIndex(
     "memory",
     index
+  );
+
+  deleteEmbedding(
+    memoryId
   );
 
   return true;

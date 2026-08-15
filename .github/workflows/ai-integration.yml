@@ -148,6 +148,8 @@ jobs:
           await import('./js/memory/memory-constants.js');
           const {memoryState} =
           await import('./js/memory/memory-state.js');
+          const {MemoryEmbeddings} =
+          await import('./js/memory/memory-embeddings.js');
 
           const coreEvents = [];
           let localCreated = null;
@@ -231,9 +233,12 @@ jobs:
 
           assert.ok(
             results.some((entry) => {
-              return (entry.memory || entry).id === created.id;
+              return entry.id === created.id;
             })
           );
+          assert.equal(results[0].content,'RIGO memory runtime bridge');
+          assert.equal(typeof results[0].score,'number');
+          assert.equal(memory.searchOne('runtime bridge').id,created.id);
           assert.match(summary,/rigo memory runtime bridge/);
           assert.ok(
             [
@@ -251,6 +256,40 @@ jobs:
           assert.equal(memory.health().memory.diagnostics.summarized,1);
           assert.equal(typeof memory.reset,'function');
           assert.equal(typeof memory.snapshot,'function');
+
+          const mutable = memory.create(
+            'old embedding phrase',
+            {
+              type:'fact',
+              priority:'normal',
+              tags:['mutable-test']
+            }
+          );
+
+          assert.equal(memory.searchOne('old embedding').id,mutable.id);
+          assert.equal(
+            MemoryEmbeddings.loadEmbedding(mutable.id).old,
+            1
+          );
+          assert.equal(
+            memory.update(mutable.id,{content:'new semantic phrase'}),
+            true
+          );
+          assert.equal(memory.searchOne('old embedding'),null);
+          assert.equal(memory.searchOne('new semantic').id,mutable.id);
+          assert.equal(
+            MemoryEmbeddings.loadEmbedding(mutable.id).old,
+            undefined
+          );
+          assert.equal(
+            MemoryEmbeddings.loadEmbedding(mutable.id).new,
+            1
+          );
+          assert.equal(memory.update(mutable.id,{type:'invalid-type'}),false);
+          assert.equal(memory.searchOne('new semantic').id,mutable.id);
+          assert.equal(memory.remove(mutable.id),true);
+          assert.equal(memory.searchOne('new semantic'),null);
+          assert.equal(MemoryEmbeddings.loadEmbedding(mutable.id),null);
 
           memory.clearContext();
           memory.addContext({id:'duplicate',content:'first'});
@@ -346,6 +385,10 @@ jobs:
 
           assert.equal(memory.reset(),true);
           assert.equal(memory.search('runtime bridge',{limit:5}).length,1);
+          assert.equal(
+            MemoryEmbeddings.loadEmbedding(created.id).runtime,
+            1
+          );
 
           assert.equal(await AI.initialize(),true);
           assert.equal(AI.diagnostics().kernel.state,'ready');

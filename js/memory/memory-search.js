@@ -267,7 +267,13 @@ function searchMemories(
 
     limit
 
-  );
+  )
+  .map((result) => {
+    return Object.freeze({
+      ...result.memory,
+      score:result.score
+    });
+  });
 
   emit(
     MEMORY_EVENTS.SEARCHED,

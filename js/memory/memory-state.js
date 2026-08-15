@@ -326,6 +326,28 @@ function getEmbedding(
 }
 
 
+function removeEmbedding(
+  id
+){
+
+  return memoryState
+  .embeddings
+  .delete(id);
+
+}
+
+
+function clearEmbeddings(){
+
+  memoryState
+  .embeddings
+  .clear();
+
+  return true;
+
+}
+
+
 
 // =====================================
 // INDEXES
@@ -584,6 +606,8 @@ Object.freeze({
 
   setEmbedding,
   getEmbedding,
+  removeEmbedding,
+  clearEmbeddings,
 
   setIndex,
   getIndex,
@@ -636,6 +660,8 @@ export {
 
   setEmbedding,
   getEmbedding,
+  removeEmbedding,
+  clearEmbeddings,
 
   setIndex,
   getIndex,

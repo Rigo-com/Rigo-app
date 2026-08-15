@@ -70,7 +70,17 @@ function updateMemory(memoryId,updates={}){
   const index=memories.findIndex(memory=>memory.id===memoryId);
   if(index<0)return false;
 
-  memories[index]={...memories[index],...updates,updatedAt:Date.now()};
+  const updatedMemory={
+    ...memories[index],
+    ...updates,
+    id:memories[index].id,
+    createdAt:memories[index].createdAt,
+    updatedAt:Date.now()
+  };
+
+  if(!validateMemoryRecord(updatedMemory))return false;
+
+  memories[index]=updatedMemory;
   if(!saveMemories(memories))return false;
   MemoryState.setMemory(memoryId,memories[index]);
   buildIndex();
