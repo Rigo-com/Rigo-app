@@ -5,9 +5,15 @@
 // =====================================
 
 import {
-  MEMORY_LIMITS
+  MEMORY_LIMITS,
+  MEMORY_EVENTS
 }
 from "./memory-constants.js";
+
+import {
+  emit
+}
+from "./memory-events.js";
 
 import {
   loadMemories
@@ -110,11 +116,22 @@ function summarizeMemories(
 
   incrementSummarized();
 
-  return memories
+  const summaries =
+  memories
   .map(
     summarizeMemory
   )
   .filter(Boolean);
+
+  emit(
+    MEMORY_EVENTS.SUMMARIZED,
+    {
+      memories:memories.length,
+      summaries:summaries.length
+    }
+  );
+
+  return summaries;
 
 }
 

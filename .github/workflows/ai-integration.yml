@@ -205,12 +205,30 @@ jobs:
             {limit:5}
           );
 
+          const summary = memory.summary();
+
+          await new Promise((resolve) => setTimeout(resolve,0));
+
           assert.ok(
             results.some((entry) => {
               return (entry.memory || entry).id === created.id;
             })
           );
+          assert.match(summary,/rigo memory runtime bridge/);
+          assert.ok(
+            [
+              MEMORY_EVENTS.INDEXED,
+              MEMORY_EVENTS.SEARCHED,
+              MEMORY_EVENTS.SUMMARIZED
+            ]
+            .every((name) => {
+              return coreEvents.some((event) => event.name === name);
+            })
+          );
           assert.equal(memory.health().memory.initialized,true);
+          assert.ok(memory.health().memory.diagnostics.indexed >= 1);
+          assert.equal(memory.health().memory.diagnostics.searches,1);
+          assert.equal(memory.health().memory.diagnostics.summarized,1);
           assert.equal(typeof memory.reset,'function');
           assert.equal(typeof memory.snapshot,'function');
 

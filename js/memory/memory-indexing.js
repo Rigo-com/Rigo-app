@@ -6,9 +6,20 @@
 
 import {
   setIndex,
-  getIndex
+  getIndex,
+  incrementIndexed
 }
 from "./memory-state.js";
+
+import {
+  MEMORY_EVENTS
+}
+from "./memory-constants.js";
+
+import {
+  emit
+}
+from "./memory-events.js";
 
 import {
   loadMemories
@@ -100,6 +111,16 @@ function buildIndex(){
   setIndex(
     "memory",
     index
+  );
+
+  incrementIndexed();
+
+  emit(
+    MEMORY_EVENTS.INDEXED,
+    {
+      mode:"rebuild",
+      tokens:index.size
+    }
   );
 
   return index;
@@ -194,6 +215,17 @@ function indexMemory(
   setIndex(
     "memory",
     index
+  );
+
+  incrementIndexed();
+
+  emit(
+    MEMORY_EVENTS.INDEXED,
+    {
+      mode:"incremental",
+      memoryId:memory.id,
+      tokens:tokens.length
+    }
   );
 
   return true;
