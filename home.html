@@ -30,6 +30,8 @@ import {applicationReady} from "./js/main.js";
 import Auth from "./js/auth/index.js";
 import Chat from "./js/chat/index.js";
 import API from "./js/api/index.js";
+import Search from "./js/search/index.js";
+import {UiRenderer} from "./js/ui/index.js";
 
 await applicationReady;
 
@@ -61,21 +63,34 @@ const searchInput=document.getElementById("chat-search");
 
 let loading=false;
 let searchQuery="";
+let searchResultIds=null;
+let searchSequence=0;
 let openMenuId=null;
 let editingId=null;
 
 const ChatActions=Chat.Actions;
+Search.core.initialize();
 
 function esc(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c])}
 function store(){return ChatActions.getConversationStore()}
 function active(){return ChatActions.getActiveConversation()}
 function title(c){const t=String(c?.title||c?.messages?.find(m=>m.role==="user")?.content||"New chat").trim();return t.length>42?t.slice(0,42)+"…":t}
-function matches(c){const q=searchQuery.trim().toLowerCase();if(!q)return true;const hay=[c?.title,...(c?.messages||[]).map(m=>m?.content)].join(" ").toLowerCase();return hay.includes(q)}
+function searchContent(c){return [c?.title,...(c?.messages||[]).map(m=>m?.content)].filter(Boolean).join("\n")}
+
+async function runHistorySearch(){
+ const sequence=++searchSequence;
+ const query=searchQuery.trim();
+ if(!query){searchResultIds=null;renderHistory();return}
+ const items=store().chats.map(c=>({id:c.id,content:searchContent(c)}));
+ const results=await Search.engine.executeSearch(query,{items,cacheScope:`chat-history:${userIdentity}`});
+ if(sequence!==searchSequence)return;
+ searchResultIds=new Set(results.map(result=>String(result?.item?.id||"")));renderHistory();
+}
 
 function renderHistory(){
  const currentStore=store();
- const filtered=currentStore.chats.filter(matches);
- if(!filtered.length){historyEl.innerHTML=`<div class="history-empty">${searchQuery?"No matching chats":"No chats yet"}</div>`;return}
+ const filtered=searchQuery.trim()?(searchResultIds===null?[]:currentStore.chats.filter(c=>searchResultIds.has(c.id))):currentStore.chats;
+ if(!filtered.length){historyEl.innerHTML=`<div class="history-empty">${searchQuery?(searchResultIds===null?"Searching…":"No matching chats"):"No chats yet"}</div>`;return}
  historyEl.innerHTML=filtered.map(c=>{
   if(editingId===c.id)return`<div class="history-row active" data-row="${esc(c.id)}"><div class="rename-box"><input class="rename-input" data-rename-input value="${esc(title(c)==="New chat"?"":title(c))}" maxlength="80"><button class="rename-save" data-rename-save>✓</button><button class="rename-cancel" data-rename-cancel>×</button></div></div>`;
   return`<div class="history-row ${c.id===currentStore.activeId?"active":""}" data-row="${esc(c.id)}"><button class="history-btn" data-open="${esc(c.id)}">${esc(title(c))}</button><button class="history-menu-btn" data-menu="${esc(c.id)}" aria-label="Chat actions">⋯</button>${openMenuId===c.id?`<div class="chat-menu"><button data-rename="${esc(c.id)}">Rename</button><button class="danger" data-delete="${esc(c.id)}">Delete</button></div>`:""}</div>`;
@@ -90,25 +105,15 @@ function renderHistory(){
  if(renameInput){const commit=()=>renameChat(editingId,renameInput.value);renameSave.onclick=commit;renameCancel.onclick=()=>{editingId=null;renderHistory()};renameInput.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();commit()}if(e.key==="Escape"){editingId=null;renderHistory()}}}
 }
 
-async function renameChat(chatId,value){
- ChatActions.renameConversation(chatId,value);
- editingId=null;openMenuId=null;render();
- try{await ChatActions.flushConversationStore()}catch{}
-}
+async function renameChat(chatId,value){ChatActions.renameConversation(chatId,value);editingId=null;openMenuId=null;searchResultIds=null;render();if(searchQuery.trim())runHistorySearch();try{await ChatActions.flushConversationStore()}catch{}}
+async function deleteChat(chatId){const c=store().chats.find(x=>x.id===chatId);if(!c)return;if(!confirm(`Delete “${title(c)}”?`))return;ChatActions.deleteConversation(chatId);openMenuId=null;editingId=null;searchResultIds=null;render();if(searchQuery.trim())runHistorySearch();try{await ChatActions.flushConversationStore()}catch{}}
 
-async function deleteChat(chatId){
- const c=store().chats.find(x=>x.id===chatId);if(!c)return;
- if(!confirm(`Delete “${title(c)}”?`))return;
- ChatActions.deleteConversation(chatId);
- openMenuId=null;editingId=null;render();
- try{await ChatActions.flushConversationStore()}catch{}
-}
-
-function render(){
+function renderNow(){
  const c=active(),list=c?.messages||[];
  conversation.innerHTML=list.length?list.map(m=>`<div class="message ${m.role==="user"?"user":m.role==="error"?"assistant error":"assistant"}"><div class="bubble">${m.role==="assistant"?'<div class="assistant-label">RIGO</div>':""}${esc(m.content)}</div></div>`).join("")+(loading?'<div class="message assistant"><div class="bubble"><div class="assistant-label">RIGO</div><span class="typing"><i></i><i></i><i></i></span></div></div>':""):`<div class="empty"><img src="./assets/rigo-logo.PNG"><h1>How can I help?</h1><p>Your chats, memory and settings stay private to this account and sync across devices.</p></div>`;
  renderHistory();requestAnimationFrame(()=>messages.scrollTop=messages.scrollHeight)
 }
+function render(){if(!UiRenderer.forceRender(renderNow))renderNow()}
 
 function resize(){input.style.height="auto";input.style.height=Math.min(input.scrollHeight,160)+"px"}
 function sync(){send.disabled=loading||!input.value.trim()}
@@ -116,46 +121,10 @@ function aiHistory(c){const list=(c?.messages||[]).filter(m=>m.role==="user"||m.
 function needsWeather(text){return/(طقس|الجو|درجة الحرارة|حرارة اليوم|مطر|تمطر|weather|forecast|temperature|rain)/i.test(text)}
 function getPosition(){return new Promise((resolve,reject)=>{if(!navigator.geolocation){reject(new Error("GEOLOCATION_NOT_SUPPORTED"));return}navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:12000,maximumAge:300000})})}
 
-async function weatherContext(){
- const position=await getPosition();
- const lat=position.coords.latitude,lon=position.coords.longitude;
- const response=await API.runtime.get(`${WEATHER_ENDPOINT}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{retries:2});
- const data=response?.data||{};
- if(data?.ok===false)throw new Error(data?.error||"WEATHER_FAILED");
- return`LIVE WEATHER TOOL RESULT (current user location; source: ${data.source}):\n${JSON.stringify(data)}`;
-}
+async function weatherContext(){const position=await getPosition();const lat=position.coords.latitude,lon=position.coords.longitude;const response=await API.runtime.get(`${WEATHER_ENDPOINT}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{retries:2});const data=response?.data||{};if(data?.ok===false)throw new Error(data?.error||"WEATHER_FAILED");return`LIVE WEATHER TOOL RESULT (current user location; source: ${data.source}):\n${JSON.stringify(data)}`}
+async function ask(text,c){let context="You are the main user-facing RIGO AI assistant. Use live tool results when provided.";if(needsWeather(text)){try{context+="\n\n"+await weatherContext()}catch(error){context+=`\n\nWEATHER TOOL STATUS: unavailable because ${error?.message||String(error)}. Ask the user to allow location access or provide a city.`}}const response=await API.runtime.post(ENDPOINT,JSON.stringify({message:text,messages:aiHistory(c),maxTokens:4000,context}),{headers:{"Content-Type":"application/json","Accept":"application/json"},retries:2});const result=response?.data||{};if(result?.ok===false)throw new Error(result?.error||"RIGO_AI_REQUEST_FAILED");if(typeof result?.message!=="string"||!result.message.trim())throw new Error("RIGO_AI_EMPTY_RESPONSE");return result.message.trim()}
 
-async function ask(text,c){
- let context="You are the main user-facing RIGO AI assistant. Use live tool results when provided.";
- if(needsWeather(text)){
-  try{context+="\n\n"+await weatherContext()}
-  catch(error){context+=`\n\nWEATHER TOOL STATUS: unavailable because ${error?.message||String(error)}. Ask the user to allow location access or provide a city.`}
- }
- const response=await API.runtime.post(ENDPOINT,JSON.stringify({message:text,messages:aiHistory(c),maxTokens:4000,context}),{headers:{"Content-Type":"application/json","Accept":"application/json"},retries:2});
- const result=response?.data||{};
- if(result?.ok===false)throw new Error(result?.error||"RIGO_AI_REQUEST_FAILED");
- if(typeof result?.message!=="string"||!result.message.trim())throw new Error("RIGO_AI_EMPTY_RESPONSE");
- return result.message.trim();
-}
-
-async function submit(){
- const text=input.value.trim();if(!text||loading)return;
- let c=ChatActions.ensureConversation();
- const chatId=c.id;
- input.value="";resize();loading=true;
- ChatActions.appendConversationMessage(chatId,{role:"user",content:text,createdAt:Date.now()});
- if(!c.title)ChatActions.renameConversation(chatId,text.slice(0,80));
- try{ChatActions.sendMessage({role:"user",content:text,userId:userIdentity,conversationId:chatId})}catch{}
- sync();render();
- try{
-  c=ChatActions.getActiveConversation();
-  const reply=await ask(text,c);
-  ChatActions.appendConversationMessage(chatId,{role:"assistant",content:reply,createdAt:Date.now()});
-  try{ChatActions.sendMessage({role:"assistant",content:reply,userId:userIdentity,conversationId:chatId})}catch{}
- }
- catch(e){ChatActions.appendConversationMessage(chatId,{role:"error",content:e?.message||"Unable to reach RIGO AI.",createdAt:Date.now()})}
- finally{loading=false;sync();render();input.focus()}
-}
+async function submit(){const text=input.value.trim();if(!text||loading)return;let c=ChatActions.ensureConversation();const chatId=c.id;input.value="";resize();loading=true;ChatActions.appendConversationMessage(chatId,{role:"user",content:text,createdAt:Date.now()});if(!c.title)ChatActions.renameConversation(chatId,text.slice(0,80));try{ChatActions.sendMessage({role:"user",content:text,userId:userIdentity,conversationId:chatId})}catch{}sync();render();try{c=ChatActions.getActiveConversation();const reply=await ask(text,c);ChatActions.appendConversationMessage(chatId,{role:"assistant",content:reply,createdAt:Date.now()});try{ChatActions.sendMessage({role:"assistant",content:reply,userId:userIdentity,conversationId:chatId})}catch{}}catch(e){ChatActions.appendConversationMessage(chatId,{role:"error",content:e?.message||"Unable to reach RIGO AI.",createdAt:Date.now()})}finally{loading=false;searchResultIds=null;sync();render();if(searchQuery.trim())runHistorySearch();input.focus()}}
 
 function close(){sidebar.classList.remove("active");backdrop.classList.remove("active");openMenuId=null;editingId=null}
 function newChat(){loading=false;ChatActions.activateConversation(null);openMenuId=null;editingId=null;input.value="";resize();sync();render();close();input.focus()}
@@ -163,14 +132,10 @@ function newChat(){loading=false;ChatActions.activateConversation(null);openMenu
 form.addEventListener("submit",e=>{e.preventDefault();submit()});
 input.addEventListener("input",()=>{resize();sync()});
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();submit()}});
-searchInput.addEventListener("input",()=>{searchQuery=searchInput.value;openMenuId=null;editingId=null;renderHistory()});
+searchInput.addEventListener("input",()=>{searchQuery=searchInput.value;searchResultIds=null;openMenuId=null;editingId=null;renderHistory();runHistorySearch()});
 document.addEventListener("click",e=>{if(openMenuId&&!e.target.closest(".history-row")){openMenuId=null;renderHistory()}});
 document.getElementById("menu").onclick=()=>{sidebar.classList.add("active");backdrop.classList.add("active");setTimeout(()=>searchInput.focus(),150)};
-document.getElementById("close").onclick=close;
-backdrop.onclick=close;
-document.getElementById("new").onclick=newChat;
-document.getElementById("side-new").onclick=newChat;
-document.getElementById("memory").onclick=()=>location.href="./memory.html";
+document.getElementById("close").onclick=close;backdrop.onclick=close;document.getElementById("new").onclick=newChat;document.getElementById("side-new").onclick=newChat;document.getElementById("memory").onclick=()=>location.href="./memory.html";
 if(isAdmin){adminButton.onclick=()=>location.href="./admin.html";debugButton.onclick=()=>location.href="./debug.html"}
 document.getElementById("logout").onclick=async()=>{try{await ChatActions.flushConversationStore()}catch{}await Auth.logout();location.replace("./login.html")};
 
