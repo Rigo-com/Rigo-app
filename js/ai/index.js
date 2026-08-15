@@ -77,19 +77,7 @@ function needsWeather(
   message
 ){
 
-  return /(
-    طقس|
-    الجو|
-    درجة\s*الحرارة|
-    حرارة\s*اليوم|
-    مطر|
-    تمطر|
-    weather|
-    forecast|
-    temperature|
-    rain
-  )/ix.test?.(String(message || "")) ||
-  /(طقس|الجو|درجة\s*الحرارة|حرارة\s*اليوم|مطر|تمطر|weather|forecast|temperature|rain)/i
+  return /(طقس|الجو|درجة\s*الحرارة|حرارة\s*اليوم|مطر|تمطر|weather|forecast|temperature|rain)/i
   .test(
     String(message || "")
   );
