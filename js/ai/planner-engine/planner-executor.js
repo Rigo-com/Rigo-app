@@ -50,6 +50,136 @@ from "./planner-queue.js";
 import ServiceManager
 from "../../services/service-manager.js";
 
+
+// =====================================
+// EXECUTION HELPERS
+// =====================================
+
+async function executeAssignedTool(
+  plan,
+  step
+){
+
+  const tools =
+  await ServiceManager.resolve(
+    "tools"
+  );
+
+  if(
+    !tools ||
+    typeof tools.execute !== "function"
+  ){
+    throw new Error(
+      "TOOL_EXECUTOR_UNAVAILABLE"
+    );
+  }
+
+  const result =
+  await tools.execute(
+    step.assignedTool,
+    {
+      objective:
+      step.objective,
+      planId:
+      plan.id,
+      stepId:
+      step.id,
+      context:
+      plan.context || {},
+      metadata:
+      plan.metadata || {}
+    },
+    {
+      source:
+      "planner-engine",
+      planId:
+      plan.id,
+      stepId:
+      step.id
+    }
+  );
+
+  if(
+    !result ||
+    result.success === false
+  ){
+    throw new Error(
+      result?.error?.message ||
+      result?.message ||
+      result?.code ||
+      "PLANNER_TOOL_EXECUTION_FAILED"
+    );
+  }
+
+  return result;
+
+}
+
+
+async function executeAssignedAgent(
+  plan,
+  step
+){
+
+  const agents =
+  await ServiceManager.resolve(
+    "agents"
+  );
+
+  if(
+    !agents ||
+    typeof agents.execute !== "function"
+  ){
+    throw new Error(
+      "AGENT_MANAGER_UNAVAILABLE"
+    );
+  }
+
+  const result =
+  await agents.execute(
+    step.assignedAgent,
+    {
+      type:
+      "planner-step",
+      input:{
+        objective:
+        step.objective,
+        planId:
+        plan.id,
+        stepId:
+        step.id,
+        context:
+        plan.context || {},
+        metadata:
+        plan.metadata || {}
+      },
+      metadata:{
+        source:
+        "planner-engine",
+        planId:
+        plan.id,
+        stepId:
+        step.id
+      }
+    }
+  );
+
+  if(
+    !result ||
+    result.queued === true
+  ){
+    throw new Error(
+      result?.queued === true
+      ? "PLANNER_AGENT_EXECUTION_QUEUED"
+      : "PLANNER_AGENT_EXECUTION_FAILED"
+    );
+  }
+
+  return result;
+
+}
+
+
 // =====================================
 // EXECUTE STEP
 // =====================================
@@ -62,142 +192,80 @@ export async function executePlanStep(
   let attempts = 0;
 
   while(
-
     attempts <
-
     PLANNER_ENGINE_CONFIG
     .MAX_RETRIES
-
   ){
 
     attempts++;
 
     try{
 
-      if(
-        step.assignedTool
-      ){
+      let result = null;
+      let executor = null;
 
-        const toolExecutor =
-        await ServiceManager.resolve(
-          "tools"
+      if(step.assignedTool){
+
+        executor =
+        "tool";
+
+        result =
+        await executeAssignedTool(
+          plan,
+          step
         );
 
-        if(
-          !toolExecutor
-        ){
+      }
+      else if(step.assignedAgent){
 
-          throw new Error(
-            "TOOL EXECUTOR UNAVAILABLE"
-          );
+        executor =
+        "agent";
 
-        }
-
-        if(
-          typeof toolExecutor.execute !==
-          "function"
-        ){
-
-          throw new Error(
-            "INVALID TOOL EXECUTOR"
-          );
-
-        }
-
-        const result =
-        await toolExecutor.execute(
-
-          step.assignedTool,
-
-          {
-
-            objective:
-            step.objective,
-
-            signal:
-
-              plan.runtime
-              .controller
-              ?.signal || null
-
-          },
-
-          {
-
-            source:
-            "planner-engine"
-
-          }
-
+        result =
+        await executeAssignedAgent(
+          plan,
+          step
         );
 
-        if(
-          !result
-        ){
+      }
+      else{
 
-          throw new Error(
-            "INVALID TOOL RESULT"
-          );
-
-        }
-
-        return {
-
-          ...step,
-
-          result,
-
-          retries:
-          attempts - 1,
-
-          state:
-          PLAN_STEP_STATES
-          .COMPLETED
-
-        };
+        throw new Error(
+          "PLAN_STEP_HAS_NO_EXECUTOR"
+        );
 
       }
 
       return {
-
         ...step,
-
+        result,
+        executor,
         retries:
         attempts - 1,
-
         state:
         PLAN_STEP_STATES
         .COMPLETED
-
       };
 
     }
-
     catch(error){
 
       if(
-
         attempts >=
-
         PLANNER_ENGINE_CONFIG
         .MAX_RETRIES
-
       ){
 
         return {
-
           ...step,
-
           error:
+          error?.message ||
           String(error),
-
           retries:
           attempts,
-
           state:
           PLAN_STEP_STATES
           .FAILED
-
         };
 
       }
@@ -207,10 +275,8 @@ export async function executePlanStep(
       .replans++;
 
       await delayPlannerExecution(
-
         PLANNER_ENGINE_CONFIG
         .RETRY_DELAY
-
       );
 
     }
@@ -218,7 +284,6 @@ export async function executePlanStep(
   }
 
 }
-
 
 
 // =====================================
@@ -235,64 +300,43 @@ export async function executePlan(
   );
 
   if(
-
     plannerEngineState
     .executionLocks
-    .has(
-      normalizedId
-    )
-
+    .has(normalizedId)
   ){
-
     return false;
-
   }
 
   const plan =
   plannerEngineState
   .plans
-  .get(
-    normalizedId
-  );
+  .get(normalizedId);
 
   if(!plan){
-
     return false;
-
   }
 
   if(
-
     plannerEngineState
     .activePlans
     .size >=
-
     PLANNER_ENGINE_CONFIG
     .MAX_PARALLEL_PLANS
-
   ){
 
     if(
-
       !plannerEngineState
       .queuedPlans
-      .has(
-        normalizedId
-      )
-
+      .has(normalizedId)
     ){
 
       plannerEngineState
       .queuedPlans
-      .add(
-        normalizedId
-      );
+      .add(normalizedId);
 
       plannerEngineState
       .executionQueue
-      .push(
-        normalizedId
-      );
+      .push(normalizedId);
 
     }
 
@@ -308,21 +352,25 @@ export async function executePlan(
 
   plannerEngineState
   .executionLocks
-  .add(
-    normalizedId
-  );
+  .add(normalizedId);
 
   plannerEngineState
   .activePlans
-  .add(
-    normalizedId
-  );
+  .add(normalizedId);
 
   plan.runtime.running =
   true;
 
   plan.runtime.startedAt =
   Date.now();
+
+  if(
+    typeof AbortController !==
+    "undefined"
+  ){
+    plan.runtime.controller =
+    new AbortController();
+  }
 
   plan.state =
   PLAN_STATES
@@ -341,6 +389,17 @@ export async function executePlan(
       of plan.steps
     ){
 
+      if(
+        plan.runtime
+        .controller
+        ?.signal
+        ?.aborted
+      ){
+        throw new Error(
+          "PLAN_TERMINATED"
+        );
+      }
+
       const result =
       await executePlanStep(
         plan,
@@ -352,17 +411,14 @@ export async function executePlan(
       );
 
       if(
-
         result.state !==
         PLAN_STEP_STATES
         .COMPLETED
-
       ){
-
         throw new Error(
-          "PLAN STEP FAILED"
+          result.error ||
+          "PLAN_STEP_FAILED"
         );
-
       }
 
     }
@@ -382,9 +438,7 @@ export async function executePlan(
 
     plannerEngineState
     .completedPlans
-    .add(
-      normalizedId
-    );
+    .add(normalizedId);
 
     plannerEngineState
     .diagnostics
@@ -393,37 +447,27 @@ export async function executePlan(
     plannerEngineState
     .executionHistory
     .push({
-
       planId:
       normalizedId,
-
       success:true,
-
       completedAt:
       Date.now()
-
     });
 
     trimPlannerHistory();
 
     await emitPlannerEvent(
-
       PLAN_EVENTS
       .COMPLETED,
-
       {
-
         planId:
         normalizedId
-
       }
-
     );
 
     return true;
 
   }
-
   catch(error){
 
     plan.state =
@@ -435,9 +479,7 @@ export async function executePlan(
 
     plannerEngineState
     .failedPlans
-    .add(
-      normalizedId
-    );
+    .add(normalizedId);
 
     plannerEngineState
     .diagnostics
@@ -446,43 +488,33 @@ export async function executePlan(
     plannerEngineState
     .executionHistory
     .push({
-
       planId:
       normalizedId,
-
       success:false,
-
       error:
+      error?.message ||
       String(error),
-
       failedAt:
       Date.now()
-
     });
 
     trimPlannerHistory();
 
     await emitPlannerEvent(
-
       PLAN_EVENTS
       .FAILED,
-
       {
-
         planId:
         normalizedId,
-
         error:
+        error?.message ||
         String(error)
-
       }
-
     );
 
     return false;
 
   }
-
   finally{
 
     plan.runtime.running =
@@ -493,15 +525,11 @@ export async function executePlan(
 
     plannerEngineState
     .activePlans
-    .delete(
-      normalizedId
-    );
+    .delete(normalizedId);
 
     plannerEngineState
     .executionLocks
-    .delete(
-      normalizedId
-    );
+    .delete(normalizedId);
 
     drainPlannerQueue(
       executePlan
@@ -511,7 +539,6 @@ export async function executePlan(
   }
 
 }
-
 
 
 // =====================================
@@ -530,16 +557,10 @@ export async function terminatePlan(
   const plan =
   plannerEngineState
   .plans
-  .get(
-    normalizedId
-  );
+  .get(normalizedId);
 
-  if(
-    !plan
-  ){
-
+  if(!plan){
     return false;
-
   }
 
   plan.runtime
@@ -549,8 +570,7 @@ export async function terminatePlan(
   plan.runtime.running =
   false;
 
-  plan.runtime
-  .terminatedAt =
+  plan.runtime.terminatedAt =
   Date.now();
 
   plan.state =
@@ -559,52 +579,37 @@ export async function terminatePlan(
 
   plannerEngineState
   .activePlans
-  .delete(
-    normalizedId
-  );
+  .delete(normalizedId);
 
   plannerEngineState
   .queuedPlans
-  .delete(
-    normalizedId
-  );
+  .delete(normalizedId);
 
   plannerEngineState
   .executionLocks
-  .delete(
-    normalizedId
-  );
+  .delete(normalizedId);
 
   plannerEngineState
   .failedPlans
-  .add(
-    normalizedId
-  );
+  .add(normalizedId);
 
   plannerEngineState
   .diagnostics
   .terminated++;
 
   await emitPlannerEvent(
-
     PLAN_EVENTS
     .FAILED,
-
     {
-
       planId:
       normalizedId,
-
       terminated:true
-
     }
-
   );
 
   return true;
 
 }
-
 
 
 // =====================================
@@ -621,14 +626,21 @@ export async function processPlannerRequest(
   );
 
   if(!plan){
-
     return false;
-
   }
 
+  const execution =
   await executePlan(
     plan.id
   );
+
+  if(
+    execution?.queued === true
+  ){
+    return getPlan(
+      plan.id
+    );
+  }
 
   return getPlan(
     plan.id
