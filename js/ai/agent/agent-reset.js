@@ -18,6 +18,16 @@ export async function
 resetAgentManager(){
 
   agentManagerState
+  .taskQueue
+  .forEach((queuedTask) => {
+
+    queuedTask.reject?.(
+      new Error("AGENT MANAGER RESET")
+    );
+
+  });
+
+  agentManagerState
   .agents
   .clear();
 
@@ -36,6 +46,10 @@ resetAgentManager(){
   agentManagerState
   .taskQueue =
   [];
+
+  agentManagerState
+  .queueProcessing =
+  false;
 
   return true;
 

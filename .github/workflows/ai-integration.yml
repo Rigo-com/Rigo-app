@@ -459,6 +459,67 @@ jobs:
           console.log('Atomic context update and deduplication checks passed.');
           EOF
 
+      - name: Verify agent cloning and queue serialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import AgentManager from './js/ai/agent/index.js';
+
+          await AgentManager.initialize();
+
+          const order = [];
+
+          const registered = await AgentManager.register({
+            id:'queue-test',
+            metadata:{nested:{value:1}},
+            execute:async ({sequence}) => {
+              order.push(`start-${sequence}`);
+              await new Promise((resolve) => {
+                setTimeout(resolve,25);
+              });
+              order.push(`end-${sequence}`);
+              return {sequence};
+            }
+          });
+
+          assert.ok(Object.isFrozen(registered.runtime));
+          assert.equal(
+            AgentManager.get('queue-test').metadata.nested.value,
+            1
+          );
+
+          const first =
+          AgentManager.execute('queue-test',{sequence:1});
+
+          const second =
+          AgentManager.execute('queue-test',{sequence:2});
+
+          const [firstResult,secondResult] =
+          await Promise.all([first,second]);
+
+          assert.deepEqual(firstResult,{sequence:1});
+          assert.deepEqual(secondResult,{sequence:2});
+          assert.deepEqual(
+            order,
+            ['start-1','end-1','start-2','end-2']
+          );
+
+          const snapshot = AgentManager.snapshot();
+          assert.equal(snapshot.queuedTasks,0);
+          assert.equal(snapshot.activeAgents,0);
+
+          const diagnostics =
+          AgentManager.diagnostics().diagnostics;
+
+          assert.equal(diagnostics.queued,1);
+          assert.equal(diagnostics.tasksExecuted,2);
+
+          await AgentManager.shutdown();
+          console.log('Agent cloning and queue serialization checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |

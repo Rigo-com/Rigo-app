@@ -46,11 +46,30 @@ processAgentQueue(){
 
     ){
 
-      const queuedTask =
+      const availableTaskIndex =
+      agentManagerState
+      .taskQueue
+      .findIndex((queuedTask) => {
 
-        agentManagerState
-        .taskQueue
-        .shift();
+        return !agentManagerState
+        .executionLocks
+        .has(
+          queuedTask.agentId
+        );
+
+      });
+
+      if(availableTaskIndex < 0){
+        break;
+      }
+
+      const [queuedTask] =
+      agentManagerState
+      .taskQueue
+      .splice(
+        availableTaskIndex,
+        1
+      );
 
       if(!queuedTask){
 
@@ -60,6 +79,7 @@ processAgentQueue(){
 
       try{
 
+        const result =
         await executeAgentTask(
 
           queuedTask.agentId,
@@ -68,9 +88,15 @@ processAgentQueue(){
 
         );
 
+        queuedTask.resolve(
+          result
+        );
+
       }
 
-      catch(error){}
+      catch(error){
+        queuedTask.reject(error);
+      }
 
     }
 

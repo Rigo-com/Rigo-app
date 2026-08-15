@@ -131,15 +131,27 @@ export async function executeAgentTask(
 
     }
 
-    agentManagerState
-    .taskQueue
-    .push({
+    const queuedPromise =
+    new Promise((resolve,reject) => {
 
-      agentId:
-      normalizedId,
+      agentManagerState
+      .taskQueue
+      .push({
 
-      task:
-      cloneAgentObject(task)
+        agentId:
+        normalizedId,
+
+        task:
+        cloneAgentObject(task),
+
+        resolve,
+
+        reject,
+
+        queuedAt:
+        Date.now()
+
+      });
 
     });
 
@@ -147,12 +159,27 @@ export async function executeAgentTask(
     .diagnostics
     .queued++;
 
+    await emitAgentEvent(
+
+      AGENT_EVENTS
+      .TASK_QUEUED,
+
+      {
+        agentId:
+        normalizedId,
+
+        queueSize:
+        agentManagerState
+        .taskQueue
+        .length
+      }
+
+    );
+
     processAgentQueue()
     .catch(() => {});
 
-    return {
-      queued:true
-    };
+    return queuedPromise;
 
   }
 
@@ -193,6 +220,9 @@ export async function executeAgentTask(
 
   );
 
+  let timeoutId =
+  null;
+
   try{
 
     const result =
@@ -229,13 +259,11 @@ export async function executeAgentTask(
 
       new Promise((_, reject) => {
 
-        const timeout =
+        timeoutId =
         setTimeout(() => {
 
           controller
           ?.abort();
-
-          clearTimeout(timeout);
 
           reject(
 
@@ -365,6 +393,11 @@ export async function executeAgentTask(
 
   finally{
 
+    if(timeoutId){
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+
     releaseAgentLock(
       normalizedId
     );
@@ -380,6 +413,9 @@ export async function executeAgentTask(
     .delete(
       normalizedId
     );
+
+    processAgentQueue()
+    .catch(() => {});
 
   }
 
@@ -557,6 +593,28 @@ export async function terminateAgent(
   .delete(
     normalizedId
   );
+
+  const queuedTasks =
+  agentManagerState
+  .taskQueue
+  .filter((queuedTask) => {
+    return queuedTask.agentId === normalizedId;
+  });
+
+  agentManagerState
+  .taskQueue =
+  agentManagerState
+  .taskQueue
+  .filter((queuedTask) => {
+    return queuedTask.agentId !== normalizedId;
+  });
+
+  queuedTasks
+  .forEach((queuedTask) => {
+    queuedTask.reject(
+      new Error("AGENT TERMINATED")
+    );
+  });
 
   agentManagerState
   .failedAgents
