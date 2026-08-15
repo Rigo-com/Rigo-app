@@ -31,8 +31,14 @@ from "../api/index.js";
 const MAIN_ASSISTANT_AGENT =
 "rigo-main-assistant";
 
+const WEATHER_TOOL =
+"weather";
+
 const AI_CHAT_ENDPOINT =
 "/api/ai-chat";
+
+const WEATHER_ENDPOINT =
+"/api/weather";
 
 
 function serializeContextWindow(
@@ -63,6 +69,199 @@ function serializeContextWindow(
   })
   .filter(Boolean)
   .join("\n");
+
+}
+
+
+function needsWeather(
+  message
+){
+
+  return /(
+    طقس|
+    الجو|
+    درجة\s*الحرارة|
+    حرارة\s*اليوم|
+    مطر|
+    تمطر|
+    weather|
+    forecast|
+    temperature|
+    rain
+  )/ix.test?.(String(message || "")) ||
+  /(طقس|الجو|درجة\s*الحرارة|حرارة\s*اليوم|مطر|تمطر|weather|forecast|temperature|rain)/i
+  .test(
+    String(message || "")
+  );
+
+}
+
+
+async function executeWeatherTool({
+  payload = {}
+} = {}){
+
+  const latitude =
+  Number(
+    payload.latitude ??
+    payload.lat
+  );
+
+  const longitude =
+  Number(
+    payload.longitude ??
+    payload.lon
+  );
+
+  if(
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    Math.abs(latitude) > 90 ||
+    Math.abs(longitude) > 180
+  ){
+
+    throw new Error(
+      "WEATHER_COORDINATES_REQUIRED"
+    );
+
+  }
+
+  const response =
+  await API.runtime.get(
+    `${WEATHER_ENDPOINT}?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}`,
+    {
+      retries:2
+    }
+  );
+
+  const data =
+  response?.data || {};
+
+  if(data?.ok === false){
+    throw new Error(
+      data?.error ||
+      "WEATHER_FAILED"
+    );
+  }
+
+  return data;
+
+}
+
+
+async function ensureAITools(){
+
+  if(
+    !ToolExecutor.get(
+      WEATHER_TOOL
+    )
+  ){
+
+    const tool =
+    await ToolExecutor.register({
+      id:
+      WEATHER_TOOL,
+      name:
+      "Weather",
+      description:
+      "Gets live weather and a short forecast for geographic coordinates.",
+      permissions:[
+        "network",
+        "location"
+      ],
+      execute:
+      executeWeatherTool
+    });
+
+    if(!tool){
+      throw new Error(
+        "WEATHER_TOOL_REGISTRATION_FAILED"
+      );
+    }
+
+  }
+
+  return true;
+
+}
+
+
+async function buildLiveToolContext(
+  input = {}
+){
+
+  const message =
+  String(
+    input.message || ""
+  );
+
+  if(!needsWeather(message)){
+    return "";
+  }
+
+  const location =
+  input.location || {};
+
+  const latitude =
+  Number(
+    location.latitude ??
+    location.lat
+  );
+
+  const longitude =
+  Number(
+    location.longitude ??
+    location.lon
+  );
+
+  if(
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ){
+
+    return (
+      "WEATHER TOOL STATUS: location coordinates are unavailable. " +
+      "Ask the user to allow location access or provide a city."
+    );
+
+  }
+
+  const execution =
+  await ToolExecutor.execute(
+    WEATHER_TOOL,
+    {
+      latitude,
+      longitude
+    },
+    {
+      source:
+      "rigo-main-assistant"
+    }
+  );
+
+  if(
+    !execution?.success
+  ){
+
+    return (
+      "WEATHER TOOL STATUS: unavailable because " +
+      String(
+        execution?.error?.message ||
+        execution?.message ||
+        execution?.code ||
+        "WEATHER_TOOL_FAILED"
+      )
+    );
+
+  }
+
+  return (
+    "LIVE WEATHER TOOL RESULT " +
+    `(source: ${execution.result?.source || "weather"}):\n` +
+    JSON.stringify(
+      execution.result
+    )
+  );
 
 }
 
@@ -100,16 +299,29 @@ async function executeMainAssistant(
     contextWindow
   );
 
-  const baseContext =
-  String(
-    input.context ||
-    "You are the main user-facing RIGO AI assistant."
+  const liveToolContext =
+  await buildLiveToolContext(
+    input
   );
 
-  const context =
-  managedContext
-  ? `${baseContext}\n\nRIGO MANAGED CONTEXT:\n${managedContext}`
-  : baseContext;
+  const contextParts = [
+    String(
+      input.context ||
+      "You are the main user-facing RIGO AI assistant. Use live tool results when provided."
+    )
+  ];
+
+  if(managedContext){
+    contextParts.push(
+      `RIGO MANAGED CONTEXT:\n${managedContext}`
+    );
+  }
+
+  if(liveToolContext){
+    contextParts.push(
+      liveToolContext
+    );
+  }
 
   const response =
   await API.runtime.post(
@@ -123,7 +335,8 @@ async function executeMainAssistant(
       maxTokens:
       Number(input.maxTokens) ||
       4000,
-      context
+      context:
+      contextParts.join("\n\n")
     }),
     {
       headers:{
@@ -238,10 +451,9 @@ async function initialize(){
 
   await registerAIServices();
 
-  // The kernel owns synchronization/initialization of all
-  // registered AI subsystems through the central container.
   await AIKernel.initialize();
 
+  await ensureAITools();
   await ensureMainAssistantAgent();
 
   return true;
@@ -288,6 +500,7 @@ async function process(
   payload = {}
 ){
 
+  await ensureAITools();
   await ensureMainAssistantAgent();
 
   return AIKernel.process({
@@ -352,6 +565,7 @@ Object.freeze({
   diagnostics,
   snapshot,
   registerServices:registerAIServices,
+  ensureTools:ensureAITools,
   ensureMainAssistantAgent,
   AIKernel,
   ContextManager,
