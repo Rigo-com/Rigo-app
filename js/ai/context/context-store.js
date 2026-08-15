@@ -10,7 +10,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -441,9 +442,9 @@ export async function registerContext(
       )
     ){
 
-      contextManagerState
-      .diagnostics
-      .rejected++;
+      incrementContextDiagnostic(
+        "rejected"
+      );
 
       return false;
 
@@ -454,9 +455,9 @@ export async function registerContext(
       !hasContextTypeCapacity(requestedType)
     ){
 
-      contextManagerState
-      .diagnostics
-      .rejected++;
+      incrementContextDiagnostic(
+        "rejected"
+      );
 
       return false;
 
@@ -473,9 +474,9 @@ export async function registerContext(
 
     ){
 
-      contextManagerState
-      .diagnostics
-      .rejected++;
+      incrementContextDiagnostic(
+        "rejected"
+      );
 
       return false;
 
@@ -506,9 +507,9 @@ export async function registerContext(
 
     ){
 
-      contextManagerState
-      .diagnostics
-      .duplicates++;
+      incrementContextDiagnostic(
+        "duplicates"
+      );
 
       return false;
 
@@ -545,9 +546,9 @@ export async function registerContext(
       context.id
     );
 
-    contextManagerState
-    .diagnostics
-    .created++;
+    incrementContextDiagnostic(
+      "created"
+    );
 
     contextManagerState
     .lastUpdatedAt =
@@ -622,9 +623,9 @@ export async function updateContext(
       )
     ){
 
-      contextManagerState
-      .diagnostics
-      .rejected++;
+      incrementContextDiagnostic(
+        "rejected"
+      );
 
       return false;
 
@@ -640,9 +641,9 @@ export async function updateContext(
       )
     ){
 
-      contextManagerState
-      .diagnostics
-      .rejected++;
+      incrementContextDiagnostic(
+        "rejected"
+      );
 
       return false;
 
@@ -674,9 +675,9 @@ export async function updateContext(
       normalizedId
     ){
 
-      contextManagerState
-      .diagnostics
-      .duplicates++;
+      incrementContextDiagnostic(
+        "duplicates"
+      );
 
       return false;
 
@@ -769,9 +770,9 @@ export async function updateContext(
       normalizedId
     );
 
-    contextManagerState
-    .diagnostics
-    .updated++;
+    incrementContextDiagnostic(
+      "updated"
+    );
 
     contextManagerState
     .lastUpdatedAt =
@@ -845,14 +846,14 @@ export async function removeContext(
       normalizedId
     );
 
-    contextManagerState
-    .diagnostics
-    .removed++;
+    incrementContextDiagnostic(
+      "removed"
+    );
 
     if(options.reason === "eviction"){
-      contextManagerState
-      .diagnostics
-      .evicted++;
+      incrementContextDiagnostic(
+        "evicted"
+      );
     }
 
     contextManagerState

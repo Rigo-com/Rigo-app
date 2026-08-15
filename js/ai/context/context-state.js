@@ -3,6 +3,11 @@
 // CONTEXT STATE
 // =====================================
 
+import {
+  CONTEXT_MANAGER_CONFIG
+}
+from "./context-config.js";
+
 export const contextManagerState =
 Object.seal({
 
@@ -80,3 +85,30 @@ Object.seal({
   lastUpdatedAt:null
 
 });
+
+
+export function incrementContextDiagnostic(
+  key,
+  amount = 1
+){
+
+  if(!CONTEXT_MANAGER_CONFIG.ENABLE_DIAGNOSTICS){
+    return false;
+  }
+
+  if(
+    !Object.prototype.hasOwnProperty.call(
+      contextManagerState.diagnostics,
+      key
+    )
+  ){
+    return false;
+  }
+
+  contextManagerState
+  .diagnostics[key] +=
+  Number(amount) || 0;
+
+  return true;
+
+}

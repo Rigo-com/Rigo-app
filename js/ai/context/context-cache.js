@@ -9,7 +9,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -94,9 +95,9 @@ export function readContextCache(
 
   if(!cached){
 
-    contextManagerState
-    .diagnostics
-    .cacheMisses++;
+    incrementContextDiagnostic(
+      "cacheMisses"
+    );
 
     return null;
 
@@ -116,17 +117,17 @@ export function readContextCache(
     .retrievalCache
     .delete(key);
 
-    contextManagerState
-    .diagnostics
-    .cacheMisses++;
+    incrementContextDiagnostic(
+      "cacheMisses"
+    );
 
     return null;
 
   }
 
-  contextManagerState
-  .diagnostics
-  .cacheHits++;
+  incrementContextDiagnostic(
+    "cacheHits"
+  );
 
   return cached.value;
 

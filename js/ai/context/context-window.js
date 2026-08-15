@@ -9,7 +9,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -206,9 +207,9 @@ export async function rankContexts(
 
   });
 
-  contextManagerState
-  .diagnostics
-  .ranked++;
+  incrementContextDiagnostic(
+    "ranked"
+  );
 
   return ranked;
 
@@ -228,16 +229,17 @@ export async function buildContextWindow(
   const boundedQuery =
   normalizeContextQuery(query);
 
+  const requestedTokens =
+  Number(options.maxTokens);
+
   const maxTokens =
-
-    Number(
-      options.maxTokens
+  Number.isFinite(requestedTokens) &&
+  requestedTokens > 0
+  ? Math.min(
+      Math.floor(requestedTokens),
+      CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_TOKENS
     )
-
-    ||
-
-    CONTEXT_MANAGER_CONFIG
-    .MAX_CONTEXT_TOKENS;
+  : CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_TOKENS;
 
   const namespace =
   normalizeContextId(
@@ -431,9 +433,9 @@ export function createCompressedContextSnapshot(
 
     if(tokens <= tokenLimit){
 
-      contextManagerState
-      .diagnostics
-      .compressed++;
+      incrementContextDiagnostic(
+        "compressed"
+      );
 
       return freezeContextObject({
         ...safeClone(context),

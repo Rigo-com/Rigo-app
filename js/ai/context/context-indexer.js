@@ -9,7 +9,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -98,20 +99,20 @@ export function searchContextIndex(
 
   });
 
-  contextManagerState
-  .diagnostics
-  .indexSearches++;
+  incrementContextDiagnostic(
+    "indexSearches"
+  );
 
   if(matches.size > 0){
-    contextManagerState
-    .diagnostics
-    .indexHits +=
-    matches.size;
+    incrementContextDiagnostic(
+      "indexHits",
+      matches.size
+    );
   }
   else{
-    contextManagerState
-    .diagnostics
-    .indexFallbacks++;
+    incrementContextDiagnostic(
+      "indexFallbacks"
+    );
   }
 
   return matches;
@@ -175,9 +176,9 @@ export function indexContext(
 
   });
 
-  contextManagerState
-  .diagnostics
-  .indexed++;
+  incrementContextDiagnostic(
+    "indexed"
+  );
 
   return true;
 
