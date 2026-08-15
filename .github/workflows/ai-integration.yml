@@ -365,6 +365,100 @@ jobs:
           console.log('Context eviction and cleanup checks passed.');
           EOF
 
+      - name: Verify atomic context update deduplication
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ContextManager from './js/ai/context/index.js';
+
+          await ContextManager.initialize();
+
+          const namespace = 'chat:update:test';
+
+          const first = await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{text:'alpha'},
+            metadata:{slot:1}
+          });
+
+          const second = await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{text:'beta'},
+            metadata:{slot:2}
+          });
+
+          await ContextManager.buildWindow(
+            'alpha',
+            {namespace,maxTokens:4000}
+          );
+
+          const cacheBefore =
+          ContextManager.diagnostics().cache;
+
+          const duplicateUpdate =
+          await ContextManager.update(
+            second.id,
+            {content:{text:'alpha'}}
+          );
+
+          assert.equal(duplicateUpdate,false);
+          assert.equal(
+            ContextManager.diagnostics().cache,
+            cacheBefore
+          );
+          assert.equal(
+            ContextManager.diagnostics().diagnostics.duplicates,
+            1
+          );
+
+          const beta =
+          await ContextManager.rank('beta',{namespace});
+
+          assert.equal(beta.length,1);
+          assert.equal(beta[0].id,second.id);
+          assert.equal(beta[0].content.text,'beta');
+
+          const successful =
+          await ContextManager.update(
+            second.id,
+            {content:{text:'gamma'}}
+          );
+
+          assert.equal(successful,true);
+          assert.equal(ContextManager.diagnostics().cache,0);
+
+          const gamma =
+          await ContextManager.rank('gamma',{namespace});
+
+          assert.equal(gamma.length,1);
+          assert.equal(gamma[0].id,second.id);
+          assert.equal(gamma[0].createdAt,second.createdAt);
+          assert.ok(gamma[0].updatedAt >= second.updatedAt);
+
+          await ContextManager.remove(first.id);
+
+          const reuse =
+          await ContextManager.update(
+            second.id,
+            {content:{text:'alpha'}}
+          );
+
+          assert.equal(reuse,true);
+
+          const alpha =
+          await ContextManager.rank('alpha',{namespace});
+
+          assert.equal(alpha.length,1);
+          assert.equal(alpha[0].id,second.id);
+
+          await ContextManager.shutdown();
+          console.log('Atomic context update and deduplication checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |

@@ -93,6 +93,48 @@ function removeContextHash(
 }
 
 
+function createStoredContextHash(
+  context
+){
+
+  return hashContextContent({
+    namespace:
+    context.namespace ||
+    "runtime:default",
+    type:
+    context.type ||
+    CONTEXT_TYPES.RUNTIME,
+    content:
+    context.content
+  });
+
+}
+
+
+function getContextHashEntries(
+  contextId
+){
+
+  const entries = [];
+
+  contextManagerState
+  .contentHashes
+  .forEach((storedContextId,hash) => {
+
+    if(storedContextId === contextId){
+      entries.push([
+        hash,
+        storedContextId
+      ]);
+    }
+
+  });
+
+  return entries;
+
+}
+
+
 
 // =====================================
 // CONTEXT OBJECT
@@ -227,18 +269,16 @@ export async function registerContext(
     }
 
     const hash =
-    hashContextContent(
-      {
-        namespace:
-        config.namespace ||
-        "runtime:default",
-        type:
-        config.type ||
-        CONTEXT_TYPES.RUNTIME,
-        content:
-        config.content
-      }
-    );
+    createStoredContextHash({
+      namespace:
+      config.namespace ||
+      "runtime:default",
+      type:
+      config.type ||
+      CONTEXT_TYPES.RUNTIME,
+      content:
+      config.content
+    });
 
     if(
 
@@ -341,14 +381,6 @@ export async function updateContext(
 
     }
 
-    removeIndexedContext(
-      normalizedId
-    );
-
-    removeContextHash(
-      normalizedId
-    );
-
     const updated =
     createContextObject({
 
@@ -367,27 +399,106 @@ export async function updateContext(
 
     });
 
-    contextManagerState
-    .contexts
-    .set(
-      normalizedId,
+    const updatedHash =
+    createStoredContextHash(
       updated
     );
 
-    indexContext(
-      updated
-    );
-
+    const duplicateContextId =
     contextManagerState
     .contentHashes
-    .set(
-      hashContextContent({
-        namespace:updated.namespace,
-        type:updated.type,
-        content:updated.content
-      }),
+    .get(
+      updatedHash
+    );
+
+    if(
+      CONTEXT_MANAGER_CONFIG
+      .ENABLE_DEDUPLICATION
+
+      &&
+
+      duplicateContextId
+
+      &&
+
+      duplicateContextId !==
+      normalizedId
+    ){
+
+      contextManagerState
+      .diagnostics
+      .duplicates++;
+
+      return false;
+
+    }
+
+    const existingHashes =
+    getContextHashEntries(
       normalizedId
     );
+
+    try{
+
+      removeIndexedContext(
+        normalizedId
+      );
+
+      removeContextHash(
+        normalizedId
+      );
+
+      contextManagerState
+      .contexts
+      .set(
+        normalizedId,
+        updated
+      );
+
+      indexContext(
+        updated
+      );
+
+      contextManagerState
+      .contentHashes
+      .set(
+        updatedHash,
+        normalizedId
+      );
+
+    }
+
+    catch(error){
+
+      removeIndexedContext(
+        normalizedId
+      );
+
+      removeContextHash(
+        normalizedId
+      );
+
+      contextManagerState
+      .contexts
+      .set(
+        normalizedId,
+        existing
+      );
+
+      indexContext(
+        existing
+      );
+
+      existingHashes
+      .forEach(([hash,storedContextId]) => {
+        contextManagerState
+        .contentHashes
+        .set(hash,storedContextId);
+      });
+
+      throw error;
+
+    }
 
     invalidateContextCache(
       normalizedId
