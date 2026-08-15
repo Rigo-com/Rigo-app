@@ -18,7 +18,8 @@ import {
   safeClone,
   freezeContextObject,
   serializeContext,
-  createCompressionPreview
+  createCompressionPreview,
+  estimateTokens
 }
 from "./context-utils.js";
 
@@ -27,11 +28,6 @@ import {
   writeContextCache
 }
 from "./context-cache.js";
-
-import {
-  updateContext
-}
-from "./context-store.js";
 
 import {
   searchContextIndex
@@ -231,6 +227,8 @@ export async function buildContextWindow(
 
   let totalTokens = 0;
 
+  let compressedContexts = 0;
+
   for(
     const context
     of ranked
@@ -246,25 +244,44 @@ export async function buildContextWindow(
 
     }
 
+    const remainingTokens =
+    maxTokens - totalTokens;
+
+    let selectedContext =
+    context;
+
     if(
-
-      totalTokens +
       context.tokens >
-
-      maxTokens
-
+      remainingTokens
     ){
 
-      continue;
+      if(
+        !CONTEXT_MANAGER_CONFIG
+        .ENABLE_CONTEXT_COMPRESSION
+      ){
+        continue;
+      }
+
+      selectedContext =
+      createCompressedContextSnapshot(
+        context,
+        remainingTokens
+      );
+
+      if(!selectedContext){
+        continue;
+      }
+
+      compressedContexts++;
 
     }
 
     contexts.push(
-      context
+      selectedContext
     );
 
     totalTokens +=
-    context.tokens;
+    selectedContext.tokens;
 
   }
 
@@ -279,6 +296,8 @@ export async function buildContextWindow(
     contexts.length,
 
     totalTokens,
+
+    compressedContexts,
 
     contexts,
 
@@ -309,8 +328,92 @@ export async function buildContextWindow(
 // COMPRESSION
 // =====================================
 
+export function createCompressedContextSnapshot(
+  context,
+  targetTokens
+){
+
+  const tokenLimit =
+  Math.floor(
+    Number(targetTokens) || 0
+  );
+
+  if(tokenLimit <= 20){
+    return null;
+  }
+
+  if(context.tokens <= tokenLimit){
+    return freezeContextObject(
+      safeClone(context)
+    );
+  }
+
+  const serialized =
+  serializeContext(
+    context.content
+  );
+
+  let previewLength =
+  Math.min(
+    CONTEXT_MANAGER_CONFIG
+    .COMPRESSION_PREVIEW_LENGTH,
+    Math.max(
+      16,
+      tokenLimit * 4 - 160
+    )
+  );
+
+  while(previewLength >= 16){
+
+    const content = {
+      compressed:true,
+      preview:
+      createCompressionPreview(
+        serialized,
+        previewLength
+      ),
+      originalTokens:
+      context.tokens
+    };
+
+    const tokens =
+    estimateTokens(
+      content
+    );
+
+    if(tokens <= tokenLimit){
+
+      contextManagerState
+      .diagnostics
+      .compressed++;
+
+      return freezeContextObject({
+        ...safeClone(context),
+        tokens,
+        content,
+        metadata:{
+          ...safeClone(context.metadata),
+          transientCompression:true
+        }
+      });
+
+    }
+
+    previewLength =
+    Math.floor(
+      previewLength * 0.75
+    );
+
+  }
+
+  return null;
+
+}
+
 export async function compressContext(
-  contextId
+  contextId,
+  targetTokens =
+  CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_TOKENS
 ){
 
   const normalizedId =
@@ -331,52 +434,9 @@ export async function compressContext(
 
   }
 
-  if(
-
-    context.tokens <=
-
-    CONTEXT_MANAGER_CONFIG
-    .MAX_CONTEXT_TOKENS
-
-  ){
-
-    return true;
-
-  }
-
-  const serialized =
-  serializeContext(
-    context.content
-  );
-
-  contextManagerState
-  .diagnostics
-  .compressed++;
-
-  return updateContext(
-
-    normalizedId,
-
-    {
-
-      content:{
-
-        compressed:true,
-
-        preview:
-        createCompressionPreview(
-          serialized,
-          CONTEXT_MANAGER_CONFIG
-          .COMPRESSION_PREVIEW_LENGTH
-        ),
-
-        originalTokens:
-        context.tokens
-
-      }
-
-    }
-
+  return createCompressedContextSnapshot(
+    context,
+    targetTokens
   );
 
 }

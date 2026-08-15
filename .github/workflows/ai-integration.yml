@@ -213,6 +213,71 @@ jobs:
           console.log('Indexed context ranking checks passed.');
           EOF
 
+      - name: Verify non-destructive context compression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ContextManager from './js/ai/context/index.js';
+
+          await ContextManager.initialize();
+
+          const namespace = 'chat:compression:test';
+          const originalText =
+          `HEAD-${'x'.repeat(12000)}-TAIL`;
+
+          const stored = await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{text:originalText}
+          });
+
+          const contextWindow =
+          await ContextManager.buildWindow(
+            'unmatched',
+            {namespace,maxTokens:180}
+          );
+
+          assert.equal(contextWindow.contexts.length,1);
+          assert.equal(contextWindow.compressedContexts,1);
+          assert.ok(contextWindow.totalTokens <= 180);
+          assert.equal(
+            contextWindow.contexts[0].content.compressed,
+            true
+          );
+          assert.ok(
+            contextWindow.contexts[0].content.preview.includes('HEAD')
+          );
+          assert.ok(
+            contextWindow.contexts[0].content.preview.includes('TAIL')
+          );
+
+          const storedAfterWindow =
+          await ContextManager.rank('unmatched',{namespace});
+
+          assert.equal(
+            storedAfterWindow[0].content.text,
+            originalText
+          );
+
+          const compressed =
+          await ContextManager.compress(stored.id,180);
+
+          assert.equal(compressed.content.compressed,true);
+
+          const storedAfterDirectCompression =
+          await ContextManager.rank('unmatched',{namespace});
+
+          assert.equal(
+            storedAfterDirectCompression[0].content.text,
+            originalText
+          );
+
+          await ContextManager.shutdown();
+          console.log('Non-destructive context compression checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |

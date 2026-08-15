@@ -189,12 +189,38 @@ export function createCompressionPreview(
   length = 500
 ){
 
-  return String(
+  const value =
+  String(
     serialized || ""
-  )
-  .slice(
+  );
+
+  const maxLength =
+  Math.max(
     0,
-    length
+    Number(length) || 0
+  );
+
+  if(value.length <= maxLength){
+    return value;
+  }
+
+  if(maxLength <= 5){
+    return value.slice(0,maxLength);
+  }
+
+  const available =
+  maxLength - 3;
+
+  const headLength =
+  Math.ceil(available / 2);
+
+  const tailLength =
+  Math.floor(available / 2);
+
+  return (
+    value.slice(0,headLength) +
+    "..." +
+    value.slice(-tailLength)
   );
 
 }
