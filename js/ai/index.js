@@ -132,11 +132,33 @@ async function buildLongTermMemoryContext(
       return "";
     }
 
+    const results =
+    memory.search(
+      message,
+      {limit:5}
+    );
+
+    memory.clearContext?.();
+
+    for(const entry of results){
+      const selectedMemory =
+      entry?.memory || entry;
+
+      memory.addContext?.({
+        id:selectedMemory?.id,
+        type:selectedMemory?.type,
+        content:selectedMemory?.content,
+        score:Number(entry?.score) || 0,
+        retrievedAt:Date.now()
+      });
+    }
+
+    const workingSet =
+    memory.getContext?.() ||
+    results;
+
     return serializeMemoryResults(
-      memory.search(
-        message,
-        {limit:5}
-      )
+      workingSet
     );
   }
   catch(error){

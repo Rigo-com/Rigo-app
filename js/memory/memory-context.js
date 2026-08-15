@@ -30,32 +30,53 @@ function addContextItem(
   item
 ){
 
+  if(
+    !item ||
+    typeof item !== "object"
+  ){
+    return false;
+  }
+
   const context =
   getContext();
 
-  context.push(
+  const clonedItem =
+  deepClone(
+    item
+  );
 
-    deepClone(
-      item
-    )
+  const itemId =
+  String(
+    clonedItem.id || ""
+  )
+  .trim();
 
+  const deduplicated =
+  itemId
+  ? context.filter((entry) => {
+      return String(entry?.id || "").trim() !== itemId;
+    })
+  : context;
+
+  deduplicated.push(
+    clonedItem
   );
 
   while(
 
-    context.length >
+    deduplicated.length >
 
     MEMORY_LIMITS
     .MAX_CONTEXT_ITEMS
 
   ){
 
-    context.shift();
+    deduplicated.shift();
 
   }
 
   setContext(
-    context
+    deduplicated
   );
 
   return true;
@@ -181,9 +202,21 @@ function getRecentContext(
   limit = 10
 ){
 
-  return getContext()
-  .slice(
-    -limit
+  const normalizedLimit =
+  Math.max(
+    0,
+    Number(limit) || 0
+  );
+
+  if(normalizedLimit === 0){
+    return [];
+  }
+
+  return deepClone(
+    getContext()
+    .slice(
+      -normalizedLimit
+    )
   );
 
 }
