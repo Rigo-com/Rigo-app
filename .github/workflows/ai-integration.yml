@@ -252,7 +252,7 @@ jobs:
           );
           assert.equal(memory.health().memory.initialized,true);
           assert.ok(memory.health().memory.diagnostics.indexed >= 1);
-          assert.equal(memory.health().memory.diagnostics.searches,1);
+          assert.equal(memory.health().memory.diagnostics.searches,2);
           assert.equal(memory.health().memory.diagnostics.summarized,1);
           assert.equal(typeof memory.reset,'function');
           assert.equal(typeof memory.snapshot,'function');
