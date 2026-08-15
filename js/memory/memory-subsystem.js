@@ -31,6 +31,11 @@ import {
 }
 from "./memory-sync-cloud.js";
 
+import {
+  hydrateMemories
+}
+from "./memory-storage.js";
+
 
 
 // =====================================
@@ -42,6 +47,18 @@ function initializeSubsystem(){
   initialize();
 
   buildIndex();
+
+  if(typeof window!=="undefined"){
+
+    hydrateMemories()
+    .then(()=>{
+
+      buildIndex();
+
+    })
+    .catch(()=>{});
+
+  }
 
   return true;
 
