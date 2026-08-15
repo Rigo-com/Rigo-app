@@ -111,25 +111,34 @@ export async function rankContexts(
     normalizedQuery
   );
 
-  const hasIndexedMatches =
-  indexedMatches.size > 0;
-
-  const ranked =
+  const namespaceContexts =
   contexts
   .filter((context) => {
 
+    return normalizeContextId(
+      context.namespace
+    ) === namespace;
+
+  });
+
+  const hasIndexedMatches =
+  namespaceContexts
+  .some((context) => {
+
+    return indexedMatches.has(
+      context.id
+    );
+
+  });
+
+  const ranked =
+  namespaceContexts
+  .filter((context) => {
+
     return (
-      normalizeContextId(
-        context.namespace
-      ) === namespace
-
-      &&
-
-      (
-        !hasIndexedMatches ||
-        indexedMatches.has(
-          context.id
-        )
+      !hasIndexedMatches ||
+      indexedMatches.has(
+        context.id
       )
     );
 

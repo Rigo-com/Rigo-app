@@ -127,6 +127,13 @@ jobs:
           assert.equal(isolated.contexts.length,1);
           assert.equal(isolated.contexts[0].content.assistant,'two');
 
+          const beforeUpdate = await ContextManager.buildWindow(
+            'all-contexts',
+            {namespace:'chat:user-a:one',maxTokens:4000}
+          );
+
+          assert.equal(beforeUpdate.contexts.length,1);
+
           await ContextManager.register({
             namespace:'chat:user-a:one',
             type:'session',
@@ -134,7 +141,7 @@ jobs:
           });
 
           const refreshed = await ContextManager.buildWindow(
-            'alpha',
+            'all-contexts',
             {namespace:'chat:user-a:one',maxTokens:4000}
           );
 
