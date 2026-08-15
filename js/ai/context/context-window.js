@@ -33,6 +33,11 @@ import {
 }
 from "./context-store.js";
 
+import {
+  searchContextIndex
+}
+from "./context-indexer.js";
+
 
 
 // =====================================
@@ -41,7 +46,8 @@ from "./context-store.js";
 
 export function calculateContextScore(
   context,
-  query = ""
+  query = "",
+  indexMatches = 0
 ){
 
   let score = 0;
@@ -68,6 +74,9 @@ export function calculateContextScore(
     score += 50;
 
   }
+
+  score +=
+  Number(indexMatches) * 25;
 
   return score;
 
@@ -97,13 +106,32 @@ export async function rankContexts(
     "runtime:default"
   );
 
+  const indexedMatches =
+  searchContextIndex(
+    normalizedQuery
+  );
+
+  const hasIndexedMatches =
+  indexedMatches.size > 0;
+
   const ranked =
   contexts
   .filter((context) => {
 
-    return normalizeContextId(
-      context.namespace
-    ) === namespace;
+    return (
+      normalizeContextId(
+        context.namespace
+      ) === namespace
+
+      &&
+
+      (
+        !hasIndexedMatches ||
+        indexedMatches.has(
+          context.id
+        )
+      )
+    );
 
   })
   .map((context) => {
@@ -115,7 +143,10 @@ export async function rankContexts(
       score:
       calculateContextScore(
         context,
-        normalizedQuery
+        normalizedQuery,
+        indexedMatches.get(
+          context.id
+        ) || 0
       )
 
     };

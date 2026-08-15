@@ -63,6 +63,12 @@ Object.seal({
 
     indexed:0,
 
+    indexSearches:0,
+
+    indexHits:0,
+
+    indexFallbacks:0,
+
     evicted:0,
 
     rejected:0,

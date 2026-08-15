@@ -29,7 +29,7 @@ export function tokenizeContextContent(
   )
 
   .replace(
-    /[^\w\s]/g,
+    /[^\p{L}\p{N}_\s]/gu,
     " "
   )
 
@@ -52,6 +52,69 @@ export function tokenizeContextContent(
     .MAX_INDEX_SIZE
 
   );
+
+}
+
+
+export function searchContextIndex(
+  query = ""
+){
+
+  const matches =
+  new Map();
+
+  if(
+    !CONTEXT_MANAGER_CONFIG
+    .ENABLE_INDEXING
+  ){
+
+    return matches;
+
+  }
+
+  const tokens =
+  new Set(
+    tokenizeContextContent(
+      query
+    )
+  );
+
+  tokens.forEach((token) => {
+
+    const contextIds =
+    contextManagerState
+    .indexes
+    .get(token);
+
+    contextIds
+    ?.forEach((contextId) => {
+
+      matches.set(
+        contextId,
+        (matches.get(contextId) || 0) + 1
+      );
+
+    });
+
+  });
+
+  contextManagerState
+  .diagnostics
+  .indexSearches++;
+
+  if(matches.size > 0){
+    contextManagerState
+    .diagnostics
+    .indexHits +=
+    matches.size;
+  }
+  else{
+    contextManagerState
+    .diagnostics
+    .indexFallbacks++;
+  }
+
+  return matches;
 
 }
 

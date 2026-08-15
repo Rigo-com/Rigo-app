@@ -144,6 +144,68 @@ jobs:
           console.log('Context isolation and cache invalidation checks passed.');
           EOF
 
+      - name: Verify indexed context ranking
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ContextManager from './js/ai/context/index.js';
+
+          await ContextManager.initialize();
+
+          const namespace = 'chat:index:test';
+
+          await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{user:'weather forecast',assistant:'sunny'}
+          });
+
+          await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{user:'shopping list',assistant:'milk'}
+          });
+
+          await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{user:'طقس أربيل',assistant:'مشمس'}
+          });
+
+          const weather = await ContextManager.rank(
+            'weather',
+            {namespace}
+          );
+
+          const arabic = await ContextManager.rank(
+            'طقس',
+            {namespace}
+          );
+
+          const fallback = await ContextManager.rank(
+            'unmatched-token',
+            {namespace}
+          );
+
+          assert.equal(weather.length,1);
+          assert.equal(weather[0].content.assistant,'sunny');
+          assert.equal(arabic.length,1);
+          assert.equal(arabic[0].content.assistant,'مشمس');
+          assert.equal(fallback.length,3);
+
+          const diagnostics =
+          ContextManager.diagnostics().diagnostics;
+
+          assert.equal(diagnostics.indexSearches,3);
+          assert.equal(diagnostics.indexFallbacks,1);
+          assert.ok(diagnostics.indexHits >= 2);
+
+          await ContextManager.shutdown();
+          console.log('Indexed context ranking checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |
