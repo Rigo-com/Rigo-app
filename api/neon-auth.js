@@ -25,6 +25,7 @@ function publicUser(u){return {id:u.id,email:u.email,name:u.name||"",role:u.role
 
 async function ensureSchema(db){
  await db`CREATE TABLE IF NOT EXISTS rigo_users (id UUID PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL DEFAULT '', password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+ await db`ALTER TABLE rigo_users ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`;
  await db`CREATE TABLE IF NOT EXISTS rigo_conversations (id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES rigo_users(id) ON DELETE CASCADE, title TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
  await db`CREATE INDEX IF NOT EXISTS rigo_conversations_user_idx ON rigo_conversations(user_id,updated_at DESC)`;
  await db`CREATE TABLE IF NOT EXISTS rigo_messages (id UUID PRIMARY KEY, conversation_id UUID NOT NULL REFERENCES rigo_conversations(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES rigo_users(id) ON DELETE CASCADE, role TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
