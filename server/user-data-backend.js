@@ -4,7 +4,7 @@ import { neon } from "@neondatabase/serverless";
 const COOKIE_NAME="rigo_session";
 
 function databaseUrl(){return process.env.DATABASE_URL||process.env.DATABASE_POSTGRES_URL||process.env.POSTGRES_URL||process.env.DATABASE_NEON_URL||"";}
-function sessionSecret(){return process.env.RIGO_SESSION_SECRET||process.env.RIGO_ADMIN_SESSION_SECRET||"";}
+function sessionSecret(){return process.env.RIGO_SESSION_SECRET||process.env.RIGO_ADMIN_SESSION_SECRET||process.env.OPENROUTER_API_KEY||"";}
 function safeEqual(a,b){const left=Buffer.from(String(a));const right=Buffer.from(String(b));return left.length===right.length&&crypto.timingSafeEqual(left,right);}
 function parseCookies(request){const out={};for(const part of String(request.headers?.cookie||"").split(";")){const i=part.indexOf("=");if(i>0)out[part.slice(0,i).trim()]=decodeURIComponent(part.slice(i+1).trim());}return out;}
 function sign(value){return crypto.createHmac("sha256",sessionSecret()).update(value).digest("base64url");}
