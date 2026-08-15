@@ -51,6 +51,8 @@ jobs:
           const selection = read('js/ai/planner-engine/planner-selection.js');
           const workflow = read('js/ai/workflow-engine/workflow-executor.js');
           const workflowDefinition = read('js/ai/workflow-engine/workflow-workflow.js');
+          const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
+          const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
 
           assert.match(ai, /AIKernel\.process\s*\(/, 'AI.process must route through AIKernel');
@@ -75,6 +77,13 @@ jobs:
 
           assert.match(home, /AI\.process\s*\(/, 'Home chat must use AI.process');
           assert.doesNotMatch(home, /API\.runtime\.(get|post)\s*\(/, 'Home chat must not call backend APIs directly');
+
+          assert.match(bootstrapSetup, /id:\s*["']ai["']/, 'Bootstrap must own the AI system');
+          assert.match(bootstrapSetup, /initialize:\s*AI\.initialize/, 'Bootstrap must initialize AI');
+          assert.match(bootstrapSetup, /shutdown:\s*AI\.shutdown/, 'Bootstrap must shut down AI');
+          assert.doesNotMatch(runtimeBootSequence, /from\s+["'][^"']*ai\/index\.js["']/, 'Core runtime must not import AI');
+          assert.doesNotMatch(runtimeBootSequence, /AI\.(initialize|shutdown)\s*\(/, 'Core runtime must not own the AI lifecycle');
+          assert.doesNotMatch(runtimeBootSequence, /["']ai-system["']/, 'Core runtime must not register a duplicate AI step');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
