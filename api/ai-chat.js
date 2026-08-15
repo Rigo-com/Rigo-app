@@ -15,6 +15,7 @@ const DEFAULT_MODEL=process.env.OPENROUTER_MODEL||"openrouter/free";
 const MAX_MESSAGE_LENGTH=20000;
 const MAX_MEMORY_ITEMS=30;
 const MAX_MEMORY_CONTEXT_LENGTH=8000;
+const MAX_STORED_MEMORIES=100;
 
 const SYSTEM_PROMPT=`
 You are RIGO AI, the main user-facing assistant inside the RIGO application.
@@ -34,6 +35,7 @@ Rules:
 
 function send(response,status,body){response.status(status).json(body);}
 function text(value){return String(value||"").trim();}
+function now(){return Date.now();}
 
 function normalizeMessages(value){
   if(!Array.isArray(value))return[];
@@ -79,7 +81,7 @@ function normalizeMemoryItems(value){
   }));
 }
 
-async function loadAccountMemory(request){
+async function requireAccount(request){
   const auth=getUserSession(request);
 
   if(!auth?.user?.id){
@@ -88,6 +90,11 @@ async function loadAccountMemory(request){
     throw error;
   }
 
+  return auth;
+}
+
+async function loadAccountMemory(request){
+  const auth=await requireAccount(request);
   const sql=getSql();
   const userId=String(auth.user.id);
 
@@ -113,6 +120,149 @@ async function loadAccountMemory(request){
   });
 
   return lines.join("\n").slice(0,MAX_MEMORY_CONTEXT_LENGTH);
+}
+
+function normalizeKey(value){
+  return text(value)
+  .toLowerCase()
+  .replace(/[\s\u064B-\u065F]+/g," ")
+  .replace(/[^\p{L}\p{N} _-]/gu,"")
+  .trim()
+  .slice(0,80);
+}
+
+function containsSensitiveSecret(value){
+  const input=text(value).toLowerCase();
+  return /(password|passcode|otp|cvv|pin code|secret key|api key|access token|refresh token|كلمة السر|كلمة المرور|رمز التحقق|رمز الدخول|رقم البطاقة|بطاقة ائتمان)/i.test(input);
+}
+
+function createCandidate(key,content,{priority="normal",tags=[]}={}){
+  const clean=text(content).replace(/\s+/g," ").slice(0,500);
+  if(clean.length<3||containsSensitiveSecret(clean))return null;
+
+  return {
+    key:`auto:${normalizeKey(key)}`,
+    content:clean,
+    type:"fact",
+    priority,
+    tags:["auto",`auto-key:${normalizeKey(key)}`,...tags].slice(0,8)
+  };
+}
+
+function extractMemoryCandidates(message){
+  const input=text(message);
+  if(!input||containsSensitiveSecret(input))return[];
+
+  const candidates=[];
+  const add=candidate=>{if(candidate&&!candidates.some(item=>item.key===candidate.key&&item.content===candidate.content))candidates.push(candidate);};
+  let match=null;
+
+  match=input.match(/(?:تذك(?:ر|ّر)|احفظ|خلي(?:ها)? بذاكرتك|remember(?: that)?)[\s,:-]+(.{3,350})/i);
+  if(match){
+    const fact=text(match[1]);
+    add(createCandidate(`explicit:${normalizeKey(fact).slice(0,50)}`,fact,{priority:"high",tags:["explicit"]}));
+  }
+
+  match=input.match(/(?:^|[.!؟?]\s*)(?:اسمي|أنا اسمي)\s+([^.!؟?،,]{2,80})/i)||input.match(/\bmy name is\s+([^.!?,]{2,80})/i);
+  if(match)add(createCandidate("profile:name",input,{priority:"high",tags:["profile","name"]}));
+
+  match=input.match(/(?:أنا\s+)?(?:ساكن|ساكنة|أعيش|عايش|عايشة)\s+(?:في|بـ?|ب)\s+([^.!؟?،,]{2,100})/i)||input.match(/\bi live in\s+([^.!?,]{2,100})/i);
+  if(match)add(createCandidate("profile:location",input,{priority:"high",tags:["profile","location"]}));
+
+  match=input.match(/(?:أنا\s+)?(?:أعمل|اشتغل|بشتغل)\s+(?:كـ?|ك|بمجال)\s*([^.!؟?،,]{2,100})/i)||input.match(/\bi (?:work as|work in)\s+([^.!?,]{2,100})/i);
+  if(match)add(createCandidate("profile:occupation",input,{priority:"normal",tags:["profile","occupation"]}));
+
+  match=input.match(/(?:^|[.!؟?]\s*)(?:أفضل|بفضل|بحب|أحب)\s+([^.!؟?]{2,180})/i)||input.match(/\bi (?:prefer|like|love)\s+([^.!?]{2,180})/i);
+  if(match){
+    const value=normalizeKey(match[1]);
+    add(createCandidate(`preference:${value.slice(0,45)}`,input,{priority:"normal",tags:["preference"]}));
+  }
+
+  match=input.match(/(?:^|[.!؟?]\s*)(?:ما بحب|لا أحب|بكره|أكره)\s+([^.!؟?]{2,180})/i)||input.match(/\bi (?:dislike|hate|do not like|don't like)\s+([^.!?]{2,180})/i);
+  if(match){
+    const value=normalizeKey(match[1]);
+    add(createCandidate(`dislike:${value.slice(0,45)}`,input,{priority:"normal",tags:["preference","dislike"]}));
+  }
+
+  return candidates.slice(0,4);
+}
+
+function memoryKey(memory){
+  const tags=Array.isArray(memory?.tags)?memory.tags:[];
+  const keyTag=tags.find(tag=>String(tag).startsWith("auto-key:"));
+  return keyTag?String(keyTag).slice("auto-key:".length):"";
+}
+
+async function persistAutomaticMemory(request,message){
+  const candidates=extractMemoryCandidates(message);
+  if(!candidates.length)return 0;
+
+  const auth=await requireAccount(request);
+  const sql=getSql();
+  const userId=String(auth.user.id);
+
+  const rows=await sql`
+    SELECT data
+    FROM rigo_account_data
+    WHERE user_id=${userId}
+      AND section='memory'
+    LIMIT 1
+  `;
+
+  const memories=Array.isArray(rows[0]?.data)
+    ?rows[0].data.filter(item=>item&&typeof item==="object")
+    :[];
+
+  let changed=0;
+  const timestamp=now();
+
+  for(const candidate of candidates){
+    const key=candidate.key.slice("auto:".length);
+    const index=memories.findIndex(memory=>memoryKey(memory)===key);
+
+    if(index>=0){
+      if(text(memories[index]?.content)===candidate.content)continue;
+
+      memories[index]={
+        ...memories[index],
+        content:candidate.content,
+        type:candidate.type,
+        priority:candidate.priority,
+        tags:candidate.tags,
+        updatedAt:timestamp
+      };
+      changed++;
+      continue;
+    }
+
+    memories.unshift({
+      id:`memory_${timestamp}_${Math.random().toString(36).slice(2,10)}`,
+      content:candidate.content,
+      type:candidate.type,
+      priority:candidate.priority,
+      tags:candidate.tags,
+      createdAt:timestamp,
+      updatedAt:timestamp
+    });
+    changed++;
+  }
+
+  if(!changed)return 0;
+
+  const next=memories
+  .sort((a,b)=>Number(b.updatedAt||b.createdAt||0)-Number(a.updatedAt||a.createdAt||0))
+  .slice(0,MAX_STORED_MEMORIES);
+
+  const serialized=JSON.stringify(next);
+
+  await sql`
+    INSERT INTO rigo_account_data(user_id,section,data,updated_at)
+    VALUES(${userId},'memory',${serialized}::jsonb,NOW())
+    ON CONFLICT(user_id,section)
+    DO UPDATE SET data=EXCLUDED.data,updated_at=NOW()
+  `;
+
+  return changed;
 }
 
 async function buildMessages(request,body){
@@ -169,6 +319,7 @@ export default async function handler(request,response){
     }
 
     const body=bodyOf(request);
+    const userMessage=text(body.message||body.input||body.prompt);
     const messages=await buildMessages(request,body);
 
     if(messages.filter(message=>message.role==="user").length===0){
@@ -211,14 +362,23 @@ export default async function handler(request,response){
       throw new Error("OPENROUTER_EMPTY_RESPONSE");
     }
 
+    let learnedMemories=0;
+    try{
+      learnedMemories=await persistAutomaticMemory(request,userMessage);
+    }
+    catch{
+      learnedMemories=0;
+    }
+
     send(response,200,{
       ok:true,
       mode:"rigo-ai-chat",
       message:message.trim(),
       model:result?.model||model,
       usage:result?.usage||null,
+      memory:{learned:learnedMemories},
       requestId:result?.id||null,
-      createdAt:Date.now()
+      createdAt:now()
     });
   }
   catch(error){
@@ -226,7 +386,7 @@ export default async function handler(request,response){
       ok:false,
       error:error?.message||String(error),
       details:error?.details||null,
-      timestamp:Date.now()
+      timestamp:now()
     });
   }
 }
