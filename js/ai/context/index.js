@@ -8,7 +8,8 @@ import {
 
   initializeContextManager,
   shutdownContextManager,
-  resetContextManager
+  resetContextManager,
+  evictExpiredContexts
 
 }
 from "./context-lifecycle.js";
@@ -59,6 +60,9 @@ Object.freeze({
 
   remove:
   removeContext,
+
+  evictExpired:
+  evictExpiredContexts,
 
   rank:
   rankContexts,

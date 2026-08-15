@@ -278,6 +278,93 @@ jobs:
           console.log('Non-destructive context compression checks passed.');
           EOF
 
+      - name: Verify context eviction and cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import ContextManager from './js/ai/context/index.js';
+          import {
+            CONTEXT_MANAGER_CONFIG
+          } from './js/ai/context/context-config.js';
+
+          await ContextManager.initialize();
+
+          const namespace = 'chat:eviction:test';
+          const now = Date.now();
+          const expiredAt =
+          now - CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_AGE - 1000;
+
+          await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{text:'expired unique context'},
+            createdAt:expiredAt,
+            updatedAt:expiredAt
+          });
+
+          const fresh = await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{text:'fresh context'}
+          });
+
+          const cached = await ContextManager.buildWindow(
+            'unmatched',
+            {namespace,maxTokens:4000}
+          );
+
+          assert.equal(cached.contexts.length,2);
+          assert.equal(ContextManager.diagnostics().cache,1);
+
+          const evicted =
+          await ContextManager.evictExpired(now);
+
+          assert.equal(evicted,1);
+
+          const afterEviction =
+          ContextManager.diagnostics();
+
+          assert.equal(afterEviction.contexts,1);
+          assert.equal(afterEviction.cache,0);
+          assert.equal(afterEviction.diagnostics.evicted,1);
+          assert.equal(afterEviction.diagnostics.removed,1);
+
+          const remaining =
+          await ContextManager.rank('unmatched',{namespace});
+
+          assert.equal(remaining.length,1);
+          assert.equal(remaining[0].id,fresh.id);
+
+          const registeredAgain =
+          await ContextManager.register({
+            namespace,
+            type:'session',
+            content:{text:'expired unique context'}
+          });
+
+          assert.ok(registeredAgain);
+
+          await ContextManager.remove(registeredAgain.id);
+          assert.equal(
+            ContextManager.diagnostics().diagnostics.evicted,
+            1
+          );
+
+          await ContextManager.reset();
+
+          const reset = ContextManager.diagnostics();
+          assert.equal(reset.contexts,0);
+          assert.equal(reset.indexes,0);
+          assert.equal(reset.cache,0);
+          assert.equal(reset.diagnostics.evicted,0);
+          assert.equal(reset.diagnostics.removed,0);
+
+          await ContextManager.shutdown();
+          console.log('Context eviction and cleanup checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |

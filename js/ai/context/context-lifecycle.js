@@ -31,8 +31,17 @@ async function resetContextManager(){
   contextManagerState.retrievalCache.clear();
   contextManagerState.contentHashes.clear();
 
+  Object.keys(
+    contextManagerState.diagnostics
+  )
+  .forEach((key) => {
+    contextManagerState
+    .diagnostics[key] = 0;
+  });
+
   contextManagerState.startupPromise = null;
   contextManagerState.operationLock = false;
+  contextManagerState.lastUpdatedAt = null;
 
   return true;
 
@@ -44,14 +53,17 @@ async function resetContextManager(){
 // EVICTION
 // =====================================
 
-async function evictOldContexts(){
+async function evictExpiredContexts(
+  now = Date.now()
+){
 
   if(!CONTEXT_MANAGER_CONFIG.ENABLE_AUTO_EVICTION){
-    return true;
+    return 0;
   }
 
   const cutoff =
-  Date.now() - CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_AGE;
+  Number(now) -
+  CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_AGE;
 
   const expiredIds = [];
 
@@ -67,10 +79,15 @@ async function evictOldContexts(){
   }
 
   for(const contextId of expiredIds){
-    await removeContext(contextId);
+    await removeContext(
+      contextId,
+      {
+        reason:"eviction"
+      }
+    );
   }
 
-  return true;
+  return expiredIds.length;
 
 }
 
@@ -84,7 +101,7 @@ function startEvictionLoop(){
 
   contextManagerState.evictionTimer =
   setInterval(() => {
-    evictOldContexts().catch(() => {});
+    evictExpiredContexts().catch(() => {});
   },CONTEXT_MANAGER_CONFIG.EVICTION_INTERVAL);
 
   return true;
@@ -179,5 +196,6 @@ async function initializeContextManager(){
 export {
   initializeContextManager,
   shutdownContextManager,
-  resetContextManager
+  resetContextManager,
+  evictExpiredContexts
 };

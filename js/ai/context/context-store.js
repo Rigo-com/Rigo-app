@@ -165,6 +165,7 @@ export function createContextObject(
     Date.now(),
 
     updatedAt:
+    config.updatedAt ||
     Date.now(),
 
     runtime:{
@@ -359,7 +360,10 @@ export async function updateContext(
       normalizedId,
 
       createdAt:
-      existing.createdAt
+      existing.createdAt,
+
+      updatedAt:
+      Date.now()
 
     });
 
@@ -416,7 +420,8 @@ export async function updateContext(
 // =====================================
 
 export async function removeContext(
-  contextId
+  contextId,
+  options = {}
 ){
 
   await acquireContextLock();
@@ -456,6 +461,16 @@ export async function removeContext(
     contextManagerState
     .diagnostics
     .removed++;
+
+    if(options.reason === "eviction"){
+      contextManagerState
+      .diagnostics
+      .evicted++;
+    }
+
+    contextManagerState
+    .lastUpdatedAt =
+    Date.now();
 
     return true;
 
