@@ -82,6 +82,11 @@ validateAISystems(){
     "contexts"
   );
 
+  const memory =
+  await getAIService(
+    "memory"
+  );
+
   return (
 
     planner &&
@@ -110,6 +115,17 @@ validateAISystems(){
 
     contexts &&
     typeof contexts.initialize ===
+    "function"
+
+    &&
+
+    memory &&
+    typeof memory.search ===
+    "function"
+
+    &&
+
+    typeof memory.create ===
     "function"
 
   );

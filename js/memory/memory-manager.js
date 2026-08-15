@@ -57,6 +57,17 @@ function shutdown(){
 }
 
 
+function reset(){
+
+  MemorySubsystem
+  .shutdown();
+
+  return MemorySubsystem
+  .initialize();
+
+}
+
+
 
 // =====================================
 // MEMORY
@@ -247,6 +258,13 @@ function debug(){
 }
 
 
+function snapshot(){
+
+  return health();
+
+}
+
+
 
 // =====================================
 // PUBLIC API
@@ -259,45 +277,7 @@ Object.freeze({
 
   shutdown,
 
-  create,
-
-  update,
-
-  remove,
-
-  search,
-
-  searchOne,
-
-  addContext,
-
-  removeContext,
-
-  getContext,
-
-  clearContext,
-
-  summary,
-
-  maintenance,
-
-  health,
-
-  debug
-
-});
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  initialize,
-
-  shutdown,
+  reset,
 
   create,
 
@@ -324,6 +304,52 @@ export {
   health,
 
   debug,
+
+  snapshot
+
+});
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+
+  initialize,
+
+  shutdown,
+
+  reset,
+
+  create,
+
+  update,
+
+  remove,
+
+  search,
+
+  searchOne,
+
+  addContext,
+
+  removeContext,
+
+  getContext,
+
+  clearContext,
+
+  summary,
+
+  maintenance,
+
+  health,
+
+  debug,
+
+  snapshot,
 
   MemoryManager
 

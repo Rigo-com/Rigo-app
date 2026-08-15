@@ -98,6 +98,101 @@ function serializeContextWindow(
 }
 
 
+function serializeMemoryResults(
+  results = []
+){
+
+  return results
+  .map((entry) => {
+    const memory =
+    entry?.memory || entry;
+
+    return String(
+      memory?.content || ""
+    )
+    .trim();
+  })
+  .filter(Boolean)
+  .join("\n");
+
+}
+
+
+async function buildLongTermMemoryContext(
+  message
+){
+
+  try{
+    const memory =
+    await ServiceManager.resolve(
+      "memory"
+    );
+
+    if(!memory?.search){
+      return "";
+    }
+
+    return serializeMemoryResults(
+      memory.search(
+        message,
+        {limit:5}
+      )
+    );
+  }
+  catch(error){
+    return "";
+  }
+
+}
+
+
+async function rememberAssistantExchange({
+  message,
+  assistant,
+  metadata = {}
+}){
+
+  try{
+    const memory =
+    await ServiceManager.resolve(
+      "memory"
+    );
+
+    if(!memory?.create){
+      return false;
+    }
+
+    const tags = [
+      "rigo-main-assistant"
+    ];
+
+    if(metadata.conversationId){
+      tags.push(
+        `conversation:${String(metadata.conversationId)}`
+      );
+    }
+
+    return Boolean(
+      memory.create(
+        JSON.stringify({
+          user:message,
+          assistant
+        }),
+        {
+          type:"conversation",
+          priority:"normal",
+          tags
+        }
+      )
+    );
+  }
+  catch(error){
+    return false;
+  }
+
+}
+
+
 function needsWeather(
   message
 ){
@@ -318,6 +413,11 @@ async function executeMainAssistant(
     contextWindow
   );
 
+  const longTermMemory =
+  await buildLongTermMemoryContext(
+    message
+  );
+
   const liveToolContext =
   await buildLiveToolContext(
     input
@@ -333,6 +433,12 @@ async function executeMainAssistant(
   if(managedContext){
     contextParts.push(
       `RIGO MANAGED CONTEXT:\n${managedContext}`
+    );
+  }
+
+  if(longTermMemory){
+    contextParts.push(
+      `RIGO LONG-TERM MEMORY:\n${longTermMemory}`
     );
   }
 
@@ -405,6 +511,14 @@ async function executeMainAssistant(
       source:
       MAIN_ASSISTANT_AGENT
     }
+  });
+
+  await rememberAssistantExchange({
+    message,
+    assistant:
+    result.message.trim(),
+    metadata:
+    input.metadata || {}
   });
 
   return {

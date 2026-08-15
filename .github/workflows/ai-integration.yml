@@ -52,6 +52,8 @@ jobs:
           const workflow = read('js/ai/workflow-engine/workflow-executor.js');
           const workflowDefinition = read('js/ai/workflow-engine/workflow-workflow.js');
           const agentEvents = read('js/ai/agent/agent-events.js');
+          const kernelServices = read('js/ai/ai-kernel/kernel-services.js');
+          const moduleSetup = read('js/core/modules/module-setup.js');
           const kernelEvents = read('js/ai/ai-kernel/kernel-events.js');
           const plannerEvents = read('js/ai/planner-engine/planner-events.js');
           const workflowEvents = read('js/ai/workflow-engine/workflow-events.js');
@@ -65,6 +67,11 @@ jobs:
           assert.match(ai, /id:\s*\n\s*WEATHER_TOOL/, 'Weather tool must be registered');
           assert.match(ai, /ContextManager\.register\s*\(/, 'Successful assistant exchanges must enter managed context');
           assert.match(ai, /createConversationNamespace\s*\(/, 'Managed context must use a conversation namespace');
+          assert.match(ai, /ServiceManager\.resolve\s*\(\s*["']memory["']\s*\)/, 'Main AI must resolve memory through ServiceManager');
+          assert.match(ai, /memory\.search\s*\(/, 'Main AI must retrieve long-term memory');
+          assert.match(ai, /memory\.create\s*\(/, 'Main AI must persist successful assistant exchanges');
+          assert.match(moduleSetup, /ServiceManager\.register\s*\(\s*["']memory["']/, 'Core memory module must publish its service through ServiceManager');
+          assert.match(kernelServices, /getAIService\s*\(\s*["']memory["']\s*\)/, 'AI Kernel must validate the memory service');
 
           assert.match(router, /agents\s*\.process\s*\(/, 'Kernel router must route agent requests through AgentManager');
           assert.match(router, /planner\s*\.process\s*\(/, 'Kernel router must route planner requests');
@@ -100,6 +107,87 @@ jobs:
           }
 
           console.log('RIGO AI architecture wiring checks passed.');
+          EOF
+
+      - name: Verify memory module runtime service
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const store = new Map();
+          globalThis.localStorage = {
+            get length(){return store.size;},
+            key:index => [...store.keys()][index] ?? null,
+            getItem:key => store.has(key) ? store.get(key) : null,
+            setItem:(key,value) => store.set(key,String(value)),
+            removeItem:key => store.delete(key),
+            clear:() => store.clear()
+          };
+
+          const {updateAuthRuntimeState} =
+          await import('./js/auth/auth-state.js');
+          const {registerCoreModules} =
+          await import('./js/core/modules/module-setup.js');
+          const {default:ModuleActivation} =
+          await import('./js/core/modules/module-activation.js');
+          const {default:ServiceManager} =
+          await import('./js/services/service-manager.js');
+          const {default:AI} =
+          await import('./js/ai/index.js');
+
+          updateAuthRuntimeState({
+            authenticated:true,
+            user:{id:'memory-runtime-test'}
+          });
+
+          registerCoreModules();
+          assert.equal(await ModuleActivation.load('memory'),true);
+          assert.equal(ServiceManager.has('memory'),true);
+
+          const memory =
+          await ServiceManager.resolve('memory');
+
+          const created = memory.create(
+            'RIGO memory runtime bridge',
+            {
+              type:'fact',
+              priority:'high',
+              tags:['runtime-test']
+            }
+          );
+
+          assert.ok(created?.id);
+
+          const results = memory.search(
+            'runtime bridge',
+            {limit:5}
+          );
+
+          assert.ok(
+            results.some((entry) => {
+              return (entry.memory || entry).id === created.id;
+            })
+          );
+          assert.equal(memory.health().memory.initialized,true);
+          assert.equal(typeof memory.reset,'function');
+          assert.equal(typeof memory.snapshot,'function');
+
+          assert.equal(memory.reset(),true);
+          assert.equal(memory.search('runtime bridge',{limit:5}).length,1);
+
+          await ServiceManager.register(
+            'events',
+            async () => ({emit:async () => true})
+          );
+
+          assert.equal(await AI.initialize(),true);
+          assert.equal(AI.diagnostics().kernel.state,'ready');
+          await AI.shutdown();
+
+          await ModuleActivation.unload('memory');
+          console.log('Memory module runtime service checks passed.');
           EOF
 
       - name: Verify AI event service wiring

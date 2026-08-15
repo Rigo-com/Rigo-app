@@ -43,6 +43,9 @@ from "../../ui/index.js";
 import Voice
 from "../../voice/index.js";
 
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 // =====================================
 // LIFECYCLE ADAPTERS
@@ -75,6 +78,32 @@ Object.freeze({
 
   snapshot:
   () => Communication.health.getHealthReport()
+});
+
+
+const MemoryModule =
+Object.freeze({
+  ...Memory,
+
+  initialize:
+  async() => {
+    await Memory.initialize();
+
+    if(!ServiceManager.has("memory")){
+      await ServiceManager.register(
+        "memory",
+        async() => Memory
+      );
+    }
+
+    return true;
+  },
+
+  shutdown:
+  async() => Memory.shutdown(),
+
+  snapshot:
+  () => Memory.health()
 });
 
 
@@ -157,7 +186,7 @@ function registerCoreModules(){
 
   registerModule(
     "memory",
-    Memory,
+    MemoryModule,
     {
       priority:30,
       dependencies:[
@@ -249,6 +278,7 @@ function registerCoreModules(){
 export {
   SearchModule,
   CommunicationModule,
+  MemoryModule,
   registerCoreModules
 };
 
