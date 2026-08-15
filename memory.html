@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>RIGO AI Memory</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{color-scheme:dark;--bg:#050914;--panel:#0f1726;--panel2:#111827;--border:#263248;--text:#f8fafc;--muted:#94a3b8;--danger:#f87171}
+    html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
+    button,textarea{font:inherit;color:inherit}
+    .topbar{position:sticky;top:0;z-index:10;height:58px;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:0 12px;border-bottom:1px solid #ffffff0d;background:#050914e8;backdrop-filter:blur(14px)}
+    .icon{width:40px;height:40px;border:0;border-radius:12px;background:transparent;display:grid;place-items:center;font-size:23px;cursor:pointer}
+    .brand{text-align:center;font-size:16px;font-weight:700}
+    .wrap{width:min(100%,760px);margin:auto;padding:24px 16px 40px}
+    .hero{padding:10px 2px 22px}
+    .hero h1{font-size:28px;line-height:1.2;margin-bottom:8px}
+    .hero p{color:var(--muted);font-size:14px;line-height:1.55}
+    .status{min-height:20px;margin:2px 2px 14px;color:var(--muted);font-size:13px}
+    .list{display:grid;gap:12px}
+    .card{border:1px solid var(--border);background:var(--panel);border-radius:18px;padding:14px}
+    .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .meta{display:flex;gap:7px;flex-wrap:wrap}
+    .tag{font-size:11px;color:#cbd5e1;background:#172033;border:1px solid #2b3850;border-radius:999px;padding:4px 8px}
+    .date{font-size:11px;color:#64748b;white-space:nowrap}
+    .content{font-size:15px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+    .editor{width:100%;min-height:100px;resize:vertical;background:#080d18;border:1px solid #334155;border-radius:12px;padding:11px 12px;outline:none;line-height:1.55}
+    .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+    .btn{border:1px solid #334155;background:#151e2f;border-radius:10px;padding:8px 11px;cursor:pointer;font-size:13px}
+    .btn.primary{background:#f8fafc;color:#07101d;border-color:#f8fafc;font-weight:700}
+    .btn.danger{color:#fca5a5;border-color:#5b2830;background:#241116}
+    .empty{border:1px dashed #334155;border-radius:18px;padding:42px 20px;text-align:center;color:var(--muted);line-height:1.6}
+    .footer-actions{display:flex;justify-content:flex-end;margin-top:18px}
+    .loading{opacity:.55;pointer-events:none}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon" id="back" aria-label="Back">‹</button>
+    <div class="brand">RIGO Memory</div>
+    <span></span>
+  </header>
+
+  <main class="wrap" id="app">
+    <section class="hero">
+      <h1>What RIGO remembers</h1>
+      <p>These memories belong only to this account. You can edit or delete anything RIGO has learned about you.</p>
+    </section>
+
+    <div class="status" id="status">Loading memory…</div>
+    <section class="list" id="list"></section>
+    <div class="footer-actions"><button class="btn danger" id="clear" hidden>Delete all memory</button></div>
+  </main>
+
+  <script type="module">
+    import Auth from "./js/auth/index.js";
+    import {loadAccountSection,saveAccountSection} from "./js/storage/account-data-client.js";
+
+    await Auth.initialize();
+    const auth=Auth.status();
+    if(!auth?.authenticated){location.replace("./login.html");throw new Error("AUTHENTICATION_REQUIRED")}
+
+    const app=document.getElementById("app");
+    const list=document.getElementById("list");
+    const status=document.getElementById("status");
+    const clearButton=document.getElementById("clear");
+    let memories=[];
+    let busy=false;
+
+    const esc=value=>String(value??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c]);
+    const date=value=>{const n=Number(value||0);if(!n)return"";try{return new Date(n).toLocaleDateString()}catch{return""}};
+
+    function setBusy(value,message=""){
+      busy=Boolean(value);
+      app.classList.toggle("loading",busy);
+      if(message)status.textContent=message;
+    }
+
+    function render(){
+      clearButton.hidden=!memories.length;
+      status.textContent=memories.length?`${memories.length} saved ${memories.length===1?"memory":"memories"}`:"No saved memory";
+
+      if(!memories.length){
+        list.innerHTML='<div class="empty">RIGO has not saved anything about this account yet.<br>Useful long-term facts from future conversations can appear here.</div>';
+        return;
+      }
+
+      list.innerHTML=memories.map((memory,index)=>{
+        const tags=[];
+        if(memory.type)tags.push(`<span class="tag">${esc(memory.type)}</span>`);
+        if(memory.priority)tags.push(`<span class="tag">${esc(memory.priority)}</span>`);
+        if(Array.isArray(memory.tags))for(const tag of memory.tags.slice(0,5))tags.push(`<span class="tag">${esc(tag)}</span>`);
+        return `<article class="card" data-index="${index}">
+          <div class="card-head"><div class="meta">${tags.join("")}</div><div class="date">${esc(date(memory.updatedAt||memory.createdAt))}</div></div>
+          <div class="content" data-content>${esc(memory.content||"")}</div>
+          <div class="actions"><button class="btn" data-edit>Edit</button><button class="btn danger" data-delete>Delete</button></div>
+        </article>`;
+      }).join("");
+
+      list.querySelectorAll("[data-index]").forEach(card=>{
+        const index=Number(card.dataset.index);
+        card.querySelector("[data-edit]").onclick=()=>startEdit(card,index);
+        card.querySelector("[data-delete]").onclick=()=>removeMemory(index);
+      });
+    }
+
+    async function persist(message="Saved"){
+      setBusy(true,"Saving…");
+      try{
+        await saveAccountSection("memory",memories);
+        status.textContent=message;
+      }catch(error){
+        status.textContent=error?.message||"Unable to save memory";
+        throw error;
+      }finally{
+        setBusy(false);
+      }
+    }
+
+    function startEdit(card,index){
+      if(busy)return;
+      const memory=memories[index];
+      card.innerHTML=`
+        <textarea class="editor" data-editor>${esc(memory.content||"")}</textarea>
+        <div class="actions"><button class="btn" data-cancel>Cancel</button><button class="btn primary" data-save>Save</button></div>`;
+      const editor=card.querySelector("[data-editor]");
+      editor.focus();
+      card.querySelector("[data-cancel]").onclick=render;
+      card.querySelector("[data-save]").onclick=async()=>{
+        const content=editor.value.trim();
+        if(!content){status.textContent="Memory cannot be empty";return}
+        memories[index]={...memory,content,updatedAt:Date.now()};
+        try{await persist("Memory updated");render()}catch{render()}
+      };
+    }
+
+    async function removeMemory(index){
+      if(busy)return;
+      const previous=memories;
+      memories=memories.filter((_,i)=>i!==index);
+      try{await persist("Memory deleted");render()}catch{memories=previous;render()}
+    }
+
+    clearButton.onclick=async()=>{
+      if(busy||!memories.length)return;
+      if(!confirm("Delete all saved memory for this account?"))return;
+      const previous=memories;
+      memories=[];
+      try{await persist("All memory deleted");render()}catch{memories=previous;render()}
+    };
+
+    document.getElementById("back").onclick=()=>location.href="./home.html";
+
+    try{
+      const data=await loadAccountSection("memory");
+      memories=Array.isArray(data)?data:[];
+      render();
+    }catch(error){
+      status.textContent=error?.message||"Unable to load memory";
+      list.innerHTML='<div class="empty">Memory could not be loaded.</div>';
+    }
+  </script>
+</body>
+</html>
