@@ -178,7 +178,8 @@ export async function executeTool(
   }
 
   if(
-
+    TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_DISABLE
+    &&
     toolExecutorState
     .disabledTools
     .has(normalizedId)
@@ -383,44 +384,52 @@ export async function executeTool(
           normalizedId
         );
 
-        tool.runtime.executions++;
+        if(TOOL_EXECUTOR_CONFIG.ENABLE_RUNTIME_METADATA){
 
-        tool.runtime.updatedAt =
-        Date.now();
+          tool.runtime.executions++;
 
-        tool.runtime.lastExecutedAt =
-        Date.now();
+          tool.runtime.updatedAt =
+          Date.now();
 
-        toolExecutorState
-        .lastExecutionAt =
-        Date.now();
+          tool.runtime.lastExecutedAt =
+          Date.now();
 
-        toolExecutorState
-        .executionHistory
-        .push({
+          toolExecutorState
+          .lastExecutionAt =
+          Date.now();
 
-          executionId,
+        }
 
-          toolId:
-          normalizedId,
+        if(TOOL_EXECUTOR_CONFIG.ENABLE_EXECUTION_HISTORY){
 
-          success:true,
+          toolExecutorState
+          .executionHistory
+          .push({
 
-          duration:
+            executionId,
 
-            Date.now() -
+            toolId:
+            normalizedId,
 
-            toolExecutorState
-            .activeExecutions
-            .get(executionId)
-            .startedAt,
+            success:true,
 
-          timestamp:
-          Date.now()
+            duration:
 
-        });
+              Date.now() -
 
-        trimExecutionHistory();
+              toolExecutorState
+              .activeExecutions
+              .get(executionId)
+              .startedAt,
+
+            timestamp:
+            Date.now()
+
+          });
+
+          trimExecutionHistory();
+
+        }
 
         toolExecutorState
         .diagnostics
@@ -472,7 +481,10 @@ export async function executeTool(
           normalizedId
         );
 
-        tool.runtime.failures++;
+        if(TOOL_EXECUTOR_CONFIG.ENABLE_RUNTIME_METADATA){
+          tool.runtime.failures++;
+          tool.runtime.updatedAt = Date.now();
+        }
 
         toolExecutorState
         .diagnostics
@@ -491,28 +503,32 @@ export async function executeTool(
             .get(executionId)
             .startedAt;
 
-          toolExecutorState
-          .executionHistory
-          .push({
+          if(TOOL_EXECUTOR_CONFIG.ENABLE_EXECUTION_HISTORY){
 
-            executionId,
+            toolExecutorState
+            .executionHistory
+            .push({
 
-            toolId:
-            normalizedId,
+              executionId,
 
-            success:false,
+              toolId:
+              normalizedId,
 
-            error:
-            String(error),
+              success:false,
 
-            duration,
+              error:
+              String(error),
 
-            timestamp:
-            Date.now()
+              duration,
 
-          });
+              timestamp:
+              Date.now()
 
-          trimExecutionHistory();
+            });
+
+            trimExecutionHistory();
+
+          }
 
           await emitToolEvent(
 

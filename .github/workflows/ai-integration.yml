@@ -67,6 +67,7 @@ jobs:
           const toolExecutor = read('js/ai/tools/tool-executor.js');
           const toolRegistry = read('js/ai/tools/tool-registry.js');
           const toolUtils = read('js/ai/tools/tool-utils.js');
+          const toolCircuitBreaker = read('js/ai/tools/tool-circuit-breaker.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -133,6 +134,10 @@ jobs:
           assert.match(toolExecutor, /ENABLE_TOOL_RETRIES/, 'Tool retry flag must control retry attempts');
           assert.match(toolUtils, /ENABLE_STRUCTURED_ERRORS/, 'Structured tool error flag must control error shape');
           assert.match(toolRegistry, /getRegisteredTool/, 'Tool execution must use a private mutable registry record');
+          assert.match(toolCircuitBreaker, /ENABLE_CIRCUIT_BREAKER/, 'Circuit breaker flag must control runtime blocking');
+          assert.match(toolExecutor, /ENABLE_EXECUTION_HISTORY/, 'Execution history flag must control history writes');
+          assert.match(toolExecutor, /ENABLE_RUNTIME_METADATA/, 'Runtime metadata flag must control tool counters');
+          assert.match(toolRegistry, /ENABLE_TOOL_DISABLE/, 'Tool disable flag must control enable and disable operations');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -975,6 +980,131 @@ jobs:
 
           console.log(
             'Tool timeout and retry runtime checks passed.'
+          );
+          EOF
+
+      - name: Verify tool circuit and runtime metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:ToolExecutor} =
+          await import('./js/ai/tools/index.js');
+          const {toolExecutorState} =
+          await import('./js/ai/tools/tool-state.js');
+          const {TOOL_EXECUTOR_CONFIG} =
+          await import('./js/ai/tools/tool-config.js');
+
+          let failures = 0;
+
+          await ToolExecutor.register({
+            id:'breaker',
+            retries:1,
+            timeout:100,
+            execute:async () => {
+              failures++;
+              throw new Error('BROKEN');
+            }
+          });
+
+          for(
+            let index=0;
+            index<TOOL_EXECUTOR_CONFIG.CIRCUIT_BREAKER_THRESHOLD;
+            index++
+          ){
+            const result = await ToolExecutor.execute('breaker');
+            assert.equal(result.error.code,'EXECUTION_FAILED');
+          }
+
+          assert.equal(
+            failures,
+            TOOL_EXECUTOR_CONFIG.CIRCUIT_BREAKER_THRESHOLD
+          );
+
+          const blocked = await ToolExecutor.execute('breaker');
+
+          assert.equal(blocked.error.code,'CIRCUIT_BLOCKED');
+          assert.equal(
+            failures,
+            TOOL_EXECUTOR_CONFIG.CIRCUIT_BREAKER_THRESHOLD
+          );
+          assert.equal(
+            toolExecutorState.executionHistory.length,
+            TOOL_EXECUTOR_CONFIG.CIRCUIT_BREAKER_THRESHOLD
+          );
+          assert.equal(
+            toolExecutorState.tools.get('breaker').runtime.failures,
+            TOOL_EXECUTOR_CONFIG.CIRCUIT_BREAKER_THRESHOLD
+          );
+
+          toolExecutorState
+          .circuitBreakers
+          .get('breaker')
+          .blockedUntil = Date.now() - 1;
+
+          const recoveredAttempt =
+          await ToolExecutor.execute('breaker');
+
+          assert.equal(
+            recoveredAttempt.error.code,
+            'EXECUTION_FAILED'
+          );
+          assert.equal(
+            failures,
+            TOOL_EXECUTOR_CONFIG.CIRCUIT_BREAKER_THRESHOLD + 1
+          );
+
+          let executions = 0;
+
+          await ToolExecutor.register({
+            id:'toggle',
+            retries:1,
+            execute:async () => ++executions
+          });
+
+          assert.equal(await ToolExecutor.disable('missing'),false);
+          assert.equal(await ToolExecutor.enable('missing'),false);
+          assert.equal(await ToolExecutor.disable('toggle'),true);
+          assert.equal(
+            (await ToolExecutor.execute('toggle')).error.code,
+            'TOOL_DISABLED'
+          );
+          assert.equal(executions,0);
+          assert.equal(await ToolExecutor.enable('toggle'),true);
+
+          toolExecutorState.executionHistory =
+          Array.from(
+            {length:TOOL_EXECUTOR_CONFIG.MAX_HISTORY},
+            (_,index) => ({index})
+          );
+
+          const enabled = await ToolExecutor.execute('toggle');
+
+          assert.equal(enabled.success,true);
+          assert.equal(enabled.result,1);
+          assert.equal(
+            toolExecutorState.executionHistory.length,
+            TOOL_EXECUTOR_CONFIG.MAX_HISTORY
+          );
+          assert.equal(
+            toolExecutorState.executionHistory.at(-1).toolId,
+            'toggle'
+          );
+          assert.equal(
+            toolExecutorState.tools.get('toggle').runtime.executions,
+            1
+          );
+          assert.ok(
+            toolExecutorState.tools.get('toggle').runtime.lastExecutedAt
+          );
+          assert.ok(toolExecutorState.lastExecutionAt);
+
+          await ToolExecutor.reset();
+
+          console.log(
+            'Tool circuit and runtime metadata checks passed.'
           );
           EOF
 

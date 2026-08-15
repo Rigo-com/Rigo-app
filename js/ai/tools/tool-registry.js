@@ -324,10 +324,18 @@ export async function disableTool(
   toolId
 ){
 
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_DISABLE){
+    return false;
+  }
+
   const normalizedId =
   normalizeToolName(
     toolId
   );
+
+  if(!toolExecutorState.tools.has(normalizedId)){
+    return false;
+  }
 
   toolExecutorState
   .disabledTools
@@ -365,10 +373,18 @@ export async function enableTool(
   toolId
 ){
 
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_DISABLE){
+    return false;
+  }
+
   const normalizedId =
   normalizeToolName(
     toolId
   );
+
+  if(!toolExecutorState.tools.has(normalizedId)){
+    return false;
+  }
 
   toolExecutorState
   .disabledTools
