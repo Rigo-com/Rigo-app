@@ -930,11 +930,12 @@ jobs:
           });
 
           const cached = await ContextManager.buildWindow(
-            'unmatched',
+            'fresh',
             {namespace,maxTokens:4000}
           );
 
-          assert.equal(cached.contexts.length,2);
+          assert.equal(cached.contexts.length,1);
+          assert.equal(cached.contexts[0].id,fresh.id);
           assert.equal(ContextManager.diagnostics().cache,1);
 
           const evicted =
