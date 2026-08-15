@@ -14,9 +14,9 @@ import {
 from "./context-state.js";
 
 import {
-  evictOldContexts
+  removeContext
 }
-from "./context-eviction.js";
+from "./context-store.js";
 
 
 
@@ -41,8 +41,40 @@ async function resetContextManager(){
 
 
 // =====================================
-// EVICTION LOOP
+// EVICTION
 // =====================================
+
+async function evictOldContexts(){
+
+  if(!CONTEXT_MANAGER_CONFIG.ENABLE_AUTO_EVICTION){
+    return true;
+  }
+
+  const cutoff =
+  Date.now() - CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_AGE;
+
+  const expiredIds = [];
+
+  for(const [contextId,context] of contextManagerState.contexts){
+
+    const timestamp =
+    Number(context?.updatedAt || context?.createdAt || 0);
+
+    if(timestamp > 0 && timestamp < cutoff){
+      expiredIds.push(contextId);
+    }
+
+  }
+
+  for(const contextId of expiredIds){
+    await removeContext(contextId);
+  }
+
+  return true;
+
+}
+
+
 
 function startEvictionLoop(){
 
@@ -52,7 +84,7 @@ function startEvictionLoop(){
 
   contextManagerState.evictionTimer =
   setInterval(() => {
-    evictOldContexts();
+    evictOldContexts().catch(() => {});
   },CONTEXT_MANAGER_CONFIG.EVICTION_INTERVAL);
 
   return true;
