@@ -30,7 +30,6 @@ import {applicationReady} from "./js/main.js";
 import Auth from "./js/auth/index.js";
 import Chat from "./js/chat/index.js";
 import AI from "./js/ai/index.js";
-import API from "./js/api/index.js";
 import Search from "./js/search/index.js";
 import {UiRenderer} from "./js/ui/index.js";
 
@@ -48,7 +47,6 @@ const adminButton=document.getElementById("admin");
 const debugButton=document.getElementById("debug");
 if(isAdmin){adminButton.hidden=false;debugButton.hidden=false}
 
-const WEATHER_ENDPOINT="/api/weather";
 const LEGACY_STORE="rigo_main_chat_history_v1";
 
 const conversation=document.getElementById("conversation");
@@ -121,8 +119,8 @@ function aiHistory(c){const list=(c?.messages||[]).filter(m=>m.role==="user"||m.
 function needsWeather(text){return/(طقس|الجو|درجة الحرارة|حرارة اليوم|مطر|تمطر|weather|forecast|temperature|rain)/i.test(text)}
 function getPosition(){return new Promise((resolve,reject)=>{if(!navigator.geolocation){reject(new Error("GEOLOCATION_NOT_SUPPORTED"));return}navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:12000,maximumAge:300000})})}
 
-async function weatherContext(){const position=await getPosition();const lat=position.coords.latitude,lon=position.coords.longitude;const response=await API.runtime.get(`${WEATHER_ENDPOINT}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,{retries:2});const data=response?.data||{};if(data?.ok===false)throw new Error(data?.error||"WEATHER_FAILED");return`LIVE WEATHER TOOL RESULT (current user location; source: ${data.source}):\n${JSON.stringify(data)}`}
-async function ask(text,c){let context="You are the main user-facing RIGO AI assistant. Use live tool results when provided.";if(needsWeather(text)){try{context+="\n\n"+await weatherContext()}catch(error){context+=`\n\nWEATHER TOOL STATUS: unavailable because ${error?.message||String(error)}. Ask the user to allow location access or provide a city.`}}const result=await AI.process({message:text,messages:aiHistory(c),maxTokens:4000,context,metadata:{userId:userIdentity,conversationId:c?.id||null}});if(typeof result?.message!=="string"||!result.message.trim())throw new Error("RIGO_AI_EMPTY_RESPONSE");return result.message.trim()}
+async function getLocationForAI(text){if(!needsWeather(text))return null;try{const position=await getPosition();return{latitude:position.coords.latitude,longitude:position.coords.longitude}}catch{return null}}
+async function ask(text,c){const location=await getLocationForAI(text);const result=await AI.process({message:text,messages:aiHistory(c),maxTokens:4000,location,context:"You are the main user-facing RIGO AI assistant. Use live tool results when provided.",metadata:{userId:userIdentity,conversationId:c?.id||null}});if(typeof result?.message!=="string"||!result.message.trim())throw new Error("RIGO_AI_EMPTY_RESPONSE");return result.message.trim()}
 
 async function submit(){const text=input.value.trim();if(!text||loading)return;let c=ChatActions.ensureConversation();const chatId=c.id;input.value="";resize();loading=true;ChatActions.appendConversationMessage(chatId,{role:"user",content:text,createdAt:Date.now()});if(!c.title)ChatActions.renameConversation(chatId,text.slice(0,80));try{ChatActions.sendMessage({role:"user",content:text,userId:userIdentity,conversationId:chatId})}catch{}sync();render();try{c=ChatActions.getActiveConversation();const reply=await ask(text,c);ChatActions.appendConversationMessage(chatId,{role:"assistant",content:reply,createdAt:Date.now()});try{ChatActions.sendMessage({role:"assistant",content:reply,userId:userIdentity,conversationId:chatId})}catch{}}catch(e){ChatActions.appendConversationMessage(chatId,{role:"error",content:e?.message||"Unable to reach RIGO AI.",createdAt:Date.now()})}finally{loading=false;searchResultIds=null;sync();render();if(searchQuery.trim())runHistorySearch();input.focus()}}
 
