@@ -75,18 +75,15 @@ async function handleCreateFileOperation(
 async function handleUpdateFileOperation(
   operation
 ){
+  const backup=await GitHubProvider.readFile(operation.payload.path);
+  if(!backup?.ok)return backup;
+  operation.backup={path:backup.path,content:backup.content,sha:backup.sha};
 
-  return GitHubProvider
-  .updateFile(
-
+  return GitHubProvider.updateFile(
     operation.payload.path,
-
     operation.payload.content || "",
-
     operation.payload.message || null
-
   );
-
 }
 
 
@@ -94,16 +91,14 @@ async function handleUpdateFileOperation(
 async function handleDeleteFileOperation(
   operation
 ){
+  const backup=await GitHubProvider.readFile(operation.payload.path);
+  if(!backup?.ok)return backup;
+  operation.backup={path:backup.path,content:backup.content,sha:backup.sha};
 
-  return GitHubProvider
-  .deleteFile(
-
+  return GitHubProvider.deleteFile(
     operation.payload.path,
-
     operation.payload.message || null
-
   );
-
 }
 
 
@@ -111,18 +106,34 @@ async function handleDeleteFileOperation(
 async function handleMoveFileOperation(
   operation
 ){
+  const backup=await GitHubProvider.readFile(operation.payload.sourcePath);
+  if(!backup?.ok)return backup;
+  operation.backup={path:backup.path,content:backup.content,sha:backup.sha};
 
-  return GitHubProvider
-  .moveFile(
-
+  return GitHubProvider.moveFile(
     operation.payload.sourcePath,
-
     operation.payload.destinationPath,
-
     operation.payload.message || null
-
   );
+}
 
+async function rollbackFileOperation(operation){
+  const type=operation.type;
+  if(type===ExecutionPlan.OperationTypes.CREATE_FILE){
+    return GitHubProvider.deleteFile(operation.payload.path,"RIGO Admin rollback create");
+  }
+  if(type===ExecutionPlan.OperationTypes.UPDATE_FILE){
+    if(!operation.backup)return{ok:false,error:"ROLLBACK_BACKUP_MISSING"};
+    return GitHubProvider.updateFile(operation.backup.path,operation.backup.content,"RIGO Admin rollback update");
+  }
+  if(type===ExecutionPlan.OperationTypes.DELETE_FILE){
+    if(!operation.backup)return{ok:false,error:"ROLLBACK_BACKUP_MISSING"};
+    return GitHubProvider.createFile(operation.backup.path,operation.backup.content,"RIGO Admin rollback delete");
+  }
+  if(type===ExecutionPlan.OperationTypes.MOVE_FILE){
+    return GitHubProvider.moveFile(operation.payload.destinationPath,operation.payload.sourcePath,"RIGO Admin rollback move");
+  }
+  return{ok:false,error:`ROLLBACK_UNSUPPORTED:${type}`};
 }
 
 
@@ -182,6 +193,15 @@ function initializeExecution(){
     handleMoveFileOperation
 
   );
+
+  for(const type of [
+    ExecutionPlan.OperationTypes.CREATE_FILE,
+    ExecutionPlan.OperationTypes.UPDATE_FILE,
+    ExecutionPlan.OperationTypes.DELETE_FILE,
+    ExecutionPlan.OperationTypes.MOVE_FILE
+  ]){
+    Execution.registerRollbackHandler(type,rollbackFileOperation);
+  }
 
   adminExecutionState.initialized =
   true;

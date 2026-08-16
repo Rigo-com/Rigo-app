@@ -27,3 +27,4 @@ jobs:
       - run: node tests/admin-project-scanner.test.mjs
       - run: node tests/admin-code-agent.test.mjs
       - run: node tests/admin-execution-queue.test.mjs
+      - run: node tests/admin-rollback.test.mjs

@@ -27,6 +27,9 @@ Object.seal({
   handlers:
   {},
 
+  rollbackHandlers:
+  {},
+
   diagnostics:{
 
     executedPlans:
@@ -36,6 +39,12 @@ Object.seal({
     0,
 
     failedOperations:
+    0,
+
+    rollbacks:
+    0,
+
+    rollbackFailures:
     0
 
   }
@@ -100,6 +109,53 @@ function registerHandler(
 
   return true;
 
+}
+
+
+
+// =====================================
+// ROLLBACK HANDLERS
+// =====================================
+
+function registerRollbackHandler(operationType,handler){
+  if(!operationType || typeof handler !== "function")return false;
+  executionEngineState.rollbackHandlers[operationType]=handler;
+  return true;
+}
+
+function getRollbackHandler(operationType){
+  return executionEngineState.rollbackHandlers[operationType] || null;
+}
+
+async function rollbackOperations(plan){
+  const completed=Object.values(plan.graph.nodes)
+  .filter(operation=>operation.status===ExecutionPlan.OperationStatus.COMPLETED)
+  .reverse();
+
+  const results=[];
+  for(const operation of completed){
+    const handler=getRollbackHandler(operation.type);
+    if(!handler){
+      results.push({ok:false,operationId:operation.id,error:`ROLLBACK_HANDLER_NOT_FOUND:${operation.type}`});
+      continue;
+    }
+    try{
+      const result=await handler(operation);
+      if(result?.ok===false)throw new Error(result.error||"ROLLBACK_FAILED");
+      operation.status=ExecutionPlan.OperationStatus.CANCELLED;
+      results.push({ok:true,operationId:operation.id,result});
+      executionEngineState.diagnostics.rollbacks++;
+    }catch(error){
+      results.push({ok:false,operationId:operation.id,error:error?.message||String(error)});
+      executionEngineState.diagnostics.rollbackFailures++;
+    }
+  }
+  const completedRollback=results.length>0 && results.every(item=>item.ok);
+  plan.rollback.completed=completedRollback;
+  plan.rollback.completedAt=Date.now();
+  plan.rollback.results=results;
+  if(completedRollback)plan.status=ExecutionPlan.Status.ROLLED_BACK;
+  return {ok:completedRollback,results};
 }
 
 
@@ -340,12 +396,22 @@ async function executePlan(
     error?.message ||
     String(error);
 
+    let rollback={ok:false,results:[]};
+    if(plan.rollback?.enabled){
+      rollback=await rollbackOperations(plan);
+    }
+
     return {
 
       ok:false,
 
       error:
       plan.error,
+
+      rolledBack:
+      rollback.ok,
+
+      rollback,
 
       plan
 
@@ -397,6 +463,11 @@ function snapshot(){
 
     ),
 
+    rollbackHandlers:
+    Object.keys(
+      executionEngineState.rollbackHandlers
+    ),
+
     diagnostics:{
 
       ...executionEngineState
@@ -420,7 +491,13 @@ Object.freeze({
 
   registerHandler,
 
+  registerRollbackHandler,
+
   getHandler,
+
+  getRollbackHandler,
+
+  rollbackOperations,
 
   executeOperation,
 
@@ -442,7 +519,13 @@ export {
 
   registerHandler,
 
+  registerRollbackHandler,
+
   getHandler,
+
+  getRollbackHandler,
+
+  rollbackOperations,
 
   executeOperation,
 

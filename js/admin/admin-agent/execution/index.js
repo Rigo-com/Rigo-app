@@ -14,9 +14,10 @@ function execute(plan){
   });
 }
 const registerHandler=(type,handler)=>ExecutionEngine.registerHandler(type,handler);
+const registerRollbackHandler=(type,handler)=>ExecutionEngine.registerRollbackHandler(type,handler);
 const cancel=planId=>ExecutionQueue.cancel(planId);
 const history=options=>ExecutionHistory.list(options);
 function reset(){ExecutionQueue.reset();ExecutionHistory.reset();return true;}
 const snapshot=()=>({builder:ExecutionBuilder.snapshot(),engine:ExecutionEngine.snapshot(),queue:ExecutionQueue.snapshot(),history:ExecutionHistory.snapshot()});
-const Execution=Object.freeze({initialize,createPlan,execute,registerHandler,cancel,history,reset,snapshot,queue:ExecutionQueue,records:ExecutionHistory});
-export{initialize,createPlan,execute,registerHandler,cancel,history,reset,snapshot,Execution};export default Execution;
+const Execution=Object.freeze({initialize,createPlan,execute,registerHandler,registerRollbackHandler,cancel,history,reset,snapshot,queue:ExecutionQueue,records:ExecutionHistory});
+export{initialize,createPlan,execute,registerHandler,registerRollbackHandler,cancel,history,reset,snapshot,Execution};export default Execution;
