@@ -1,371 +1,121 @@
-// =====================================
-// RIGO AI
-// SETTINGS MANAGER
-// ORCHESTRATION LAYER
-// =====================================
+import SETTINGS_DEFAULTS from "./settings-defaults.js";
+import { SettingsState } from "./settings-state.js";
+import SettingsEvents, { SETTINGS_EVENTS, emit } from "./settings-events.js";
+import { loadSettings, createBackup } from "./settings-storage.js";
+import { validateSettings } from "./settings-validation.js";
+import { sanitizeSettings } from "./settings-security.js";
+import { migrateSettings } from "./settings-migrations.js";
+import { syncFromStorage, syncToStorage } from "./settings-sync.js";
+import { deepMerge } from "./settings-utils.js";
 
-import {
-  SettingsState
+const managerOperations = Object.seal({ initialize:null });
+
+function normalizeSettings(settings){
+  return validateSettings(sanitizeSettings(migrateSettings(settings || {})));
 }
-from "./settings-state.js";
-
-import {
-  SETTINGS_EVENTS,
-  emit
-}
-from "./settings-events.js";
-
-import {
-  loadSettings,
-  saveSettings,
-  createBackup
-}
-from "./settings-storage.js";
-
-import {
-  validateSettings
-}
-from "./settings-validation.js";
-
-import {
-  sanitizeSettings
-}
-from "./settings-security.js";
-
-import {
-  migrateSettings
-}
-from "./settings-migrations.js";
-
-import {
-  syncFromStorage,
-  syncToStorage
-}
-from "./settings-sync.js";
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
 
 function initialize(){
-
-  if(
-    SettingsState
-    .snapshot()
-    .initialized
-  ){
-    return true;
-  }
-
-  const settings =
-  syncFromStorage();
-
-  if(
-    settings
-  ){
-
-    SettingsState
-    .setSettings(
-      settings
-    );
-
-  }
-
-  SettingsState
-  .setInitialized(
-    true
-  );
-
-  emit(
-    SETTINGS_EVENTS
-    .INITIALIZED
-  );
-
+  if(SettingsState.snapshot().initialized) return true;
+  const settings = syncFromStorage();
+  SettingsState.setSettings(settings || structuredClone(SETTINGS_DEFAULTS));
+  SettingsState.setInitialized(true);
+  SettingsState.setHealthy(Boolean(settings));
+  emit(SETTINGS_EVENTS.INITIALIZED);
   return true;
-
 }
 
-
-
-// =====================================
-// LOAD
-// =====================================
+const boot = initialize;
 
 function load(){
-
+  SettingsState.setLoading(true);
   try{
-
-    SettingsState
-    .setLoading(
-      true
-    );
-
-    let settings =
-    loadSettings();
-
-    settings =
-    migrateSettings(
-      settings
-    );
-
-    settings =
-    sanitizeSettings(
-      settings
-    );
-
-    settings =
-    validateSettings(
-      settings
-    );
-
-    SettingsState
-    .setSettings(
-      settings
-    );
-
-    SettingsState
-    .incrementLoads();
-
-    emit(
-
-      SETTINGS_EVENTS
-      .LOADED,
-
-      settings
-
-    );
-
+    const settings = normalizeSettings(loadSettings());
+    SettingsState.setSettings(settings);
+    SettingsState.setHealthy(true);
+    SettingsState.incrementLoads();
+    emit(SETTINGS_EVENTS.LOADED, structuredClone(settings));
     return settings;
-
   }
-
   catch(error){
-
-    SettingsState
-    .incrementFailedLoads();
-
+    SettingsState.setHealthy(false);
+    SettingsState.incrementFailedLoads();
+    emit(SETTINGS_EVENTS.VALIDATION_FAILED, { error:String(error?.message || error) });
     return null;
-
   }
-
-  finally{
-
-    SettingsState
-    .setLoading(
-      false
-    );
-
-  }
-
+  finally { SettingsState.setLoading(false); }
 }
-
-
-
-// =====================================
-// SAVE
-// =====================================
 
 function save(){
-
+  SettingsState.setSaving(true);
   try{
-
-    SettingsState
-    .setSaving(
-      true
-    );
-
-    const settings =
-
-      SettingsState
-      .getSettings();
-
-    createBackup(
-      settings
-    );
-
-    const result =
-
-      syncToStorage(
-        settings
-      );
-
-    if(
-      result
-    ){
-
-      SettingsState
-      .incrementSaves();
-
-      emit(
-
-        SETTINGS_EVENTS
-        .SAVED,
-
-        settings
-
-      );
-
-    }
-
-    return result;
-
+    const current = SettingsState.getSettings();
+    const settings = normalizeSettings(current);
+    createBackup(current);
+    const result = syncToStorage(settings);
+    if(!result) throw new Error("SETTINGS_SAVE_FAILED");
+    SettingsState.setSettings(settings);
+    SettingsState.setHealthy(true);
+    SettingsState.incrementSaves();
+    emit(SETTINGS_EVENTS.SAVED, structuredClone(settings));
+    return true;
   }
-
-  catch{
-
-    SettingsState
-    .incrementFailedSaves();
-
+  catch(error){
+    SettingsState.setHealthy(false);
+    SettingsState.incrementFailedSaves();
+    emit(SETTINGS_EVENTS.SYNC_FAILED, { error:String(error?.message || error) });
     return false;
-
   }
-
-  finally{
-
-    SettingsState
-    .setSaving(
-      false
-    );
-
-  }
-
+  finally { SettingsState.setSaving(false); }
 }
 
-
-
-// =====================================
-// UPDATE
-// =====================================
-
-function update(
-  updates = {}
-){
-
-  SettingsState
-  .updateSettings(
-    updates
-  );
-
-  emit(
-
-    SETTINGS_EVENTS
-    .UPDATED,
-
-    updates
-
-  );
-
-  return true;
-
+function update(updates = {}){
+  try{
+    const sanitizedUpdates = sanitizeSettings(updates);
+    const merged = deepMerge(SettingsState.getSettings(), sanitizedUpdates);
+    const validated = validateSettings(merged);
+    SettingsState.setSettings(validated);
+    SettingsState.setHealthy(true);
+    emit(SETTINGS_EVENTS.UPDATED, structuredClone(validated));
+    return true;
+  }
+  catch(error){
+    SettingsState.setHealthy(false);
+    emit(SETTINGS_EVENTS.VALIDATION_FAILED, { error:String(error?.message || error) });
+    return false;
+  }
 }
-
-
-
-// =====================================
-// RESET
-// =====================================
 
 function reset(){
-
-  SettingsState
-  .reset();
-
-  emit(
-    SETTINGS_EVENTS
-    .RESET
-  );
-
+  SettingsState.reset();
+  emit(SETTINGS_EVENTS.RESET);
   return true;
-
 }
 
-
-
-// =====================================
-// GET SETTINGS
-// =====================================
-
-function getSettings(){
-
-  return SettingsState
-  .getSettings();
-
+function shutdown(){
+  SettingsState.setInitialized(false);
+  SettingsState.setLoading(false);
+  SettingsState.setSaving(false);
+  SettingsState.setSyncing(false);
+  emit(SETTINGS_EVENTS.DESTROYED);
+  SettingsEvents.clear();
+  return true;
 }
 
-
-
-// =====================================
-// HEALTH
-// =====================================
-
-function health(){
-
+const getSettings = () => SettingsState.getSettings();
+function snapshot(){
   return Object.freeze({
-
-    ...SettingsState
-    .snapshot(),
-
-    diagnostics:
-
-    SettingsState
-    .diagnostics()
-
+    ...SettingsState.snapshot(),
+    diagnostics:SettingsState.diagnostics(),
+    timestamp:Date.now()
   });
-
 }
+const health = snapshot;
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const SettingsManager =
-Object.freeze({
-
-  initialize,
-
-  load,
-
-  save,
-
-  update,
-
-  reset,
-
-  getSettings,
-
-  health
-
+const SettingsManager = Object.freeze({
+  id:"settings", priority:20,
+  initialize, boot, load, save, update, reset, shutdown,
+  getSettings, health, snapshot
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  initialize,
-
-  load,
-
-  save,
-
-  update,
-
-  reset,
-
-  getSettings,
-
-  health,
-
-  SettingsManager
-
-};
-
-export default
-SettingsManager;
+export { normalizeSettings, initialize, boot, load, save, update, reset, shutdown, getSettings, health, snapshot, SettingsManager };
+export default SettingsManager;
