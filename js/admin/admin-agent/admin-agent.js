@@ -1178,6 +1178,25 @@ async function handleCodeCommand(
   );
 
   if(
+    input &&
+    typeof input === "object"
+  ){
+    const action=normalizeCommand(input.action || input.type);
+    if(action === "read-file") return CodeAgent.read(input.path);
+    if(action === "analyze-file") return CodeAgent.analyze(input.path);
+    if(action === "search-code") return CodeAgent.search(input.query);
+  }
+
+  let match=normalizeText(input).match(/^(?:read file|اقرأ ملف)\s+(.+)$/i);
+  if(match) return CodeAgent.read(match[1].trim());
+
+  match=normalizeText(input).match(/^(?:analyze file|حلل ملف)\s+(.+)$/i);
+  if(match) return CodeAgent.analyze(match[1].trim());
+
+  match=normalizeText(input).match(/^(?:search code|ابحث بالكود)\s+(.+)$/i);
+  if(match) return CodeAgent.search(match[1].trim());
+
+  if(
     normalized === "analyze code" ||
     normalized === "حلل الكود"
   ){
@@ -1339,7 +1358,13 @@ async function command(
 
       "list systems",
 
-      "analyze code"
+      "analyze code",
+
+      "read file js/path/file.js",
+
+      "analyze file js/path/file.js",
+
+      "search code keyword"
 
     ],
 

@@ -473,6 +473,35 @@ async function moveFile(
 
 
 // =====================================
+// READ FILE
+// =====================================
+
+async function readFile(path){
+  try{
+    const response=await fetch(
+      "/api/admin-project-file?path=" + encodeURIComponent(String(path || "")),
+      { credentials:"same-origin", cache:"no-store" }
+    );
+    const result=await parseResponse(response);
+    if(response.status===401 || response.status===403){
+      githubProviderState.authenticated=false;
+    }
+    if(!response.ok || !result.ok){
+      throw new Error(result.error || "ADMIN_PROJECT_FILE_READ_FAILED");
+    }
+    githubProviderState.authenticated=true;
+    githubProviderState.lastResult=result;
+    githubProviderState.lastError=null;
+    return result;
+  }catch(error){
+    githubProviderState.lastError=error;
+    return {ok:false,error:error?.message || String(error)};
+  }
+}
+
+
+
+// =====================================
 // SNAPSHOT
 // =====================================
 
@@ -524,6 +553,8 @@ Object.freeze({
 
   scanProject,
 
+  readFile,
+
   createFile,
 
   updateFile,
@@ -547,6 +578,8 @@ export {
   authenticate,
 
   scanProject,
+
+  readFile,
 
   createFile,
 
