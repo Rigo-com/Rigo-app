@@ -149,6 +149,29 @@ async function handleSubmit(
 
 
 // =====================================
+// HANDLE CLICK
+// =====================================
+
+async function handleClick(event){
+  const button=event.target?.closest?.("[data-admin-command],[data-admin-plan-action]");
+  const root=adminAgentActionsState.root;
+  if(!button||!root||!root.contains(button)||button.disabled)return false;
+  const handler=getCommandHandler();if(!handler)return false;
+  const action=button.dataset.adminPlanAction;
+  const planId=button.dataset.planId;
+  if(action){
+    const types={approve:"approve-plan",execute:"execute-plan",cancel:"cancel-plan"};
+    await handler({type:types[action],planId});
+    return true;
+  }
+  const command=button.dataset.adminCommand;
+  if(command){await handler(command);return true;}
+  return false;
+}
+
+
+
+// =====================================
 // MOUNT
 // =====================================
 
@@ -176,6 +199,11 @@ function mount(
   root.addEventListener(
     "submit",
     handleSubmit
+  );
+
+  root.addEventListener(
+    "click",
+    handleClick
   );
 
   adminAgentActionsState.mounted =
@@ -210,6 +238,11 @@ function unmount(){
     root.removeEventListener(
       "submit",
       handleSubmit
+    );
+
+    root.removeEventListener(
+      "click",
+      handleClick
     );
 
   }

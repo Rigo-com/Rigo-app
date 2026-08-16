@@ -956,6 +956,16 @@ async function handleExecutionCommand(
 
     }
 
+    if(type === "cancel-plan"){
+      const plan=getPendingPlan(input.planId);
+      if(!plan)return{ok:false,error:"EXECUTION_PLAN_NOT_FOUND"};
+      if(plan.status===ExecutionPlan.Status.RUNNING)return{ok:false,error:"EXECUTION_PLAN_RUNNING"};
+      plan.status=ExecutionPlan.Status.CANCELLED;
+      for(const operation of Object.values(plan.graph.nodes))operation.status=ExecutionPlan.OperationStatus.CANCELLED;
+      delete adminExecutionState.pendingPlans[input.planId];
+      return{ok:true,mode:"cancel-plan",planId:input.planId};
+    }
+
     if(type === "execution-history"){
       return {ok:true,mode:"execution-history",entries:Execution.history(input.options || {})};
     }
