@@ -43,3 +43,4 @@ jobs:
       - run: node tests/admin-test-agent.test.mjs
       - run: node tests/admin-documentation-agent.test.mjs
       - run: node tests/admin-auth-cleanup.test.mjs
+      - run: node tests/admin-e2e.test.mjs
