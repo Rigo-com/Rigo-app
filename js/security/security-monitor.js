@@ -1,313 +1,60 @@
-// =====================================
-// RIGO AI
-// SECURITY MONITOR
-// SECURITY EVENT MONITORING LAYER
-// =====================================
+import { SECURITY_SEVERITY, SECURITY_EVENTS } from "./security-types.js";
+import SecuritySanitize from "./security-sanitize.js";
+import SecurityFreeze from "./security-freeze.js";
 
-import {
-
-  SECURITY_SEVERITY,
-
-  SECURITY_EVENTS
-
-}
-from "./security-types.js";
-
-
-
-// =====================================
-// CONFIG
-// =====================================
-
-const SECURITY_MONITOR_CONFIG =
-Object.freeze({
-
-  MAX_EVENTS:
-  1000
-
-});
-
-
-
-// =====================================
-// STATE
-// =====================================
-
-const securityMonitorState =
-Object.seal({
-
-  events:[]
-
-});
-
-
-
-// =====================================
-// EVENT ID
-// =====================================
+const SECURITY_MONITOR_CONFIG = Object.freeze({ MAX_EVENTS:1000 });
+const securityMonitorState = Object.seal({ events:[] });
 
 function createEventId(){
-
-  if(
-
-    typeof crypto !==
-    "undefined"
-
-    &&
-
-    typeof crypto.randomUUID ===
-    "function"
-
-  ){
-
-    return crypto.randomUUID();
-
-  }
-
-  return `event_${Date.now()}_${Math.random()
-    .toString(36)
-    .slice(2)}`;
-
+  if(typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `event_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
+function normalizeDetails(details){
+  if(!details || typeof details !== "object" || Array.isArray(details)) return Object.freeze({ value:String(details ?? "") });
+  return SecurityFreeze.deepFreeze(SecuritySanitize.value(details));
+}
 
-
-// =====================================
-// EVENT
-// =====================================
-
-function createSecurityEvent(
-  type,
-  details = {},
-  severity =
-  SECURITY_SEVERITY.INFO
-){
-
-  if(
-    typeof type !==
-    "string"
-  ){
-
-    throw new TypeError(
-      "Invalid event type"
-    );
-
-  }
-
+function createSecurityEvent(type, details = {}, severity = SECURITY_SEVERITY.INFO){
+  if(typeof type !== "string" || !type.trim()) throw new TypeError("Invalid event type");
+  if(!Object.values(SECURITY_SEVERITY).includes(severity)) throw new TypeError("Invalid event severity");
   return Object.freeze({
-
-    id:
-    createEventId(),
-
-    type,
-
+    id:createEventId(),
+    type:type.trim(),
     severity,
-
-    timestamp:
-    Date.now(),
-
-    details
-
+    timestamp:Date.now(),
+    details:normalizeDetails(details)
   });
-
 }
 
-
-
-// =====================================
-// RECORD EVENT
-// =====================================
-
-function recordEvent(
-  type,
-  details = {},
-  severity =
-  SECURITY_SEVERITY.INFO
-){
-
-  const event =
-  createSecurityEvent(
-
-    type,
-
-    details,
-
-    severity
-
-  );
-
-  securityMonitorState
-  .events
-  .push(event);
-
-  if(
-
-    securityMonitorState
-    .events.length >
-
-    SECURITY_MONITOR_CONFIG
-    .MAX_EVENTS
-
-  ){
-
-    securityMonitorState
-    .events.shift();
-
+function recordEvent(type, details = {}, severity = SECURITY_SEVERITY.INFO){
+  const event = createSecurityEvent(type, details, severity);
+  securityMonitorState.events.push(event);
+  if(securityMonitorState.events.length > SECURITY_MONITOR_CONFIG.MAX_EVENTS){
+    securityMonitorState.events.splice(0, securityMonitorState.events.length - SECURITY_MONITOR_CONFIG.MAX_EVENTS);
   }
-
   return event;
-
 }
 
-
-
-// =====================================
-// VIOLATION
-// =====================================
-
-function recordViolation(
-  type,
-  details = {}
-){
-
-  return recordEvent(
-
-    type,
-
-    details,
-
-    SECURITY_SEVERITY.ERROR
-
-  );
-
-}
-
-
-
-// =====================================
-// GET EVENTS
-// =====================================
-
-function getEvents(){
-
-  return Object.freeze([
-
-    ...securityMonitorState
-    .events
-
-  ]);
-
-}
-
-
-
-// =====================================
-// CLEAR EVENTS
-// =====================================
-
-function clearEvents(){
-
-  securityMonitorState
-  .events.length = 0;
-
-}
-
-
-
-// =====================================
-// METRICS
-// =====================================
-
+const recordViolation = (type, details = {}) => recordEvent(type, details, SECURITY_SEVERITY.ERROR);
+const getEvents = () => Object.freeze([...securityMonitorState.events]);
+const clearEvents = () => (securityMonitorState.events.length = 0, true);
 function getMetrics(){
-
-  const metrics = {
-
-    totalEvents:0,
-
-    totalViolations:0
-
-  };
-
-  securityMonitorState
-  .events
-  .forEach((event) => {
-
-    metrics.totalEvents++;
-
-    if(
-
-      event.severity ===
-      SECURITY_SEVERITY.ERROR
-
-      ||
-
-      event.severity ===
-      SECURITY_SEVERITY.CRITICAL
-
-    ){
-
-      metrics.totalViolations++;
-
-    }
-
-  });
-
-  return Object.freeze(
-    metrics
-  );
-
+  let totalViolations = 0;
+  for(const event of securityMonitorState.events){
+    if(event.severity === SECURITY_SEVERITY.ERROR || event.severity === SECURITY_SEVERITY.CRITICAL) totalViolations++;
+  }
+  return Object.freeze({ totalEvents:securityMonitorState.events.length, totalViolations });
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const SecurityMonitor =
-Object.freeze({
-
-  events:
-  SECURITY_EVENTS,
-
-  record:
-  recordEvent,
-
-  violation:
-  recordViolation,
-
+const SecurityMonitor = Object.freeze({
+  events:SECURITY_EVENTS,
+  record:recordEvent,
+  violation:recordViolation,
   getEvents,
-
-  clear:
-  clearEvents,
-
-  metrics:
-  getMetrics
-
+  clear:clearEvents,
+  metrics:getMetrics
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  SECURITY_MONITOR_CONFIG,
-
-  recordEvent,
-
-  recordViolation,
-
-  getEvents,
-
-  clearEvents,
-
-  getMetrics,
-
-  SecurityMonitor
-
-};
-
+export { SECURITY_MONITOR_CONFIG, securityMonitorState, normalizeDetails, createSecurityEvent, recordEvent, recordViolation, getEvents, clearEvents, getMetrics, SecurityMonitor };
 export default SecurityMonitor;
