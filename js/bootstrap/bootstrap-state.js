@@ -20,6 +20,10 @@ Object.seal({
   
   startupPromise:null,
 
+  shutdownPromise:null,
+
+  recoveryPromise:null,
+
 
 
   // ===================================

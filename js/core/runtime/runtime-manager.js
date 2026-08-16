@@ -262,6 +262,13 @@ async function resetRuntime(){
 
   try{
 
+    const shutdown =
+    await shutdownRuntime();
+
+    if(!shutdown){
+      return false;
+    }
+
     RuntimeState
     .update({
 
@@ -272,8 +279,6 @@ async function resetRuntime(){
       .RESETTING
 
     });
-
-    await shutdownRuntime();
 
     RuntimeState
     .reset();
