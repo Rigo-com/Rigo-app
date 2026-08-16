@@ -2699,6 +2699,81 @@ jobs:
           console.log('Active agent lifecycle control checks passed.');
           EOF
 
+      - name: Verify Workflow custom steps and lifecycle shutdown
+        shell: bash
+        run: |
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import {
+            registerWorkflow,
+            getWorkflow
+          } from './js/ai/workflow-engine/workflow-registry.js';
+          import {
+            executeWorkflow
+          } from './js/ai/workflow-engine/workflow-executor.js';
+          import {
+            initializeWorkflowEngine,
+            shutdownWorkflowEngine
+          } from './js/ai/workflow-engine/workflow-lifecycle.js';
+          import {
+            workflowEngineState
+          } from './js/ai/workflow-engine/workflow-state.js';
+
+          await initializeWorkflowEngine();
+
+          await registerWorkflow({
+            id:'workflow-lifecycle-test',
+            steps:[{
+              id:'custom-wait',
+              execute:({workflow}) => new Promise((resolve,reject) => {
+                workflow.runtime.controller.signal.addEventListener(
+                  'abort',
+                  () => reject(new Error('ABORTED')),
+                  {once:true}
+                );
+              })
+            }]
+          });
+
+          assert.equal(
+            Object.isFrozen(getWorkflow('workflow-lifecycle-test')),
+            true
+          );
+          assert.equal(
+            Object.isFrozen(
+              workflowEngineState.workflows
+              .get('workflow-lifecycle-test').runtime
+            ),
+            false
+          );
+
+          const execution =
+          executeWorkflow('workflow-lifecycle-test');
+
+          await new Promise((resolve) => setTimeout(resolve,10));
+
+          assert.equal(
+            workflowEngineState.executions
+            .get('workflow-lifecycle-test'),
+            execution
+          );
+
+          await shutdownWorkflowEngine();
+
+          assert.equal(await execution,false);
+          assert.equal(workflowEngineState.executions.size,0);
+          assert.equal(workflowEngineState.workflows.size,0);
+          assert.equal(workflowEngineState.initialized,false);
+          assert.equal(workflowEngineState.diagnostics.failed,0);
+
+          await initializeWorkflowEngine();
+          assert.equal(workflowEngineState.shuttingDown,false);
+          assert.equal(workflowEngineState.initialized,true);
+          assert.equal(workflowEngineState.startupPromise,null);
+
+          console.log('Workflow custom step and lifecycle checks passed.');
+          EOF
+
       - name: Verify no legacy DependencySystem usage in AI layer
         shell: bash
         run: |

@@ -23,6 +23,9 @@ Object.seal({
   executionLocks:
   new Set(),
 
+  executions:
+  new Map(),
+
   executionQueue:
   [],
 

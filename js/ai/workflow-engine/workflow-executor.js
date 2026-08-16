@@ -44,7 +44,8 @@ import {
 from "./workflow-conditions.js";
 
 import {
-  drainWorkflowQueue
+  drainWorkflowQueue,
+  removeQueuedWorkflow
 }
 from "./workflow-queue.js";
 
@@ -417,7 +418,7 @@ export async function executeParallelSteps(
 // EXECUTE WORKFLOW
 // =====================================
 
-export async function executeWorkflow(
+async function executeWorkflowRuntime(
   workflowId,
   context = {}
 ){
@@ -428,6 +429,10 @@ export async function executeWorkflow(
   );
 
   if(!normalizedId){
+    return false;
+  }
+
+  if(workflowEngineState.shuttingDown){
     return false;
   }
 
@@ -702,15 +707,19 @@ export async function executeWorkflow(
   }
   catch(error){
 
+    const terminated =
+    workflow.state === WORKFLOW_STATES.TERMINATED;
+
     workflow.state =
-    WORKFLOW_STATES
-    .FAILED;
+    terminated
+    ? WORKFLOW_STATES.TERMINATED
+    : WORKFLOW_STATES.FAILED;
 
     workflow.retries++;
 
-    workflowEngineState
-    .failedWorkflows
-    .add(normalizedId);
+    if(!terminated){
+      workflowEngineState.failedWorkflows.add(normalizedId);
+    }
 
     workflowEngineState
     .executionHistory
@@ -727,9 +736,9 @@ export async function executeWorkflow(
 
     trimWorkflowHistory();
 
-    workflowEngineState
-    .diagnostics
-    .failed++;
+    if(!terminated){
+      workflowEngineState.diagnostics.failed++;
+    }
 
     await emitWorkflowEvent(
       WORKFLOW_EVENTS
@@ -765,6 +774,40 @@ export async function executeWorkflow(
     );
 
   }
+
+}
+
+
+export function executeWorkflow(
+  workflowId,
+  context = {}
+){
+
+  const normalizedId =
+  normalizeWorkflowId(workflowId);
+
+  if(workflowEngineState.executions.has(normalizedId)){
+    return Promise.resolve(false);
+  }
+
+  const execution =
+  executeWorkflowRuntime(normalizedId,context);
+
+  workflowEngineState.executions.set(
+    normalizedId,
+    execution
+  );
+
+  execution.finally(() => {
+    if(
+      workflowEngineState.executions.get(normalizedId) ===
+      execution
+    ){
+      workflowEngineState.executions.delete(normalizedId);
+    }
+  });
+
+  return execution;
 
 }
 
@@ -814,6 +857,8 @@ export async function terminateWorkflow(
   workflowEngineState
   .queuedWorkflowIds
   .delete(normalizedId);
+
+  removeQueuedWorkflow(normalizedId);
 
   workflowEngineState
   .diagnostics
