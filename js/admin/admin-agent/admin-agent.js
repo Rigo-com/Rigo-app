@@ -779,6 +779,23 @@ async function executeApprovedPlan(
 
   }
 
+  const operations = Object.values(plan.graph.nodes);
+  const destructive = operations.some(operation =>
+    operation.type === ExecutionPlan.OperationTypes.DELETE_FILE
+  );
+
+  if(
+    !AdminAgentPermissions.allowExecution() ||
+    !AdminAgentPermissions.allowWriteExecution() ||
+    (destructive && !AdminAgentPermissions.allowDeleteExecution())
+  ){
+    return {
+      ok:false,
+      error:"ADMIN_EXECUTION_PERMISSION_DENIED",
+      plan:ExecutionPlan.snapshot(plan)
+    };
+  }
+
   const result =
   await Execution
   .execute(

@@ -172,6 +172,16 @@ async function executeOperation(
     operation
   );
 
+  if(
+    result?.ok === false
+  ){
+    const error = new Error(
+      result.error || "OPERATION_FAILED"
+    );
+    error.details = result;
+    throw error;
+  }
+
   operation.status =
   ExecutionPlan
   .OperationStatus
@@ -308,6 +318,18 @@ async function executePlan(
 
   }
   catch(error){
+
+    const activeOperation =
+    Object.values(plan.graph.nodes)
+    .find(operation => operation.status === ExecutionPlan.OperationStatus.RUNNING);
+
+    if(activeOperation){
+      activeOperation.status = ExecutionPlan.OperationStatus.FAILED;
+      activeOperation.error = error?.message || String(error);
+      activeOperation.completedAt = Date.now();
+    }
+
+    executionEngineState.diagnostics.failedOperations++;
 
     plan.status =
     ExecutionPlan
