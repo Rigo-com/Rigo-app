@@ -331,7 +331,80 @@ export async function executePlanStep(
 // EXECUTE PLAN
 // =====================================
 
-export async function executePlan(
+function synchronizePlanRuntime(
+  plan,
+  state
+){
+
+  if(!PLANNER_ENGINE_CONFIG.ENABLE_RUNTIME_SYNC){
+    return false;
+  }
+
+  const now = Date.now();
+
+  plan.updatedAt = now;
+  plan.runtime.state = state;
+  plan.runtime.updatedAt = now;
+
+  return true;
+
+}
+
+
+async function rememberPlan(
+  plan
+){
+
+  if(!PLANNER_ENGINE_CONFIG.ENABLE_PLAN_MEMORY){
+    return false;
+  }
+
+  try{
+
+    const memory =
+    await ServiceManager.resolve("memory");
+
+    if(typeof memory?.create !== "function"){
+      return false;
+    }
+
+    return Boolean(
+      await memory.create(
+        JSON.stringify({
+          planId:plan.id,
+          goal:plan.goal || "",
+          state:plan.state,
+          steps:(plan.steps || []).map((step) => ({
+            id:step.id,
+            objective:step.objective,
+            state:step.state,
+            executor:step.executor || null
+          }))
+        }),
+        {
+          type:"system",
+          priority:
+          plan.state === PLAN_STATES.COMPLETED
+          ? "normal"
+          : "high",
+          tags:[
+            "planner-engine",
+            `plan:${plan.id}`,
+            `state:${plan.state}`
+          ]
+        }
+      )
+    );
+
+  }
+  catch(error){
+    return false;
+  }
+
+}
+
+
+async function executePlanRuntime(
   planId
 ){
 
@@ -339,6 +412,10 @@ export async function executePlan(
   normalizePlanId(
     planId
   );
+
+  if(plannerEngineState.shuttingDown){
+    return false;
+  }
 
   if(
     plannerEngineState
@@ -407,6 +484,11 @@ export async function executePlan(
   PLAN_STATES
   .EXECUTING;
 
+  synchronizePlanRuntime(
+    plan,
+    PLAN_STATES.EXECUTING
+  );
+
   incrementPlannerDiagnostic("executed");
 
   try{
@@ -459,6 +541,11 @@ export async function executePlan(
     PLAN_STATES
     .COMPLETED;
 
+    synchronizePlanRuntime(
+      plan,
+      PLAN_STATES.COMPLETED
+    );
+
     plan.runtime.running =
     false;
 
@@ -480,6 +567,8 @@ export async function executePlan(
       trimPlannerHistory();
     }
 
+    await rememberPlan(plan);
+
     await emitPlannerEvent(
       PLAN_EVENTS
       .COMPLETED,
@@ -495,8 +584,14 @@ export async function executePlan(
   catch(error){
 
     plan.state =
-    PLAN_STATES
-    .FAILED;
+    plan.runtime.terminatedAt
+    ? PLAN_STATES.TERMINATED
+    : PLAN_STATES.FAILED;
+
+    synchronizePlanRuntime(
+      plan,
+      plan.state
+    );
 
     plan.runtime.running =
     false;
@@ -516,6 +611,8 @@ export async function executePlan(
       });
       trimPlannerHistory();
     }
+
+    await rememberPlan(plan);
 
     await emitPlannerEvent(
       PLAN_EVENTS
@@ -560,6 +657,39 @@ export async function executePlan(
 }
 
 
+export function executePlan(
+  planId
+){
+
+  const normalizedId =
+  normalizePlanId(planId);
+
+  if(plannerEngineState.executions.has(normalizedId)){
+    return Promise.resolve(false);
+  }
+
+  const execution =
+  executePlanRuntime(normalizedId);
+
+  plannerEngineState.executions.set(
+    normalizedId,
+    execution
+  );
+
+  execution.finally(() => {
+    if(
+      plannerEngineState.executions.get(normalizedId) ===
+      execution
+    ){
+      plannerEngineState.executions.delete(normalizedId);
+    }
+  });
+
+  return execution;
+
+}
+
+
 // =====================================
 // TERMINATE PLAN
 // =====================================
@@ -598,7 +728,12 @@ export async function terminatePlan(
 
   plan.state =
   PLAN_STATES
-  .FAILED;
+  .TERMINATED;
+
+  synchronizePlanRuntime(
+    plan,
+    PLAN_STATES.TERMINATED
+  );
 
   plannerEngineState
   .activePlans

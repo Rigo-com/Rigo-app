@@ -75,6 +75,7 @@ jobs:
           const plannerRegistry = read('js/ai/planner-engine/planner-registry.js');
           const plannerState = read('js/ai/planner-engine/planner-state.js');
           const plannerDecomposition = read('js/ai/planner-engine/planner-decomposition.js');
+          const plannerLifecycle = read('js/ai/planner-engine/planner-lifecycle.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -166,6 +167,10 @@ jobs:
           assert.match(plan, /ENABLE_AGENT_ASSIGNMENT/, 'Agent assignment flag must control fallback agents');
           assert.match(plan, /ENABLE_ADAPTIVE_STRATEGIES/, 'Adaptive strategy flag must control the default strategy');
           assert.match(plannerState, /ENABLE_DIAGNOSTICS/, 'Planner diagnostics flag must control metric collection');
+          assert.match(planner, /ENABLE_PLAN_MEMORY/, 'Planner memory flag must control plan persistence');
+          assert.match(planner, /ServiceManager\.resolve\s*\(\s*["']memory["']\s*\)/, 'Planner memory must resolve through ServiceManager');
+          assert.match(planner, /ENABLE_RUNTIME_SYNC/, 'Planner runtime sync flag must control runtime metadata');
+          assert.match(plannerLifecycle, /Promise\.allSettled\s*\(\s*executions\s*\)/, 'Planner reset must await active executions');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -1721,6 +1726,141 @@ jobs:
 
           console.log(
             'Planner dynamic generation checks passed.'
+          );
+          EOF
+
+      - name: Verify planner memory sync and lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:PlannerEngine} =
+          await import('./js/ai/planner-engine/index.js');
+          const {default:ServiceManager} =
+          await import('./js/services/service-manager.js');
+          const {plannerEngineState} =
+          await import('./js/ai/planner-engine/planner-state.js');
+
+          const memories = [];
+          let mode = 'quick';
+
+          await ServiceManager.register(
+            'tools',
+            async () => ({
+              list:async () => [],
+              execute:async () => {
+                if(mode === 'slow'){
+                  return new Promise((resolve) => {
+                    setTimeout(
+                      () => resolve({success:true}),
+                      100
+                    );
+                  });
+                }
+                return {success:true,result:'ok'};
+              }
+            })
+          );
+          await ServiceManager.register(
+            'memory',
+            async () => ({
+              create:(content,options) => {
+                memories.push({
+                  content:JSON.parse(content),
+                  options
+                });
+                return {id:`memory-${memories.length}`};
+              }
+            })
+          );
+          await ServiceManager.register(
+            'events',
+            async () => ({emit:async () => true})
+          );
+
+          const makePlan = (id,timeout=5000) => ({
+            id,
+            goal:`goal ${id}`,
+            timeout,
+            state:'planned',
+            steps:[{
+              id:`${id}-step`,
+              objective:'run',
+              assignedTool:'tool',
+              assignedAgent:null,
+              state:'ready'
+            }],
+            context:{},
+            metadata:{},
+            runtime:{
+              running:false,
+              controller:null,
+              startedAt:null,
+              completedAt:null,
+              terminatedAt:null
+            }
+          });
+
+          await PlannerEngine.initialize();
+
+          const complete = makePlan('complete');
+          plannerEngineState.plans.set(complete.id,complete);
+
+          assert.equal(
+            await PlannerEngine.execute(complete.id),
+            true
+          );
+          assert.equal(complete.runtime.state,'completed');
+          assert.ok(complete.runtime.updatedAt);
+          assert.equal(memories.length,1);
+          assert.equal(memories[0].content.state,'completed');
+          assert.deepEqual(
+            memories[0].options.tags,
+            [
+              'planner-engine',
+              'plan:complete',
+              'state:completed'
+            ]
+          );
+
+          mode = 'slow';
+
+          const active = makePlan('active');
+          plannerEngineState.plans.set(active.id,active);
+
+          const pending = PlannerEngine.execute(active.id);
+
+          await new Promise((resolve) => setTimeout(resolve,0));
+
+          assert.equal(plannerEngineState.executions.size,1);
+
+          await PlannerEngine.reset();
+
+          assert.equal(await pending,false);
+          assert.equal(active.state,'terminated');
+          assert.equal(active.runtime.state,'terminated');
+          assert.equal(memories.at(-1).content.state,'terminated');
+          assert.equal(plannerEngineState.executions.size,0);
+          assert.equal(plannerEngineState.plans.size,0);
+          assert.equal(plannerEngineState.diagnostics.executed,0);
+          assert.equal(plannerEngineState.lastPlanAt,null);
+          assert.equal(plannerEngineState.initialized,true);
+
+          await PlannerEngine.shutdown();
+
+          assert.equal(plannerEngineState.initialized,false);
+
+          await PlannerEngine.initialize();
+
+          assert.equal(plannerEngineState.initialized,true);
+          assert.equal(plannerEngineState.shuttingDown,false);
+
+          await PlannerEngine.shutdown();
+
+          console.log(
+            'Planner memory sync and lifecycle checks passed.'
           );
           EOF
 
