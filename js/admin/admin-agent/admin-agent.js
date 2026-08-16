@@ -18,6 +18,9 @@ from "./subagents/code-agent/index.js";
 import ArchitectureAgent
 from "./subagents/architecture-agent/index.js";
 
+import DebugAgent
+from "./subagents/debug-agent/index.js";
+
 import GitHubProvider
 from "./subagents/project-agent/providers/github-provider.js";
 
@@ -1265,6 +1268,10 @@ async function handleCodeCommand(
     return ArchitectureAgent.analyze();
   }
 
+  if(normalized === "debug report" || normalized === "تقرير الاخطاء" || normalized === "تقرير الأخطاء")return DebugAgent.report();
+  if(normalized === "diagnose system" || normalized === "شخص النظام")return DebugAgent.capture();
+  if(normalized === "list errors" || normalized === "اعرض الاخطاء" || normalized === "اعرض الأخطاء")return DebugAgent.errors();
+
   return null;
 
 }
@@ -1423,6 +1430,12 @@ async function command(
 
       "analyze architecture",
 
+      "diagnose system",
+
+      "debug report",
+
+      "list errors",
+
       "read file js/path/file.js",
 
       "analyze file js/path/file.js",
@@ -1494,7 +1507,10 @@ function snapshot(){
       CodeAgent.snapshot(),
 
       architecture:
-      ArchitectureAgent.snapshot()
+      ArchitectureAgent.snapshot(),
+
+      debug:
+      DebugAgent.snapshot()
 
     }
 

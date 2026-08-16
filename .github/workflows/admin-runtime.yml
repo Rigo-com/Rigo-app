@@ -23,6 +23,7 @@ jobs:
       - run: node --check api/admin-project-file.js
       - run: node --check js/admin/admin-agent/admin-agent.js
       - run: node --check js/admin/admin-agent/subagents/architecture-agent/architecture-agent.js
+      - run: node --check js/admin/admin-agent/subagents/debug-agent/debug-agent.js
       - run: node --check js/admin/studio/pages/dashboard/dashboard-loader.js
       - run: node --check js/admin/studio/pages/admin-agent/admin-agent-pending.js
       - run: node tests/admin-runtime.test.mjs
@@ -32,3 +33,4 @@ jobs:
       - run: node tests/admin-rollback.test.mjs
       - run: node tests/admin-pending-ui.test.mjs
       - run: node tests/admin-architecture-agent.test.mjs
+      - run: node tests/admin-debug-agent.test.mjs
