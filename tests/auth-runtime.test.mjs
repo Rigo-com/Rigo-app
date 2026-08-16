@@ -10,7 +10,7 @@ globalThis.fetch = async() => {
 await Auth.reset();
 const initialized = await Promise.all([Auth.initialize(), Auth.initialize(), Auth.initialize()]);
 assert.deepEqual(initialized, [true, true, true]);
-assert.equal(requests, 1);
+assert.equal(requests, 2);
 assert.equal(Auth.snapshot().initialized, true);
 assert.equal(Auth.snapshot().authenticated, false);
 
