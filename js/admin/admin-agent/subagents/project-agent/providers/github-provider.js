@@ -78,104 +78,6 @@ async function parseResponse(
 
 
 // =====================================
-// ADMIN AUTHENTICATION
-// =====================================
-
-async function authenticate(
-  secret
-){
-
-  try{
-
-    if(
-      !secret
-    ){
-
-      throw new Error(
-        "ADMIN_SECRET_REQUIRED"
-      );
-
-    }
-
-    const response =
-    await fetch(
-      "/api/admin-login",
-      {
-
-        method:
-        "POST",
-
-        credentials:
-        "same-origin",
-
-        headers:{
-
-          "Content-Type":
-          "application/json"
-
-        },
-
-        body:
-        JSON.stringify({
-
-          secret
-
-        })
-
-      }
-    );
-
-    const result =
-    await parseResponse(
-      response
-    );
-
-    if(
-      !response.ok ||
-      !result.ok
-    ){
-
-      throw new Error(
-        result.error ||
-        "ADMIN_LOGIN_FAILED"
-      );
-
-    }
-
-    githubProviderState.authenticated =
-    true;
-
-    githubProviderState.lastError =
-    null;
-
-    return result;
-
-  }
-  catch(error){
-
-    githubProviderState.authenticated =
-    false;
-
-    githubProviderState.lastError =
-    error;
-
-    return {
-
-      ok:false,
-
-      error:
-      error?.message ||
-      String(error)
-
-    };
-
-  }
-
-}
-
-
-
-// =====================================
 // PROJECT SCAN
 // =====================================
 
@@ -549,7 +451,6 @@ Object.freeze({
   id:
   "github-provider",
 
-  authenticate,
 
   scanProject,
 
@@ -575,7 +476,6 @@ Object.freeze({
 
 export {
 
-  authenticate,
 
   scanProject,
 

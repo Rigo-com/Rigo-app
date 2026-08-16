@@ -863,41 +863,6 @@ async function executeApprovedPlan(
 
 
 // =====================================
-// LOGIN COMMAND
-// =====================================
-
-async function handleLoginCommand(
-  input
-){
-
-  const text =
-  normalizeText(
-    input
-  );
-
-  const match =
-  text.match(
-    /^(?:login admin|admin login|تسجيل دخول الادمن|دخول الادمن)\s+(.+)$/i
-  );
-
-  if(
-    !match
-  ){
-
-    return null;
-
-  }
-
-  return GitHubProvider
-  .authenticate(
-    match[1].trim()
-  );
-
-}
-
-
-
-// =====================================
 // EXECUTION COMMAND
 // =====================================
 
@@ -1344,22 +1309,6 @@ async function command(
     : JSON.stringify(input)
   );
 
-  const loginResult =
-  await handleLoginCommand(
-    input
-  );
-
-  if(
-    loginResult
-  ){
-
-    AdminAgentState.state.lastResult =
-    loginResult;
-
-    return loginResult;
-
-  }
-
   const executionResult =
   await handleExecutionCommand(
     input
@@ -1419,8 +1368,6 @@ async function command(
     "Admin Agent command received. No matching route found.",
 
     supportedCommands:[
-
-      "login admin <secret>",
 
       "create file js/path/file.js :: content",
 
