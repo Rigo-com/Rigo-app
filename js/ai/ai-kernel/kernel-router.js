@@ -255,7 +255,9 @@ executeKernelRequest(
           request
         );
 
-      }
+      },
+
+      request.runtime.controller
 
     );
 

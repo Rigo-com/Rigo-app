@@ -184,7 +184,8 @@ export function createKernelRequestId(){
 
 export function createTimeoutPromise(
   timeout,
-  callback
+  callback,
+  controller = null
 ){
 
   return new Promise(
@@ -208,6 +209,8 @@ export function createTimeoutPromise(
 
         completed =
         true;
+
+        controller?.abort();
 
         reject(
           new Error(

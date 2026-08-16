@@ -88,11 +88,18 @@ export function
 startKernelHealthLoop(){
 
   if(
+    !AI_KERNEL_CONFIG
+    .ENABLE_HEALTH_MONITORING
+  ){
+    return false;
+  }
+
+  if(
     aiKernelState
     .healthInterval
   ){
 
-    return;
+    return false;
 
   }
 
@@ -107,6 +114,8 @@ startKernelHealthLoop(){
 
   AI_KERNEL_CONFIG
   .HEALTH_CHECK_INTERVAL);
+
+  return true;
 
 }
 
@@ -124,7 +133,7 @@ stopKernelHealthLoop(){
     .healthInterval
   ){
 
-    return;
+    return false;
 
   }
 
@@ -138,5 +147,7 @@ stopKernelHealthLoop(){
   aiKernelState
   .healthInterval =
   null;
+
+  return true;
 
 }

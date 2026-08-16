@@ -81,6 +81,9 @@ jobs:
           const workflowIndex = read('js/ai/workflow-engine/index.js');
           const workflowState = read('js/ai/workflow-engine/workflow-state.js');
           const workflowDiagnostics = read('js/ai/workflow-engine/workflow-diagnostics.js');
+          const kernelCleanup = read('js/ai/ai-kernel/kernel-cleanup.js');
+          const kernelHealth = read('js/ai/ai-kernel/kernel-health.js');
+          const kernelUtils = read('js/ai/ai-kernel/kernel-utils.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -191,6 +194,10 @@ jobs:
           assert.doesNotMatch(workflowDefinition, /\.diagnostics\s*\.\w+\+\+/, 'Workflow definition must not bypass the diagnostics flag');
           assert.match(workflowDiagnostics, /shuttingDown/, 'Workflow health must expose shutdown state');
           assert.match(workflowDiagnostics, /executions/, 'Workflow diagnostics must expose tracked executions');
+          assert.match(kernelCleanup, /ENABLE_AUTO_REQUEST_CLEANUP/, 'Kernel cleanup loop must respect its feature flag');
+          assert.doesNotMatch(kernelCleanup, /activeRequests\s*\.delete/, 'Kernel cleanup must not detach active request ownership');
+          assert.match(kernelHealth, /ENABLE_HEALTH_MONITORING/, 'Kernel health loop must respect its feature flag');
+          assert.match(kernelUtils, /controller\?\.abort\s*\(\s*\)/, 'Kernel timeout must abort the underlying request');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -2717,6 +2724,72 @@ jobs:
 
           await AgentManager.shutdown();
           console.log('Active agent lifecycle control checks passed.');
+          EOF
+
+      - name: Verify AI Kernel timeout and cleanup ownership
+        shell: bash
+        run: |
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import {
+            createTimeoutPromise
+          } from './js/ai/ai-kernel/kernel-utils.js';
+          import {
+            cleanupKernelRequests
+          } from './js/ai/ai-kernel/kernel-cleanup.js';
+          import {
+            aiKernelState
+          } from './js/ai/ai-kernel/kernel-state.js';
+          import {
+            AI_KERNEL_CONFIG
+          } from './js/ai/ai-kernel/kernel-config.js';
+
+          const timeoutController = new AbortController();
+          let observedAbort = false;
+
+          await assert.rejects(
+            () => createTimeoutPromise(
+              10,
+              () => new Promise((resolve,reject) => {
+                timeoutController.signal.addEventListener(
+                  'abort',
+                  () => {
+                    observedAbort = true;
+                    reject(new Error('UNDERLYING REQUEST ABORTED'));
+                  },
+                  {once:true}
+                );
+              }),
+              timeoutController
+            ),
+            /REQUEST TIMEOUT/
+          );
+
+          assert.equal(timeoutController.signal.aborted,true);
+          assert.equal(observedAbort,true);
+
+          const cleanupController = new AbortController();
+          const stuckRequest = {
+            runtime:{
+              startedAt:
+              Date.now() -
+              AI_KERNEL_CONFIG.STUCK_REQUEST_TIMEOUT -
+              1,
+              controller:cleanupController
+            }
+          };
+
+          aiKernelState.activeRequests.set('stuck-request',stuckRequest);
+          cleanupKernelRequests();
+
+          assert.equal(cleanupController.signal.aborted,true);
+          assert.equal(
+            aiKernelState.activeRequests.get('stuck-request'),
+            stuckRequest
+          );
+
+          aiKernelState.activeRequests.clear();
+          console.log('AI Kernel timeout and cleanup ownership checks passed.');
           EOF
 
       - name: Verify Workflow custom steps and lifecycle shutdown
