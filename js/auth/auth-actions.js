@@ -4,6 +4,7 @@ import { getSafeErrorMessage, safeCloneAuth } from "./auth-utils.js";
 import { isLoginBlocked, registerFailedLogin } from "./auth-session.js";
 
 const AUTH_ENDPOINT = "/api/neon-auth";
+const ADMIN_AUTH_ENDPOINT = "/api/admin-session";
 const extractUser = payload => payload?.user || payload?.data?.user || payload?.data?.session?.user || null;
 const extractSession = payload => payload?.session || payload?.data?.session || payload?.data?.session?.session || null;
 const extractError = (payload, fallback) => payload?.error?.message || payload?.error || payload?.message || fallback;
@@ -18,6 +19,16 @@ async function authRequest(action, { method="GET", body=null } = {}){
   const options = { method, credentials:"same-origin", headers:{ Accept:"application/json" } };
   if(body !== null){ options.headers["Content-Type"] = "application/json"; options.body = JSON.stringify(body); }
   const response = await fetch(`${AUTH_ENDPOINT}?action=${encodeURIComponent(action)}`, options);
+  const text = await response.text();
+  let payload = null;
+  try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
+  return { response, payload };
+}
+
+async function adminAuthRequest({ method="GET", body=null } = {}){
+  const options = { method, credentials:"same-origin", headers:{ Accept:"application/json" }, cache:"no-store" };
+  if(body !== null){ options.headers["Content-Type"] = "application/json"; options.body = JSON.stringify(body); }
+  const response = await fetch(ADMIN_AUTH_ENDPOINT, options);
   const text = await response.text();
   let payload = null;
   try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
@@ -39,9 +50,24 @@ async function applyServerSession(payload){
   return true;
 }
 
+function applyAdminSession(payload){
+  if(!payload?.authenticated || !payload?.admin || !payload?.email) return false;
+  const email = String(payload.email).trim().toLowerCase();
+  const user = { id:`admin:${email}`, email, name:"RIGO Admin", role:"admin" };
+  updateAuthRuntimeState({ authenticated:true, user:safeCloneAuth(user), token:null, sessionExpiresAt:null, lastActivityAt:Date.now(), error:null });
+  authRuntimeState.failedLoginAttempts = 0;
+  authRuntimeState.loginBlockedUntil = null;
+  return true;
+}
+
 async function restoreAuthSession(){
   updateAuthRuntimeState({ loading:true, error:null });
   try{
+    const admin = await adminAuthRequest();
+    if(admin.response.ok && applyAdminSession(admin.payload)){
+      authRuntimeState.diagnostics.restored++;
+      return true;
+    }
     const { response, payload } = await authRequest("session");
     if(!response.ok){ clearAuthenticatedState(); return false; }
     const restored = await applyServerSession(payload);
@@ -65,6 +91,12 @@ async function login({ email="", password="", staySignedIn=false } = {}){
     }
     if(!validateEmail(email)) throw new Error("INVALID_EMAIL");
     if(!validatePassword(password)) throw new Error("INVALID_PASSWORD");
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const admin = await adminAuthRequest({ method:"POST", body:{ email:normalizedEmail, password, staySignedIn:Boolean(staySignedIn) } });
+    if(admin.response.ok && applyAdminSession(admin.payload)){
+      authRuntimeState.diagnostics.logins++;
+      return true;
+    }
     const { response, payload } = await authRequest("login", { method:"POST", body:{ email:String(email).trim().toLowerCase(), password, staySignedIn:Boolean(staySignedIn) } });
     if(!response.ok) throw new Error(extractError(payload, "INVALID_CREDENTIALS"));
     if(!await restoreAuthSession()) throw new Error("SESSION_RESTORE_FAILED");
@@ -100,8 +132,13 @@ async function register({ name="", email="", password="", staySignedIn=false } =
 async function logout(){
   updateAuthRuntimeState({ loading:true, error:null });
   try{
-    const { response } = await authRequest("logout", { method:"POST", body:{} });
-    if(!response.ok) throw new Error("LOGOUT_FAILED");
+    const [adminResult, userResult] = await Promise.allSettled([
+      adminAuthRequest({ method:"DELETE" }),
+      authRequest("logout", { method:"POST", body:{} })
+    ]);
+    const adminOk = adminResult.status === "fulfilled" && adminResult.value.response.ok;
+    const userOk = userResult.status === "fulfilled" && userResult.value.response.ok;
+    if(!adminOk && !userOk) throw new Error("LOGOUT_FAILED");
     const logouts = authRuntimeState.diagnostics.logouts + 1;
     resetAuthRuntimeState();
     authRuntimeState.diagnostics.logouts = logouts;
@@ -111,4 +148,4 @@ async function logout(){
   finally { updateAuthRuntimeState({ loading:false }); }
 }
 
-export { AUTH_ENDPOINT, authRequest, applyServerSession, restoreAuthSession, login, register, logout };
+export { AUTH_ENDPOINT, ADMIN_AUTH_ENDPOINT, authRequest, adminAuthRequest, applyServerSession, applyAdminSession, restoreAuthSession, login, register, logout };
