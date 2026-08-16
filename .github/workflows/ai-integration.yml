@@ -77,6 +77,8 @@ jobs:
           const plannerDecomposition = read('js/ai/planner-engine/planner-decomposition.js');
           const plannerLifecycle = read('js/ai/planner-engine/planner-lifecycle.js');
           const workflowQueue = read('js/ai/workflow-engine/workflow-queue.js');
+          const workflowPersistence = read('js/ai/workflow-engine/workflow-persistence.js');
+          const workflowIndex = read('js/ai/workflow-engine/index.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -177,6 +179,10 @@ jobs:
           assert.match(workflow, /MAX_PARALLEL_STEPS/, 'Workflow parallel execution must enforce a concurrency bound');
           assert.match(workflow, /ENABLE_QUEUE/, 'Workflow queue flag must control queue admission');
           assert.match(workflowQueue, /ENABLE_QUEUE/, 'Workflow queue drain must respect the queue flag');
+          assert.match(workflowPersistence, /ENABLE_PERSISTENCE/, 'Workflow persistence flag must control memory writes');
+          assert.match(workflowPersistence, /ServiceManager\.resolve\s*\(\s*["']memory["']\s*\)/, 'Workflow persistence must resolve memory through ServiceManager');
+          assert.match(workflow, /ENABLE_RECOVERY/, 'Workflow recovery flag must control runtime recovery');
+          assert.match(workflowIndex, /recoverWorkflow/, 'Workflow recovery must be exposed by the public API');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -2710,12 +2716,14 @@ jobs:
         run: |
           node --input-type=module <<'EOF'
           import assert from 'node:assert/strict';
+          import ServiceManager from './js/services/service-manager.js';
           import {
             registerWorkflow,
             getWorkflow
           } from './js/ai/workflow-engine/workflow-registry.js';
           import {
-            executeWorkflow
+            executeWorkflow,
+            recoverWorkflow
           } from './js/ai/workflow-engine/workflow-executor.js';
           import {
             initializeWorkflowEngine,
@@ -2724,6 +2732,21 @@ jobs:
           import {
             workflowEngineState
           } from './js/ai/workflow-engine/workflow-state.js';
+
+          const persistedWorkflows = [];
+
+          await ServiceManager.register(
+            'memory',
+            async () => ({
+              create:async (content,options) => {
+                persistedWorkflows.push({
+                  snapshot:JSON.parse(content),
+                  options
+                });
+                return {id:`memory-${persistedWorkflows.length}`};
+              }
+            })
+          );
 
           await initializeWorkflowEngine();
 
@@ -2809,7 +2832,10 @@ jobs:
               id:'retry-step',
               execute:async () => {
                 retryAttempts++;
-                throw new Error('EXPECTED RETRY FAILURE');
+                if(retryAttempts <= 3){
+                  throw new Error('EXPECTED RETRY FAILURE');
+                }
+                return 'recovered';
               }
             }]
           });
@@ -2821,6 +2847,39 @@ jobs:
             3
           );
           assert.equal(workflowEngineState.diagnostics.retries,2);
+
+          const failedPersistence = persistedWorkflows.find(
+            ({snapshot}) => (
+              snapshot.workflowId === 'workflow-retry-test' &&
+              snapshot.state === 'failed'
+            )
+          );
+
+          assert.ok(failedPersistence);
+          assert.ok(
+            failedPersistence.options.tags
+            .includes('workflow-engine')
+          );
+
+          assert.equal(
+            await recoverWorkflow('workflow-retry-test'),
+            true
+          );
+          assert.equal(retryAttempts,4);
+          assert.equal(
+            getWorkflow('workflow-retry-test').state,
+            'completed'
+          );
+          assert.equal(
+            getWorkflow('workflow-retry-test').steps[0].result,
+            'recovered'
+          );
+          assert.ok(
+            persistedWorkflows.some(({snapshot}) => (
+              snapshot.workflowId === 'workflow-retry-test' &&
+              snapshot.state === 'completed'
+            ))
+          );
 
           await shutdownWorkflowEngine();
 

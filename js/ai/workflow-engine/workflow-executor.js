@@ -49,6 +49,11 @@ import {
 }
 from "./workflow-queue.js";
 
+import {
+  persistWorkflow
+}
+from "./workflow-persistence.js";
+
 import ServiceManager
 from "../../services/service-manager.js";
 
@@ -746,6 +751,8 @@ async function executeWorkflowRuntime(
       }
     );
 
+    await persistWorkflow(workflow);
+
     return true;
 
   }
@@ -796,6 +803,8 @@ async function executeWorkflowRuntime(
       }
     );
 
+    await persistWorkflow(workflow);
+
     return false;
 
   }
@@ -818,6 +827,56 @@ async function executeWorkflowRuntime(
     );
 
   }
+
+}
+
+
+// =====================================
+// RECOVER
+// =====================================
+
+export async function recoverWorkflow(
+  workflowId,
+  context = {}
+){
+
+  if(!WORKFLOW_ENGINE_CONFIG.ENABLE_RECOVERY){
+    return false;
+  }
+
+  const normalizedId = normalizeWorkflowId(workflowId);
+  const workflow = workflowEngineState.workflows.get(normalizedId);
+
+  if(
+    !workflow ||
+    workflowEngineState.executions.has(normalizedId) ||
+    (
+      workflow.state !== WORKFLOW_STATES.FAILED &&
+      workflow.state !== WORKFLOW_STATES.TERMINATED
+    )
+  ){
+    return false;
+  }
+
+  workflow.steps = workflow.steps.map((step) => ({
+    ...step,
+    state:WORKFLOW_STEP_STATES.PENDING,
+    retries:0,
+    result:null,
+    error:null
+  }));
+
+  workflow.state = WORKFLOW_STATES.READY;
+  workflow.runtime.running = false;
+  workflow.runtime.startedAt = null;
+  workflow.runtime.completedAt = null;
+  workflow.runtime.controller = null;
+
+  workflowEngineState.completedWorkflows.delete(normalizedId);
+  workflowEngineState.failedWorkflows.delete(normalizedId);
+  updateWorkflowTimestamp(workflow);
+
+  return executeWorkflow(normalizedId,context);
 
 }
 
