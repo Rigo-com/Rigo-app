@@ -309,6 +309,12 @@ Object.seal({
 
   menuButton:null,
 
+  globalDrawer:null,
+
+  globalBackdrop:null,
+
+  topbarMenu:null,
+
   listening:false
 
 });
@@ -493,8 +499,123 @@ function createSidebarStyles(){
       }
 
       .rigo-studio-mobile-nav,
-      .rigo-studio-mobile-sheet{
+      .rigo-studio-mobile-sheet,
+      .rigo-global-drawer,
+      .rigo-global-drawer-backdrop{
         display:none;
+      }
+
+      .rigo-global-drawer-backdrop{
+        position:fixed;
+        z-index:110;
+        inset:0;
+        display:block;
+        border:0;
+        background:rgba(0,0,0,.62);
+        opacity:0;
+        visibility:hidden;
+        transition:opacity 180ms ease,visibility 180ms ease;
+      }
+
+      .rigo-global-drawer-backdrop[data-open="true"]{
+        opacity:1;
+        visibility:visible;
+      }
+
+      .rigo-global-drawer{
+        position:fixed;
+        z-index:120;
+        inset:0 auto 0 0;
+        width:min(86vw,340px);
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+        padding:max(18px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
+        border-right:1px solid rgba(94,126,163,.28);
+        background:linear-gradient(180deg,#0a1423,#060d18);
+        box-shadow:24px 0 70px rgba(0,0,0,.5);
+        transform:translateX(-104%);
+        visibility:hidden;
+        transition:transform 200ms ease,visibility 200ms ease;
+      }
+
+      .rigo-global-drawer[data-open="true"]{
+        transform:translateX(0);
+        visibility:visible;
+      }
+
+      .rigo-global-drawer-head{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin-bottom:10px;
+        padding:2px 2px 12px;
+        border-bottom:1px solid rgba(94,126,163,.16);
+      }
+
+      .rigo-global-drawer-brand{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        color:#f8fafc;
+        font-size:16px;
+        font-weight:800;
+      }
+
+      .rigo-global-drawer-brand span:first-child{
+        width:34px;
+        height:34px;
+        display:grid;
+        place-items:center;
+        border-radius:50%;
+        color:#031319;
+        background:linear-gradient(145deg,#15f3a2,#00b975);
+        font-weight:950;
+      }
+
+      .rigo-global-drawer-close{
+        width:42px;
+        height:42px;
+        border:0;
+        border-radius:12px;
+        color:#e2e8f0;
+        background:rgba(21,34,51,.8);
+        font-size:25px;
+      }
+
+      .rigo-global-drawer-link{
+        min-height:50px;
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding:0 14px;
+        border:1px solid transparent;
+        border-radius:12px;
+        color:#e2e8f0;
+        background:transparent;
+        font-size:14px;
+        font-weight:650;
+        text-decoration:none;
+      }
+
+      .rigo-global-drawer-link:hover,
+      .rigo-global-drawer-link[aria-current="page"]{
+        border-color:rgba(0,230,157,.16);
+        background:rgba(0,230,157,.08);
+      }
+
+      .rigo-global-drawer-link span{
+        width:25px;
+        color:var(--rigo-primary);
+        font-size:20px;
+        text-align:center;
+      }
+
+      .rigo-global-drawer-note{
+        margin-top:auto;
+        padding:12px;
+        color:#75869b;
+        font-size:11px;
       }
 
       @media(max-width:760px){
@@ -750,6 +871,61 @@ function toggleMobileSheet(){
 
 
 
+function closeGlobalDrawer(){
+
+  sidebarState.globalDrawer?.setAttribute("data-open","false");
+  sidebarState.globalBackdrop?.setAttribute("data-open","false");
+  sidebarState.topbarMenu?.setAttribute("aria-expanded","false");
+  return true;
+
+}
+
+
+
+function openGlobalDrawer(){
+
+  closeMobileSheet();
+  sidebarState.globalDrawer?.setAttribute("data-open","true");
+  sidebarState.globalBackdrop?.setAttribute("data-open","true");
+  sidebarState.topbarMenu?.setAttribute("aria-expanded","true");
+  return true;
+
+}
+
+
+
+function createGlobalDrawer(){
+
+  const backdrop = document.createElement("button");
+  backdrop.type = "button";
+  backdrop.className = "rigo-global-drawer-backdrop";
+  backdrop.dataset.open = "false";
+  backdrop.setAttribute("aria-label","Close main navigation");
+  backdrop.addEventListener("click",closeGlobalDrawer);
+
+  const drawer = document.createElement("aside");
+  drawer.className = "rigo-global-drawer";
+  drawer.dataset.open = "false";
+  drawer.setAttribute("aria-label","RIGO main navigation");
+  drawer.innerHTML = `
+    <div class="rigo-global-drawer-head">
+      <div class="rigo-global-drawer-brand"><span>R</span><span>RIGO AI</span></div>
+      <button type="button" class="rigo-global-drawer-close" aria-label="Close main navigation">×</button>
+    </div>
+    <a class="rigo-global-drawer-link" href="./home.html?new=1"><span>＋</span>New Chat</a>
+    <a class="rigo-global-drawer-link" href="./memory.html"><span>◉</span>Memory</a>
+    <a class="rigo-global-drawer-link" href="./admin.html" aria-current="page"><span>✦</span>Admin Studio</a>
+    <a class="rigo-global-drawer-link" href="./debug.html"><span>⌁</span>Debug Center</a>
+    <div class="rigo-global-drawer-note">RIGO AI · Main navigation</div>
+  `;
+  drawer.querySelector(".rigo-global-drawer-close")?.addEventListener("click",closeGlobalDrawer);
+
+  return {drawer,backdrop};
+
+}
+
+
+
 function createMobileNavigation(){
 
   const navigation = document.createElement("nav");
@@ -969,9 +1145,13 @@ function renderSidebar(){
 
   const mobile = createMobileNavigation();
 
+  const global = createGlobalDrawer();
+
   root.append(
     mobile.navigation,
-    mobile.sheet
+    mobile.sheet,
+    global.backdrop,
+    global.drawer
   );
 
   sidebarState.root =
@@ -983,11 +1163,14 @@ function renderSidebar(){
   sidebarState.mobileNavigation = mobile.navigation;
   sidebarState.mobileSheet = mobile.sheet;
   sidebarState.menuButton = mobile.more;
+  sidebarState.globalDrawer = global.drawer;
+  sidebarState.globalBackdrop = global.backdrop;
 
   const topbarMenu = document.getElementById("rigo-studio-menu-button");
   if(topbarMenu){
     topbarMenu.setAttribute("aria-expanded","false");
-    topbarMenu.addEventListener("click",toggleMobileSheet);
+    topbarMenu.addEventListener("click",openGlobalDrawer);
+    sidebarState.topbarMenu = topbarMenu;
   }
 
   attachHashListener();
@@ -1026,6 +1209,9 @@ function unmountSidebar(){
   sidebarState.mobileNavigation = null;
   sidebarState.mobileSheet = null;
   sidebarState.menuButton = null;
+  sidebarState.globalDrawer = null;
+  sidebarState.globalBackdrop = null;
+  sidebarState.topbarMenu = null;
 
   return true;
 

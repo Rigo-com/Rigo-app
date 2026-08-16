@@ -139,6 +139,10 @@ document.getElementById("logout").onclick=async()=>{try{await ChatActions.flushC
 
 try{localStorage.removeItem(LEGACY_STORE)}catch{}
 await ChatActions.initializeConversationStore(userIdentity);
+if(new URLSearchParams(location.search).get("new")==="1"){
+  newChat();
+  history.replaceState({},"",location.pathname);
+}
 render();resize();sync();
 </script>
 </body>
