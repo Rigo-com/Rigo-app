@@ -15,6 +15,9 @@ from "./subagents/project-agent/index.js";
 import CodeAgent
 from "./subagents/code-agent/index.js";
 
+import ArchitectureAgent
+from "./subagents/architecture-agent/index.js";
+
 import GitHubProvider
 from "./subagents/project-agent/providers/github-provider.js";
 
@@ -236,6 +239,8 @@ async function initialize(){
     await CodeAgent
     .initialize();
 
+    await ArchitectureAgent.initialize();
+
     initializeExecution();
 
     AdminAgentState
@@ -291,6 +296,8 @@ async function boot(){
     await CodeAgent
     .boot();
 
+    await ArchitectureAgent.boot();
+
     initializeExecution();
 
     AdminAgentState
@@ -334,6 +341,8 @@ async function shutdown(){
   await CodeAgent
   .shutdown();
 
+  await ArchitectureAgent.shutdown();
+
   AdminAgentState
   .setBooted(
     false
@@ -362,6 +371,8 @@ async function reset(){
 
   await CodeAgent
   .reset();
+
+  await ArchitectureAgent.reset();
 
   adminExecutionState.pendingPlans =
   {};
@@ -1250,6 +1261,10 @@ async function handleCodeCommand(
 
   }
 
+  if(normalized === "analyze architecture" || normalized === "حلل المعمارية"){
+    return ArchitectureAgent.analyze();
+  }
+
   return null;
 
 }
@@ -1406,6 +1421,8 @@ async function command(
 
       "analyze code",
 
+      "analyze architecture",
+
       "read file js/path/file.js",
 
       "analyze file js/path/file.js",
@@ -1474,7 +1491,10 @@ function snapshot(){
       ProjectAgent.snapshot(),
 
       code:
-      CodeAgent.snapshot()
+      CodeAgent.snapshot(),
+
+      architecture:
+      ArchitectureAgent.snapshot()
 
     }
 

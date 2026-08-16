@@ -1,0 +1,20 @@
+import ArchitectureAgentState from "./architecture-agent-state.js";
+import ProjectAgent from "../project-agent/index.js";
+
+const LAYERS=Object.freeze(["bootstrap","core","container","systems","agents","ai","memory","communication","ui","extensions"]);
+const ALIASES=Object.freeze({admin:"agents",agent:"agents",auth:"systems",api:"systems",chat:"systems",debug:"systems",search:"systems",security:"systems",settings:"systems",storage:"systems",services:"systems",voice:"systems",shared:"core"});
+function initialize(){if(ArchitectureAgentState.state.initialized)return true;ArchitectureAgentState.set({initialized:true});ArchitectureAgentState.log("system","ARCHITECTURE AGENT INITIALIZED");return true;}
+async function boot(){initialize();ArchitectureAgentState.set({booted:true});return true;}
+function layerOf(file){const segment=String(file||"").split("/")[1]||"";const layer=ALIASES[segment]||segment;return LAYERS.includes(layer)?layer:null;}
+function issue(severity,code,message,data={}){return{severity,code,message,...data};}
+export function analyzeArchitecture(project={}){
+ const files=Array.isArray(project.files)?project.files:[];const relationships=Array.isArray(project.relationships)?project.relationships:[];const exportsList=Array.isArray(project.exports)?project.exports:[];const violations=[],warnings=[];
+ for(const relation of relationships){if(!String(relation.to||"").startsWith("js/"))continue;const sourceLayer=layerOf(relation.from),targetLayer=layerOf(relation.to);if(!sourceLayer||!targetLayer||sourceLayer===targetLayer)continue;const sourceIndex=LAYERS.indexOf(sourceLayer),targetIndex=LAYERS.indexOf(targetLayer);if(sourceIndex<targetIndex)violations.push(issue("error","FORWARD_LAYER_DEPENDENCY",sourceLayer+" imports later layer "+targetLayer,{from:relation.from,to:relation.to,sourceLayer,targetLayer}));}
+ for(const file of files){if(/DependencySystem|dependency-system/i.test(file.path))violations.push(issue("error","LEGACY_DEPENDENCY_SYSTEM","Legacy DependencySystem path is not allowed",{file:file.path}));if(/\/index\.js$/.test(file.path)){const names=exportsList.filter(item=>item.file===file.path).map(item=>item.name);if(names.length===0)warnings.push(issue("warning","INDEX_WITHOUT_NAMED_EXPORTS","Index has no detected named exports",{file:file.path}));}}
+ const expected=["bootstrap","core","admin","ai","memory","communication","ui"];const roots=new Set(files.map(file=>file.path.split("/")[1]));for(const root of expected)if(!roots.has(root))warnings.push(issue("warning","MISSING_ARCHITECTURE_ROOT","Missing js/"+root+" layer",{root}));
+ const score=Math.max(0,100-(violations.length*12)-(warnings.length*2));return{ok:violations.length===0,score,layers:[...LAYERS],summary:{files:files.length,relationships:relationships.length,violations:violations.length,warnings:warnings.length},violations,warnings,timestamp:Date.now()};
+}
+async function analyze(){initialize();ArchitectureAgentState.set({analyzing:true,lastError:null});try{const result=ProjectAgent.query({type:"snapshot"});if(!result?.ok||!result.result?.ready)return{ok:false,error:"PROJECT_NOT_READY"};const report=analyzeArchitecture(result.result);ArchitectureAgentState.state.diagnostics.analyses++;ArchitectureAgentState.state.diagnostics.violations=report.violations.length;ArchitectureAgentState.state.diagnostics.warnings=report.warnings.length;ArchitectureAgentState.set({lastReport:report});return{ok:true,mode:"architecture-analysis",report};}catch(error){ArchitectureAgentState.set({lastError:error});return{ok:false,error:error?.message||String(error)};}finally{ArchitectureAgentState.set({analyzing:false});}}
+async function shutdown(){ArchitectureAgentState.set({booted:false});return true;}async function reset(){return ArchitectureAgentState.reset();}const snapshot=()=>ArchitectureAgentState.snapshot();
+const ArchitectureAgent=Object.freeze({id:"architecture-agent",priority:50,initialize,boot,analyze,shutdown,reset,snapshot,layers:LAYERS});
+export{initialize,boot,analyze,shutdown,reset,snapshot,ArchitectureAgent,LAYERS};export default ArchitectureAgent;
