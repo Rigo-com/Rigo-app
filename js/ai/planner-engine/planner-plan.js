@@ -64,6 +64,18 @@ export function createPlanObject(
   config = {}
 ){
 
+  const requestedTimeout =
+  Number(config.timeout);
+
+  const timeout =
+  Number.isFinite(requestedTimeout) &&
+  requestedTimeout > 0
+  ? Math.min(
+      Math.floor(requestedTimeout),
+      PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT
+    )
+  : PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT;
+
   return {
     id:
     normalizePlanId(
@@ -83,6 +95,7 @@ export function createPlanObject(
       config.priority
     ) || 1,
     retries:0,
+    timeout,
     state:
     PLAN_STATES.CREATED,
     strategy:

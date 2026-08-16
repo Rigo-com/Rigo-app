@@ -154,6 +154,10 @@ jobs:
           assert.match(plannerQueue, /MAX_QUEUE_SIZE/, 'Planner queue must enforce its size limit');
           assert.match(planner, /removeQueuedPlan/, 'Planner termination must remove queued plan entries');
           assert.match(plannerRegistry, /executionQueue\s*=/, 'Planner removal must clean the execution queue');
+          assert.match(planner, /ENABLE_REPLANNING/, 'Planner retry attempts must respect replanning configuration');
+          assert.match(planner, /PLAN_TIMEOUT/, 'Planner execution must enforce plan timeouts');
+          assert.match(planner, /ENABLE_EXECUTION_HISTORY/, 'Planner history flag must control history writes');
+          assert.match(planner, /ENABLE_PLAN_ABORT/, 'Planner abort flag must control termination');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -1453,6 +1457,181 @@ jobs:
 
           console.log(
             'Planner queue runtime control checks passed.'
+          );
+          EOF
+
+      - name: Verify planner retry timeout and abort
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:PlannerEngine} =
+          await import('./js/ai/planner-engine/index.js');
+          const {default:ServiceManager} =
+          await import('./js/services/service-manager.js');
+          const {plannerEngineState} =
+          await import('./js/ai/planner-engine/planner-state.js');
+          const {PLANNER_ENGINE_CONFIG} =
+          await import('./js/ai/planner-engine/planner-config.js');
+          const {createPlanObject} =
+          await import('./js/ai/planner-engine/planner-plan.js');
+
+          let mode = 'retry';
+          let attempts = 0;
+
+          await ServiceManager.register(
+            'tools',
+            async () => ({
+              list:async () => [],
+              execute:async () => {
+                attempts++;
+                if(mode === 'retry' && attempts < 3){
+                  return {
+                    success:false,
+                    error:{message:'RETRY'}
+                  };
+                }
+                if(mode === 'slow'){
+                  return new Promise((resolve) => {
+                    setTimeout(
+                      () => resolve({success:true}),
+                      100
+                    );
+                  });
+                }
+                return {success:true,result:'ok'};
+              }
+            })
+          );
+          await ServiceManager.register(
+            'events',
+            async () => ({emit:async () => true})
+          );
+
+          const makePlan = (id,timeout=5000) => ({
+            id,
+            timeout,
+            state:'planned',
+            steps:[{
+              id:`${id}-step`,
+              objective:'test',
+              assignedTool:'test-tool',
+              assignedAgent:null,
+              state:'ready'
+            }],
+            context:{},
+            metadata:{},
+            runtime:{
+              running:false,
+              controller:null,
+              startedAt:null,
+              completedAt:null,
+              terminatedAt:null
+            }
+          });
+
+          assert.equal(
+            createPlanObject({
+              id:'bounded',
+              goal:'x',
+              timeout:PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT * 2
+            }).timeout,
+            PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT
+          );
+          assert.equal(
+            createPlanObject({
+              id:'fallback',
+              goal:'x',
+              timeout:-1
+            }).timeout,
+            PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT
+          );
+
+          const retryPlan = makePlan('retry-plan');
+          plannerEngineState.plans.set(retryPlan.id,retryPlan);
+
+          assert.equal(
+            await PlannerEngine.execute(retryPlan.id),
+            true
+          );
+          assert.equal(attempts,3);
+          assert.equal(retryPlan.steps[0].retries,2);
+          assert.equal(plannerEngineState.diagnostics.replans,2);
+          assert.equal(
+            plannerEngineState.executionHistory.at(-1).success,
+            true
+          );
+
+          mode = 'slow';
+          attempts = 0;
+
+          const timeoutPlan = makePlan('timeout-plan',10);
+          plannerEngineState.plans.set(timeoutPlan.id,timeoutPlan);
+
+          const timeoutStarted = Date.now();
+
+          assert.equal(
+            await PlannerEngine.execute(timeoutPlan.id),
+            false
+          );
+          assert.ok(Date.now() - timeoutStarted < 80);
+          assert.equal(timeoutPlan.state,'failed');
+          assert.match(
+            plannerEngineState.executionHistory.at(-1).error,
+            /PLAN_TERMINATED/
+          );
+
+          const terminatePlan = makePlan('terminate-plan',5000);
+          plannerEngineState.plans.set(
+            terminatePlan.id,
+            terminatePlan
+          );
+
+          const pending = PlannerEngine.execute(terminatePlan.id);
+
+          await new Promise((resolve) => setTimeout(resolve,0));
+
+          assert.equal(
+            await PlannerEngine.terminate(terminatePlan.id),
+            true
+          );
+          assert.equal(await pending,false);
+          assert.ok(terminatePlan.runtime.terminatedAt);
+
+          plannerEngineState.executionHistory =
+          Array.from(
+            {
+              length:
+              PLANNER_ENGINE_CONFIG.MAX_EXECUTION_HISTORY
+            },
+            (_,index) => ({index})
+          );
+
+          const historyPlan = {
+            ...makePlan('history-plan'),
+            steps:[]
+          };
+          plannerEngineState.plans.set(historyPlan.id,historyPlan);
+
+          assert.equal(
+            await PlannerEngine.execute(historyPlan.id),
+            true
+          );
+          assert.equal(
+            plannerEngineState.executionHistory.length,
+            PLANNER_ENGINE_CONFIG.MAX_EXECUTION_HISTORY
+          );
+          assert.equal(
+            plannerEngineState.executionHistory.at(-1).planId,
+            historyPlan.id
+          );
+
+          await PlannerEngine.reset();
+
+          console.log(
+            'Planner retry timeout and abort checks passed.'
           );
           EOF
 

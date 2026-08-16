@@ -186,6 +186,43 @@ async function executeAssignedAgent(
 // EXECUTE STEP
 // =====================================
 
+function executeWithPlanAbort(
+  operation,
+  signal
+){
+
+  if(!signal){
+    return operation;
+  }
+
+  if(signal.aborted){
+    return Promise.reject(
+      new Error("PLAN_TERMINATED")
+    );
+  }
+
+  return new Promise((resolve,reject) => {
+
+    const abort = () => {
+      reject(new Error("PLAN_TERMINATED"));
+    };
+
+    signal.addEventListener(
+      "abort",
+      abort,
+      {once:true}
+    );
+
+    Promise.resolve(operation)
+    .then(resolve,reject)
+    .finally(() => {
+      signal.removeEventListener("abort",abort);
+    });
+
+  });
+
+}
+
 export async function executePlanStep(
   plan,
   step
@@ -193,10 +230,14 @@ export async function executePlanStep(
 
   let attempts = 0;
 
+  const maximumAttempts =
+  PLANNER_ENGINE_CONFIG.ENABLE_REPLANNING
+  ? PLANNER_ENGINE_CONFIG.MAX_RETRIES
+  : 1;
+
   while(
     attempts <
-    PLANNER_ENGINE_CONFIG
-    .MAX_RETRIES
+    maximumAttempts
   ){
 
     attempts++;
@@ -212,9 +253,9 @@ export async function executePlanStep(
         "tool";
 
         result =
-        await executeAssignedTool(
-          plan,
-          step
+        await executeWithPlanAbort(
+          executeAssignedTool(plan,step),
+          plan.runtime.controller?.signal
         );
 
       }
@@ -224,9 +265,9 @@ export async function executePlanStep(
         "agent";
 
         result =
-        await executeAssignedAgent(
-          plan,
-          step
+        await executeWithPlanAbort(
+          executeAssignedAgent(plan,step),
+          plan.runtime.controller?.signal
         );
 
       }
@@ -253,9 +294,8 @@ export async function executePlanStep(
     catch(error){
 
       if(
-        attempts >=
-        PLANNER_ENGINE_CONFIG
-        .MAX_RETRIES
+        error?.message === "PLAN_TERMINATED" ||
+        attempts >= maximumAttempts
       ){
 
         return {
@@ -264,7 +304,7 @@ export async function executePlanStep(
           error?.message ||
           String(error),
           retries:
-          attempts,
+          attempts - 1,
           state:
           PLAN_STEP_STATES
           .FAILED
@@ -359,6 +399,11 @@ export async function executePlan(
     new AbortController();
   }
 
+  const timeoutId =
+  setTimeout(() => {
+    plan.runtime.controller?.abort();
+  },plan.timeout || PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT);
+
   plan.state =
   PLAN_STATES
   .EXECUTING;
@@ -431,17 +476,14 @@ export async function executePlan(
     .diagnostics
     .completed++;
 
-    plannerEngineState
-    .executionHistory
-    .push({
-      planId:
-      normalizedId,
-      success:true,
-      completedAt:
-      Date.now()
-    });
-
-    trimPlannerHistory();
+    if(PLANNER_ENGINE_CONFIG.ENABLE_EXECUTION_HISTORY){
+      plannerEngineState.executionHistory.push({
+        planId:normalizedId,
+        success:true,
+        completedAt:Date.now()
+      });
+      trimPlannerHistory();
+    }
 
     await emitPlannerEvent(
       PLAN_EVENTS
@@ -472,20 +514,15 @@ export async function executePlan(
     .diagnostics
     .failed++;
 
-    plannerEngineState
-    .executionHistory
-    .push({
-      planId:
-      normalizedId,
-      success:false,
-      error:
-      error?.message ||
-      String(error),
-      failedAt:
-      Date.now()
-    });
-
-    trimPlannerHistory();
+    if(PLANNER_ENGINE_CONFIG.ENABLE_EXECUTION_HISTORY){
+      plannerEngineState.executionHistory.push({
+        planId:normalizedId,
+        success:false,
+        error:error?.message || String(error),
+        failedAt:Date.now()
+      });
+      trimPlannerHistory();
+    }
 
     await emitPlannerEvent(
       PLAN_EVENTS
@@ -503,6 +540,8 @@ export async function executePlan(
 
   }
   finally{
+
+    clearTimeout(timeoutId);
 
     plan.runtime.running =
     false;
@@ -535,6 +574,10 @@ export async function executePlan(
 export async function terminatePlan(
   planId
 ){
+
+  if(!PLANNER_ENGINE_CONFIG.ENABLE_PLAN_ABORT){
+    return false;
+  }
 
   const normalizedId =
   normalizePlanId(
