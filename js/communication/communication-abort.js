@@ -1,246 +1,35 @@
-// =====================================
-// RIGO AI
-// COMMUNICATION ABORT
-// ABORT CONTROLLER LAYER
-// =====================================
+import { CommunicationState } from "./communication-state.js";
+import { COMMUNICATION_EVENTS, COMMUNICATION_LIMITS } from "./communication-config.js";
+import { emit } from "./communication-events.js";
 
-import {
-
-  getAbortController,
-
-  getAbortControllers,
-
-  getAbortControllerCount,
-
-  registerAbortController,
-
-  removeAbortController,
-
-  incrementAborted
-
-}
-from "./communication-state.js";
-
-import {
-  COMMUNICATION_EVENTS
-}
-from "./communication-config.js";
-
-import {
-  emit
-}
-from "./communication-events.js";
-
-
-
-// =====================================
-// CREATE CONTROLLER
-// =====================================
-
-function createAbortController(
-  requestId
-){
-
-  if(
-    !requestId
-  ){
-    return null;
-  }
-
-  const controller =
-  new AbortController();
-
-  registerAbortController(
-
-    requestId,
-
-    controller
-
-  );
-
-  return controller;
-
+function createAbortController(requestId){
+  if(!requestId) return null;
+  const existing = CommunicationState.getAbortController(requestId);
+  if(existing) return existing;
+  if(CommunicationState.getAbortControllerCount() >= COMMUNICATION_LIMITS.MAX_ABORT_CONTROLLERS) return null;
+  const controller = new AbortController();
+  return CommunicationState.registerAbortController(requestId, controller) ? controller : null;
 }
 
-
-
-// =====================================
-// GET CONTROLLER
-// =====================================
-
-function getController(
-  requestId
-){
-
-  return getAbortController(
-    requestId
-  );
-
-}
-
-
-
-// =====================================
-// ABORT REQUEST
-// =====================================
-
-function abortRequest(
-  requestId
-){
-
-  const controller =
-
-    getAbortController(
-      requestId
-    );
-
-  if(
-    !controller
-  ){
-    return false;
-  }
-
-  try{
-
-    controller.abort();
-
-  }
-
-  catch{
-
-    return false;
-
-  }
-
-  removeAbortController(
-    requestId
-  );
-
-  incrementAborted();
-
-  emit(
-
-    COMMUNICATION_EVENTS
-    .REQUEST_ABORTED,
-
-    {
-      requestId
-    }
-
-  );
-
+const getController = requestId => CommunicationState.getAbortController(requestId);
+function abortRequest(requestId){
+  const controller = getController(requestId);
+  if(!controller) return false;
+  try { controller.abort(); } catch { return false; }
+  CommunicationState.removeAbortController(requestId);
+  CommunicationState.unregisterRequest(requestId);
+  CommunicationState.setProcessing(CommunicationState.snapshot().activeRequests > 0);
+  CommunicationState.incrementAborted();
+  emit(COMMUNICATION_EVENTS.REQUEST_ABORTED, { requestId });
   return true;
-
 }
-
-
-
-// =====================================
-// ABORT ALL
-// =====================================
 
 function abortAllRequests(){
-
-  const controllers =
-
-    getAbortControllers();
-
-  for(
-    const [requestId]
-    of controllers
-  ){
-
-    abortRequest(
-      requestId
-    );
-
-  }
-
+  for(const [requestId] of CommunicationState.getAbortControllers()) abortRequest(requestId);
   return true;
-
 }
-
-
-
-// =====================================
-// CLEANUP
-// =====================================
-
-function cleanupAbortController(
-  requestId
-){
-
-  return removeAbortController(
-    requestId
-  );
-
-}
-
-
-
-// =====================================
-// STATUS
-// =====================================
-
-function getStatus(){
-
-  return Object.freeze({
-
-    activeControllers:
-
-    getAbortControllerCount()
-
-  });
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const CommunicationAbort =
-Object.freeze({
-
-  createAbortController,
-
-  getController,
-
-  abortRequest,
-
-  abortAllRequests,
-
-  cleanupAbortController,
-
-  status:
-  getStatus
-
-});
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  createAbortController,
-
-  getController,
-
-  abortRequest,
-
-  abortAllRequests,
-
-  cleanupAbortController,
-
-  getStatus,
-
-  CommunicationAbort
-
-};
-
-export default
-CommunicationAbort;
+const cleanupAbortController = requestId => CommunicationState.removeAbortController(requestId);
+const getStatus = () => Object.freeze({ activeControllers:CommunicationState.getAbortControllerCount() });
+const CommunicationAbort = Object.freeze({ createAbortController, getController, abortRequest, abortAllRequests, cleanupAbortController, status:getStatus });
+export { createAbortController, getController, abortRequest, abortAllRequests, cleanupAbortController, getStatus, CommunicationAbort };
+export default CommunicationAbort;

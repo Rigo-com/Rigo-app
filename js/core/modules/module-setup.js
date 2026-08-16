@@ -23,9 +23,9 @@ const SearchModule = Object.freeze({
 
 const CommunicationModule = Object.freeze({
   ...Communication,
-  initialize:async() => Communication.core.initialize(),
-  shutdown:async() => Communication.core.destroy(),
-  snapshot:() => Communication.health.getHealthReport()
+  initialize:async() => Communication.initialize(),
+  shutdown:async() => Communication.shutdown(),
+  snapshot:() => Communication.snapshot()
 });
 
 const MemoryModule = Object.freeze({
