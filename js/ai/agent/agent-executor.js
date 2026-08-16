@@ -48,16 +48,30 @@ import {
 }
 from "./agent-registry.js";
 
+import { persistAgentTask }
+from "./agent-memory.js";
+
 
 
 // =====================================
 // EXECUTE TASK
 // =====================================
 
-export async function executeAgentTask(
+async function runAgentTask(
   agentId,
   task = {}
 ){
+
+  if(
+    !agentManagerState.initialized ||
+    agentManagerState.shuttingDown
+  ){
+    throw new Error(
+      agentManagerState.shuttingDown
+      ? "AGENT MANAGER SHUTDOWN"
+      : "AGENT MANAGER NOT INITIALIZED"
+    );
+  }
 
   const normalizedId =
   normalizeAgentId(
@@ -382,6 +396,15 @@ export async function executeAgentTask(
 
     );
 
+    await persistAgentTask(
+      agent,
+      cloneAgentObject(task),
+      {
+        success:true,
+        result:cloneAgentObject(result)
+      }
+    );
+
     return result;
 
     }
@@ -532,6 +555,15 @@ export async function executeAgentTask(
 
     );
 
+    await persistAgentTask(
+      agent,
+      cloneAgentObject(task),
+      {
+        success:false,
+        error:String(error)
+      }
+    );
+
     throw error;
 
   }
@@ -564,6 +596,30 @@ export async function executeAgentTask(
 
   }
 
+}
+
+
+
+export function executeAgentTask(
+  agentId,
+  task = {}
+){
+  const execution = runAgentTask(
+    agentId,
+    task
+  );
+
+  agentManagerState
+  .executionPromises
+  .add(execution);
+
+  execution.finally(() => {
+    agentManagerState
+    .executionPromises
+    .delete(execution);
+  }).catch(() => {});
+
+  return execution;
 }
 
 
@@ -913,6 +969,17 @@ export async function terminateAgent(
 export async function processAgentRequest(
   payload = {}
 ){
+
+  if(
+    !agentManagerState.initialized ||
+    agentManagerState.shuttingDown
+  ){
+    throw new Error(
+      agentManagerState.shuttingDown
+      ? "AGENT MANAGER SHUTDOWN"
+      : "AGENT MANAGER NOT INITIALIZED"
+    );
+  }
 
   const targetAgent =
 

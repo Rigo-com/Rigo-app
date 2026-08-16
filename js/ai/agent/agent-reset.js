@@ -17,6 +17,10 @@ from "./agent-state.js";
 export async function
 resetAgentManager(){
 
+  for(const agent of agentManagerState.agents.values()){
+    agent.runtime.controller?.abort();
+  }
+
   agentManagerState
   .taskQueue
   .forEach((queuedTask) => {
@@ -26,6 +30,10 @@ resetAgentManager(){
     );
 
   });
+
+  await Promise.allSettled([
+    ...agentManagerState.executionPromises
+  ]);
 
   agentManagerState
   .agents
@@ -41,6 +49,10 @@ resetAgentManager(){
 
   agentManagerState
   .executionLocks
+  .clear();
+
+  agentManagerState
+  .executionPromises
   .clear();
 
   agentManagerState

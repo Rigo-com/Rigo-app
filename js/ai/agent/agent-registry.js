@@ -149,13 +149,12 @@ export async function registerAgent(
 ){
 
   if(
-    agentManagerState
-    .shuttingDown
+    !agentManagerState.initialized ||
+    agentManagerState.shuttingDown
   ){
-
     return false;
-
   }
+
 
   if(
 

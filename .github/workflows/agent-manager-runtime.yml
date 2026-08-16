@@ -1,0 +1,31 @@
+name: RIGO Agent Manager Runtime
+
+on:
+  push:
+    branches:
+      - ai-bootstrap-wiring
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  agent-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check Agent Manager syntax
+        run: find js/ai/agent -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Verify Agent Manager runtime
+        run: node tests/agent-manager-runtime.test.mjs

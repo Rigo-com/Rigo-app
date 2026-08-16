@@ -89,6 +89,13 @@ export function
 startAgentHealthchecks(){
 
   if(
+    !AGENT_MANAGER_CONFIG
+    .ENABLE_AGENT_HEALTHCHECKS
+  ){
+    return false;
+  }
+
+  if(
     agentManagerState
     .healthcheckTimer
   ){
