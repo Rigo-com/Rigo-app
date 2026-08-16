@@ -1,0 +1,31 @@
+name: RIGO AI Kernel Runtime
+
+on:
+  push:
+    branches:
+      - ai-bootstrap-wiring
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  kernel-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check AI Kernel syntax
+        run: find js/ai/ai-kernel -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Verify AI Kernel runtime
+        run: node tests/ai-kernel-runtime.test.mjs

@@ -3,185 +3,101 @@
 // AI KERNEL RECOVERY
 // =====================================
 
+import { AI_KERNEL_CONFIG }
+from "./kernel-config.js";
 
-import {
-  AI_KERNEL_STATES,
-  AI_KERNEL_EVENTS
-}
+import { AI_KERNEL_STATES, AI_KERNEL_EVENTS }
 from "./kernel-constants.js";
 
-import {
-  aiKernelState
-}
+import { aiKernelState }
 from "./kernel-state.js";
 
-import {
-  emitKernelEvent,
-  logKernelError
-}
+import { emitKernelEvent, logKernelError }
 from "./kernel-events.js";
 
-import {
-  synchronizeAISystems
-}
+import { synchronizeAISystems }
 from "./kernel-services.js";
 
-import {
-  setKernelState
-}
+import { setKernelState }
 from "./kernel-request.js";
 
+import { incrementKernelMetric }
+from "./kernel-metrics.js";
 
 
-// =====================================
-// SHOULD RECOVER
-// =====================================
 
-export function
-shouldRecoverKernel(
-  error
-){
+export function shouldRecoverKernel(error){
+  if(!AI_KERNEL_CONFIG.ENABLE_RECOVERY || aiKernelState.shuttingDown){
+    return false;
+  }
 
-  const message =
-  String(
-    error || ""
-  );
-
-  const recoverableErrors = [
-
+  const message = String(error || "");
+  return [
     "NO AVAILABLE REQUEST ROUTER",
-
     "AI SYSTEM SYNCHRONIZATION FAILED",
-
     "SYSTEM INITIALIZATION TIMEOUT"
-
-  ];
-
-  return recoverableErrors
-  .some((entry) => {
-
-    return message.includes(
-      entry
-    );
-
-  });
-
+  ].some((entry) => message.includes(entry));
 }
 
 
 
-// =====================================
-// RECOVER KERNEL
-// =====================================
-
-export async function
-recoverAIKernel(){
-
-  if(
-    aiKernelState
-    .recovering
-  ){
-
-    return aiKernelState
-    .recoveryPromise;
-
+export async function recoverAIKernel(){
+  if(aiKernelState.recovering){
+    return aiKernelState.recoveryPromise;
   }
 
-  aiKernelState
-  .recovering =
-  true;
+  if(!AI_KERNEL_CONFIG.ENABLE_RECOVERY || aiKernelState.shuttingDown){
+    return false;
+  }
 
-  aiKernelState
-  .recoveryPromise =
+  if(aiKernelState.recoveryAttempts >= AI_KERNEL_CONFIG.MAX_RECOVERY_ATTEMPTS){
+    return false;
+  }
 
-  (async () => {
+  const elapsed = Date.now() - (aiKernelState.lastRecoveryAt || 0);
+  if(aiKernelState.lastRecoveryAt && elapsed < AI_KERNEL_CONFIG.RECOVERY_COOLDOWN){
+    return false;
+  }
 
+  aiKernelState.recovering = true;
+
+  const recovery = (async () => {
     try{
+      setKernelState(AI_KERNEL_STATES.RECOVERING);
+      incrementKernelMetric("recoveries");
+      aiKernelState.recoveryAttempts++;
+      aiKernelState.lastRecoveryAt = Date.now();
+      await emitKernelEvent(AI_KERNEL_EVENTS.RECOVERY_STARTED);
+
+      if(!await synchronizeAISystems()){
+        throw new Error("AI SYSTEM SYNCHRONIZATION FAILED");
+      }
+
+      if(aiKernelState.shuttingDown){
+        return false;
+      }
 
       setKernelState(
-
-        AI_KERNEL_STATES
-        .RECOVERING
-
+        aiKernelState.activeRequests.size > 0
+          ? AI_KERNEL_STATES.PROCESSING
+          : AI_KERNEL_STATES.READY
       );
-
-      aiKernelState
-      .diagnostics
-      .recoveries++;
-
-      aiKernelState
-      .recoveryAttempts++;
-
-      aiKernelState
-      .lastRecoveryAt =
-      Date.now();
-
-      await emitKernelEvent(
-
-        AI_KERNEL_EVENTS
-        .RECOVERY_STARTED
-
-      );
-
-      await synchronizeAISystems();
-
-      setKernelState(
-
-        AI_KERNEL_STATES
-        .READY
-
-      );
-
-      await emitKernelEvent(
-
-        AI_KERNEL_EVENTS
-        .RECOVERY_COMPLETED
-
-      );
-
+      await emitKernelEvent(AI_KERNEL_EVENTS.RECOVERY_COMPLETED);
       return true;
-
     }
-
     catch(error){
-
-      setKernelState(
-
-        AI_KERNEL_STATES
-        .FAILED
-
-      );
-
-      await logKernelError(
-
-        "KERNEL RECOVERY FAILED",
-
-        {
-          error:
-          String(error)
-        }
-
-      );
-
+      if(!aiKernelState.shuttingDown){
+        setKernelState(AI_KERNEL_STATES.FAILED);
+      }
+      await logKernelError("KERNEL RECOVERY FAILED", {error:String(error)});
       return false;
-
     }
-
     finally{
-
-      aiKernelState
-      .recovering =
-      false;
-
-      aiKernelState
-      .recoveryPromise =
-      null;
-
+      aiKernelState.recovering = false;
+      aiKernelState.recoveryPromise = null;
     }
-
   })();
 
-  return aiKernelState
-  .recoveryPromise;
-
+  aiKernelState.recoveryPromise = recovery;
+  return recovery;
 }
