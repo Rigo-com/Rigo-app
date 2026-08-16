@@ -24,6 +24,9 @@ from "./subagents/debug-agent/index.js";
 import GitAgent
 from "./subagents/git-agent/index.js";
 
+import TestAgent
+from "./subagents/test-agent/index.js";
+
 import GitHubProvider
 from "./subagents/project-agent/providers/github-provider.js";
 
@@ -1277,6 +1280,9 @@ async function handleCodeCommand(
   if(normalized === "git status" || normalized === "حالة git")return GitAgent.status();
   if(normalized === "git diff" || normalized === "تغييرات git")return GitAgent.diff();
   if(normalized === "git commits" || normalized === "سجل git")return GitAgent.commits();
+  if(normalized === "test status" || normalized === "حالة الاختبارات")return TestAgent.status();
+  if(normalized === "test failures" || normalized === "الاختبارات الفاشلة")return TestAgent.failures();
+  if(normalized === "run tests" || normalized === "شغل الاختبارات")return TestAgent.run();
 
   return null;
 
@@ -1448,6 +1454,12 @@ async function command(
 
       "git commits",
 
+      "test status",
+
+      "test failures",
+
+      "run tests",
+
       "read file js/path/file.js",
 
       "analyze file js/path/file.js",
@@ -1525,7 +1537,10 @@ function snapshot(){
       DebugAgent.snapshot(),
 
       git:
-      GitAgent.snapshot()
+      GitAgent.snapshot(),
+
+      test:
+      TestAgent.snapshot()
 
     }
 

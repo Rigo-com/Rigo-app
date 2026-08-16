@@ -22,10 +22,12 @@ jobs:
       - run: node --check api/admin-project-write.js
       - run: node --check api/admin-project-file.js
       - run: node --check api/admin-git-status.js
+      - run: node --check api/admin-tests.js
       - run: node --check js/admin/admin-agent/admin-agent.js
       - run: node --check js/admin/admin-agent/subagents/architecture-agent/architecture-agent.js
       - run: node --check js/admin/admin-agent/subagents/debug-agent/debug-agent.js
       - run: node --check js/admin/admin-agent/subagents/git-agent/git-agent.js
+      - run: node --check js/admin/admin-agent/subagents/test-agent/test-agent.js
       - run: node --check js/admin/studio/pages/dashboard/dashboard-loader.js
       - run: node --check js/admin/studio/pages/admin-agent/admin-agent-pending.js
       - run: node tests/admin-runtime.test.mjs
@@ -37,3 +39,4 @@ jobs:
       - run: node tests/admin-architecture-agent.test.mjs
       - run: node tests/admin-debug-agent.test.mjs
       - run: node tests/admin-git-agent.test.mjs
+      - run: node tests/admin-test-agent.test.mjs
