@@ -315,6 +315,12 @@ Object.seal({
 
   topbarMenu:null,
 
+  globalHistory:null,
+
+  globalSearch:null,
+
+  chatActions:null,
+
   listening:false
 
 });
@@ -529,8 +535,8 @@ function createSidebarStyles(){
         width:min(86vw,340px);
         display:flex;
         flex-direction:column;
-        gap:6px;
-        padding:max(18px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
+        gap:0;
+        padding:max(18px,env(safe-area-inset-top)) 12px max(18px,env(safe-area-inset-bottom));
         border-right:1px solid rgba(94,126,163,.28);
         background:linear-gradient(180deg,#0a1423,#060d18);
         box-shadow:24px 0 70px rgba(0,0,0,.5);
@@ -548,8 +554,8 @@ function createSidebarStyles(){
         display:flex;
         align-items:center;
         justify-content:space-between;
-        margin-bottom:10px;
-        padding:2px 2px 12px;
+        margin-bottom:8px;
+        padding:2px 4px 14px;
         border-bottom:1px solid rgba(94,126,163,.16);
       }
 
@@ -563,14 +569,19 @@ function createSidebarStyles(){
       }
 
       .rigo-global-drawer-brand span:first-child{
-        width:34px;
-        height:34px;
-        display:grid;
-        place-items:center;
-        border-radius:50%;
-        color:#031319;
-        background:linear-gradient(145deg,#15f3a2,#00b975);
-        font-weight:950;
+        width:38px;
+        height:38px;
+        display:block;
+        overflow:hidden;
+        border-radius:11px;
+        background:#111827;
+      }
+
+      .rigo-global-drawer-brand img{
+        width:100%;
+        height:100%;
+        display:block;
+        object-fit:cover;
       }
 
       .rigo-global-drawer-close{
@@ -616,6 +627,76 @@ function createSidebarStyles(){
         padding:12px;
         color:#75869b;
         font-size:11px;
+      }
+
+      .rigo-global-drawer-search-wrap{
+        padding:8px 4px 4px;
+      }
+
+      .rigo-global-drawer-search{
+        width:100%;
+        min-height:44px;
+        padding:0 12px;
+        border:1px solid #34435b;
+        border-radius:12px;
+        outline:none;
+        color:#f8fafc;
+        background:#0d1626;
+        font:500 14px/1 var(--rigo-font);
+      }
+
+      .rigo-global-drawer-search:focus{
+        border-color:#64748b;
+      }
+
+      .rigo-global-drawer-history-title{
+        padding:15px 12px 7px;
+        color:#64748b;
+        font-size:11px;
+        font-weight:800;
+        text-transform:uppercase;
+      }
+
+      .rigo-global-drawer-history{
+        min-height:80px;
+        max-height:36vh;
+        overflow-y:auto;
+      }
+
+      .rigo-global-drawer-history-empty{
+        padding:14px 12px;
+        color:#64748b;
+        font-size:13px;
+      }
+
+      .rigo-global-drawer-chat{
+        width:100%;
+        min-height:42px;
+        overflow:hidden;
+        padding:0 12px;
+        border:0;
+        border-radius:10px;
+        color:#dce4ee;
+        background:transparent;
+        font:500 13px/1 var(--rigo-font);
+        text-align:left;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .rigo-global-drawer-chat:hover{
+        background:#111827;
+      }
+
+      .rigo-global-drawer-divider{
+        height:1px;
+        margin:9px 4px;
+        background:rgba(94,126,163,.14);
+      }
+
+      .rigo-global-drawer-logout{
+        margin-top:2px;
+        color:#fca5a5;
       }
 
       @media(max-width:760px){
@@ -888,6 +969,7 @@ function openGlobalDrawer(){
   sidebarState.globalDrawer?.setAttribute("data-open","true");
   sidebarState.globalBackdrop?.setAttribute("data-open","true");
   sidebarState.topbarMenu?.setAttribute("aria-expanded","true");
+  setTimeout(() => sidebarState.globalSearch?.focus(),150);
   return true;
 
 }
@@ -909,18 +991,124 @@ function createGlobalDrawer(){
   drawer.setAttribute("aria-label","RIGO main navigation");
   drawer.innerHTML = `
     <div class="rigo-global-drawer-head">
-      <div class="rigo-global-drawer-brand"><span>R</span><span>RIGO AI</span></div>
+      <div class="rigo-global-drawer-brand"><span><img src="./assets/rigo-logo.PNG" alt=""></span><span>RIGO AI</span></div>
       <button type="button" class="rigo-global-drawer-close" aria-label="Close main navigation">×</button>
     </div>
-    <a class="rigo-global-drawer-link" href="./home.html?new=1"><span>＋</span>New Chat</a>
+    <button type="button" class="rigo-global-drawer-link" data-global-new-chat><span>＋</span>New Chat</button>
+    <div class="rigo-global-drawer-search-wrap"><input class="rigo-global-drawer-search" type="search" placeholder="Search chats" autocomplete="off"></div>
+    <div class="rigo-global-drawer-history-title">Chats</div>
+    <div class="rigo-global-drawer-history"><div class="rigo-global-drawer-history-empty">Loading chats…</div></div>
+    <div class="rigo-global-drawer-divider"></div>
     <a class="rigo-global-drawer-link" href="./memory.html"><span>◉</span>Memory</a>
     <a class="rigo-global-drawer-link" href="./admin.html" aria-current="page"><span>✦</span>Admin Studio</a>
     <a class="rigo-global-drawer-link" href="./debug.html"><span>⌁</span>Debug Center</a>
+    <button type="button" class="rigo-global-drawer-link rigo-global-drawer-logout" data-global-logout><span>↪</span>Log out</button>
     <div class="rigo-global-drawer-note">RIGO AI · Main navigation</div>
   `;
   drawer.querySelector(".rigo-global-drawer-close")?.addEventListener("click",closeGlobalDrawer);
+  drawer.querySelector("[data-global-new-chat]")?.addEventListener("click",openNewGlobalChat);
+  drawer.querySelector("[data-global-logout]")?.addEventListener("click",logoutGlobalSession);
 
   return {drawer,backdrop};
+
+}
+
+
+
+function escapeGlobalText(value){
+
+  return String(value ?? "")
+  .replace(/[&<>'"]/g,character => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[character]);
+
+}
+
+
+
+function globalChatTitle(chat){
+
+  const value = String(chat?.title || chat?.messages?.find(message => message?.role === "user")?.content || "New chat").trim();
+  return value.length > 42 ? value.slice(0,42) + "…" : value;
+
+}
+
+
+
+function renderGlobalHistory(){
+
+  const root = sidebarState.globalHistory;
+  const actions = sidebarState.chatActions;
+  if(!root || !actions) return false;
+
+  const query = String(sidebarState.globalSearch?.value || "").trim().toLowerCase();
+  const store = actions.getConversationStore?.() || {chats:[]};
+  const chats = (store.chats || []).filter(chat => {
+    if(!query) return true;
+    const content = [chat?.title,...(chat?.messages || []).map(message => message?.content)].filter(Boolean).join(" ").toLowerCase();
+    return content.includes(query);
+  });
+
+  if(!chats.length){
+    root.innerHTML = `<div class="rigo-global-drawer-history-empty">${query ? "No matching chats" : "No chats yet"}</div>`;
+    return true;
+  }
+
+  root.innerHTML = chats.map(chat => `<button type="button" class="rigo-global-drawer-chat" data-global-chat="${escapeGlobalText(chat.id)}">${escapeGlobalText(globalChatTitle(chat))}</button>`).join("");
+  root.querySelectorAll("[data-global-chat]").forEach(button => button.addEventListener("click",function(){
+    actions.activateConversation?.(button.dataset.globalChat);
+    location.href = `./home.html?chat=${encodeURIComponent(button.dataset.globalChat)}`;
+  }));
+  return true;
+
+}
+
+
+
+async function initializeGlobalHistory(){
+
+  try{
+    const [{default:Chat},{default:Auth}] = await Promise.all([
+      import("../../../chat/index.js"),
+      import("../../../auth/index.js")
+    ]);
+    const user = Auth.status?.()?.user || {};
+    const identity = String(user.id || user.email || "").trim().toLowerCase();
+    if(!identity) throw new Error("AUTH_USER_IDENTITY_REQUIRED");
+    sidebarState.chatActions = Chat.Actions;
+    await Chat.Actions.initializeConversationStore(identity);
+    renderGlobalHistory();
+  }
+  catch{
+    if(sidebarState.globalHistory){
+      sidebarState.globalHistory.innerHTML = '<div class="rigo-global-drawer-history-empty">Chats unavailable</div>';
+    }
+  }
+
+}
+
+
+
+async function openNewGlobalChat(){
+
+  try{
+    sidebarState.chatActions?.activateConversation?.(null);
+    await sidebarState.chatActions?.flushConversationStore?.();
+  }
+  catch{}
+  location.href = "./home.html?new=1";
+
+}
+
+
+
+async function logoutGlobalSession(){
+
+  try{await sidebarState.chatActions?.flushConversationStore?.();}catch{}
+  try{
+    const {default:Auth} = await import("../../../auth/index.js");
+    await Auth.logout();
+  }
+  catch{}
+  location.replace("./login.html");
 
 }
 
@@ -1165,6 +1353,10 @@ function renderSidebar(){
   sidebarState.menuButton = mobile.more;
   sidebarState.globalDrawer = global.drawer;
   sidebarState.globalBackdrop = global.backdrop;
+  sidebarState.globalHistory = global.drawer.querySelector(".rigo-global-drawer-history");
+  sidebarState.globalSearch = global.drawer.querySelector(".rigo-global-drawer-search");
+  sidebarState.globalSearch?.addEventListener("input",renderGlobalHistory);
+  initializeGlobalHistory();
 
   const topbarMenu = document.getElementById("rigo-studio-menu-button");
   if(topbarMenu){
@@ -1212,6 +1404,9 @@ function unmountSidebar(){
   sidebarState.globalDrawer = null;
   sidebarState.globalBackdrop = null;
   sidebarState.topbarMenu = null;
+  sidebarState.globalHistory = null;
+  sidebarState.globalSearch = null;
+  sidebarState.chatActions = null;
 
   return true;
 
