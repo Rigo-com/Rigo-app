@@ -1,0 +1,31 @@
+name: Core App Health Runtime
+
+on:
+  push:
+    branches: [ai-bootstrap-wiring]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax checks
+        run: |
+          node --check js/core/app/application-runtime.js
+          node --check js/core/app/app-recovery.js
+          node --check js/core/lifecycle/lifecycle-state.js
+          node --check js/core/lifecycle/lifecycle-startup.js
+          node --check js/core/lifecycle/lifecycle-shutdown.js
+          node --check js/core/lifecycle/lifecycle-manager.js
+          node --check js/core/health/health-manager.js
+          node --check js/core/health/health-state.js
+      - name: Runtime checks
+        run: node tests/core-app-health-runtime.test.mjs

@@ -15,6 +15,9 @@ from "./health-state.js";
 import HealthMonitor
 from "./health-monitor.js";
 
+import { HEALTH_CONFIG }
+from "./health-config.js";
+
 
 
 // =====================================
@@ -64,7 +67,7 @@ async function initializeHealth(){
 // =====================================
 
 async function startMonitoring(
-  interval = 30000
+  interval = HEALTH_CONFIG.CHECK_INTERVAL
 ){
 
   if(
@@ -81,6 +84,9 @@ async function startMonitoring(
   healthManagerState
   .monitoring =
   true;
+
+  await HealthMonitor
+  .runHealthCheck();
 
   healthManagerState
   .intervalId =
@@ -172,6 +178,9 @@ async function resetHealth(){
 
 function createHealthSnapshot(){
 
+  const health =
+  HealthState.snapshot();
+
   return Object.freeze({
 
     manager:{
@@ -186,9 +195,10 @@ function createHealthSnapshot(){
 
     },
 
-    health:
-    HealthState
-    .snapshot(),
+    healthy:
+    health.status === "healthy",
+
+    health,
 
     timestamp:
     Date.now()

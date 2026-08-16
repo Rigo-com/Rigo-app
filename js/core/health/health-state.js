@@ -11,7 +11,9 @@
 
 import {
 
-  HEALTH_STATES
+  HEALTH_STATES,
+
+  HEALTH_CONFIG
 
 }
 from "./health-config.js";
@@ -96,6 +98,17 @@ function addWarning(
 
   );
 
+  if(
+    healthState.warnings.length >
+    HEALTH_CONFIG.MAX_WARNINGS
+  ){
+    healthState.warnings.splice(
+      0,
+      healthState.warnings.length -
+      HEALTH_CONFIG.MAX_WARNINGS
+    );
+  }
+
   return true;
 
 }
@@ -131,6 +144,17 @@ function addError(
     )
 
   );
+
+  if(
+    healthState.errors.length >
+    HEALTH_CONFIG.MAX_ERRORS
+  ){
+    healthState.errors.splice(
+      0,
+      healthState.errors.length -
+      HEALTH_CONFIG.MAX_ERRORS
+    );
+  }
 
   return true;
 
@@ -168,6 +192,17 @@ function addHistoryEntry(
     Date.now()
 
   });
+
+  if(
+    healthState.history.length >
+    HEALTH_CONFIG.MAX_HISTORY
+  ){
+    healthState.history.splice(
+      0,
+      healthState.history.length -
+      HEALTH_CONFIG.MAX_HISTORY
+    );
+  }
 
   return true;
 
