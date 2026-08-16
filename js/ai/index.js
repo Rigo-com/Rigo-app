@@ -40,6 +40,16 @@ const AI_CHAT_ENDPOINT =
 const WEATHER_ENDPOINT =
 "/api/weather";
 
+const aiRuntimeState = Object.seal({
+  initialized:false,
+  initializing:false,
+  shuttingDown:false,
+  startupPromise:null,
+  shutdownPromise:null,
+  startedAt:null,
+  lastError:null
+});
+
 
 function createConversationNamespace(
   metadata = {}
@@ -133,18 +143,18 @@ async function buildLongTermMemoryContext(
     }
 
     const results =
-    memory.search(
+    await memory.search(
       message,
       {limit:5}
-    );
+    ) || [];
 
-    memory.clearContext?.();
+    await memory.clearContext?.();
 
     for(const entry of results){
       const selectedMemory =
       entry?.memory || entry;
 
-      memory.addContext?.({
+      await memory.addContext?.({
         id:selectedMemory?.id,
         type:selectedMemory?.type,
         content:selectedMemory?.content,
@@ -195,7 +205,7 @@ async function rememberAssistantExchange({
     }
 
     return Boolean(
-      memory.create(
+      await memory.create(
         JSON.stringify({
           user:message,
           assistant
@@ -421,8 +431,8 @@ async function executeMainAssistant(
   );
 
   const contextWindow =
-  await ContextManager
-  .buildWindow(
+  task.metadata?.contextWindow ||
+  await ContextManager.buildWindow(
     message,
     {
       maxTokens:4000,
@@ -625,45 +635,150 @@ async function registerAIServices(){
 
 async function initialize(){
 
-  await registerAIServices();
+  if(aiRuntimeState.initialized && !aiRuntimeState.shuttingDown){
+    return true;
+  }
 
-  await AIKernel.initialize();
+  if(aiRuntimeState.startupPromise){
+    return aiRuntimeState.startupPromise;
+  }
 
-  await ensureAITools();
-  await ensureMainAssistantAgent();
+  if(aiRuntimeState.shutdownPromise){
+    await aiRuntimeState.shutdownPromise;
+  }
 
-  return true;
+  aiRuntimeState.initializing = true;
+  aiRuntimeState.shuttingDown = false;
+
+  const startup = Promise.resolve()
+  .then(async () => {
+
+    try{
+
+      await registerAIServices();
+
+      await AIKernel.initialize();
+
+      await ensureAITools();
+      await ensureMainAssistantAgent();
+
+      aiRuntimeState.initialized = true;
+      aiRuntimeState.startedAt = Date.now();
+      aiRuntimeState.lastError = null;
+
+      return true;
+
+    }
+    catch(error){
+
+      aiRuntimeState.initialized = false;
+      aiRuntimeState.lastError = String(error);
+
+      await Promise.allSettled([
+        AIKernel.shutdown(),
+        WorkflowEngine.shutdown(),
+        PlannerEngine.shutdown(),
+        AgentManager.shutdown(),
+        ToolExecutor.shutdown(),
+        ContextManager.shutdown()
+      ]);
+
+      throw error;
+
+    }
+    finally{
+
+      aiRuntimeState.initializing = false;
+      aiRuntimeState.startupPromise = null;
+
+    }
+
+  });
+
+  aiRuntimeState.startupPromise = startup;
+
+  return startup;
 
 }
 
 
 async function shutdown(){
 
-  await WorkflowEngine.shutdown();
-  await PlannerEngine.shutdown();
-  await AgentManager.shutdown();
-  await ToolExecutor.shutdown();
-  await ContextManager.shutdown();
-  await AIKernel.shutdown();
+  if(aiRuntimeState.shutdownPromise){
+    return aiRuntimeState.shutdownPromise;
+  }
 
-  return true;
+  if(aiRuntimeState.startupPromise){
+    await aiRuntimeState.startupPromise;
+  }
+
+  aiRuntimeState.shuttingDown = true;
+
+  const shutdownOperation = (async () => {
+
+    try{
+
+      await AIKernel.shutdown();
+
+      await WorkflowEngine.shutdown();
+      await PlannerEngine.shutdown();
+      await AgentManager.shutdown();
+      await ToolExecutor.shutdown();
+      await ContextManager.shutdown();
+
+      return true;
+
+    }
+    finally{
+
+      aiRuntimeState.initialized = false;
+      aiRuntimeState.shuttingDown = false;
+      aiRuntimeState.shutdownPromise = null;
+      aiRuntimeState.startedAt = null;
+
+    }
+
+  })();
+
+  aiRuntimeState.shutdownPromise = shutdownOperation;
+
+  return shutdownOperation;
 
 }
 
 
 async function reset(){
 
-  await WorkflowEngine.reset();
-  await PlannerEngine.reset();
-  await AgentManager.reset();
-  await ToolExecutor.reset();
-  await ContextManager.reset();
-
-  if(typeof AIKernel.destroy === "function"){
-    await AIKernel.destroy();
+  if(aiRuntimeState.startupPromise){
+    await aiRuntimeState.startupPromise;
   }
 
-  return true;
+  await shutdown();
+
+  aiRuntimeState.shuttingDown = true;
+
+  try{
+
+    if(typeof AIKernel.destroy === "function"){
+      await AIKernel.destroy();
+    }
+
+    await WorkflowEngine.reset();
+    await PlannerEngine.reset();
+    await AgentManager.reset();
+    await ToolExecutor.reset();
+    await ContextManager.reset();
+
+    aiRuntimeState.initialized = false;
+    aiRuntimeState.startedAt = null;
+    aiRuntimeState.lastError = null;
+
+    return true;
+
+  }
+  finally{
+    aiRuntimeState.shuttingDown = false;
+  }
 
 }
 
@@ -675,6 +790,14 @@ async function reset(){
 async function process(
   payload = {}
 ){
+
+  if(aiRuntimeState.shuttingDown){
+    throw new Error("AI LAYER SHUTDOWN ACTIVE");
+  }
+
+  if(!aiRuntimeState.initialized){
+    await initialize();
+  }
 
   await ensureAITools();
   await ensureMainAssistantAgent();
@@ -701,6 +824,15 @@ async function process(
 function diagnostics(){
 
   return Object.freeze({
+    lifecycle:{
+      initialized:aiRuntimeState.initialized,
+      initializing:aiRuntimeState.initializing,
+      shuttingDown:aiRuntimeState.shuttingDown,
+      uptime:aiRuntimeState.startedAt
+        ? Date.now() - aiRuntimeState.startedAt
+        : 0,
+      lastError:aiRuntimeState.lastError
+    },
     kernel:AIKernel.diagnostics(),
     context:ContextManager.diagnostics(),
     tools:ToolExecutor.diagnostics(),
@@ -716,6 +848,11 @@ function diagnostics(){
 function snapshot(){
 
   return Object.freeze({
+    lifecycle:{
+      initialized:aiRuntimeState.initialized,
+      initializing:aiRuntimeState.initializing,
+      shuttingDown:aiRuntimeState.shuttingDown
+    },
     kernel:AIKernel.state(),
     context:ContextManager.snapshot(),
     tools:ToolExecutor.snapshot(),
