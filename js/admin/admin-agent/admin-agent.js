@@ -349,6 +349,8 @@ async function reset(){
   adminExecutionState.lastPlanId =
   null;
 
+  Execution.reset();
+
   AdminAgentState
   .reset();
 
@@ -934,12 +936,24 @@ async function handleExecutionCommand(
 
     }
 
+    if(type === "execution-history"){
+      return {ok:true,mode:"execution-history",entries:Execution.history(input.options || {})};
+    }
+
+    if(type === "cancel-execution"){
+      return {ok:Execution.cancel(input.planId),mode:"cancel-execution",planId:input.planId};
+    }
+
   }
 
   const text =
   normalizeText(
     input
   );
+
+  if(/^(?:execution history|سجل التنفيذ)$/i.test(text)){
+    return {ok:true,mode:"execution-history",entries:Execution.history()};
+  }
 
   let match =
   text.match(
@@ -1347,6 +1361,8 @@ async function command(
       "approve and execute PLAN-000001",
 
       "pending plans",
+
+      "execution history",
 
       "scan project",
 
