@@ -9,7 +9,8 @@ import {
 from "./planner-config.js";
 
 import {
-  plannerEngineState
+  plannerEngineState,
+  incrementPlannerDiagnostic
 }
 from "./planner-state.js";
 
@@ -49,7 +50,7 @@ export function enqueuePlan(
 
   plannerEngineState.queuedPlans.add(planId);
   plannerEngineState.executionQueue.push(planId);
-  plannerEngineState.diagnostics.queued++;
+  incrementPlannerDiagnostic("queued");
 
   return {
     queued:true,

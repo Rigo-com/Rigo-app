@@ -4,7 +4,8 @@
 // =====================================
 
 import {
-  plannerEngineState
+  plannerEngineState,
+  incrementPlannerDiagnostic
 }
 from "./planner-state.js";
 
@@ -101,7 +102,11 @@ export function createPlanObject(
     strategy:
     String(
       config.strategy ||
-      "adaptive"
+      (
+        PLANNER_ENGINE_CONFIG.ENABLE_ADAPTIVE_STRATEGIES
+        ? "adaptive"
+        : "sequential"
+      )
     ),
     assignedAgent:
     config.assignedAgent ||
@@ -140,9 +145,9 @@ async function assignStepExecutor(
 ){
 
   const matchingTools =
-  await selectToolsForGoal(
-    step.objective
-  );
+  PLANNER_ENGINE_CONFIG.ENABLE_TOOL_SELECTION
+  ? await selectToolsForGoal(step.objective)
+  : [];
 
   if(matchingTools.length > 0){
     return {
@@ -159,7 +164,9 @@ async function assignStepExecutor(
     ...step,
     assignedTool:null,
     assignedAgent:
-    fallbackAgent || null,
+    PLANNER_ENGINE_CONFIG.ENABLE_AGENT_ASSIGNMENT
+    ? fallbackAgent || null
+    : null,
     state:
     PLAN_STEP_STATES.READY
   };
@@ -189,9 +196,7 @@ export async function generateExecutionPlan(
     PLANNER_ENGINE_CONFIG
     .MAX_PLANS
   ){
-    plannerEngineState
-    .diagnostics
-    .rejected++;
+    incrementPlannerDiagnostic("rejected");
     return false;
   }
 
@@ -200,9 +205,7 @@ export async function generateExecutionPlan(
       config.context || {}
     )
   ){
-    plannerEngineState
-    .diagnostics
-    .rejected++;
+    incrementPlannerDiagnostic("rejected");
     return false;
   }
 
@@ -212,13 +215,25 @@ export async function generateExecutionPlan(
   );
 
   const rawSteps =
-  decomposeGoal(
-    plan.goal
+  (
+    PLANNER_ENGINE_CONFIG.ENABLE_DYNAMIC_PLANNING
+    ? decomposeGoal(plan.goal)
+    : clonePlannerObject(config.steps || [])
+      .slice(0,PLANNER_ENGINE_CONFIG.MAX_PLAN_STEPS)
+      .map((step,index) => ({
+        ...step,
+        id:step.id || createPlannerId(),
+        order:Number(step.order) || index + 1,
+        objective:String(step.objective || "").trim(),
+        state:PLAN_STEP_STATES.PENDING
+      }))
   )
   .filter(validatePlanStep);
 
   const assignedAgent =
-  await assignAgentToPlan();
+  PLANNER_ENGINE_CONFIG.ENABLE_AGENT_ASSIGNMENT
+  ? await assignAgentToPlan()
+  : null;
 
   const steps = [];
 
@@ -261,13 +276,8 @@ export async function generateExecutionPlan(
     plan
   );
 
-  plannerEngineState
-  .diagnostics
-  .created++;
-
-  plannerEngineState
-  .diagnostics
-  .generated++;
+  incrementPlannerDiagnostic("created");
+  incrementPlannerDiagnostic("generated");
 
   plannerEngineState
   .lastPlanAt =

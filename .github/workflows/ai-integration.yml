@@ -73,6 +73,8 @@ jobs:
           const toolReset = read('js/ai/tools/tool-reset.js');
           const plannerQueue = read('js/ai/planner-engine/planner-queue.js');
           const plannerRegistry = read('js/ai/planner-engine/planner-registry.js');
+          const plannerState = read('js/ai/planner-engine/planner-state.js');
+          const plannerDecomposition = read('js/ai/planner-engine/planner-decomposition.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -158,6 +160,12 @@ jobs:
           assert.match(planner, /PLAN_TIMEOUT/, 'Planner execution must enforce plan timeouts');
           assert.match(planner, /ENABLE_EXECUTION_HISTORY/, 'Planner history flag must control history writes');
           assert.match(planner, /ENABLE_PLAN_ABORT/, 'Planner abort flag must control termination');
+          assert.match(plan, /ENABLE_DYNAMIC_PLANNING/, 'Dynamic planning flag must control generated versus explicit steps');
+          assert.match(plannerDecomposition, /ENABLE_GOAL_DECOMPOSITION/, 'Goal decomposition flag must control step splitting');
+          assert.match(plan, /ENABLE_TOOL_SELECTION/, 'Tool selection flag must control step tool assignment');
+          assert.match(plan, /ENABLE_AGENT_ASSIGNMENT/, 'Agent assignment flag must control fallback agents');
+          assert.match(plan, /ENABLE_ADAPTIVE_STRATEGIES/, 'Adaptive strategy flag must control the default strategy');
+          assert.match(plannerState, /ENABLE_DIAGNOSTICS/, 'Planner diagnostics flag must control metric collection');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -1632,6 +1640,87 @@ jobs:
 
           console.log(
             'Planner retry timeout and abort checks passed.'
+          );
+          EOF
+
+      - name: Verify planner dynamic generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:PlannerEngine} =
+          await import('./js/ai/planner-engine/index.js');
+          const {default:ServiceManager} =
+          await import('./js/services/service-manager.js');
+          const {
+            plannerEngineState,
+            incrementPlannerDiagnostic
+          } =
+          await import('./js/ai/planner-engine/planner-state.js');
+
+          await ServiceManager.register(
+            'tools',
+            async () => ({
+              list:async () => [{
+                id:'weather',
+                name:'Weather',
+                description:'live weather forecast'
+              }],
+              execute:async () => ({success:true})
+            })
+          );
+          await ServiceManager.register(
+            'agents',
+            async () => ({
+              list:async () => [{
+                id:'assistant-agent',
+                state:'ready'
+              }],
+              execute:async () => ({success:true})
+            })
+          );
+          await ServiceManager.register(
+            'events',
+            async () => ({emit:async () => true})
+          );
+
+          const plan = await PlannerEngine.generate({
+            id:'generation-plan',
+            goal:'Check the weather today. Write a response',
+            context:{city:'Erbil'}
+          });
+
+          assert.ok(plan);
+          assert.equal(plan.strategy,'adaptive');
+          assert.equal(plan.steps.length,2);
+          assert.equal(plan.steps[0].assignedTool,'weather');
+          assert.equal(plan.steps[0].assignedAgent,null);
+          assert.equal(plan.steps[1].assignedTool,null);
+          assert.equal(
+            plan.steps[1].assignedAgent,
+            'assistant-agent'
+          );
+          assert.deepEqual(plan.selectedTools,['weather']);
+          assert.equal(plan.assignedAgent,'assistant-agent');
+          assert.equal(plannerEngineState.diagnostics.created,1);
+          assert.equal(plannerEngineState.diagnostics.generated,1);
+          assert.equal(
+            incrementPlannerDiagnostic('unknown'),
+            false
+          );
+          assert.equal(
+            incrementPlannerDiagnostic('analyzed',2),
+            true
+          );
+          assert.equal(plannerEngineState.diagnostics.analyzed,2);
+          assert.equal(PlannerEngine.get(plan.id).steps.length,2);
+
+          await PlannerEngine.reset();
+
+          console.log(
+            'Planner dynamic generation checks passed.'
           );
           EOF
 

@@ -4,7 +4,8 @@
 // =====================================
 
 import {
-  plannerEngineState
+  plannerEngineState,
+  incrementPlannerDiagnostic
 }
 from "./planner-state.js";
 
@@ -312,9 +313,7 @@ export async function executePlanStep(
 
       }
 
-      plannerEngineState
-      .diagnostics
-      .replans++;
+      incrementPlannerDiagnostic("replans");
 
       await delayPlannerExecution(
         PLANNER_ENGINE_CONFIG
@@ -370,7 +369,7 @@ export async function executePlan(
     enqueuePlan(normalizedId);
 
     if(!queued.queued){
-      plannerEngineState.diagnostics.rejected++;
+      incrementPlannerDiagnostic("rejected");
     }
 
     return queued;
@@ -408,9 +407,7 @@ export async function executePlan(
   PLAN_STATES
   .EXECUTING;
 
-  plannerEngineState
-  .diagnostics
-  .executed++;
+  incrementPlannerDiagnostic("executed");
 
   try{
 
@@ -472,9 +469,7 @@ export async function executePlan(
     .completedPlans
     .add(normalizedId);
 
-    plannerEngineState
-    .diagnostics
-    .completed++;
+    incrementPlannerDiagnostic("completed");
 
     if(PLANNER_ENGINE_CONFIG.ENABLE_EXECUTION_HISTORY){
       plannerEngineState.executionHistory.push({
@@ -510,9 +505,7 @@ export async function executePlan(
     .failedPlans
     .add(normalizedId);
 
-    plannerEngineState
-    .diagnostics
-    .failed++;
+    incrementPlannerDiagnostic("failed");
 
     if(PLANNER_ENGINE_CONFIG.ENABLE_EXECUTION_HISTORY){
       plannerEngineState.executionHistory.push({
@@ -625,9 +618,7 @@ export async function terminatePlan(
   .failedPlans
   .add(normalizedId);
 
-  plannerEngineState
-  .diagnostics
-  .terminated++;
+  incrementPlannerDiagnostic("terminated");
 
   await emitPlannerEvent(
     PLAN_EVENTS

@@ -3,6 +3,11 @@
 // PLANNER STATE
 // =====================================
 
+import {
+  PLANNER_ENGINE_CONFIG
+}
+from "./planner-config.js";
+
 export const plannerEngineState =
 Object.seal({
 
@@ -65,3 +70,29 @@ Object.seal({
   lastPlanAt:null
 
 });
+
+
+export function incrementPlannerDiagnostic(
+  key,
+  amount = 1
+){
+
+  if(!PLANNER_ENGINE_CONFIG.ENABLE_DIAGNOSTICS){
+    return false;
+  }
+
+  if(
+    !Object.prototype.hasOwnProperty.call(
+      plannerEngineState.diagnostics,
+      key
+    )
+  ){
+    return false;
+  }
+
+  plannerEngineState.diagnostics[key] +=
+  Number(amount) || 0;
+
+  return true;
+
+}
