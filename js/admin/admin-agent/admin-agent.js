@@ -27,6 +27,9 @@ from "./subagents/git-agent/index.js";
 import TestAgent
 from "./subagents/test-agent/index.js";
 
+import DocumentationAgent
+from "./subagents/documentation-agent/index.js";
+
 import GitHubProvider
 from "./subagents/project-agent/providers/github-provider.js";
 
@@ -1283,6 +1286,15 @@ async function handleCodeCommand(
   if(normalized === "test status" || normalized === "حالة الاختبارات")return TestAgent.status();
   if(normalized === "test failures" || normalized === "الاختبارات الفاشلة")return TestAgent.failures();
   if(normalized === "run tests" || normalized === "شغل الاختبارات")return TestAgent.run();
+  if(normalized === "generate documentation" || normalized === "ولد التوثيق")return DocumentationAgent.generate();
+
+  let documentationMatch=normalizeText(input).match(/^(?:document project|وثق المشروع)(?:\\s+(.+))?$/i);
+  if(documentationMatch){
+    const generated=DocumentationAgent.generate({path:documentationMatch[1]?.trim()||undefined});
+    if(!generated.ok)return generated;
+    DocumentationAgent.markPlanned();
+    return generated.document.exists?createUpdateFilePlan(generated.document.path,generated.document.content):createFilePlan(generated.document.path,generated.document.content);
+  }
 
   return null;
 
@@ -1460,6 +1472,10 @@ async function command(
 
       "run tests",
 
+      "generate documentation",
+
+      "document project js/PROJECT-ARCHITECTURE.md",
+
       "read file js/path/file.js",
 
       "analyze file js/path/file.js",
@@ -1540,7 +1556,10 @@ function snapshot(){
       GitAgent.snapshot(),
 
       test:
-      TestAgent.snapshot()
+      TestAgent.snapshot(),
+
+      documentation:
+      DocumentationAgent.snapshot()
 
     }
 
