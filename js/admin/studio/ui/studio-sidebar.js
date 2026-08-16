@@ -303,6 +303,12 @@ Object.seal({
 
   navigation:null,
 
+  mobileNavigation:null,
+
+  mobileSheet:null,
+
+  menuButton:null,
+
   listening:false
 
 });
@@ -486,6 +492,104 @@ function createSidebarStyles(){
         color:var(--rigo-primary);
       }
 
+      .rigo-studio-mobile-nav,
+      .rigo-studio-mobile-sheet{
+        display:none;
+      }
+
+      @media(max-width:760px){
+
+        .rigo-studio-sidebar{
+          display:none;
+        }
+
+        .rigo-studio-mobile-nav{
+          position:relative;
+          z-index:40;
+          width:100%;
+          height:70px;
+          display:grid;
+          grid-template-columns:repeat(5,minmax(0,1fr));
+          align-items:stretch;
+          padding:5px max(6px,env(safe-area-inset-right)) max(5px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));
+          border-top:1px solid rgba(94,126,163,.24);
+          background:rgba(3,11,22,.98);
+          box-shadow:0 -12px 30px rgba(0,0,0,.28);
+        }
+
+        .rigo-studio-mobile-nav .rigo-studio-sidebar-item{
+          min-height:56px;
+          gap:3px;
+          padding:4px 2px;
+          border:0;
+          border-radius:9px;
+        }
+
+        .rigo-studio-mobile-nav .rigo-studio-sidebar-item[data-active="true"]{
+          min-height:56px;
+          background:rgba(0,230,157,.08);
+        }
+
+        .rigo-studio-mobile-nav .rigo-studio-sidebar-item[data-active="true"]::before{
+          top:auto;
+          right:20%;
+          bottom:-5px;
+          left:20%;
+          width:auto;
+          height:3px;
+          border-radius:8px 8px 0 0;
+        }
+
+        .rigo-studio-mobile-nav .rigo-studio-sidebar-icon{
+          width:23px;
+          height:23px;
+          flex-basis:23px;
+        }
+
+        .rigo-studio-mobile-nav .rigo-studio-sidebar-label{
+          font-size:9px;
+        }
+
+        .rigo-studio-mobile-more-button .rigo-studio-sidebar-icon{
+          color:#cbd5e1;
+          font-size:24px;
+          line-height:1;
+        }
+
+        .rigo-studio-mobile-sheet{
+          position:fixed;
+          z-index:90;
+          right:12px;
+          bottom:78px;
+          left:12px;
+          display:grid;
+          grid-template-columns:repeat(3,minmax(0,1fr));
+          gap:8px;
+          padding:14px;
+          border:1px solid rgba(94,126,163,.28);
+          border-radius:18px;
+          background:linear-gradient(180deg,#0a1728,#06101e);
+          box-shadow:0 24px 70px rgba(0,0,0,.56);
+          opacity:0;
+          visibility:hidden;
+          transform:translateY(14px) scale(.98);
+          transition:opacity 160ms ease,transform 160ms ease,visibility 160ms ease;
+        }
+
+        .rigo-studio-mobile-sheet[data-open="true"]{
+          opacity:1;
+          visibility:visible;
+          transform:translateY(0) scale(1);
+        }
+
+        .rigo-studio-mobile-sheet .rigo-studio-sidebar-item{
+          min-height:76px;
+          border-color:rgba(94,126,163,.12);
+          background:rgba(8,22,38,.76);
+        }
+
+      }
+
       @media(max-height:760px){
 
         .rigo-studio-sidebar{
@@ -613,6 +717,73 @@ function createSidebarList(
   position;
 
   return list;
+
+}
+
+
+
+function closeMobileSheet(){
+
+  if(sidebarState.mobileSheet){
+    sidebarState.mobileSheet.dataset.open = "false";
+  }
+
+  sidebarState.menuButton?.setAttribute("aria-expanded","false");
+  return true;
+
+}
+
+
+
+function toggleMobileSheet(){
+
+  if(!sidebarState.mobileSheet){
+    return false;
+  }
+
+  const open = sidebarState.mobileSheet.dataset.open !== "true";
+  sidebarState.mobileSheet.dataset.open = String(open);
+  sidebarState.menuButton?.setAttribute("aria-expanded",String(open));
+  return open;
+
+}
+
+
+
+function createMobileNavigation(){
+
+  const navigation = document.createElement("nav");
+  navigation.className = "rigo-studio-mobile-nav";
+  navigation.setAttribute("aria-label","Mobile Studio navigation");
+
+  ["dashboard","project","admin-agent","debug"]
+  .forEach(function(id){
+    const item = SIDEBAR_ITEMS.find(candidate => candidate.id === id);
+    if(item) navigation.appendChild(createSidebarButton(item));
+  });
+
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "rigo-studio-sidebar-item rigo-studio-mobile-more-button";
+  more.setAttribute("aria-label","More Studio pages");
+  more.setAttribute("aria-expanded","false");
+  more.innerHTML = `<span class="rigo-studio-sidebar-icon" aria-hidden="true">•••</span><span class="rigo-studio-sidebar-label">More</span>`;
+  more.addEventListener("click",toggleMobileSheet);
+  navigation.appendChild(more);
+
+  const sheet = document.createElement("div");
+  sheet.className = "rigo-studio-mobile-sheet";
+  sheet.dataset.open = "false";
+  ["code","architecture","memory","git","settings"]
+  .forEach(function(id){
+    const item = SIDEBAR_ITEMS.find(candidate => candidate.id === id);
+    if(!item) return;
+    const button = createSidebarButton(item);
+    button.addEventListener("click",closeMobileSheet);
+    sheet.appendChild(button);
+  });
+
+  return {navigation,sheet,more};
 
 }
 
@@ -796,11 +967,28 @@ function renderSidebar(){
     bottomList
   );
 
+  const mobile = createMobileNavigation();
+
+  root.append(
+    mobile.navigation,
+    mobile.sheet
+  );
+
   sidebarState.root =
   root;
 
   sidebarState.navigation =
-  navigation;
+  root;
+
+  sidebarState.mobileNavigation = mobile.navigation;
+  sidebarState.mobileSheet = mobile.sheet;
+  sidebarState.menuButton = mobile.more;
+
+  const topbarMenu = document.getElementById("rigo-studio-menu-button");
+  if(topbarMenu){
+    topbarMenu.setAttribute("aria-expanded","false");
+    topbarMenu.addEventListener("click",toggleMobileSheet);
+  }
 
   attachHashListener();
 
@@ -834,6 +1022,10 @@ function unmountSidebar(){
 
   sidebarState.navigation =
   null;
+
+  sidebarState.mobileNavigation = null;
+  sidebarState.mobileSheet = null;
+  sidebarState.menuButton = null;
 
   return true;
 
