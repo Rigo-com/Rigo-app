@@ -69,6 +69,8 @@ jobs:
           const toolUtils = read('js/ai/tools/tool-utils.js');
           const toolCircuitBreaker = read('js/ai/tools/tool-circuit-breaker.js');
           const toolIndex = read('js/ai/tools/tool-index.js');
+          const toolLifecycle = read('js/ai/tools/tool-lifecycle.js');
+          const toolReset = read('js/ai/tools/tool-reset.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -143,6 +145,9 @@ jobs:
           assert.match(toolIndex, /ENABLE_TOOL_INDEXING/, 'Tool indexing flag must control index writes');
           assert.match(toolExecutor, /ENABLE_PERMISSION_CACHE/, 'Permission cache flag must control cached decisions');
           assert.match(toolExecutor, /ENABLE_TOOL_SANDBOX/, 'Tool sandbox flag must control input isolation');
+          assert.match(toolLifecycle, /await queueProcessor/, 'Tool shutdown must await the queue processor');
+          assert.match(toolLifecycle, /startupPromise ===/, 'Tool startup promise must be cleared after initialization');
+          assert.doesNotMatch(toolReset, /\.processing\s*=\s*false/, 'Tool reset must not detach a running queue processor');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -1217,6 +1222,110 @@ jobs:
 
           console.log(
             'Tool search permission and sandbox checks passed.'
+          );
+          EOF
+
+      - name: Verify tool lifecycle reset and restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:ToolExecutor} =
+          await import('./js/ai/tools/index.js');
+          const {toolExecutorState} =
+          await import('./js/ai/tools/tool-state.js');
+
+          await ToolExecutor.initialize();
+
+          const firstProcessor =
+          toolExecutorState.queueProcessorPromise;
+
+          assert.ok(firstProcessor);
+          assert.equal(toolExecutorState.startupPromise,null);
+          assert.equal(toolExecutorState.processing,true);
+
+          await ToolExecutor.register({
+            id:'long-running',
+            retries:1,
+            timeout:1000,
+            execute:({signal}) => {
+              return new Promise((resolve,reject) => {
+                signal.addEventListener(
+                  'abort',
+                  () => reject(new Error('ABORTED')),
+                  {once:true}
+                );
+                setTimeout(() => resolve('late'),100);
+              });
+            }
+          });
+
+          const pending = ToolExecutor.execute('long-running');
+
+          await new Promise((resolve) => setTimeout(resolve,0));
+
+          assert.equal(toolExecutorState.activeExecutions.size,1);
+
+          await ToolExecutor.shutdown();
+
+          const cancelled = await pending;
+
+          assert.equal(cancelled.error.code,'EXECUTION_CANCELLED');
+          assert.equal(toolExecutorState.initialized,false);
+          assert.equal(toolExecutorState.processing,false);
+          assert.equal(toolExecutorState.queueProcessorPromise,null);
+          assert.equal(toolExecutorState.activeExecutions.size,0);
+          assert.equal(toolExecutorState.tools.size,0);
+          assert.equal(toolExecutorState.diagnostics.cancelled,0);
+
+          await ToolExecutor.initialize();
+
+          const secondProcessor =
+          toolExecutorState.queueProcessorPromise;
+
+          assert.ok(secondProcessor);
+          assert.notEqual(secondProcessor,firstProcessor);
+
+          await ToolExecutor.register({
+            id:'quick',
+            retries:1,
+            execute:async () => true
+          });
+
+          assert.equal(
+            (await ToolExecutor.execute('quick')).success,
+            true
+          );
+          assert.equal(toolExecutorState.diagnostics.executed,1);
+
+          await ToolExecutor.reset();
+
+          assert.equal(toolExecutorState.initialized,true);
+          assert.equal(toolExecutorState.processing,true);
+          assert.equal(
+            toolExecutorState.queueProcessorPromise,
+            secondProcessor
+          );
+          assert.equal(toolExecutorState.tools.size,0);
+          assert.equal(toolExecutorState.diagnostics.executed,0);
+
+          await ToolExecutor.register({
+            id:'after-reset',
+            retries:1,
+            execute:async () => true
+          });
+
+          assert.equal(
+            (await ToolExecutor.execute('after-reset')).success,
+            true
+          );
+
+          await ToolExecutor.shutdown();
+
+          console.log(
+            'Tool lifecycle reset and restart checks passed.'
           );
           EOF
 

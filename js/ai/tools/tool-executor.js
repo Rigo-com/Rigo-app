@@ -324,6 +324,9 @@ export async function executeTool(
   const executionId =
   createExecutionId();
 
+  const startedAt =
+  Date.now();
+
   let controller =
 
     TOOL_EXECUTOR_CONFIG
@@ -337,19 +340,13 @@ export async function executeTool(
 
     null;
 
-  toolExecutorState
-  .activeExecutions
-  .set(
-
-    executionId,
-
-    {
+  const executionRecord = {
 
       toolId:
       normalizedId,
 
       startedAt:
-      Date.now(),
+      startedAt,
 
       controller,
 
@@ -359,7 +356,15 @@ export async function executeTool(
       TOOL_EXECUTION_STATES
       .RUNNING
 
-    }
+  };
+
+  toolExecutorState
+  .activeExecutions
+  .set(
+
+    executionId,
+
+    executionRecord
 
   );
 
@@ -466,6 +471,17 @@ export async function executeTool(
         : await Promise.resolve()
           .then(execute);
 
+        if(
+          executionRecord.state ===
+          TOOL_EXECUTION_STATES.CANCELLED
+        ){
+          return createStructuredError(
+            "EXECUTION_CANCELLED",
+            "Tool execution was cancelled",
+            {executionId}
+          );
+        }
+
         resetCircuitBreaker(
           normalizedId
         );
@@ -503,10 +519,7 @@ export async function executeTool(
 
               Date.now() -
 
-              toolExecutorState
-              .activeExecutions
-              .get(executionId)
-              .startedAt,
+              startedAt,
 
             timestamp:
             Date.now()
@@ -557,6 +570,17 @@ export async function executeTool(
 
       catch(error){
 
+        if(
+          executionRecord.state ===
+          TOOL_EXECUTION_STATES.CANCELLED
+        ){
+          return createStructuredError(
+            "EXECUTION_CANCELLED",
+            "Tool execution was cancelled",
+            {executionId}
+          );
+        }
+
         if(error?.message === "TOOL_TIMEOUT"){
           toolExecutorState
           .diagnostics
@@ -584,10 +608,7 @@ export async function executeTool(
 
             Date.now() -
 
-            toolExecutorState
-            .activeExecutions
-            .get(executionId)
-            .startedAt;
+            startedAt;
 
           if(TOOL_EXECUTOR_CONFIG.ENABLE_EXECUTION_HISTORY){
 

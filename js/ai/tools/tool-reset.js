@@ -69,7 +69,14 @@ resetToolExecutor(){
   .clear();
 
   toolExecutorState
-  .processing = false;
+  .lastExecutionAt = null;
+
+  Object.keys(
+    toolExecutorState.diagnostics
+  )
+  .forEach((key) => {
+    toolExecutorState.diagnostics[key] = 0;
+  });
 
   return true;
 
