@@ -7,9 +7,6 @@
 import ModuleRuntime
 from "../modules/module-runtime.js";
 
-import AI
-from "../../ai/index.js";
-
 
 const runtimeBootSequenceState =
 Object.seal({
@@ -109,7 +106,8 @@ async function executeShutdownSequence(){
 
 // =====================================
 // DEFAULT RUNTIME STEPS
-// SYSTEMS FIRST, AI SECOND
+// CORE MODULE RUNTIME ONLY
+// AI LIFECYCLE IS OWNED BY BOOTSTRAP
 // =====================================
 
 registerBootStep(
@@ -123,33 +121,11 @@ registerBootStep(
 );
 
 
-registerBootStep(
-  "ai-system",
-  async() => {
-
-    await AI
-    .initialize();
-
-  }
-);
-
-
 registerShutdownStep(
   "modules-runtime",
   async() => {
 
     await ModuleRuntime
-    .shutdown();
-
-  }
-);
-
-
-registerShutdownStep(
-  "ai-system",
-  async() => {
-
-    await AI
     .shutdown();
 
   }

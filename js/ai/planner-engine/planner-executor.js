@@ -4,7 +4,8 @@
 // =====================================
 
 import {
-  plannerEngineState
+  plannerEngineState,
+  incrementPlannerDiagnostic
 }
 from "./planner-state.js";
 
@@ -43,16 +44,185 @@ import {
 from "./planner-registry.js";
 
 import {
-  drainPlannerQueue
+  drainPlannerQueue,
+  enqueuePlan,
+  removeQueuedPlan
 }
 from "./planner-queue.js";
 
 import ServiceManager
 from "../../services/service-manager.js";
 
+
+// =====================================
+// EXECUTION HELPERS
+// =====================================
+
+async function executeAssignedTool(
+  plan,
+  step
+){
+
+  const tools =
+  await ServiceManager.resolve(
+    "tools"
+  );
+
+  if(
+    !tools ||
+    typeof tools.execute !== "function"
+  ){
+    throw new Error(
+      "TOOL_EXECUTOR_UNAVAILABLE"
+    );
+  }
+
+  const result =
+  await tools.execute(
+    step.assignedTool,
+    {
+      objective:
+      step.objective,
+      planId:
+      plan.id,
+      stepId:
+      step.id,
+      context:
+      plan.context || {},
+      metadata:
+      plan.metadata || {}
+    },
+    {
+      source:
+      "planner-engine",
+      planId:
+      plan.id,
+      stepId:
+      step.id
+    }
+  );
+
+  if(
+    !result ||
+    result.success === false
+  ){
+    throw new Error(
+      result?.error?.message ||
+      result?.message ||
+      result?.code ||
+      "PLANNER_TOOL_EXECUTION_FAILED"
+    );
+  }
+
+  return result;
+
+}
+
+
+async function executeAssignedAgent(
+  plan,
+  step
+){
+
+  const agents =
+  await ServiceManager.resolve(
+    "agents"
+  );
+
+  if(
+    !agents ||
+    typeof agents.execute !== "function"
+  ){
+    throw new Error(
+      "AGENT_MANAGER_UNAVAILABLE"
+    );
+  }
+
+  const result =
+  await agents.execute(
+    step.assignedAgent,
+    {
+      type:
+      "planner-step",
+      input:{
+        objective:
+        step.objective,
+        planId:
+        plan.id,
+        stepId:
+        step.id,
+        context:
+        plan.context || {},
+        metadata:
+        plan.metadata || {}
+      },
+      metadata:{
+        source:
+        "planner-engine",
+        planId:
+        plan.id,
+        stepId:
+        step.id
+      }
+    }
+  );
+
+  if(
+    !result ||
+    result.queued === true
+  ){
+    throw new Error(
+      result?.queued === true
+      ? "PLANNER_AGENT_EXECUTION_QUEUED"
+      : "PLANNER_AGENT_EXECUTION_FAILED"
+    );
+  }
+
+  return result;
+
+}
+
+
 // =====================================
 // EXECUTE STEP
 // =====================================
+
+function executeWithPlanAbort(
+  operation,
+  signal
+){
+
+  if(!signal){
+    return operation;
+  }
+
+  if(signal.aborted){
+    return Promise.reject(
+      new Error("PLAN_TERMINATED")
+    );
+  }
+
+  return new Promise((resolve,reject) => {
+
+    const abort = () => {
+      reject(new Error("PLAN_TERMINATED"));
+    };
+
+    signal.addEventListener(
+      "abort",
+      abort,
+      {once:true}
+    );
+
+    Promise.resolve(operation)
+    .then(resolve,reject)
+    .finally(() => {
+      signal.removeEventListener("abort",abort);
+    });
+
+  });
+
+}
 
 export async function executePlanStep(
   plan,
@@ -61,156 +231,93 @@ export async function executePlanStep(
 
   let attempts = 0;
 
+  const maximumAttempts =
+  PLANNER_ENGINE_CONFIG.ENABLE_REPLANNING
+  ? PLANNER_ENGINE_CONFIG.MAX_RETRIES
+  : 1;
+
   while(
-
     attempts <
-
-    PLANNER_ENGINE_CONFIG
-    .MAX_RETRIES
-
+    maximumAttempts
   ){
 
     attempts++;
 
     try{
 
-      if(
-        step.assignedTool
-      ){
+      let result = null;
+      let executor = null;
 
-        const toolExecutor =
-        await ServiceManager.resolve(
-          "tools"
+      if(step.assignedTool){
+
+        executor =
+        "tool";
+
+        result =
+        await executeWithPlanAbort(
+          executeAssignedTool(plan,step),
+          plan.runtime.controller?.signal
         );
 
-        if(
-          !toolExecutor
-        ){
+      }
+      else if(step.assignedAgent){
 
-          throw new Error(
-            "TOOL EXECUTOR UNAVAILABLE"
-          );
+        executor =
+        "agent";
 
-        }
-
-        if(
-          typeof toolExecutor.execute !==
-          "function"
-        ){
-
-          throw new Error(
-            "INVALID TOOL EXECUTOR"
-          );
-
-        }
-
-        const result =
-        await toolExecutor.execute(
-
-          step.assignedTool,
-
-          {
-
-            objective:
-            step.objective,
-
-            signal:
-
-              plan.runtime
-              .controller
-              ?.signal || null
-
-          },
-
-          {
-
-            source:
-            "planner-engine"
-
-          }
-
+        result =
+        await executeWithPlanAbort(
+          executeAssignedAgent(plan,step),
+          plan.runtime.controller?.signal
         );
 
-        if(
-          !result
-        ){
+      }
+      else{
 
-          throw new Error(
-            "INVALID TOOL RESULT"
-          );
-
-        }
-
-        return {
-
-          ...step,
-
-          result,
-
-          retries:
-          attempts - 1,
-
-          state:
-          PLAN_STEP_STATES
-          .COMPLETED
-
-        };
+        throw new Error(
+          "PLAN_STEP_HAS_NO_EXECUTOR"
+        );
 
       }
 
       return {
-
         ...step,
-
+        result,
+        executor,
         retries:
         attempts - 1,
-
         state:
         PLAN_STEP_STATES
         .COMPLETED
-
       };
 
     }
-
     catch(error){
 
       if(
-
-        attempts >=
-
-        PLANNER_ENGINE_CONFIG
-        .MAX_RETRIES
-
+        error?.message === "PLAN_TERMINATED" ||
+        attempts >= maximumAttempts
       ){
 
         return {
-
           ...step,
-
           error:
+          error?.message ||
           String(error),
-
           retries:
-          attempts,
-
+          attempts - 1,
           state:
           PLAN_STEP_STATES
           .FAILED
-
         };
 
       }
 
-      plannerEngineState
-      .diagnostics
-      .replans++;
+      incrementPlannerDiagnostic("replans");
 
       await delayPlannerExecution(
-
         PLANNER_ENGINE_CONFIG
         .RETRY_DELAY
-
       );
 
     }
@@ -220,12 +327,84 @@ export async function executePlanStep(
 }
 
 
-
 // =====================================
 // EXECUTE PLAN
 // =====================================
 
-export async function executePlan(
+function synchronizePlanRuntime(
+  plan,
+  state
+){
+
+  if(!PLANNER_ENGINE_CONFIG.ENABLE_RUNTIME_SYNC){
+    return false;
+  }
+
+  const now = Date.now();
+
+  plan.updatedAt = now;
+  plan.runtime.state = state;
+  plan.runtime.updatedAt = now;
+
+  return true;
+
+}
+
+
+async function rememberPlan(
+  plan
+){
+
+  if(!PLANNER_ENGINE_CONFIG.ENABLE_PLAN_MEMORY){
+    return false;
+  }
+
+  try{
+
+    const memory =
+    await ServiceManager.resolve("memory");
+
+    if(typeof memory?.create !== "function"){
+      return false;
+    }
+
+    return Boolean(
+      await memory.create(
+        JSON.stringify({
+          planId:plan.id,
+          goal:plan.goal || "",
+          state:plan.state,
+          steps:(plan.steps || []).map((step) => ({
+            id:step.id,
+            objective:step.objective,
+            state:step.state,
+            executor:step.executor || null
+          }))
+        }),
+        {
+          type:"system",
+          priority:
+          plan.state === PLAN_STATES.COMPLETED
+          ? "normal"
+          : "high",
+          tags:[
+            "planner-engine",
+            `plan:${plan.id}`,
+            `state:${plan.state}`
+          ]
+        }
+      )
+    );
+
+  }
+  catch(error){
+    return false;
+  }
+
+}
+
+
+async function executePlanRuntime(
   planId
 ){
 
@@ -234,89 +413,53 @@ export async function executePlan(
     planId
   );
 
-  if(
+  if(plannerEngineState.shuttingDown){
+    return false;
+  }
 
+  if(
     plannerEngineState
     .executionLocks
-    .has(
-      normalizedId
-    )
-
+    .has(normalizedId)
   ){
-
     return false;
-
   }
 
   const plan =
   plannerEngineState
   .plans
-  .get(
-    normalizedId
-  );
+  .get(normalizedId);
 
   if(!plan){
-
     return false;
-
   }
 
   if(
-
     plannerEngineState
     .activePlans
     .size >=
-
     PLANNER_ENGINE_CONFIG
     .MAX_PARALLEL_PLANS
-
   ){
 
-    if(
+    const queued =
+    enqueuePlan(normalizedId);
 
-      !plannerEngineState
-      .queuedPlans
-      .has(
-        normalizedId
-      )
-
-    ){
-
-      plannerEngineState
-      .queuedPlans
-      .add(
-        normalizedId
-      );
-
-      plannerEngineState
-      .executionQueue
-      .push(
-        normalizedId
-      );
-
+    if(!queued.queued){
+      incrementPlannerDiagnostic("rejected");
     }
 
-    plannerEngineState
-    .diagnostics
-    .queued++;
-
-    return {
-      queued:true
-    };
+    return queued;
 
   }
 
   plannerEngineState
   .executionLocks
-  .add(
-    normalizedId
-  );
+  .add(normalizedId);
 
   plannerEngineState
   .activePlans
-  .add(
-    normalizedId
-  );
+  .add(normalizedId);
 
   plan.runtime.running =
   true;
@@ -324,13 +467,29 @@ export async function executePlan(
   plan.runtime.startedAt =
   Date.now();
 
+  if(
+    typeof AbortController !==
+    "undefined"
+  ){
+    plan.runtime.controller =
+    new AbortController();
+  }
+
+  const timeoutId =
+  setTimeout(() => {
+    plan.runtime.controller?.abort();
+  },plan.timeout || PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT);
+
   plan.state =
   PLAN_STATES
   .EXECUTING;
 
-  plannerEngineState
-  .diagnostics
-  .executed++;
+  synchronizePlanRuntime(
+    plan,
+    PLAN_STATES.EXECUTING
+  );
+
+  incrementPlannerDiagnostic("executed");
 
   try{
 
@@ -340,6 +499,17 @@ export async function executePlan(
       const step
       of plan.steps
     ){
+
+      if(
+        plan.runtime
+        .controller
+        ?.signal
+        ?.aborted
+      ){
+        throw new Error(
+          "PLAN_TERMINATED"
+        );
+      }
 
       const result =
       await executePlanStep(
@@ -352,17 +522,14 @@ export async function executePlan(
       );
 
       if(
-
         result.state !==
         PLAN_STEP_STATES
         .COMPLETED
-
       ){
-
         throw new Error(
-          "PLAN STEP FAILED"
+          result.error ||
+          "PLAN_STEP_FAILED"
         );
-
       }
 
     }
@@ -374,6 +541,11 @@ export async function executePlan(
     PLAN_STATES
     .COMPLETED;
 
+    synchronizePlanRuntime(
+      plan,
+      PLAN_STATES.COMPLETED
+    );
+
     plan.runtime.running =
     false;
 
@@ -382,108 +554,84 @@ export async function executePlan(
 
     plannerEngineState
     .completedPlans
-    .add(
-      normalizedId
-    );
+    .add(normalizedId);
 
-    plannerEngineState
-    .diagnostics
-    .completed++;
+    incrementPlannerDiagnostic("completed");
 
-    plannerEngineState
-    .executionHistory
-    .push({
+    if(PLANNER_ENGINE_CONFIG.ENABLE_EXECUTION_HISTORY){
+      plannerEngineState.executionHistory.push({
+        planId:normalizedId,
+        success:true,
+        completedAt:Date.now()
+      });
+      trimPlannerHistory();
+    }
 
-      planId:
-      normalizedId,
-
-      success:true,
-
-      completedAt:
-      Date.now()
-
-    });
-
-    trimPlannerHistory();
+    await rememberPlan(plan);
 
     await emitPlannerEvent(
-
       PLAN_EVENTS
       .COMPLETED,
-
       {
-
         planId:
         normalizedId
-
       }
-
     );
 
     return true;
 
   }
-
   catch(error){
 
     plan.state =
-    PLAN_STATES
-    .FAILED;
+    plan.runtime.terminatedAt
+    ? PLAN_STATES.TERMINATED
+    : PLAN_STATES.FAILED;
+
+    synchronizePlanRuntime(
+      plan,
+      plan.state
+    );
 
     plan.runtime.running =
     false;
 
     plannerEngineState
     .failedPlans
-    .add(
-      normalizedId
-    );
+    .add(normalizedId);
 
-    plannerEngineState
-    .diagnostics
-    .failed++;
+    incrementPlannerDiagnostic("failed");
 
-    plannerEngineState
-    .executionHistory
-    .push({
+    if(PLANNER_ENGINE_CONFIG.ENABLE_EXECUTION_HISTORY){
+      plannerEngineState.executionHistory.push({
+        planId:normalizedId,
+        success:false,
+        error:error?.message || String(error),
+        failedAt:Date.now()
+      });
+      trimPlannerHistory();
+    }
 
-      planId:
-      normalizedId,
-
-      success:false,
-
-      error:
-      String(error),
-
-      failedAt:
-      Date.now()
-
-    });
-
-    trimPlannerHistory();
+    await rememberPlan(plan);
 
     await emitPlannerEvent(
-
       PLAN_EVENTS
       .FAILED,
-
       {
-
         planId:
         normalizedId,
-
         error:
+        error?.message ||
         String(error)
-
       }
-
     );
 
     return false;
 
   }
-
   finally{
+
+    clearTimeout(timeoutId);
 
     plan.runtime.running =
     false;
@@ -493,15 +641,11 @@ export async function executePlan(
 
     plannerEngineState
     .activePlans
-    .delete(
-      normalizedId
-    );
+    .delete(normalizedId);
 
     plannerEngineState
     .executionLocks
-    .delete(
-      normalizedId
-    );
+    .delete(normalizedId);
 
     drainPlannerQueue(
       executePlan
@@ -513,6 +657,38 @@ export async function executePlan(
 }
 
 
+export function executePlan(
+  planId
+){
+
+  const normalizedId =
+  normalizePlanId(planId);
+
+  if(plannerEngineState.executions.has(normalizedId)){
+    return Promise.resolve(false);
+  }
+
+  const execution =
+  executePlanRuntime(normalizedId);
+
+  plannerEngineState.executions.set(
+    normalizedId,
+    execution
+  );
+
+  execution.finally(() => {
+    if(
+      plannerEngineState.executions.get(normalizedId) ===
+      execution
+    ){
+      plannerEngineState.executions.delete(normalizedId);
+    }
+  });
+
+  return execution;
+
+}
+
 
 // =====================================
 // TERMINATE PLAN
@@ -522,6 +698,10 @@ export async function terminatePlan(
   planId
 ){
 
+  if(!PLANNER_ENGINE_CONFIG.ENABLE_PLAN_ABORT){
+    return false;
+  }
+
   const normalizedId =
   normalizePlanId(
     planId
@@ -530,16 +710,10 @@ export async function terminatePlan(
   const plan =
   plannerEngineState
   .plans
-  .get(
-    normalizedId
-  );
+  .get(normalizedId);
 
-  if(
-    !plan
-  ){
-
+  if(!plan){
     return false;
-
   }
 
   plan.runtime
@@ -549,62 +723,51 @@ export async function terminatePlan(
   plan.runtime.running =
   false;
 
-  plan.runtime
-  .terminatedAt =
+  plan.runtime.terminatedAt =
   Date.now();
 
   plan.state =
   PLAN_STATES
-  .FAILED;
+  .TERMINATED;
+
+  synchronizePlanRuntime(
+    plan,
+    PLAN_STATES.TERMINATED
+  );
 
   plannerEngineState
   .activePlans
-  .delete(
-    normalizedId
-  );
+  .delete(normalizedId);
 
   plannerEngineState
   .queuedPlans
-  .delete(
-    normalizedId
-  );
+  .delete(normalizedId);
+
+  removeQueuedPlan(normalizedId);
 
   plannerEngineState
   .executionLocks
-  .delete(
-    normalizedId
-  );
+  .delete(normalizedId);
 
   plannerEngineState
   .failedPlans
-  .add(
-    normalizedId
-  );
+  .add(normalizedId);
 
-  plannerEngineState
-  .diagnostics
-  .terminated++;
+  incrementPlannerDiagnostic("terminated");
 
   await emitPlannerEvent(
-
     PLAN_EVENTS
     .FAILED,
-
     {
-
       planId:
       normalizedId,
-
       terminated:true
-
     }
-
   );
 
   return true;
 
 }
-
 
 
 // =====================================
@@ -621,14 +784,21 @@ export async function processPlannerRequest(
   );
 
   if(!plan){
-
     return false;
-
   }
 
+  const execution =
   await executePlan(
     plan.id
   );
+
+  if(
+    execution?.queued === true
+  ){
+    return getPlan(
+      plan.id
+    );
+  }
 
   return getPlan(
     plan.id

@@ -1,333 +1,40 @@
-// =====================================
-// RIGO AI
-// MEMORY MANAGER
-// HIGH LEVEL MEMORY API
-// =====================================
-
-import {
-  MemoryCore
-}
-from "./memory-core.js";
-
-import {
-  MemorySearch
-}
-from "./memory-search.js";
-
-import {
-  MemoryContext
-}
-from "./memory-context.js";
-
-import {
-  MemorySummary
-}
-from "./memory-summary.js";
-
-import {
-  MemorySubsystem
-}
-from "./memory-subsystem.js";
-
-import {
-  MemoryDebug
-}
-from "./memory-debug.js";
-
-
-
-// =====================================
-// LIFECYCLE
-// =====================================
-
-function initialize(){
-
-  return MemorySubsystem
-  .initialize();
-
-}
-
-
-
-function shutdown(){
-
-  return MemorySubsystem
-  .shutdown();
-
-}
-
-
-
-// =====================================
-// MEMORY
-// =====================================
-
-function create(
-
-  content,
-
-  options = {}
-
-){
-
-  return MemoryCore
-  .createMemory(
-
-    content,
-
-    options
-
-  );
-
-}
-
-
-
-function update(
-
-  memoryId,
-
-  updates
-
-){
-
-  return MemoryCore
-  .updateMemory(
-
-    memoryId,
-
-    updates
-
-  );
-
-}
-
-
-
-function remove(
-  memoryId
-){
-
-  return MemoryCore
-  .deleteMemory(
-    memoryId
-  );
-
-}
-
-
-
-// =====================================
-// SEARCH
-// =====================================
-
-function search(
-
-  query,
-
-  options = {}
-
-){
-
-  return MemorySearch
-  .searchMemories(
-
-    query,
-
-    options
-
-  );
-
-}
-
-
-
-function searchOne(
-  query
-){
-
-  return MemorySearch
-  .searchMemory(
-    query
-  );
-
-}
-
-
-
-// =====================================
-// CONTEXT
-// =====================================
-
-function addContext(
-  item
-){
-
-  return MemoryContext
-  .addContextItem(
-    item
-  );
-
-}
-
-function removeContext(
-  id
-){
-
-  return MemoryContext
-  .removeContextItem(
-    id
-  );
-
-}
-
-
-function getContext(){
-
-  return MemoryContext
-  .getContextItems();
-
-}
-
-
-
-function clearContext(){
-
-  return MemoryContext
-  .clearContext();
-
-}
-
-
-
-// =====================================
-// SUMMARY
-// =====================================
-
-function summary(){
-
-  return MemorySummary
-  .createGlobalSummary();
-
-}
-
-
-
-// =====================================
-// MAINTENANCE
-// =====================================
-
-function maintenance(){
-
-  return MemorySubsystem
-  .maintenance();
-
-}
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
-
-function health(){
-
-  return MemorySubsystem
-  .status();
-
-}
-
-
-
-function debug(){
-
-  return MemoryDebug
-  .getDebugSnapshot();
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const MemoryManager =
-Object.freeze({
-
-  initialize,
-
-  shutdown,
-
-  create,
-
-  update,
-
-  remove,
-
-  search,
-
-  searchOne,
-
-  addContext,
-
-  removeContext,
-
-  getContext,
-
-  clearContext,
-
-  summary,
-
-  maintenance,
-
-  health,
-
-  debug
-
+import { MemoryCore } from "./memory-core.js";
+import { MemorySearch } from "./memory-search.js";
+import { MemoryContext } from "./memory-context.js";
+import { MemorySummary } from "./memory-summary.js";
+import { MemorySubsystem } from "./memory-subsystem.js";
+import { MemoryDebug } from "./memory-debug.js";
+import { MemorySyncCloud } from "./memory-sync-cloud.js";
+
+const initialize = () => MemorySubsystem.initialize();
+const boot = initialize;
+const shutdown = () => MemorySubsystem.shutdown();
+const reset = () => MemorySubsystem.reset();
+const create = (content, options = {}) => MemoryCore.createMemory(content, options);
+const update = (memoryId, updates) => MemoryCore.updateMemory(memoryId, updates);
+const remove = memoryId => MemoryCore.deleteMemory(memoryId);
+const search = (query, options = {}) => MemorySearch.searchMemories(query, options);
+const searchOne = query => MemorySearch.searchMemory(query);
+const addContext = item => MemoryContext.addContextItem(item);
+const removeContext = id => MemoryContext.removeContextItem(id);
+const getContext = () => MemoryContext.getContextItems();
+const clearContext = () => MemoryContext.clearContext();
+const summary = () => MemorySummary.createGlobalSummary();
+const maintenance = () => MemorySubsystem.maintenance();
+const sync = provider => MemorySyncCloud.syncToCloud(provider);
+const restore = provider => MemorySyncCloud.restoreFromCloud(provider);
+const configureSync = provider => MemorySubsystem.configureCloudSync(provider);
+const health = () => MemorySubsystem.status();
+const debug = () => MemoryDebug.getDebugSnapshot();
+const snapshot = health;
+
+const MemoryManager = Object.freeze({
+  id:"memory", priority:30,
+  initialize, boot, shutdown, reset,
+  create, update, remove, search, searchOne,
+  addContext, removeContext, getContext, clearContext,
+  summary, maintenance, sync, restore, configureSync,
+  health, debug, snapshot
 });
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  initialize,
-
-  shutdown,
-
-  create,
-
-  update,
-
-  remove,
-
-  search,
-
-  searchOne,
-
-  addContext,
-
-  removeContext,
-
-  getContext,
-
-  clearContext,
-
-  summary,
-
-  maintenance,
-
-  health,
-
-  debug,
-
-  MemoryManager
-
-};
-
-export default
-MemoryManager;
+export { initialize, boot, shutdown, reset, create, update, remove, search, searchOne, addContext, removeContext, getContext, clearContext, summary, maintenance, sync, restore, configureSync, health, debug, snapshot, MemoryManager };
+export default MemoryManager;

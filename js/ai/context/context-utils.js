@@ -189,12 +189,38 @@ export function createCompressionPreview(
   length = 500
 ){
 
-  return String(
+  const value =
+  String(
     serialized || ""
-  )
-  .slice(
+  );
+
+  const maxLength =
+  Math.max(
     0,
-    length
+    Number(length) || 0
+  );
+
+  if(value.length <= maxLength){
+    return value;
+  }
+
+  if(maxLength <= 5){
+    return value.slice(0,maxLength);
+  }
+
+  const available =
+  maxLength - 3;
+
+  const headLength =
+  Math.ceil(available / 2);
+
+  const tailLength =
+  Math.floor(available / 2);
+
+  return (
+    value.slice(0,headLength) +
+    "..." +
+    value.slice(-tailLength)
   );
 
 }
@@ -205,27 +231,49 @@ export function hashContextContent(
   value
 ){
 
-  try{
+  const serialized =
+  serializeContext(
+    value
+  );
 
-    return btoa(
-      encodeURIComponent(
-        serializeContext(value)
-      )
-    )
-    .slice(
-      0,
-      128
+  let first =
+  2166136261;
+
+  let second =
+  2246822507;
+
+  for(
+    let index = 0;
+    index < serialized.length;
+    index++
+  ){
+
+    const code =
+    serialized
+    .charCodeAt(index);
+
+    first =
+    Math.imul(
+      first ^ code,
+      16777619
+    );
+
+    second =
+    Math.imul(
+      second ^ code,
+      3266489909
     );
 
   }
 
-  catch(error){
-
-    return String(
-      Date.now()
-    );
-
-  }
+  return (
+    (first >>> 0)
+    .toString(16)
+    .padStart(8,"0") +
+    (second >>> 0)
+    .toString(16)
+    .padStart(8,"0")
+  );
 
 }
 

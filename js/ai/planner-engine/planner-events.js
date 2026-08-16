@@ -8,6 +8,9 @@ import {
 }
 from "./planner-utils.js";
 
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 
 // =====================================
@@ -19,18 +22,19 @@ export async function emitPlannerEvent(
   payload = {}
 ){
 
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    await emitSystemEvent(
+    const events =
+    await ServiceManager.resolve(
+      "events"
+    );
+
+    if(!events?.emit){
+      return false;
+    }
+
+    const emitted =
+    await events.emit(
 
       eventName,
 
@@ -48,7 +52,7 @@ export async function emitPlannerEvent(
 
     );
 
-    return true;
+    return Boolean(emitted);
 
   }
 

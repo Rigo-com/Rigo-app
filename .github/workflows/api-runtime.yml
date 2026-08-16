@@ -1,0 +1,22 @@
+name: API Runtime
+
+on:
+  push:
+    branches: [ai-bootstrap-wiring]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --check js/api/index.js
+      - run: node --check js/api/api-request.js
+      - run: node tests/api-runtime.test.mjs

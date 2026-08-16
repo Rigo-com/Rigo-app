@@ -9,7 +9,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -29,7 +30,7 @@ export function tokenizeContextContent(
   )
 
   .replace(
-    /[^\w\s]/g,
+    /[^\p{L}\p{N}_\s]/gu,
     " "
   )
 
@@ -52,6 +53,69 @@ export function tokenizeContextContent(
     .MAX_INDEX_SIZE
 
   );
+
+}
+
+
+export function searchContextIndex(
+  query = ""
+){
+
+  const matches =
+  new Map();
+
+  if(
+    !CONTEXT_MANAGER_CONFIG
+    .ENABLE_INDEXING
+  ){
+
+    return matches;
+
+  }
+
+  const tokens =
+  new Set(
+    tokenizeContextContent(
+      query
+    )
+  );
+
+  tokens.forEach((token) => {
+
+    const contextIds =
+    contextManagerState
+    .indexes
+    .get(token);
+
+    contextIds
+    ?.forEach((contextId) => {
+
+      matches.set(
+        contextId,
+        (matches.get(contextId) || 0) + 1
+      );
+
+    });
+
+  });
+
+  incrementContextDiagnostic(
+    "indexSearches"
+  );
+
+  if(matches.size > 0){
+    incrementContextDiagnostic(
+      "indexHits",
+      matches.size
+    );
+  }
+  else{
+    incrementContextDiagnostic(
+      "indexFallbacks"
+    );
+  }
+
+  return matches;
 
 }
 
@@ -112,9 +176,24 @@ export function indexContext(
 
   });
 
-  contextManagerState
-  .diagnostics
-  .indexed++;
+  while(
+    contextManagerState.indexes.size >
+    CONTEXT_MANAGER_CONFIG.MAX_INDEX_SIZE
+  ){
+    const oldestToken =
+    contextManagerState.indexes.keys().next().value;
+
+    contextManagerState.indexes.delete(oldestToken);
+
+    contextManagerState.contextTokens
+    .forEach((trackedTokens) => {
+      trackedTokens.delete(oldestToken);
+    });
+  }
+
+  incrementContextDiagnostic(
+    "indexed"
+  );
 
   return true;
 

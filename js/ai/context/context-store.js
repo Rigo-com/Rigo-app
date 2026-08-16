@@ -10,7 +10,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -21,7 +22,8 @@ import {
   freezeContextObject,
   estimateTokens,
   hashContextContent,
-  createSearchableText
+  createSearchableText,
+  serializeContext
 }
 from "./context-utils.js";
 
@@ -44,6 +46,10 @@ from "./context-indexer.js";
 
 export async function acquireContextLock(){
 
+  if(contextManagerState.shuttingDown){
+    return false;
+  }
+
   while(
     contextManagerState
     .operationLock
@@ -57,9 +63,25 @@ export async function acquireContextLock(){
 
   }
 
+  if(contextManagerState.shuttingDown){
+    return false;
+  }
+
   contextManagerState
   .operationLock =
   true;
+
+  let releaseOperation;
+
+  contextManagerState.activeOperation =
+  new Promise((resolve) => {
+    releaseOperation = resolve;
+  });
+
+  contextManagerState.activeOperation.resolve =
+  releaseOperation;
+
+  return true;
 
 }
 
@@ -70,6 +92,245 @@ export function releaseContextLock(){
   contextManagerState
   .operationLock =
   false;
+
+  contextManagerState.activeOperation?.resolve?.();
+  contextManagerState.activeOperation = null;
+
+}
+
+
+function removeContextHash(
+  contextId
+){
+
+  contextManagerState
+  .contentHashes
+  .forEach((storedContextId,hash) => {
+
+    if(storedContextId === contextId){
+      contextManagerState
+      .contentHashes
+      .delete(hash);
+    }
+
+  });
+
+}
+
+
+function createStoredContextHash(
+  context
+){
+
+  return hashContextContent({
+    namespace:
+    context.namespace ||
+    "runtime:default",
+    type:
+    context.type ||
+    CONTEXT_TYPES.RUNTIME,
+    content:
+    context.content
+  });
+
+}
+
+
+function getContextHashEntries(
+  contextId
+){
+
+  const entries = [];
+
+  contextManagerState
+  .contentHashes
+  .forEach((storedContextId,hash) => {
+
+    if(storedContextId === contextId){
+      entries.push([
+        hash,
+        storedContextId
+      ]);
+    }
+
+  });
+
+  return entries;
+
+}
+
+
+function getContextTypeCollection(
+  type
+){
+
+  switch(String(type || "").toLowerCase()){
+
+    case CONTEXT_TYPES.SESSION:
+      return contextManagerState.sessions;
+
+    case CONTEXT_TYPES.RUNTIME:
+      return contextManagerState.runtimeContexts;
+
+    case CONTEXT_TYPES.SHARED:
+      return contextManagerState.sharedContexts;
+
+    default:
+      return null;
+
+  }
+
+}
+
+
+function isContextTypeEnabled(
+  type
+){
+
+  switch(String(type || "").toLowerCase()){
+
+    case CONTEXT_TYPES.MEMORY:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_MEMORY;
+
+    case CONTEXT_TYPES.SESSION:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_SESSION_CONTEXT;
+
+    case CONTEXT_TYPES.RUNTIME:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_RUNTIME_CONTEXT;
+
+    case CONTEXT_TYPES.SHARED:
+      return CONTEXT_MANAGER_CONFIG.ENABLE_SHARED_CONTEXT;
+
+    default:
+      return true;
+
+  }
+
+}
+
+
+function hasContextTypeCapacity(
+  type,
+  existingId = null
+){
+
+  const collection =
+  getContextTypeCollection(type);
+
+  if(!collection){
+    return true;
+  }
+
+  if(existingId && collection.has(existingId)){
+    return true;
+  }
+
+  if(type === CONTEXT_TYPES.SESSION){
+    return collection.size < CONTEXT_MANAGER_CONFIG.MAX_SESSION_CONTEXTS;
+  }
+
+  if(type === CONTEXT_TYPES.RUNTIME){
+    return collection.size < CONTEXT_MANAGER_CONFIG.MAX_RUNTIME_CONTEXTS;
+  }
+
+  return true;
+
+}
+
+
+function trackContextType(
+  context
+){
+
+  getContextTypeCollection(context?.type)
+  ?.set(context.id,context);
+
+  return true;
+
+}
+
+
+function untrackContextType(
+  context
+){
+
+  getContextTypeCollection(context?.type)
+  ?.delete(context.id);
+
+  return true;
+
+}
+
+
+function isContextContentWithinLimits(
+  content
+){
+
+  const serialized =
+  serializeContext(content);
+
+  if(
+    serialized.length >
+    CONTEXT_MANAGER_CONFIG.MAX_CONTENT_SIZE
+  ){
+    return false;
+  }
+
+  const itemCount =
+  Array.isArray(content)
+  ? content.length
+  : (
+      content &&
+      typeof content === "object"
+      ? Object.keys(content).length
+      : 1
+    );
+
+  return (
+    itemCount <=
+    CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_ITEMS
+  );
+
+}
+
+
+export function touchContext(
+  contextId,
+  accessedAt = Date.now()
+){
+
+  const normalizedId =
+  normalizeContextId(contextId);
+
+  const existing =
+  contextManagerState
+  .contexts
+  .get(normalizedId);
+
+  if(!existing){
+    return null;
+  }
+
+  const touched =
+  freezeContextObject({
+    ...safeClone(existing),
+    runtime:{
+      ...safeClone(existing.runtime),
+      accessCount:
+      Number(existing.runtime?.accessCount || 0) + 1,
+      lastAccessedAt:
+      Number(accessedAt) || Date.now()
+    }
+  });
+
+  contextManagerState
+  .contexts
+  .set(normalizedId,touched);
+
+  getContextTypeCollection(existing.type)
+  ?.set(normalizedId,touched);
+
+  return touched;
 
 }
 
@@ -117,10 +378,12 @@ export function createContextObject(
 
     type:
 
-      config.type ||
-
-      CONTEXT_TYPES
-      .RUNTIME,
+      String(
+        config.type ||
+        CONTEXT_TYPES.RUNTIME
+      )
+      .trim()
+      .toLowerCase(),
 
     priority:
 
@@ -146,6 +409,7 @@ export function createContextObject(
     Date.now(),
 
     updatedAt:
+    config.updatedAt ||
     Date.now(),
 
     runtime:{
@@ -174,7 +438,9 @@ export async function registerContext(
   config = {}
 ){
 
-  await acquireContextLock();
+  if(!await acquireContextLock()){
+    return false;
+  }
 
   try{
 
@@ -182,6 +448,41 @@ export async function registerContext(
       contextManagerState
       .shuttingDown
     ){
+
+      return false;
+
+    }
+
+    const requestedType =
+    String(
+      config.type ||
+      CONTEXT_TYPES.RUNTIME
+    )
+    .trim()
+    .toLowerCase();
+
+    if(
+      !isContextContentWithinLimits(
+        config.content || {}
+      )
+    ){
+
+      incrementContextDiagnostic(
+        "rejected"
+      );
+
+      return false;
+
+    }
+
+    if(
+      !isContextTypeEnabled(requestedType) ||
+      !hasContextTypeCapacity(requestedType)
+    ){
+
+      incrementContextDiagnostic(
+        "rejected"
+      );
 
       return false;
 
@@ -198,18 +499,25 @@ export async function registerContext(
 
     ){
 
-      contextManagerState
-      .diagnostics
-      .rejected++;
+      incrementContextDiagnostic(
+        "rejected"
+      );
 
       return false;
 
     }
 
     const hash =
-    hashContextContent(
+    createStoredContextHash({
+      namespace:
+      config.namespace ||
+      "runtime:default",
+      type:
+      config.type ||
+      CONTEXT_TYPES.RUNTIME,
+      content:
       config.content
-    );
+    });
 
     if(
 
@@ -224,9 +532,9 @@ export async function registerContext(
 
     ){
 
-      contextManagerState
-      .diagnostics
-      .duplicates++;
+      incrementContextDiagnostic(
+        "duplicates"
+      );
 
       return false;
 
@@ -241,6 +549,10 @@ export async function registerContext(
     .contexts
     .set(
       context.id,
+      context
+    );
+
+    trackContextType(
       context
     );
 
@@ -259,9 +571,9 @@ export async function registerContext(
       context.id
     );
 
-    contextManagerState
-    .diagnostics
-    .created++;
+    incrementContextDiagnostic(
+      "created"
+    );
 
     contextManagerState
     .lastUpdatedAt =
@@ -290,7 +602,9 @@ export async function updateContext(
   updates = {}
 ){
 
-  await acquireContextLock();
+  if(!await acquireContextLock()){
+    return false;
+  }
 
   try{
 
@@ -312,10 +626,6 @@ export async function updateContext(
 
     }
 
-    removeIndexedContext(
-      normalizedId
-    );
-
     const updated =
     createContextObject({
 
@@ -327,28 +637,169 @@ export async function updateContext(
       normalizedId,
 
       createdAt:
-      existing.createdAt
+      existing.createdAt,
+
+      updatedAt:
+      Date.now()
 
     });
 
-    contextManagerState
-    .contexts
-    .set(
-      normalizedId,
+    if(
+      !isContextContentWithinLimits(
+        updated.content
+      )
+    ){
+
+      incrementContextDiagnostic(
+        "rejected"
+      );
+
+      return false;
+
+    }
+
+    if(
+      !isContextTypeEnabled(updated.type) ||
+      !hasContextTypeCapacity(
+        updated.type,
+        updated.type === existing.type
+        ? normalizedId
+        : null
+      )
+    ){
+
+      incrementContextDiagnostic(
+        "rejected"
+      );
+
+      return false;
+
+    }
+
+    const updatedHash =
+    createStoredContextHash(
       updated
     );
 
-    indexContext(
-      updated
+    const duplicateContextId =
+    contextManagerState
+    .contentHashes
+    .get(
+      updatedHash
     );
+
+    if(
+      CONTEXT_MANAGER_CONFIG
+      .ENABLE_DEDUPLICATION
+
+      &&
+
+      duplicateContextId
+
+      &&
+
+      duplicateContextId !==
+      normalizedId
+    ){
+
+      incrementContextDiagnostic(
+        "duplicates"
+      );
+
+      return false;
+
+    }
+
+    const existingHashes =
+    getContextHashEntries(
+      normalizedId
+    );
+
+    try{
+
+      removeIndexedContext(
+        normalizedId
+      );
+
+      removeContextHash(
+        normalizedId
+      );
+
+      untrackContextType(
+        existing
+      );
+
+      contextManagerState
+      .contexts
+      .set(
+        normalizedId,
+        updated
+      );
+
+      trackContextType(
+        updated
+      );
+
+      indexContext(
+        updated
+      );
+
+      contextManagerState
+      .contentHashes
+      .set(
+        updatedHash,
+        normalizedId
+      );
+
+    }
+
+    catch(error){
+
+      removeIndexedContext(
+        normalizedId
+      );
+
+      removeContextHash(
+        normalizedId
+      );
+
+      untrackContextType(
+        updated
+      );
+
+      contextManagerState
+      .contexts
+      .set(
+        normalizedId,
+        existing
+      );
+
+      trackContextType(
+        existing
+      );
+
+      indexContext(
+        existing
+      );
+
+      existingHashes
+      .forEach(([hash,storedContextId]) => {
+        contextManagerState
+        .contentHashes
+        .set(hash,storedContextId);
+      });
+
+      throw error;
+
+    }
 
     invalidateContextCache(
       normalizedId
     );
 
-    contextManagerState
-    .diagnostics
-    .updated++;
+    incrementContextDiagnostic(
+      "updated"
+    );
 
     contextManagerState
     .lastUpdatedAt =
@@ -373,16 +824,26 @@ export async function updateContext(
 // =====================================
 
 export async function removeContext(
-  contextId
+  contextId,
+  options = {}
 ){
 
-  await acquireContextLock();
+  if(!await acquireContextLock()){
+    return false;
+  }
 
   try{
 
     const normalizedId =
     normalizeContextId(
       contextId
+    );
+
+    const existing =
+    contextManagerState
+    .contexts
+    .get(
+      normalizedId
     );
 
     const removed =
@@ -392,7 +853,7 @@ export async function removeContext(
       normalizedId
     );
 
-    if(!removed){
+    if(!removed || !existing){
 
       return false;
 
@@ -402,13 +863,31 @@ export async function removeContext(
       normalizedId
     );
 
+    removeContextHash(
+      normalizedId
+    );
+
+    untrackContextType(
+      existing
+    );
+
     invalidateContextCache(
       normalizedId
     );
 
+    incrementContextDiagnostic(
+      "removed"
+    );
+
+    if(options.reason === "eviction"){
+      incrementContextDiagnostic(
+        "evicted"
+      );
+    }
+
     contextManagerState
-    .diagnostics
-    .removed++;
+    .lastUpdatedAt =
+    Date.now();
 
     return true;
 

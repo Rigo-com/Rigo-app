@@ -1,147 +1,66 @@
-// =====================================
-// RIGO AI
-// LIFECYCLE STARTUP
-// =====================================
+import { LIFECYCLE_CONFIG, LIFECYCLE_STATES } from "./lifecycle-config.js";
+import LifecycleState, { lifecycleState } from "./lifecycle-state.js";
 
-import {
-  LIFECYCLE_STATES
-}
-from "./lifecycle-config.js";
-
-import LifecycleState
-from "./lifecycle-state.js";
-
-
-function getTimestamp(){
-  return Date.now();
+async function withTimeout(operation, timeout, message){
+  let timer;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeout); })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
+async function getRuntime(){
+  const runtimeModule = await import("../runtime/index.js");
+  return runtimeModule.default || runtimeModule.Runtime;
+}
 
 async function initializeRuntime(){
-
-  try{
-    const runtimeModule =
-    await import(
-      "../runtime/index.js"
-    );
-
-    const runtime =
-    runtimeModule.default ||
-    runtimeModule.Runtime;
-
-    if(!runtime){
-      return false;
-    }
-
-    return await runtime
-    .initialize();
-  }
-  catch{
-    return false;
-  }
+  try { const runtime = await getRuntime(); return Boolean(runtime && await runtime.initialize()); }
+  catch { return false; }
 }
-
 
 async function bootRuntime(){
+  try { const runtime = await getRuntime(); return Boolean(runtime && await runtime.boot()); }
+  catch { return false; }
+}
 
-  try{
-    const runtimeModule =
-    await import(
-      "../runtime/index.js"
-    );
+async function rollbackRuntime(){
+  try { const runtime = await getRuntime(); if (runtime) await runtime.shutdown(); }
+  catch { /* best-effort rollback */ }
+}
 
-    const runtime =
-    runtimeModule.default ||
-    runtimeModule.Runtime;
+function executeStartupSequence(){
+  if (LifecycleState.isRunning()) return Promise.resolve(true);
+  if (lifecycleState.startupPromise) return lifecycleState.startupPromise;
+  if (lifecycleState.shutdownPromise) {
+    return lifecycleState.shutdownPromise.then(() => executeStartupSequence());
+  }
 
-    if(!runtime){
+  lifecycleState.startupPromise = Promise.resolve().then(async () => {
+    LifecycleState.update({ state: LIFECYCLE_STATES.STARTING, shuttingDown: false });
+    try {
+      const started = await withTimeout((async () => {
+        if (!await initializeRuntime()) throw new Error("RUNTIME INITIALIZATION FAILED");
+        if (!await bootRuntime()) throw new Error("RUNTIME BOOT FAILED");
+        return true;
+      })(), LIFECYCLE_CONFIG.STARTUP_TIMEOUT, "LIFECYCLE STARTUP TIMEOUT");
+      LifecycleState.update({ initialized: true, running: true, state: LIFECYCLE_STATES.RUNNING, startedAt: Date.now(), lastError: null });
+      return started;
+    } catch (error) {
+      await rollbackRuntime();
+      LifecycleState.update({ running: false, state: LIFECYCLE_STATES.FAILED, lastError: String(error) });
       return false;
+    } finally {
+      lifecycleState.startupPromise = null;
     }
-
-    return await runtime
-    .boot();
-  }
-  catch{
-    return false;
-  }
-}
-
-
-async function executeStartupSequence(){
-
-  if(
-    LifecycleState
-    .isRunning()
-  ){
-    return true;
-  }
-
-  LifecycleState
-  .update({
-    state:
-    LIFECYCLE_STATES.STARTING
   });
-
-  try{
-    const runtimeInitialized =
-    await initializeRuntime();
-
-    if(!runtimeInitialized){
-      throw new Error(
-        "RUNTIME INITIALIZATION FAILED"
-      );
-    }
-
-    const runtimeBooted =
-    await bootRuntime();
-
-    if(!runtimeBooted){
-      throw new Error(
-        "RUNTIME BOOT FAILED"
-      );
-    }
-
-    LifecycleState
-    .update({
-      initialized:true,
-      running:true,
-      state:
-      LIFECYCLE_STATES.RUNNING,
-      startedAt:
-      getTimestamp(),
-      lastError:null
-    });
-
-    return true;
-  }
-  catch(error){
-    LifecycleState
-    .update({
-      running:false,
-      state:
-      LIFECYCLE_STATES.FAILED,
-      lastError:
-      String(error)
-    });
-
-    return false;
-  }
+  return lifecycleState.startupPromise;
 }
 
-
-const LifecycleStartup =
-Object.freeze({
-  execute:
-  executeStartupSequence
-});
-
-
-export {
-  initializeRuntime,
-  bootRuntime,
-  executeStartupSequence,
-  LifecycleStartup
-};
-
-export default
-LifecycleStartup;
+const LifecycleStartup = Object.freeze({ execute: executeStartupSequence });
+export { initializeRuntime, bootRuntime, executeStartupSequence, LifecycleStartup };
+export default LifecycleStartup;

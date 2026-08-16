@@ -53,23 +53,11 @@ initializeAgentManager(){
 
   }
 
-  agentManagerState
-  .startupPromise =
+  agentManagerState.initializing = true;
+  agentManagerState.shuttingDown = false;
 
-  (async() => {
-
-    if(
-      agentManagerState
-      .initializing
-    ){
-
-      return false;
-
-    }
-
-    agentManagerState
-    .initializing =
-    true;
+  const startup = Promise.resolve()
+  .then(async() => {
 
     try{
 
@@ -78,10 +66,6 @@ initializeAgentManager(){
       agentManagerState
       .initialized =
       true;
-
-      agentManagerState
-      .shuttingDown =
-      false;
 
       agentManagerState
       .diagnostics
@@ -104,10 +88,11 @@ initializeAgentManager(){
 
     }
 
-  })();
+  });
 
-  return agentManagerState
-  .startupPromise;
+  agentManagerState.startupPromise = startup;
+
+  return startup;
 
 }
 
@@ -144,6 +129,10 @@ shutdownAgentManager(){
     catch(error){}
 
   }
+
+  await Promise.allSettled([
+    ...agentManagerState.executionPromises
+  ]);
 
   await resetAgentManager();
 

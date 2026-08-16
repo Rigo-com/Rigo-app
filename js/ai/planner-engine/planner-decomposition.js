@@ -38,9 +38,12 @@ export function decomposeGoal(
 
   }
 
-  return normalizedGoal
+  const segments =
+  PLANNER_ENGINE_CONFIG.ENABLE_GOAL_DECOMPOSITION
+  ? normalizedGoal.split(".")
+  : [normalizedGoal];
 
-  .split(".")
+  return segments
 
   .slice(
 

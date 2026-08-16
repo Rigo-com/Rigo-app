@@ -21,7 +21,8 @@ from "./workflow-registry.js";
 
 import {
   executeWorkflow,
-  terminateWorkflow
+  terminateWorkflow,
+  recoverWorkflow
 }
 from "./workflow-executor.js";
 
@@ -60,6 +61,9 @@ Object.freeze({
 
   terminate:
   terminateWorkflow,
+
+  recover:
+  recoverWorkflow,
 
   process:
   processWorkflowRequest,

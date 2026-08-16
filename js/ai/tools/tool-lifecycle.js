@@ -48,22 +48,11 @@ initializeToolExecutor(){
   }
 
   toolExecutorState
-  .startupPromise =
+  .initializing =
+  true;
 
+  const startupPromise =
   (async() => {
-
-    if(
-      toolExecutorState
-      .initializing
-    ){
-
-      return false;
-
-    }
-
-    toolExecutorState
-    .initializing =
-    true;
 
     try{
 
@@ -89,16 +78,25 @@ initializeToolExecutor(){
       .initializing =
       false;
 
-      toolExecutorState
-      .startupPromise =
-      null;
-
     }
 
   })();
 
-  return toolExecutorState
-  .startupPromise;
+  toolExecutorState.startupPromise = startupPromise;
+
+  try{
+    return await startupPromise;
+  }
+  finally{
+
+    if(
+      toolExecutorState.startupPromise ===
+      startupPromise
+    ){
+      toolExecutorState.startupPromise = null;
+    }
+
+  }
 
 }
 
@@ -115,11 +113,22 @@ shutdownToolExecutor(){
   .shuttingDown =
   true;
 
-  await resetToolExecutor();
-
   toolExecutorState
   .initialized =
   false;
+
+  const queueProcessor =
+  toolExecutorState
+  .queueProcessorPromise;
+
+  await resetToolExecutor();
+
+  if(queueProcessor){
+    await queueProcessor.catch(() => false);
+  }
+
+  toolExecutorState.queueProcessorPromise = null;
+  toolExecutorState.processing = false;
 
   return true;
 

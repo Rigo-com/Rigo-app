@@ -6,7 +6,9 @@
 
 import {
   setEmbedding,
-  getEmbedding
+  getEmbedding,
+  removeEmbedding,
+  clearEmbeddings
 }
 from "./memory-state.js";
 
@@ -98,6 +100,24 @@ function loadEmbedding(
   return getEmbedding(
     memoryId
   );
+
+}
+
+
+function deleteEmbedding(
+  memoryId
+){
+
+  return removeEmbedding(
+    memoryId
+  );
+
+}
+
+
+function resetEmbeddings(){
+
+  return clearEmbeddings();
 
 }
 
@@ -289,6 +309,10 @@ Object.freeze({
 
   loadEmbedding,
 
+  deleteEmbedding,
+
+  resetEmbeddings,
+
   generateEmbedding,
 
   calculateSimilarity,
@@ -312,6 +336,10 @@ export {
   storeEmbedding,
 
   loadEmbedding,
+
+  deleteEmbedding,
+
+  resetEmbeddings,
 
   generateEmbedding,
 

@@ -3,260 +3,194 @@
 // APPLICATION RUNTIME
 // =====================================
 
-import AppState
-from "./app-state.js";
+import AppState from "./app-state.js";
+import AppDOM from "./app-dom.js";
+import AppRecovery from "./app-recovery.js";
+import Lifecycle from "../lifecycle/index.js";
+import Health from "../health/index.js";
 
-import AppDOM
-from "./app-dom.js";
-
-import AppRecovery
-from "./app-recovery.js";
-
-import Lifecycle
-from "../lifecycle/index.js";
-
-import Health
-from "../health/index.js";
-
+const runtimeOperations = Object.seal({
+  initialize:null,
+  boot:null,
+  shutdown:null,
+  reset:null
+});
 
 async function initializeApplication(){
-
-  try{
-    await AppDOM
-    .waitForDOMReady();
-
-    await Lifecycle
-    .initialize();
-
-    await Health
-    .initialize();
-
-    AppState
-    .setInitialized(
-      true
-    );
-
+  if(AppState.state.initialized){
     return true;
   }
-  catch(error){
-    AppState
-    .setLastError(
-      error?.message ||
-      String(error)
-    );
-
-    return false;
+  if(runtimeOperations.initialize){
+    return runtimeOperations.initialize;
   }
-}
 
+  const initialization = Promise.resolve().then(async () => {
+    try{
+      await AppDOM.waitForDOMReady();
+      if(!await Lifecycle.initialize()){
+        throw new Error("LIFECYCLE INITIALIZATION FAILED");
+      }
+      if(!await Health.initialize()){
+        throw new Error("HEALTH INITIALIZATION FAILED");
+      }
+      AppState.setInitialized(true);
+      AppState.setLastError(null);
+      return true;
+    }
+    catch(error){
+      AppState.setInitialized(false);
+      AppState.setLastError(error?.message || String(error));
+      return false;
+    }
+    finally{
+      runtimeOperations.initialize = null;
+    }
+  });
+
+  runtimeOperations.initialize = initialization;
+  return initialization;
+}
 
 async function bootApplication(){
-
-  if(
-    AppState
-    .state
-    .booted
-  ){
+  if(AppState.state.booted && AppState.state.ready){
     return true;
   }
+  if(runtimeOperations.boot){
+    return runtimeOperations.boot;
+  }
+  if(runtimeOperations.shutdown){
+    await runtimeOperations.shutdown;
+  }
 
-  AppState
-  .setBooting(
-    true
-  );
+  AppState.setBooting(true);
 
-  try{
-    const initialized =
-    await initializeApplication();
+  const boot = (async () => {
+    try{
+      if(!await initializeApplication()){
+        throw new Error("APPLICATION INITIALIZATION FAILED");
+      }
+      if(!await Lifecycle.start()){
+        throw new Error("APPLICATION LIFECYCLE START FAILED");
+      }
+      if(!await Health.start()){
+        throw new Error("APPLICATION HEALTH START FAILED");
+      }
 
-    if(!initialized){
-      throw new Error(
-        "APPLICATION INITIALIZATION FAILED"
-      );
+      AppDOM.showApp();
+      AppState.setBooted(true);
+      AppState.setReady(true);
+      AppState.setLastBootAt(Date.now());
+      AppState.setLastError(null);
+      return true;
     }
-
-    const lifecycleStarted =
-    await Lifecycle
-    .start();
-
-    if(!lifecycleStarted){
-      throw new Error(
-        "APPLICATION LIFECYCLE START FAILED"
-      );
+    catch(error){
+      AppState.setBooted(false);
+      AppState.setReady(false);
+      AppState.setLastError(error?.message || String(error));
+      await Health.stop();
+      await Lifecycle.shutdown();
+      await AppRecovery.recover(error);
+      return false;
     }
+    finally{
+      AppState.setBooting(false);
+      runtimeOperations.boot = null;
+    }
+  })();
 
-    await Health
-    .start();
-
-    AppDOM
-    .showApp();
-
-    AppState
-    .setBooted(
-      true
-    );
-
-    AppState
-    .setReady(
-      true
-    );
-
-    AppState
-    .setLastBootAt(
-      Date.now()
-    );
-
-    return true;
-  }
-  catch(error){
-    AppState
-    .setLastError(
-      error?.message ||
-      String(error)
-    );
-
-    await AppRecovery
-    .recover(
-      error
-    );
-
-    return false;
-  }
-  finally{
-    AppState
-    .setBooting(
-      false
-    );
-  }
+  runtimeOperations.boot = boot;
+  return boot;
 }
-
 
 async function shutdownApplication(){
-
-  if(
-    !AppState
-    .state
-    .booted
-  ){
-    return true;
+  if(runtimeOperations.shutdown){
+    return runtimeOperations.shutdown;
+  }
+  if(runtimeOperations.boot){
+    await runtimeOperations.boot;
   }
 
-  AppState
-  .setShuttingDown(
-    true
-  );
+  AppState.setShuttingDown(true);
 
-  try{
-    AppDOM
-    .hideApp();
+  const shutdown = (async () => {
+    try{
+      AppDOM.hideApp();
+      const healthStopped = await Health.stop();
+      const lifecycleStopped = await Lifecycle.shutdown();
 
-    await Health
-    .stop();
+      if(!healthStopped || !lifecycleStopped){
+        throw new Error("APPLICATION SHUTDOWN FAILED");
+      }
 
-    const lifecycleStopped =
-    await Lifecycle
-    .shutdown();
-
-    if(!lifecycleStopped){
-      throw new Error(
-        "APPLICATION LIFECYCLE SHUTDOWN FAILED"
-      );
+      AppState.setBooted(false);
+      AppState.setReady(false);
+      AppState.setInitialized(false);
+      AppState.setLastShutdownAt(Date.now());
+      return true;
     }
+    catch(error){
+      AppState.setLastError(error?.message || String(error));
+      return false;
+    }
+    finally{
+      AppState.setShuttingDown(false);
+      runtimeOperations.shutdown = null;
+    }
+  })();
 
-    AppState
-    .setBooted(
-      false
-    );
-
-    AppState
-    .setReady(
-      false
-    );
-
-    AppState
-    .setLastShutdownAt(
-      Date.now()
-    );
-
-    return true;
-  }
-  catch(error){
-    AppState
-    .setLastError(
-      error?.message ||
-      String(error)
-    );
-
-    return false;
-  }
-  finally{
-    AppState
-    .setShuttingDown(
-      false
-    );
-  }
+  runtimeOperations.shutdown = shutdown;
+  return shutdown;
 }
-
 
 async function resetApplication(){
+  if(runtimeOperations.reset){
+    return runtimeOperations.reset;
+  }
 
-  await shutdownApplication();
+  const reset = (async () => {
+    try{
+      if(!await shutdownApplication()){
+        return false;
+      }
+      await Health.reset();
+      await Lifecycle.reset();
+      AppRecovery.reset();
+      AppState.reset();
+      return true;
+    }
+    finally{
+      runtimeOperations.reset = null;
+    }
+  })();
 
-  await Health
-  .reset();
-
-  await Lifecycle
-  .reset();
-
-  AppState
-  .reset();
-
-  return true;
+  runtimeOperations.reset = reset;
+  return reset;
 }
 
-
 function createApplicationSnapshot(){
-
   return Object.freeze({
-    app:
-    AppState.snapshot(),
-
-    dom:
-    AppDOM.snapshot(),
-
-    recovery:
-    AppRecovery.snapshot(),
-
-    lifecycle:
-    Lifecycle.snapshot(),
-
-    health:
-    Health.snapshot(),
-
-    timestamp:
-    Date.now()
+    app:AppState.snapshot(),
+    operations:{
+      initializing:Boolean(runtimeOperations.initialize),
+      booting:Boolean(runtimeOperations.boot),
+      shuttingDown:Boolean(runtimeOperations.shutdown),
+      resetting:Boolean(runtimeOperations.reset)
+    },
+    dom:AppDOM.snapshot(),
+    recovery:AppRecovery.snapshot(),
+    lifecycle:Lifecycle.snapshot(),
+    health:Health.snapshot(),
+    timestamp:Date.now()
   });
 }
 
-
-const ApplicationRuntime =
-Object.freeze({
-  initialize:
-  initializeApplication,
-
-  boot:
-  bootApplication,
-
-  shutdown:
-  shutdownApplication,
-
-  reset:
-  resetApplication,
-
-  snapshot:
-  createApplicationSnapshot
+const ApplicationRuntime = Object.freeze({
+  initialize:initializeApplication,
+  boot:bootApplication,
+  shutdown:shutdownApplication,
+  reset:resetApplication,
+  snapshot:createApplicationSnapshot
 });
-
 
 export {
   initializeApplication,
@@ -267,5 +201,4 @@ export {
   ApplicationRuntime
 };
 
-export default
-ApplicationRuntime;
+export default ApplicationRuntime;

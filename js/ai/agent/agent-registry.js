@@ -122,6 +122,14 @@ export function createAgentObject(
 
       lastHealthcheckAt:null,
 
+      lastFailureAt:null,
+
+      lastRecoveryAt:null,
+
+      lastError:null,
+
+      recoveryAttempts:0,
+
       controller:null
 
     }
@@ -141,13 +149,12 @@ export async function registerAgent(
 ){
 
   if(
-    agentManagerState
-    .shuttingDown
+    !agentManagerState.initialized ||
+    agentManagerState.shuttingDown
   ){
-
     return false;
-
   }
+
 
   if(
 

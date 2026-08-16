@@ -1,421 +1,215 @@
-// =====================================
-// RIGO AI
-// BOOTSTRAP LIFECYCLE
-// =====================================
+import Diagnostics from "../debug/diagnostics/index.js";
+import { BOOTSTRAP_CONFIG } from "./bootstrap-config.js";
+import { bootstrapState } from "./bootstrap-state.js";
+import { listBootstrapSystems } from "./bootstrap-registry.js";
 
-import Diagnostics
-from "../debug/diagnostics/index.js";
-
-import {
-  bootstrapState
+function increment(key){
+  if(
+    BOOTSTRAP_CONFIG.ENABLE_DIAGNOSTICS &&
+    Object.prototype.hasOwnProperty.call(bootstrapState.diagnostics,key)
+  ){
+    bootstrapState.diagnostics[key]++;
+  }
 }
-from "./bootstrap-state.js";
 
-import {
-  listBootstrapSystems
+function withTimeout(operation,systemId){
+  let timer;
+  return Promise.race([
+    operation,
+    new Promise((_,reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`BOOT TIMEOUT: ${systemId}`)),
+        BOOTSTRAP_CONFIG.BOOT_TIMEOUT
+      );
+    })
+  ]).finally(() => clearTimeout(timer));
 }
-from "./bootstrap-registry.js";
 
+async function stopInitializedSystems(){
+  const initialized = new Set(bootstrapState.initializedSystems);
+  const systems = listBootstrapSystems()
+  .filter(system => initialized.has(system.id))
+  .reverse();
 
-
-// =====================================
-// BOOT
-// =====================================
+  for(const system of systems){
+    try{
+      if(typeof system.shutdown === "function"){
+        await system.shutdown();
+      }
+    }
+    catch(error){
+      bootstrapState.lastError = error;
+    }
+    finally{
+      bootstrapState.initializedSystems.delete(system.id);
+    }
+  }
+}
 
 export async function bootBootstrapSystems(){
-
-  if(
-    bootstrapState.booting
-  ){
-
-    return false;
-
-  }
-
-  bootstrapState.state =
-  "booting";
-
-  bootstrapState
-  .booting =
-  true;
-
-  bootstrapState
-  .startedAt =
-  Date.now();
-
-  bootstrapState
-  .diagnostics
-  .boots++;
-  
-  Diagnostics.recordEvent(
-  "bootstrap:boot-started"
-);
-  
-  try{
-
-    const systems =
-    listBootstrapSystems();
-
-    for(
-      const system
-      of systems
-    ){
-
-      try{
-
-        Diagnostics.recordEvent(
-          "bootstrap:system-started",
-          {
-            system:
-            system.id
-          }
-        );
-
-        if(
-          typeof system
-          .initialize ===
-          "function"
-        ){
-
-          await system
-          .initialize();
-
-        }
-
-        if(
-          typeof system
-          .boot ===
-          "function"
-        ){
-
-          await system
-          .boot();
-
-        }
-
-        bootstrapState
-        .initializedSystems
-        .add(
-          system.id
-        );
-
-        bootstrapState
-        .failedSystems
-        .delete(
-          system.id
-        );
-
-        bootstrapState
-        .diagnostics
-        .initializedSystems++;
-
-        Diagnostics.recordEvent(
-        "bootstrap:system-success",
-       {
-          system:
-          system.id
-       }
-    );
-        
-      }
-
-      catch(error){
-
-        bootstrapState
-        .failedSystems
-        .add(
-          system.id
-        );
-
-        bootstrapState
-        .lastError =
-        error;
-
-        Diagnostics.recordEvent(
-       "bootstrap:system-failed",
-     {
-
-         system:
-         system.id,
-
-        error:
-        String(error)
-
-     }
-   );
-        
-        throw error;
-
-      }
-
-    }
-
-    bootstrapState
-    .initialized =
-    true;
-
-    bootstrapState
-    .completedAt =
-    Date.now();
-
-    bootstrapState.state =
-    "ready";
-
-    Diagnostics.recordEvent(
-   "bootstrap:boot-completed"
-);
-    
+  if(bootstrapState.initialized && bootstrapState.state === "ready"){
     return true;
-
+  }
+  if(bootstrapState.startupPromise){
+    return bootstrapState.startupPromise;
+  }
+  if(bootstrapState.shutdownPromise){
+    await bootstrapState.shutdownPromise;
   }
 
-  catch(error){
+  bootstrapState.booting = true;
+  bootstrapState.state = "booting";
+  bootstrapState.startedAt = Date.now();
+  increment("boots");
 
-    bootstrapState
-    .diagnostics
-    .failures++;
+  const startup = Promise.resolve().then(async () => {
+    Diagnostics.recordEvent("bootstrap:boot-started");
+    let currentSystem = null;
 
-    bootstrapState
-    .lastError =
-    error;
+    try{
+      for(const system of listBootstrapSystems()){
+        currentSystem = system;
+        Diagnostics.recordEvent("bootstrap:system-started",{system:system.id});
 
-    bootstrapState.state =
-    "failed";
+        await withTimeout((async () => {
+          if(typeof system.initialize === "function"){
+            const initialized = await system.initialize();
+            if(initialized === false){
+              throw new Error(`SYSTEM INITIALIZATION FAILED: ${system.id}`);
+            }
+          }
+          if(typeof system.boot === "function"){
+            const booted = await system.boot();
+            if(booted === false){
+              throw new Error(`SYSTEM BOOT FAILED: ${system.id}`);
+            }
+          }
+        })(),system.id);
 
-    Diagnostics.recordEvent(
-      "bootstrap:boot-failed",
-   {
-       error:
-       String(error)
-   }
- );
+        bootstrapState.initializedSystems.add(system.id);
+        bootstrapState.failedSystems.delete(system.id);
+        increment("initializedSystems");
+        Diagnostics.recordEvent("bootstrap:system-success",{system:system.id});
+      }
 
-    return false;
+      bootstrapState.initialized = true;
+      bootstrapState.completedAt = Date.now();
+      bootstrapState.state = "ready";
+      bootstrapState.lastError = null;
+      bootstrapState.recoveryAttempts = 0;
+      Diagnostics.recordEvent("bootstrap:boot-completed");
+      return true;
+    }
+    catch(error){
+      increment("failures");
+      bootstrapState.lastError = error;
+      bootstrapState.state = "failed";
+      if(currentSystem){
+        bootstrapState.failedSystems.add(currentSystem.id);
 
-  }
+        if(
+          !bootstrapState.initializedSystems.has(currentSystem.id) &&
+          typeof currentSystem.shutdown === "function"
+        ){
+          try{
+            await currentSystem.shutdown();
+          }
+          catch(shutdownError){}
+        }
+      }
+      Diagnostics.recordEvent("bootstrap:boot-failed",{error:String(error)});
+      await stopInitializedSystems();
+      bootstrapState.initialized = false;
+      return false;
+    }
+    finally{
+      bootstrapState.booting = false;
+      bootstrapState.startupPromise = null;
+    }
+  });
 
-  finally{
-
-    bootstrapState
-    .booting =
-    false;
-
-  }
-
+  bootstrapState.startupPromise = startup;
+  return startup;
 }
-
-
-
-// =====================================
-// SHUTDOWN
-// =====================================
 
 export async function shutdownBootstrapSystems(){
-
-  if(
-    bootstrapState
-    .shuttingDown
-  ){
-
-    return false;
-
+  if(bootstrapState.shutdownPromise){
+    return bootstrapState.shutdownPromise;
+  }
+  if(bootstrapState.startupPromise){
+    await bootstrapState.startupPromise;
   }
 
-  bootstrapState.state =
-  "shutdown";
-  
-  bootstrapState
-  .shuttingDown =
-  true;
+  bootstrapState.shuttingDown = true;
+  bootstrapState.state = "shutdown";
+  increment("shutdowns");
 
-  bootstrapState
-  .diagnostics
-  .shutdowns++;
-
-  try{
-
-    const systems =
-
-      listBootstrapSystems()
-      .reverse();
-
-    for(
-      const system
-      of systems
-    ){
-
-      try{
-
-        if(
-          typeof system
-          .shutdown ===
-          "function"
-        ){
-
-          await system
-          .shutdown();
-
-        }
-
-      }
-
-      catch(error){}
-
+  const shutdown = (async () => {
+    try{
+      await stopInitializedSystems();
+      bootstrapState.failedSystems.clear();
+      bootstrapState.initialized = false;
+      bootstrapState.completedAt = null;
+      bootstrapState.state = "idle";
+      return true;
     }
+    finally{
+      bootstrapState.shuttingDown = false;
+      bootstrapState.shutdownPromise = null;
+    }
+  })();
 
-    bootstrapState
-    .initializedSystems
-    .clear();
-
-    bootstrapState
-    .failedSystems
-    .clear();
-
-    bootstrapState
-    .initialized =
-    false;
-
-    bootstrapState
-    .completedAt =
-    null;
-
-    bootstrapState.state =
-    "idle";
-    
-    return true;
-
-  }
-
-  finally{
-
-    bootstrapState
-    .shuttingDown =
-    false;
-
-  }
-
+  bootstrapState.shutdownPromise = shutdown;
+  return shutdown;
 }
-
-
-
-// =====================================
-// RECOVER
-// =====================================
 
 export async function recoverBootstrapSystems(){
-
-  if(
-    bootstrapState
-    .recovering
-  ){
-
+  if(!BOOTSTRAP_CONFIG.ENABLE_RECOVERY){
     return false;
-
+  }
+  if(bootstrapState.recoveryPromise){
+    return bootstrapState.recoveryPromise;
+  }
+  if(bootstrapState.recoveryAttempts >= BOOTSTRAP_CONFIG.MAX_RECOVERY_ATTEMPTS){
+    bootstrapState.state = "failed";
+    return false;
   }
 
-  bootstrapState.state =
-  "recovering";
+  bootstrapState.recovering = true;
+  bootstrapState.state = "recovering";
+  bootstrapState.recoveryAttempts++;
+  increment("recoveries");
 
-  bootstrapState
-  .recovering =
-  true;
-
-  bootstrapState
-  .diagnostics
-  .recoveries++;
-
-  bootstrapState
-  .recoveryAttempts++;
-
-  try{
-
-    if(
-
-      bootstrapState
-      .recoveryAttempts >
-
-      3
-
-    ){
-
-      bootstrapState.state =
-      "failed";
-
-      return false;
-
+  const recovery = (async () => {
+    try{
+      await shutdownBootstrapSystems();
+      return await bootBootstrapSystems();
     }
+    finally{
+      bootstrapState.recovering = false;
+      bootstrapState.recoveryPromise = null;
+    }
+  })();
 
-    await shutdownBootstrapSystems();
-
-    return await
-    bootBootstrapSystems();
-
-  }
-
-  finally{
-
-    bootstrapState
-    .recovering =
-    false;
-
-  }
-
+  bootstrapState.recoveryPromise = recovery;
+  return recovery;
 }
 
-
-
-// =====================================
-// RESET
-// =====================================
-
 export async function resetBootstrapSystems(){
-
   await shutdownBootstrapSystems();
-
-  bootstrapState
-  .initializedSystems
-  .clear();
-
-  bootstrapState
-  .failedSystems
-  .clear();
-
-  bootstrapState
-  .lastError =
-  null;
-
-  bootstrapState
-  .startedAt =
-  null;
-
-  bootstrapState
-  .completedAt =
-  null;
-
-  bootstrapState
-  .initialized =
-  false;
-
-  bootstrapState
-  .booting =
-  false;
-
-  bootstrapState
-  .shuttingDown =
-  false;
-
-  bootstrapState
-  .recovering =
-  false;
-
-  bootstrapState
-  .recoveryAttempts =
-  0;
-
-  bootstrapState
-  .state =
-  "idle";
-
+  bootstrapState.initializedSystems.clear();
+  bootstrapState.failedSystems.clear();
+  bootstrapState.lastError = null;
+  bootstrapState.startedAt = null;
+  bootstrapState.completedAt = null;
+  bootstrapState.initialized = false;
+  bootstrapState.booting = false;
+  bootstrapState.shuttingDown = false;
+  bootstrapState.recovering = false;
+  bootstrapState.recoveryAttempts = 0;
+  bootstrapState.state = "idle";
+  for(const key of Object.keys(bootstrapState.diagnostics)){
+    bootstrapState.diagnostics[key] = 0;
+  }
   return true;
-
 }

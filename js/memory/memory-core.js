@@ -57,7 +57,7 @@ function createMemory(content,options={}){
 
   const memories=loadMemories();
   memories.push(memory);
-  saveMemories(memories);
+  if(!saveMemories(memories))return null;
   MemoryState.setMemory(memory.id,memory);
   indexMemory(memory);
   MemoryState.incrementCreated();
@@ -70,8 +70,18 @@ function updateMemory(memoryId,updates={}){
   const index=memories.findIndex(memory=>memory.id===memoryId);
   if(index<0)return false;
 
-  memories[index]={...memories[index],...updates,updatedAt:Date.now()};
-  saveMemories(memories);
+  const updatedMemory={
+    ...memories[index],
+    ...updates,
+    id:memories[index].id,
+    createdAt:memories[index].createdAt,
+    updatedAt:Date.now()
+  };
+
+  if(!validateMemoryRecord(updatedMemory))return false;
+
+  memories[index]=updatedMemory;
+  if(!saveMemories(memories))return false;
   MemoryState.setMemory(memoryId,memories[index]);
   buildIndex();
   MemoryState.incrementUpdated();
@@ -82,7 +92,8 @@ function updateMemory(memoryId,updates={}){
 function deleteMemory(memoryId){
   const memories=loadMemories();
   const filtered=memories.filter(memory=>memory.id!==memoryId);
-  saveMemories(filtered);
+  if(filtered.length===memories.length)return false;
+  if(!saveMemories(filtered))return false;
   MemoryState.removeMemory(memoryId);
   buildIndex();
   MemoryState.incrementDeleted();

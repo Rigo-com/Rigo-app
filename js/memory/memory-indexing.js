@@ -6,9 +6,20 @@
 
 import {
   setIndex,
-  getIndex
+  getIndex,
+  incrementIndexed
 }
 from "./memory-state.js";
+
+import {
+  MEMORY_EVENTS
+}
+from "./memory-constants.js";
+
+import {
+  emit
+}
+from "./memory-events.js";
 
 import {
   loadMemories
@@ -21,7 +32,9 @@ import {
 from "./memory-utils.js";
 
 import {
-  generateEmbedding
+  generateEmbedding,
+  deleteEmbedding,
+  resetEmbeddings
 }
 from "./memory-embeddings.js";
 
@@ -94,12 +107,34 @@ function createMemoryIndex(){
 
 function buildIndex(){
 
+  const memories =
+  loadMemories();
+
   const index =
   createMemoryIndex();
+
+  resetEmbeddings();
+
+  for(const memory of memories){
+    generateEmbedding(
+      memory.id,
+      memory.content
+    );
+  }
 
   setIndex(
     "memory",
     index
+  );
+
+  incrementIndexed();
+
+  emit(
+    MEMORY_EVENTS.INDEXED,
+    {
+      mode:"rebuild",
+      tokens:index.size
+    }
   );
 
   return index;
@@ -196,6 +231,17 @@ function indexMemory(
     index
   );
 
+  incrementIndexed();
+
+  emit(
+    MEMORY_EVENTS.INDEXED,
+    {
+      mode:"incremental",
+      memoryId:memory.id,
+      tokens:tokens.length
+    }
+  );
+
   return true;
 
 }
@@ -244,6 +290,10 @@ function removeIndexedMemory(
   setIndex(
     "memory",
     index
+  );
+
+  deleteEmbedding(
+    memoryId
   );
 
   return true;

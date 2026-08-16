@@ -17,9 +17,16 @@ import {
 from "./memory-state.js";
 
 import {
-  MEMORY_FEATURES
+  MEMORY_FEATURES,
+  MEMORY_EVENTS
 }
 from "./memory-constants.js";
+
+import {emit}
+from "./memory-events.js";
+
+import {reload}
+from "./memory-core.js";
 
 import {
   getCurrentUserIdentity
@@ -27,6 +34,15 @@ import {
 from "../storage/storage-scope.js";
 
 let lastSyncAt = null;
+
+function recordSyncFailure(operation,reason){
+  incrementFailures();
+  emit(MEMORY_EVENTS.FAILED,{
+    operation,
+    reason:String(reason||"MEMORY_SYNC_FAILED")
+  });
+  return false;
+}
 
 function createSyncPayload(){
   const owner = getCurrentUserIdentity();
@@ -43,18 +59,21 @@ function createSyncPayload(){
 
 function applySyncPayload(payload){
   if(!payload||!Array.isArray(payload.memories)){
-    return false;
+    return recordSyncFailure("restore","INVALID_SYNC_PAYLOAD");
   }
 
   const currentOwner = getCurrentUserIdentity();
   const payloadOwner = String(payload.owner||"").trim().toLowerCase();
 
   if(!currentOwner||!payloadOwner||payloadOwner!==currentOwner){
-    incrementFailures();
-    return false;
+    return recordSyncFailure("restore","SYNC_OWNER_MISMATCH");
   }
 
-  return saveMemories(payload.memories);
+  if(!saveMemories(payload.memories)){
+    return recordSyncFailure("restore","SYNC_STORAGE_FAILED");
+  }
+
+  return reload();
 }
 
 async function syncToCloud(provider=null){
@@ -65,14 +84,22 @@ async function syncToCloud(provider=null){
   try{
     const payload = createSyncPayload();
     if(!payload){return false;}
-    await provider(payload);
+    const accepted=await provider(payload);
+    if(accepted===false){
+      return recordSyncFailure("upload","SYNC_PROVIDER_REJECTED");
+    }
     lastSyncAt=Date.now();
     incrementSynced();
+    emit(MEMORY_EVENTS.SYNCED,{
+      direction:"upload",
+      owner:payload.owner,
+      memories:payload.memories.length,
+      syncedAt:lastSyncAt
+    });
     return true;
   }
-  catch{
-    incrementFailures();
-    return false;
+  catch(error){
+    return recordSyncFailure("upload",error);
   }
 }
 
@@ -87,12 +114,17 @@ async function restoreFromCloud(provider=null){
     if(restored){
       lastSyncAt=Date.now();
       incrementSynced();
+      emit(MEMORY_EVENTS.SYNCED,{
+        direction:"download",
+        owner:String(payload.owner||"").trim().toLowerCase(),
+        memories:payload.memories.length,
+        syncedAt:lastSyncAt
+      });
     }
     return restored;
   }
-  catch{
-    incrementFailures();
-    return false;
+  catch(error){
+    return recordSyncFailure("restore",error);
   }
 }
 

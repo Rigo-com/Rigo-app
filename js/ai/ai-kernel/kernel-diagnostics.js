@@ -3,149 +3,41 @@
 // AI KERNEL DIAGNOSTICS
 // =====================================
 
-import {
-  aiKernelState
-}
+import { aiKernelState }
 from "./kernel-state.js";
 
-import {
-  freezeKernelObject,
-  cloneKernelObject
-}
+import { freezeKernelObject, cloneKernelObject }
 from "./kernel-utils.js";
 
-
-
-// =====================================
-// GET STATE
-// =====================================
-
-export function
-getAIKernelState(){
-
-  return freezeKernelObject({
-
-    initialized:
-    aiKernelState
-    .initialized,
-
-    initializing:
-    aiKernelState
-    .initializing,
-
-    recovering:
-    aiKernelState
-    .recovering,
-
-    shuttingDown:
-    aiKernelState
-    .shuttingDown,
-
-    state:
-    aiKernelState
-    .state,
-
-    activeRequests:
-
-      aiKernelState
-      .activeRequests
-      .size,
-
-    queuedRequests:
-
-      aiKernelState
-      .requestQueue
-      .length,
-
-    synchronizedSystems:[
-
-      ...aiKernelState
-      .synchronizedSystems
-
-    ],
-
-    failedSystems:[
-
-      ...aiKernelState
-      .failedSystems
-
-    ],
-
-    diagnostics:
-    cloneKernelObject(
-
-      aiKernelState
-      .diagnostics
-
-    )
-
-  });
-
+function createKernelSnapshot(){
+  return {
+    initialized:aiKernelState.initialized,
+    initializing:aiKernelState.initializing,
+    recovering:aiKernelState.recovering,
+    shuttingDown:aiKernelState.shuttingDown,
+    state:aiKernelState.state,
+    activeRequests:aiKernelState.activeRequests.size,
+    executions:aiKernelState.executionPromises.size,
+    queuedRequests:aiKernelState.requestQueue.length,
+    completedRequests:aiKernelState.completedRequests.length,
+    failedRequests:aiKernelState.failedRequests.length,
+    synchronizedSystems:[...aiKernelState.synchronizedSystems],
+    failedSystems:[...aiKernelState.failedSystems],
+    recoveryAttempts:aiKernelState.recoveryAttempts,
+    lastRecoveryAt:aiKernelState.lastRecoveryAt,
+    lastRequestAt:aiKernelState.lastRequestAt,
+    startedAt:aiKernelState.startedAt,
+    diagnostics:cloneKernelObject(aiKernelState.diagnostics)
+  };
 }
 
+export function getAIKernelState(){
+  return freezeKernelObject(createKernelSnapshot());
+}
 
-
-// =====================================
-// GET DIAGNOSTICS
-// =====================================
-
-export function
-getAIKernelDiagnostics(){
-
+export function getAIKernelDiagnostics(){
   return freezeKernelObject({
-
-    uptime:
-
-      aiKernelState
-      .startedAt
-
-      ?
-
-      Date.now() -
-
-      aiKernelState
-      .startedAt
-
-      :
-
-      0,
-
-    state:
-    aiKernelState
-    .state,
-
-    activeRequests:
-
-      aiKernelState
-      .activeRequests
-      .size,
-
-    queuedRequests:
-
-      aiKernelState
-      .requestQueue
-      .length,
-
-    completedRequests:
-
-      aiKernelState
-      .completedRequests
-      .length,
-
-    failedRequests:
-
-      aiKernelState
-      .failedRequests
-      .length,
-
-    diagnostics:
-    cloneKernelObject(
-
-      aiKernelState
-      .diagnostics
-
-    )
-
+    uptime:aiKernelState.startedAt ? Date.now() - aiKernelState.startedAt : 0,
+    ...createKernelSnapshot()
   });
-
 }

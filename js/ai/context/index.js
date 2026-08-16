@@ -8,7 +8,8 @@ import {
 
   initializeContextManager,
   shutdownContextManager,
-  resetContextManager
+  resetContextManager,
+  evictExpiredContexts
 
 }
 from "./context-lifecycle.js";
@@ -40,6 +41,11 @@ import {
 }
 from "./context-diagnostics.js";
 
+import {
+  injectContext
+}
+from "./context-injection.js";
+
 
 
 export const ContextManager =
@@ -60,6 +66,9 @@ Object.freeze({
   remove:
   removeContext,
 
+  evictExpired:
+  evictExpiredContexts,
+
   rank:
   rankContexts,
 
@@ -68,6 +77,9 @@ Object.freeze({
 
   buildWindow:
   buildContextWindow,
+
+  inject:
+  injectContext,
 
   diagnostics:
   getContextDiagnostics,

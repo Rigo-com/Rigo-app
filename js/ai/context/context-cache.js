@@ -9,7 +9,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -32,10 +33,19 @@ export function clearContextCache(){
 
 export function createCacheKey(
   query,
-  maxTokens
+  maxTokens,
+  namespace = "runtime:default"
 ){
 
   return (
+
+    (
+      CONTEXT_MANAGER_CONFIG.ENABLE_NAMESPACE_ISOLATION
+      ? normalizeContextId(namespace)
+      : "context:shared"
+    ) +
+
+    "::" +
 
     normalizeContextId(query) +
 
@@ -53,36 +63,7 @@ export function invalidateContextCache(
   contextId = null
 ){
 
-  if(!contextId){
-
-    clearContextCache();
-
-    return true;
-
-  }
-
-  const normalizedId =
-  normalizeContextId(
-    contextId
-  );
-
-  contextManagerState
-  .retrievalCache
-  .forEach((_,key) => {
-
-    if(
-      key.includes(
-        normalizedId
-      )
-    ){
-
-      contextManagerState
-      .retrievalCache
-      .delete(key);
-
-    }
-
-  });
+  clearContextCache();
 
   return true;
 
@@ -92,13 +73,19 @@ export function invalidateContextCache(
 
 export function readContextCache(
   query,
-  maxTokens
+  maxTokens,
+  namespace
 ){
+
+  if(!CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_CACHE){
+    return null;
+  }
 
   const key =
   createCacheKey(
     query,
-    maxTokens
+    maxTokens,
+    namespace
   );
 
   const cached =
@@ -108,9 +95,9 @@ export function readContextCache(
 
   if(!cached){
 
-    contextManagerState
-    .diagnostics
-    .cacheMisses++;
+    incrementContextDiagnostic(
+      "cacheMisses"
+    );
 
     return null;
 
@@ -130,17 +117,17 @@ export function readContextCache(
     .retrievalCache
     .delete(key);
 
-    contextManagerState
-    .diagnostics
-    .cacheMisses++;
+    incrementContextDiagnostic(
+      "cacheMisses"
+    );
 
     return null;
 
   }
 
-  contextManagerState
-  .diagnostics
-  .cacheHits++;
+  incrementContextDiagnostic(
+    "cacheHits"
+  );
 
   return cached.value;
 
@@ -151,13 +138,19 @@ export function readContextCache(
 export function writeContextCache(
   query,
   maxTokens,
-  value
+  value,
+  namespace
 ){
+
+  if(!CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_CACHE){
+    return false;
+  }
 
   const key =
   createCacheKey(
     query,
-    maxTokens
+    maxTokens,
+    namespace
   );
 
   contextManagerState

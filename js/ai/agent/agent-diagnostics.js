@@ -54,6 +54,15 @@ createAgentSnapshot(){
       .taskQueue
       .length,
 
+    executions:
+      agentManagerState.executionPromises.size,
+
+    initializing:
+      agentManagerState.initializing,
+
+    shuttingDown:
+      agentManagerState.shuttingDown,
+
     timestamp:
     Date.now()
 
@@ -93,6 +102,21 @@ getAgentDiagnostics(){
       agentManagerState
       .failedAgents
       .size,
+
+    queuedTasks:
+
+      agentManagerState
+      .taskQueue
+      .length,
+
+    executions:
+      agentManagerState.executionPromises.size,
+
+    initializing:
+      agentManagerState.initializing,
+
+    shuttingDown:
+      agentManagerState.shuttingDown,
 
     diagnostics:
     cloneAgentObject(

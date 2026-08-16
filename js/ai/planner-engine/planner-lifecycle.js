@@ -21,6 +21,10 @@ from "./planner-executor.js";
 
 export async function resetPlannerEngine(){
 
+  const executions = [
+    ...plannerEngineState.executions.values()
+  ];
+
   for(
     const planId
     of
@@ -32,6 +36,10 @@ export async function resetPlannerEngine(){
       planId
     );
 
+  }
+
+  if(executions.length > 0){
+    await Promise.allSettled(executions);
   }
 
   plannerEngineState
@@ -51,6 +59,10 @@ export async function resetPlannerEngine(){
   .clear();
 
   plannerEngineState
+  .executions
+  .clear();
+
+  plannerEngineState
   .executionQueue =
   [];
 
@@ -65,6 +77,13 @@ export async function resetPlannerEngine(){
   plannerEngineState
   .failedPlans
   .clear();
+
+  Object.keys(plannerEngineState.diagnostics)
+  .forEach((key) => {
+    plannerEngineState.diagnostics[key] = 0;
+  });
+
+  plannerEngineState.lastPlanAt = null;
 
   return true;
 

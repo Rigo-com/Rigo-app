@@ -39,6 +39,15 @@ function getContextDiagnostics(){
       .contexts
       .size,
 
+    sessions:
+      contextManagerState.sessions.size,
+
+    runtimeContexts:
+      contextManagerState.runtimeContexts.size,
+
+    sharedContexts:
+      contextManagerState.sharedContexts.size,
+
     indexes:
 
       contextManagerState
@@ -84,6 +93,15 @@ function createContextSnapshot(){
       .contexts
       .size,
 
+    sessions:
+      contextManagerState.sessions.size,
+
+    runtimeContexts:
+      contextManagerState.runtimeContexts.size,
+
+    sharedContexts:
+      contextManagerState.sharedContexts.size,
+
     indexes:
 
       contextManagerState
@@ -114,19 +132,47 @@ function getContextHealthReport(){
     .initialized,
 
     healthy:
-
+      contextManagerState.initialized &&
+      !contextManagerState.initializing &&
+      !contextManagerState.shuttingDown &&
       contextManagerState
       .contexts
       .size <=
 
       CONTEXT_MANAGER_CONFIG
-      .MAX_CONTEXTS,
+      .MAX_CONTEXTS &&
+      contextManagerState.sessions.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_SESSION_CONTEXTS &&
+      contextManagerState.runtimeContexts.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_RUNTIME_CONTEXTS &&
+      contextManagerState.indexes.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_INDEX_SIZE &&
+      contextManagerState.retrievalCache.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_CACHE_ITEMS,
+
+    initializing:
+    contextManagerState.initializing,
+
+    shuttingDown:
+    contextManagerState.shuttingDown,
+
+    operationActive:
+    Boolean(contextManagerState.activeOperation),
 
     contexts:
 
       contextManagerState
       .contexts
       .size,
+
+    sessions:
+      contextManagerState.sessions.size,
+
+    runtimeContexts:
+      contextManagerState.runtimeContexts.size,
+
+    sharedContexts:
+      contextManagerState.sharedContexts.size,
 
     cache:
 

@@ -1,0 +1,25 @@
+name: Debug Module Runtime
+
+on:
+  push:
+    branches: [ai-bootstrap-wiring]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax checks
+        run: |
+          node --check js/debug/index.js
+          node --check js/core/modules/module-setup.js
+      - name: Wiring checks
+        run: node tests/debug-module-runtime.test.mjs

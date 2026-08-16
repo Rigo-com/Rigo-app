@@ -55,6 +55,18 @@ function sanitizeMemory(
 ){
 
   if(
+    Array.isArray(
+      memory
+    )
+  ){
+    return memory.map((value) => {
+      return isObject(value)
+      ? sanitizeMemory(value)
+      : value;
+    });
+  }
+
+  if(
     !isObject(
       memory
     )

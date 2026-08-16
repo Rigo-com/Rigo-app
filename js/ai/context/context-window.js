@@ -9,7 +9,8 @@ import {
 from "./context-config.js";
 
 import {
-  contextManagerState
+  contextManagerState,
+  incrementContextDiagnostic
 }
 from "./context-state.js";
 
@@ -18,7 +19,8 @@ import {
   safeClone,
   freezeContextObject,
   serializeContext,
-  createCompressionPreview
+  createCompressionPreview,
+  estimateTokens
 }
 from "./context-utils.js";
 
@@ -29,7 +31,12 @@ import {
 from "./context-cache.js";
 
 import {
-  updateContext
+  searchContextIndex
+}
+from "./context-indexer.js";
+
+import {
+  touchContext
 }
 from "./context-store.js";
 
@@ -39,9 +46,23 @@ from "./context-store.js";
 // RANKING
 // =====================================
 
+function normalizeContextQuery(
+  query
+){
+
+  return String(query || "")
+  .trim()
+  .slice(
+    0,
+    CONTEXT_MANAGER_CONFIG.MAX_QUERY_LENGTH
+  );
+
+}
+
 export function calculateContextScore(
   context,
-  query = ""
+  query = "",
+  indexMatches = 0
 ){
 
   let score = 0;
@@ -69,6 +90,9 @@ export function calculateContextScore(
 
   }
 
+  score +=
+  Number(indexMatches) * 25;
+
   return score;
 
 }
@@ -76,11 +100,14 @@ export function calculateContextScore(
 
 
 export async function rankContexts(
-  query = ""
+  query = "",
+  options = {}
 ){
 
   const normalizedQuery =
-  normalizeContextId(query);
+  normalizeContextId(
+    normalizeContextQuery(query)
+  );
 
   const contexts = [
 
@@ -90,24 +117,88 @@ export async function rankContexts(
 
   ];
 
-  const ranked =
+  const namespace =
+  normalizeContextId(
+    options.namespace ||
+    "runtime:default"
+  );
+
+  const indexedMatches =
+  searchContextIndex(
+    normalizedQuery
+  );
+
+  const namespaceContexts =
   contexts
+  .filter((context) => {
+
+    if(
+      !CONTEXT_MANAGER_CONFIG
+      .ENABLE_NAMESPACE_ISOLATION
+    ){
+      return true;
+    }
+
+    return normalizeContextId(
+      context.namespace
+    ) === namespace;
+
+  });
+
+  const hasIndexedMatches =
+  namespaceContexts
+  .some((context) => {
+
+    return indexedMatches.has(
+      context.id
+    );
+
+  });
+
+  const ranked =
+  namespaceContexts
+  .filter((context) => {
+
+    return (
+      !hasIndexedMatches ||
+      indexedMatches.has(
+        context.id
+      )
+    );
+
+  })
   .map((context) => {
+
+    const accessedContext =
+    touchContext(context.id) ||
+    context;
 
     return {
 
-      ...safeClone(context),
+      ...safeClone(accessedContext),
 
       score:
-      calculateContextScore(
-        context,
-        normalizedQuery
-      )
+      CONTEXT_MANAGER_CONFIG.ENABLE_CONTEXT_RANKING
+      ? calculateContextScore(
+          accessedContext,
+          normalizedQuery,
+          indexedMatches.get(
+            context.id
+          ) || 0
+        )
+      : 0
 
     };
 
   })
   .sort((a,b) => {
+
+    if(
+      !CONTEXT_MANAGER_CONFIG
+      .ENABLE_CONTEXT_RANKING
+    ){
+      return 0;
+    }
 
     return (
       b.score -
@@ -116,9 +207,9 @@ export async function rankContexts(
 
   });
 
-  contextManagerState
-  .diagnostics
-  .ranked++;
+  incrementContextDiagnostic(
+    "ranked"
+  );
 
   return ranked;
 
@@ -135,24 +226,40 @@ export async function buildContextWindow(
   options = {}
 ){
 
+  const boundedQuery =
+  normalizeContextQuery(query);
+
+  const requestedTokens =
+  Number(options.maxTokens);
+
   const maxTokens =
-
-    Number(
-      options.maxTokens
+  Number.isFinite(requestedTokens) &&
+  requestedTokens > 0
+  ? Math.min(
+      Math.floor(requestedTokens),
+      CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_TOKENS
     )
+  : CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_TOKENS;
 
-    ||
-
-    CONTEXT_MANAGER_CONFIG
-    .MAX_CONTEXT_TOKENS;
+  const namespace =
+  normalizeContextId(
+    options.namespace ||
+    "runtime:default"
+  );
 
   const cached =
   readContextCache(
-    query,
-    maxTokens
+    boundedQuery,
+    maxTokens,
+    namespace
   );
 
   if(cached){
+
+    cached.contexts
+    .forEach((context) => {
+      touchContext(context.id);
+    });
 
     return cached;
 
@@ -160,12 +267,17 @@ export async function buildContextWindow(
 
   const ranked =
   await rankContexts(
-    query
+    boundedQuery,
+    {
+      namespace
+    }
   );
 
   const contexts = [];
 
   let totalTokens = 0;
+
+  let compressedContexts = 0;
 
   for(
     const context
@@ -173,36 +285,69 @@ export async function buildContextWindow(
   ){
 
     if(
-
-      totalTokens +
-      context.tokens >
-
-      maxTokens
-
+      contexts.length >=
+      CONTEXT_MANAGER_CONFIG
+      .MAX_WINDOW_CONTEXTS
     ){
 
-      continue;
+      break;
+
+    }
+
+    const remainingTokens =
+    maxTokens - totalTokens;
+
+    let selectedContext =
+    context;
+
+    if(
+      context.tokens >
+      remainingTokens
+    ){
+
+      if(
+        !CONTEXT_MANAGER_CONFIG
+        .ENABLE_CONTEXT_COMPRESSION
+      ){
+        continue;
+      }
+
+      selectedContext =
+      createCompressedContextSnapshot(
+        context,
+        remainingTokens
+      );
+
+      if(!selectedContext){
+        continue;
+      }
+
+      compressedContexts++;
 
     }
 
     contexts.push(
-      context
+      selectedContext
     );
 
     totalTokens +=
-    context.tokens;
+    selectedContext.tokens;
 
   }
 
   const windowObject =
   freezeContextObject({
 
-    query,
+    query:boundedQuery,
+
+    namespace,
 
     totalContexts:
     contexts.length,
 
     totalTokens,
+
+    compressedContexts,
 
     contexts,
 
@@ -213,11 +358,13 @@ export async function buildContextWindow(
 
   writeContextCache(
 
-    query,
+    boundedQuery,
 
     maxTokens,
 
-    windowObject
+    windowObject,
+
+    namespace
 
   );
 
@@ -231,8 +378,92 @@ export async function buildContextWindow(
 // COMPRESSION
 // =====================================
 
+export function createCompressedContextSnapshot(
+  context,
+  targetTokens
+){
+
+  const tokenLimit =
+  Math.floor(
+    Number(targetTokens) || 0
+  );
+
+  if(tokenLimit <= 20){
+    return null;
+  }
+
+  if(context.tokens <= tokenLimit){
+    return freezeContextObject(
+      safeClone(context)
+    );
+  }
+
+  const serialized =
+  serializeContext(
+    context.content
+  );
+
+  let previewLength =
+  Math.min(
+    CONTEXT_MANAGER_CONFIG
+    .COMPRESSION_PREVIEW_LENGTH,
+    Math.max(
+      16,
+      tokenLimit * 4 - 160
+    )
+  );
+
+  while(previewLength >= 16){
+
+    const content = {
+      compressed:true,
+      preview:
+      createCompressionPreview(
+        serialized,
+        previewLength
+      ),
+      originalTokens:
+      context.tokens
+    };
+
+    const tokens =
+    estimateTokens(
+      content
+    );
+
+    if(tokens <= tokenLimit){
+
+      incrementContextDiagnostic(
+        "compressed"
+      );
+
+      return freezeContextObject({
+        ...safeClone(context),
+        tokens,
+        content,
+        metadata:{
+          ...safeClone(context.metadata),
+          transientCompression:true
+        }
+      });
+
+    }
+
+    previewLength =
+    Math.floor(
+      previewLength * 0.75
+    );
+
+  }
+
+  return null;
+
+}
+
 export async function compressContext(
-  contextId
+  contextId,
+  targetTokens =
+  CONTEXT_MANAGER_CONFIG.MAX_CONTEXT_TOKENS
 ){
 
   const normalizedId =
@@ -253,52 +484,9 @@ export async function compressContext(
 
   }
 
-  if(
-
-    context.tokens <=
-
-    CONTEXT_MANAGER_CONFIG
-    .MAX_CONTEXT_TOKENS
-
-  ){
-
-    return true;
-
-  }
-
-  const serialized =
-  serializeContext(
-    context.content
-  );
-
-  contextManagerState
-  .diagnostics
-  .compressed++;
-
-  return updateContext(
-
-    normalizedId,
-
-    {
-
-      content:{
-
-        compressed:true,
-
-        preview:
-        createCompressionPreview(
-          serialized,
-          CONTEXT_MANAGER_CONFIG
-          .COMPRESSION_PREVIEW_LENGTH
-        ),
-
-        originalTokens:
-        context.tokens
-
-      }
-
-    }
-
+  return createCompressedContextSnapshot(
+    context,
+    targetTokens
   );
 
 }

@@ -1,150 +1,23 @@
-// =====================================
-// RIGO AI
-// EXECUTION
-// ROOT API
-// =====================================
+import ExecutionBuilder from "./execution-builder.js";
+import ExecutionEngine from "./execution-engine.js";
+import ExecutionQueue from "./execution-queue.js";
+import ExecutionHistory from "./execution-history.js";
 
-import ExecutionBuilder
-from "./execution-builder.js";
-
-import ExecutionEngine
-from "./execution-engine.js";
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-function initialize(){
-
-  ExecutionBuilder
-  .initialize();
-
-  ExecutionEngine
-  .initialize();
-
-  return true;
-
+function initialize(){ExecutionBuilder.initialize();ExecutionEngine.initialize();ExecutionQueue.initialize();ExecutionHistory.initialize();return true;}
+const createPlan=options=>ExecutionBuilder.createPlan(options);
+function execute(plan){
+  initialize();
+  return ExecutionQueue.enqueue(plan,async queuedPlan=>{
+    const result=await ExecutionEngine.executePlan(queuedPlan);
+    ExecutionHistory.record(queuedPlan,result);
+    return result;
+  });
 }
-
-
-
-// =====================================
-// CREATE PLAN
-// =====================================
-
-function createPlan(
-  options
-){
-
-  return ExecutionBuilder
-  .createPlan(
-    options
-  );
-
-}
-
-
-
-// =====================================
-// EXECUTE
-// =====================================
-
-async function execute(
-  plan
-){
-
-  return ExecutionEngine
-  .executePlan(
-    plan
-  );
-
-}
-
-
-
-// =====================================
-// REGISTER
-// =====================================
-
-function registerHandler(
-  type,
-  handler
-){
-
-  return ExecutionEngine
-  .registerHandler(
-    type,
-    handler
-  );
-
-}
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
-
-function snapshot(){
-
-  return {
-
-    builder:
-    ExecutionBuilder
-    .snapshot(),
-
-    engine:
-    ExecutionEngine
-    .snapshot()
-
-  };
-
-}
-
-
-
-// =====================================
-// API
-// =====================================
-
-const Execution =
-Object.freeze({
-
-  initialize,
-
-  createPlan,
-
-  execute,
-
-  registerHandler,
-
-  snapshot
-
-});
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  initialize,
-
-  createPlan,
-
-  execute,
-
-  registerHandler,
-
-  snapshot,
-
-  Execution
-
-};
-
-export default
-Execution;
+const registerHandler=(type,handler)=>ExecutionEngine.registerHandler(type,handler);
+const registerRollbackHandler=(type,handler)=>ExecutionEngine.registerRollbackHandler(type,handler);
+const cancel=planId=>ExecutionQueue.cancel(planId);
+const history=options=>ExecutionHistory.list(options);
+function reset(){ExecutionQueue.reset();ExecutionHistory.reset();return true;}
+const snapshot=()=>({builder:ExecutionBuilder.snapshot(),engine:ExecutionEngine.snapshot(),queue:ExecutionQueue.snapshot(),history:ExecutionHistory.snapshot()});
+const Execution=Object.freeze({initialize,createPlan,execute,registerHandler,registerRollbackHandler,cancel,history,reset,snapshot,queue:ExecutionQueue,records:ExecutionHistory});
+export{initialize,createPlan,execute,registerHandler,registerRollbackHandler,cancel,history,reset,snapshot,Execution};export default Execution;

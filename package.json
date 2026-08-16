@@ -2,6 +2,9 @@
   "name": "rigo-ai",
   "private": true,
   "type": "module",
+  "scripts": {
+    "check:ai": "find js/ai -type f -name '*.js' -print0 | xargs -0 -n1 node --check"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1"
   }

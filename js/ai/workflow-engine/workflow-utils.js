@@ -118,7 +118,8 @@ export function freezeWorkflowObject(
 // =====================================
 
 export function cloneWorkflowObject(
-  value
+  value,
+  visited = new WeakMap()
 ){
 
   try{
@@ -141,12 +142,33 @@ export function cloneWorkflowObject(
   try{
 
     if(
+      !value ||
+      typeof value !== "object"
+    ){
+      return value;
+    }
+
+    if(
+      value instanceof AbortController ||
+      value instanceof AbortSignal
+    ){
+      return value;
+    }
+
+    if(visited.has(value)){
+      return visited.get(value);
+    }
+
+    if(
       Array.isArray(value)
     ){
 
-      return [
-        ...value
-      ];
+      const clone = [];
+      visited.set(value,clone);
+      value.forEach((item) => {
+        clone.push(cloneWorkflowObject(item,visited));
+      });
+      return clone;
 
     }
 
@@ -156,9 +178,12 @@ export function cloneWorkflowObject(
       "object"
     ){
 
-      return {
-        ...value
-      };
+      const clone = {};
+      visited.set(value,clone);
+      Object.entries(value).forEach(([key,item]) => {
+        clone[key] = cloneWorkflowObject(item,visited);
+      });
+      return clone;
 
     }
 

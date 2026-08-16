@@ -1,0 +1,46 @@
+name: Admin Runtime
+
+on:
+  push:
+    branches: [ai-bootstrap-wiring]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --check api/_admin-auth.js
+      - run: node --check api/admin-project-scan.js
+      - run: node --check api/admin-project-write.js
+      - run: node --check api/admin-project-file.js
+      - run: node --check api/admin-git-status.js
+      - run: node --check api/admin-tests.js
+      - run: node --check js/admin/admin-agent/admin-agent.js
+      - run: node --check js/admin/admin-agent/subagents/architecture-agent/architecture-agent.js
+      - run: node --check js/admin/admin-agent/subagents/debug-agent/debug-agent.js
+      - run: node --check js/admin/admin-agent/subagents/git-agent/git-agent.js
+      - run: node --check js/admin/admin-agent/subagents/test-agent/test-agent.js
+      - run: node --check js/admin/admin-agent/subagents/documentation-agent/documentation-agent.js
+      - run: node --check js/admin/studio/pages/dashboard/dashboard-loader.js
+      - run: node --check js/admin/studio/pages/admin-agent/admin-agent-pending.js
+      - run: node tests/admin-runtime.test.mjs
+      - run: node tests/admin-project-scanner.test.mjs
+      - run: node tests/admin-code-agent.test.mjs
+      - run: node tests/admin-execution-queue.test.mjs
+      - run: node tests/admin-rollback.test.mjs
+      - run: node tests/admin-pending-ui.test.mjs
+      - run: node tests/admin-architecture-agent.test.mjs
+      - run: node tests/admin-debug-agent.test.mjs
+      - run: node tests/admin-git-agent.test.mjs
+      - run: node tests/admin-test-agent.test.mjs
+      - run: node tests/admin-documentation-agent.test.mjs
+      - run: node tests/admin-auth-cleanup.test.mjs
+      - run: node tests/admin-e2e.test.mjs

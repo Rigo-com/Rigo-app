@@ -1376,6 +1376,18 @@ rigoAdminLoading{
 
 
 
+
+/* PENDING CHANGES */
+.rigo-admin-pending{flex:0 0 auto;padding:11px;border:1px solid var(--admin-border);border-radius:13px;background:rgba(5,14,27,.92)}
+.rigo-admin-pending-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.rigo-admin-pending-head>div{display:flex;align-items:baseline;gap:8px}.rigo-admin-pending-head strong{font-size:12px}.rigo-admin-pending-head span{color:var(--admin-text-muted);font-size:10px}
+.rigo-admin-pending-head button,.rigo-admin-plan-actions button{padding:6px 9px;color:var(--admin-text);font:600 10px inherit;border:1px solid var(--admin-border);border-radius:8px;background:rgba(255,255,255,.04);cursor:pointer}
+.rigo-admin-pending-list{display:flex;flex-direction:column;gap:7px;max-height:180px;overflow:auto}.rigo-admin-pending-empty{margin:0;color:var(--admin-text-muted);font-size:11px}
+.rigo-admin-plan{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px;border:1px solid var(--admin-border);border-left:3px solid var(--admin-yellow);border-radius:9px;background:rgba(255,255,255,.025)}
+.rigo-admin-plan[data-risk="high"]{border-left-color:var(--admin-danger)}.rigo-admin-plan-info{min-width:0;display:flex;flex-direction:column;gap:3px}.rigo-admin-plan-info strong{font-size:11px}.rigo-admin-plan-info span,.rigo-admin-plan-info small{color:var(--admin-text-muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rigo-admin-plan-actions{display:flex;gap:5px}.rigo-admin-plan-actions button[data-admin-plan-action="approve"]{color:var(--admin-green)}.rigo-admin-plan-actions button[data-admin-plan-action="execute"]{color:var(--admin-blue)}.rigo-admin-plan-actions button[data-admin-plan-action="cancel"]{color:var(--admin-danger)}.rigo-admin-plan-actions button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:760px){.rigo-admin-plan{align-items:flex-start;flex-direction:column}.rigo-admin-plan-actions{width:100%}.rigo-admin-plan-actions button{flex:1}}
+
 /* =====================================
    RESPONSIVE
 ===================================== */

@@ -24,6 +24,13 @@ export function drainWorkflowQueue(
 ){
 
   if(
+    workflowEngineState.shuttingDown ||
+    !WORKFLOW_ENGINE_CONFIG.ENABLE_QUEUE
+  ){
+    return false;
+  }
+
+  if(
 
     workflowEngineState
     .executionQueue
@@ -77,5 +84,33 @@ export function drainWorkflowQueue(
   .catch(() => {});
 
   return true;
+
+}
+
+
+// =====================================
+// REMOVE QUEUED WORKFLOW
+// =====================================
+
+export function removeQueuedWorkflow(
+  workflowId
+){
+
+  const originalLength =
+  workflowEngineState.executionQueue.length;
+
+  workflowEngineState.executionQueue =
+  workflowEngineState.executionQueue.filter(
+    (queuedWorkflow) => {
+      return queuedWorkflow.workflowId !== workflowId;
+    }
+  );
+
+  workflowEngineState.queuedWorkflowIds.delete(workflowId);
+
+  return (
+    workflowEngineState.executionQueue.length !==
+    originalLength
+  );
 
 }

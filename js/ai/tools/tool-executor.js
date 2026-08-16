@@ -27,12 +27,13 @@ import {
   createStructuredError,
   createExecutionId,
   delayExecution,
-  trimExecutionHistory
+  trimExecutionHistory,
+  trimPermissionCache
 }
 from "./tool-utils.js";
 
 import {
-  getTool
+  getRegisteredTool
 }
 from "./tool-registry.js";
 
@@ -152,6 +153,67 @@ export async function executeWithTimeout(
 // EXECUTE TOOL
 // =====================================
 
+const TRUSTED_TOOL_SOURCES =
+new Set([
+  "rigo-main-assistant",
+  "planner-engine",
+  "workflow-engine"
+]);
+
+
+export function validateToolPermissions(
+  tool,
+  context = {}
+){
+
+  if(!tool.permissions?.length){
+    return true;
+  }
+
+  const source =
+  String(context.source || "external")
+  .trim()
+  .toLowerCase();
+
+  const granted =
+  Array.isArray(context.permissions)
+  ? [...new Set(
+      context.permissions.map((permission) => {
+        return String(permission).trim().toLowerCase();
+      })
+    )].sort()
+  : [];
+
+  const cacheKey = [
+    tool.id,
+    source,
+    granted.join(",")
+  ].join("::");
+
+  if(
+    TOOL_EXECUTOR_CONFIG.ENABLE_PERMISSION_CACHE &&
+    toolExecutorState.permissionCache.has(cacheKey)
+  ){
+    return toolExecutorState.permissionCache.get(cacheKey);
+  }
+
+  const allowed =
+  TRUSTED_TOOL_SOURCES.has(source) ||
+  tool.permissions.every((permission) => {
+    return granted.includes(
+      String(permission).trim().toLowerCase()
+    );
+  });
+
+  if(TOOL_EXECUTOR_CONFIG.ENABLE_PERMISSION_CACHE){
+    toolExecutorState.permissionCache.set(cacheKey,allowed);
+    trimPermissionCache();
+  }
+
+  return allowed;
+
+}
+
 export async function executeTool(
   toolId,
   payload = {},
@@ -164,7 +226,7 @@ export async function executeTool(
   );
 
   const tool =
-  getTool(
+  getRegisteredTool(
     normalizedId
   );
 
@@ -177,8 +239,23 @@ export async function executeTool(
 
   }
 
-  if(
+  if(!validateToolPermissions(tool,context)){
 
+    toolExecutorState
+    .diagnostics
+    .rejected++;
+
+    return createStructuredError(
+      "PERMISSION_DENIED",
+      "Tool permissions were not granted",
+      {toolId:normalizedId}
+    );
+
+  }
+
+  if(
+    TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_DISABLE
+    &&
     toolExecutorState
     .disabledTools
     .has(normalizedId)
@@ -247,7 +324,10 @@ export async function executeTool(
   const executionId =
   createExecutionId();
 
-  const controller =
+  const startedAt =
+  Date.now();
+
+  let controller =
 
     TOOL_EXECUTOR_CONFIG
     .ENABLE_ABORT_CONTROLLERS
@@ -260,19 +340,13 @@ export async function executeTool(
 
     null;
 
-  toolExecutorState
-  .activeExecutions
-  .set(
-
-    executionId,
-
-    {
+  const executionRecord = {
 
       toolId:
       normalizedId,
 
       startedAt:
-      Date.now(),
+      startedAt,
 
       controller,
 
@@ -282,7 +356,15 @@ export async function executeTool(
       TOOL_EXECUTION_STATES
       .RUNNING
 
-    }
+  };
+
+  toolExecutorState
+  .activeExecutions
+  .set(
+
+    executionId,
+
+    executionRecord
 
   );
 
@@ -304,89 +386,149 @@ export async function executeTool(
 
   let attempts = 0;
 
+  const sandboxedExecution =
+  TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_SANDBOX &&
+  tool.sandboxed;
+
+  if(sandboxedExecution){
+    toolExecutorState
+    .diagnostics
+    .sandboxed++;
+  }
+
+  const maximumAttempts =
+  TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_RETRIES
+  ? tool.retries
+  : 1;
+
   try{
 
     while(
-      attempts < tool.retries
+      attempts < maximumAttempts
     ){
 
       attempts++;
 
+      if(
+        attempts > 1 &&
+        TOOL_EXECUTOR_CONFIG.ENABLE_ABORT_CONTROLLERS
+      ){
+
+        controller =
+        new AbortController();
+
+        const activeExecution =
+        toolExecutorState
+        .activeExecutions
+        .get(executionId);
+
+        if(activeExecution){
+          activeExecution.controller = controller;
+        }
+
+      }
+
+      const activeExecution =
+      toolExecutorState
+      .activeExecutions
+      .get(executionId);
+
+      if(activeExecution){
+        activeExecution.retries = attempts - 1;
+      }
+
       try{
 
+        const execute = () => {
+
+          return tool.execute({
+
+            payload:
+            sandboxedExecution
+            ? cloneToolObject(payload)
+            : payload,
+
+            context:
+            sandboxedExecution
+            ? cloneToolObject(context)
+            : context,
+
+            signal:
+            controller
+            ?.signal || null
+
+          });
+
+        };
+
         const result =
-        await executeWithTimeout(
+        TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_TIMEOUTS
+        ? await executeWithTimeout(
+            execute,
+            tool.timeout,
+            controller
+          )
+        : await Promise.resolve()
+          .then(execute);
 
-          () => {
-
-            return tool.execute({
-
-              payload:
-              cloneToolObject(
-                payload
-              ),
-
-              context:
-              cloneToolObject(
-                context
-              ),
-
-              signal:
-              controller
-              ?.signal || null
-
-            });
-
-          },
-
-          tool.timeout,
-
-          controller
-
-        );
+        if(
+          executionRecord.state ===
+          TOOL_EXECUTION_STATES.CANCELLED
+        ){
+          return createStructuredError(
+            "EXECUTION_CANCELLED",
+            "Tool execution was cancelled",
+            {executionId}
+          );
+        }
 
         resetCircuitBreaker(
           normalizedId
         );
 
-        tool.runtime.executions++;
+        if(TOOL_EXECUTOR_CONFIG.ENABLE_RUNTIME_METADATA){
 
-        tool.runtime.updatedAt =
-        Date.now();
+          tool.runtime.executions++;
 
-        tool.runtime.lastExecutedAt =
-        Date.now();
+          tool.runtime.updatedAt =
+          Date.now();
 
-        toolExecutorState
-        .lastExecutionAt =
-        Date.now();
+          tool.runtime.lastExecutedAt =
+          Date.now();
 
-        toolExecutorState
-        .executionHistory
-        .push({
+          toolExecutorState
+          .lastExecutionAt =
+          Date.now();
 
-          executionId,
+        }
 
-          toolId:
-          normalizedId,
+        if(TOOL_EXECUTOR_CONFIG.ENABLE_EXECUTION_HISTORY){
 
-          success:true,
+          toolExecutorState
+          .executionHistory
+          .push({
 
-          duration:
+            executionId,
 
-            Date.now() -
+            toolId:
+            normalizedId,
 
-            toolExecutorState
-            .activeExecutions
-            .get(executionId)
-            .startedAt,
+            success:true,
 
-          timestamp:
-          Date.now()
+            duration:
 
-        });
+              Date.now() -
 
-        trimExecutionHistory();
+              startedAt,
+
+            timestamp:
+            Date.now()
+
+          });
+
+          trimExecutionHistory();
+
+        }
 
         toolExecutorState
         .diagnostics
@@ -428,51 +570,72 @@ export async function executeTool(
 
       catch(error){
 
+        if(
+          executionRecord.state ===
+          TOOL_EXECUTION_STATES.CANCELLED
+        ){
+          return createStructuredError(
+            "EXECUTION_CANCELLED",
+            "Tool execution was cancelled",
+            {executionId}
+          );
+        }
+
+        if(error?.message === "TOOL_TIMEOUT"){
+          toolExecutorState
+          .diagnostics
+          .timedOut++;
+        }
+
         registerCircuitFailure(
           normalizedId
         );
 
-        tool.runtime.failures++;
+        if(TOOL_EXECUTOR_CONFIG.ENABLE_RUNTIME_METADATA){
+          tool.runtime.failures++;
+          tool.runtime.updatedAt = Date.now();
+        }
 
         toolExecutorState
         .diagnostics
         .failed++;
 
         if(
-          attempts >= tool.retries
+          attempts >= maximumAttempts
         ){
 
           const duration =
 
             Date.now() -
 
+            startedAt;
+
+          if(TOOL_EXECUTOR_CONFIG.ENABLE_EXECUTION_HISTORY){
+
             toolExecutorState
-            .activeExecutions
-            .get(executionId)
-            .startedAt;
+            .executionHistory
+            .push({
 
-          toolExecutorState
-          .executionHistory
-          .push({
+              executionId,
 
-            executionId,
+              toolId:
+              normalizedId,
 
-            toolId:
-            normalizedId,
+              success:false,
 
-            success:false,
+              error:
+              String(error),
 
-            error:
-            String(error),
+              duration,
 
-            duration,
+              timestamp:
+              Date.now()
 
-            timestamp:
-            Date.now()
+            });
 
-          });
+            trimExecutionHistory();
 
-          trimExecutionHistory();
+          }
 
           await emitToolEvent(
 

@@ -13,6 +13,14 @@ import {
 }
 from "./agent-utils.js";
 
+import {
+  agentManagerState
+}
+from "./agent-state.js";
+
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 
 // =====================================
@@ -33,18 +41,29 @@ export async function emitAgentEvent(
 
   }
 
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    await emitSystemEvent(
+    const events =
+    await ServiceManager.resolve(
+      "events"
+    );
+
+    if(
+      !events ||
+      typeof events.emit !==
+      "function"
+    ){
+
+      agentManagerState
+      .diagnostics
+      .eventsFailed++;
+
+      return false;
+
+    }
+
+    const emitted =
+    await events.emit(
 
       eventName,
 
@@ -62,11 +81,26 @@ export async function emitAgentEvent(
 
     );
 
-    return true;
+    if(emitted){
+      agentManagerState
+      .diagnostics
+      .eventsEmitted++;
+    }
+    else{
+      agentManagerState
+      .diagnostics
+      .eventsFailed++;
+    }
+
+    return Boolean(emitted);
 
   }
 
   catch(error){
+
+    agentManagerState
+    .diagnostics
+    .eventsFailed++;
 
     return false;
 

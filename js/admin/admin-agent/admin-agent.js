@@ -15,6 +15,21 @@ from "./subagents/project-agent/index.js";
 import CodeAgent
 from "./subagents/code-agent/index.js";
 
+import ArchitectureAgent
+from "./subagents/architecture-agent/index.js";
+
+import DebugAgent
+from "./subagents/debug-agent/index.js";
+
+import GitAgent
+from "./subagents/git-agent/index.js";
+
+import TestAgent
+from "./subagents/test-agent/index.js";
+
+import DocumentationAgent
+from "./subagents/documentation-agent/index.js";
+
 import GitHubProvider
 from "./subagents/project-agent/providers/github-provider.js";
 
@@ -75,18 +90,15 @@ async function handleCreateFileOperation(
 async function handleUpdateFileOperation(
   operation
 ){
+  const backup=await GitHubProvider.readFile(operation.payload.path);
+  if(!backup?.ok)return backup;
+  operation.backup={path:backup.path,content:backup.content,sha:backup.sha};
 
-  return GitHubProvider
-  .updateFile(
-
+  return GitHubProvider.updateFile(
     operation.payload.path,
-
     operation.payload.content || "",
-
     operation.payload.message || null
-
   );
-
 }
 
 
@@ -94,16 +106,14 @@ async function handleUpdateFileOperation(
 async function handleDeleteFileOperation(
   operation
 ){
+  const backup=await GitHubProvider.readFile(operation.payload.path);
+  if(!backup?.ok)return backup;
+  operation.backup={path:backup.path,content:backup.content,sha:backup.sha};
 
-  return GitHubProvider
-  .deleteFile(
-
+  return GitHubProvider.deleteFile(
     operation.payload.path,
-
     operation.payload.message || null
-
   );
-
 }
 
 
@@ -111,18 +121,34 @@ async function handleDeleteFileOperation(
 async function handleMoveFileOperation(
   operation
 ){
+  const backup=await GitHubProvider.readFile(operation.payload.sourcePath);
+  if(!backup?.ok)return backup;
+  operation.backup={path:backup.path,content:backup.content,sha:backup.sha};
 
-  return GitHubProvider
-  .moveFile(
-
+  return GitHubProvider.moveFile(
     operation.payload.sourcePath,
-
     operation.payload.destinationPath,
-
     operation.payload.message || null
-
   );
+}
 
+async function rollbackFileOperation(operation){
+  const type=operation.type;
+  if(type===ExecutionPlan.OperationTypes.CREATE_FILE){
+    return GitHubProvider.deleteFile(operation.payload.path,"RIGO Admin rollback create");
+  }
+  if(type===ExecutionPlan.OperationTypes.UPDATE_FILE){
+    if(!operation.backup)return{ok:false,error:"ROLLBACK_BACKUP_MISSING"};
+    return GitHubProvider.updateFile(operation.backup.path,operation.backup.content,"RIGO Admin rollback update");
+  }
+  if(type===ExecutionPlan.OperationTypes.DELETE_FILE){
+    if(!operation.backup)return{ok:false,error:"ROLLBACK_BACKUP_MISSING"};
+    return GitHubProvider.createFile(operation.backup.path,operation.backup.content,"RIGO Admin rollback delete");
+  }
+  if(type===ExecutionPlan.OperationTypes.MOVE_FILE){
+    return GitHubProvider.moveFile(operation.payload.destinationPath,operation.payload.sourcePath,"RIGO Admin rollback move");
+  }
+  return{ok:false,error:`ROLLBACK_UNSUPPORTED:${type}`};
 }
 
 
@@ -183,6 +209,15 @@ function initializeExecution(){
 
   );
 
+  for(const type of [
+    ExecutionPlan.OperationTypes.CREATE_FILE,
+    ExecutionPlan.OperationTypes.UPDATE_FILE,
+    ExecutionPlan.OperationTypes.DELETE_FILE,
+    ExecutionPlan.OperationTypes.MOVE_FILE
+  ]){
+    Execution.registerRollbackHandler(type,rollbackFileOperation);
+  }
+
   adminExecutionState.initialized =
   true;
 
@@ -215,6 +250,8 @@ async function initialize(){
 
     await CodeAgent
     .initialize();
+
+    await ArchitectureAgent.initialize();
 
     initializeExecution();
 
@@ -271,6 +308,8 @@ async function boot(){
     await CodeAgent
     .boot();
 
+    await ArchitectureAgent.boot();
+
     initializeExecution();
 
     AdminAgentState
@@ -314,6 +353,8 @@ async function shutdown(){
   await CodeAgent
   .shutdown();
 
+  await ArchitectureAgent.shutdown();
+
   AdminAgentState
   .setBooted(
     false
@@ -343,11 +384,15 @@ async function reset(){
   await CodeAgent
   .reset();
 
+  await ArchitectureAgent.reset();
+
   adminExecutionState.pendingPlans =
   {};
 
   adminExecutionState.lastPlanId =
   null;
+
+  Execution.reset();
 
   AdminAgentState
   .reset();
@@ -779,6 +824,23 @@ async function executeApprovedPlan(
 
   }
 
+  const operations = Object.values(plan.graph.nodes);
+  const destructive = operations.some(operation =>
+    operation.type === ExecutionPlan.OperationTypes.DELETE_FILE
+  );
+
+  if(
+    !AdminAgentPermissions.allowExecution() ||
+    !AdminAgentPermissions.allowWriteExecution() ||
+    (destructive && !AdminAgentPermissions.allowDeleteExecution())
+  ){
+    return {
+      ok:false,
+      error:"ADMIN_EXECUTION_PERMISSION_DENIED",
+      plan:ExecutionPlan.snapshot(plan)
+    };
+  }
+
   const result =
   await Execution
   .execute(
@@ -795,41 +857,6 @@ async function executeApprovedPlan(
   }
 
   return result;
-
-}
-
-
-
-// =====================================
-// LOGIN COMMAND
-// =====================================
-
-async function handleLoginCommand(
-  input
-){
-
-  const text =
-  normalizeText(
-    input
-  );
-
-  const match =
-  text.match(
-    /^(?:login admin|admin login|تسجيل دخول الادمن|دخول الادمن)\s+(.+)$/i
-  );
-
-  if(
-    !match
-  ){
-
-    return null;
-
-  }
-
-  return GitHubProvider
-  .authenticate(
-    match[1].trim()
-  );
 
 }
 
@@ -917,12 +944,34 @@ async function handleExecutionCommand(
 
     }
 
+    if(type === "cancel-plan"){
+      const plan=getPendingPlan(input.planId);
+      if(!plan)return{ok:false,error:"EXECUTION_PLAN_NOT_FOUND"};
+      if(plan.status===ExecutionPlan.Status.RUNNING)return{ok:false,error:"EXECUTION_PLAN_RUNNING"};
+      plan.status=ExecutionPlan.Status.CANCELLED;
+      for(const operation of Object.values(plan.graph.nodes))operation.status=ExecutionPlan.OperationStatus.CANCELLED;
+      delete adminExecutionState.pendingPlans[input.planId];
+      return{ok:true,mode:"cancel-plan",planId:input.planId};
+    }
+
+    if(type === "execution-history"){
+      return {ok:true,mode:"execution-history",entries:Execution.history(input.options || {})};
+    }
+
+    if(type === "cancel-execution"){
+      return {ok:Execution.cancel(input.planId),mode:"cancel-execution",planId:input.planId};
+    }
+
   }
 
   const text =
   normalizeText(
     input
   );
+
+  if(/^(?:execution history|سجل التنفيذ)$/i.test(text)){
+    return {ok:true,mode:"execution-history",entries:Execution.history()};
+  }
 
   let match =
   text.match(
@@ -1161,6 +1210,25 @@ async function handleCodeCommand(
   );
 
   if(
+    input &&
+    typeof input === "object"
+  ){
+    const action=normalizeCommand(input.action || input.type);
+    if(action === "read-file") return CodeAgent.read(input.path);
+    if(action === "analyze-file") return CodeAgent.analyze(input.path);
+    if(action === "search-code") return CodeAgent.search(input.query);
+  }
+
+  let match=normalizeText(input).match(/^(?:read file|اقرأ ملف)\s+(.+)$/i);
+  if(match) return CodeAgent.read(match[1].trim());
+
+  match=normalizeText(input).match(/^(?:analyze file|حلل ملف)\s+(.+)$/i);
+  if(match) return CodeAgent.analyze(match[1].trim());
+
+  match=normalizeText(input).match(/^(?:search code|ابحث بالكود)\s+(.+)$/i);
+  if(match) return CodeAgent.search(match[1].trim());
+
+  if(
     normalized === "analyze code" ||
     normalized === "حلل الكود"
   ){
@@ -1168,6 +1236,29 @@ async function handleCodeCommand(
     return CodeAgent
     .analyze();
 
+  }
+
+  if(normalized === "analyze architecture" || normalized === "حلل المعمارية"){
+    return ArchitectureAgent.analyze();
+  }
+
+  if(normalized === "debug report" || normalized === "تقرير الاخطاء" || normalized === "تقرير الأخطاء")return DebugAgent.report();
+  if(normalized === "diagnose system" || normalized === "شخص النظام")return DebugAgent.capture();
+  if(normalized === "list errors" || normalized === "اعرض الاخطاء" || normalized === "اعرض الأخطاء")return DebugAgent.errors();
+  if(normalized === "git status" || normalized === "حالة git")return GitAgent.status();
+  if(normalized === "git diff" || normalized === "تغييرات git")return GitAgent.diff();
+  if(normalized === "git commits" || normalized === "سجل git")return GitAgent.commits();
+  if(normalized === "test status" || normalized === "حالة الاختبارات")return TestAgent.status();
+  if(normalized === "test failures" || normalized === "الاختبارات الفاشلة")return TestAgent.failures();
+  if(normalized === "run tests" || normalized === "شغل الاختبارات")return TestAgent.run();
+  if(normalized === "generate documentation" || normalized === "ولد التوثيق")return DocumentationAgent.generate();
+
+  let documentationMatch=normalizeText(input).match(/^(?:document project|وثق المشروع)(?:\\s+(.+))?$/i);
+  if(documentationMatch){
+    const generated=DocumentationAgent.generate({path:documentationMatch[1]?.trim()||undefined});
+    if(!generated.ok)return generated;
+    DocumentationAgent.markPlanned();
+    return generated.document.exists?createUpdateFilePlan(generated.document.path,generated.document.content):createFilePlan(generated.document.path,generated.document.content);
   }
 
   return null;
@@ -1217,22 +1308,6 @@ async function command(
     ? input
     : JSON.stringify(input)
   );
-
-  const loginResult =
-  await handleLoginCommand(
-    input
-  );
-
-  if(
-    loginResult
-  ){
-
-    AdminAgentState.state.lastResult =
-    loginResult;
-
-    return loginResult;
-
-  }
 
   const executionResult =
   await handleExecutionCommand(
@@ -1294,8 +1369,6 @@ async function command(
 
     supportedCommands:[
 
-      "login admin <secret>",
-
       "create file js/path/file.js :: content",
 
       "update file js/path/file.js :: content",
@@ -1312,6 +1385,8 @@ async function command(
 
       "pending plans",
 
+      "execution history",
+
       "scan project",
 
       "project snapshot",
@@ -1322,7 +1397,37 @@ async function command(
 
       "list systems",
 
-      "analyze code"
+      "analyze code",
+
+      "analyze architecture",
+
+      "diagnose system",
+
+      "debug report",
+
+      "list errors",
+
+      "git status",
+
+      "git diff",
+
+      "git commits",
+
+      "test status",
+
+      "test failures",
+
+      "run tests",
+
+      "generate documentation",
+
+      "document project js/PROJECT-ARCHITECTURE.md",
+
+      "read file js/path/file.js",
+
+      "analyze file js/path/file.js",
+
+      "search code keyword"
 
     ],
 
@@ -1386,7 +1491,22 @@ function snapshot(){
       ProjectAgent.snapshot(),
 
       code:
-      CodeAgent.snapshot()
+      CodeAgent.snapshot(),
+
+      architecture:
+      ArchitectureAgent.snapshot(),
+
+      debug:
+      DebugAgent.snapshot(),
+
+      git:
+      GitAgent.snapshot(),
+
+      test:
+      TestAgent.snapshot(),
+
+      documentation:
+      DocumentationAgent.snapshot()
 
     }
 

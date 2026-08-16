@@ -28,6 +28,9 @@ from "./admin-agent-messages.js";
 import renderActionList
 from "./admin-agent-action-list.js";
 
+import renderPendingChanges
+from "./admin-agent-pending.js";
+
 
 
 // =====================================
@@ -280,6 +283,8 @@ function renderLayout(
       ${renderHeader(admin)}
 
       ${renderQuickActions(loading)}
+
+      ${renderPendingChanges(state.pendingChanges,state.executionHistory)}
 
       ${renderConsole(messages)}
 

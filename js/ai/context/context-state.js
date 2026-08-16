@@ -3,6 +3,11 @@
 // CONTEXT STATE
 // =====================================
 
+import {
+  CONTEXT_MANAGER_CONFIG
+}
+from "./context-config.js";
+
 export const contextManagerState =
 Object.seal({
 
@@ -15,6 +20,8 @@ Object.seal({
   startupPromise:null,
 
   operationLock:false,
+
+  activeOperation:null,
 
   contexts:
   new Map(),
@@ -63,6 +70,12 @@ Object.seal({
 
     indexed:0,
 
+    indexSearches:0,
+
+    indexHits:0,
+
+    indexFallbacks:0,
+
     evicted:0,
 
     rejected:0,
@@ -74,3 +87,30 @@ Object.seal({
   lastUpdatedAt:null
 
 });
+
+
+export function incrementContextDiagnostic(
+  key,
+  amount = 1
+){
+
+  if(!CONTEXT_MANAGER_CONFIG.ENABLE_DIAGNOSTICS){
+    return false;
+  }
+
+  if(
+    !Object.prototype.hasOwnProperty.call(
+      contextManagerState.diagnostics,
+      key
+    )
+  ){
+    return false;
+  }
+
+  contextManagerState
+  .diagnostics[key] +=
+  Number(amount) || 0;
+
+  return true;
+
+}

@@ -78,104 +78,6 @@ async function parseResponse(
 
 
 // =====================================
-// ADMIN AUTHENTICATION
-// =====================================
-
-async function authenticate(
-  secret
-){
-
-  try{
-
-    if(
-      !secret
-    ){
-
-      throw new Error(
-        "ADMIN_SECRET_REQUIRED"
-      );
-
-    }
-
-    const response =
-    await fetch(
-      "/api/admin-login",
-      {
-
-        method:
-        "POST",
-
-        credentials:
-        "same-origin",
-
-        headers:{
-
-          "Content-Type":
-          "application/json"
-
-        },
-
-        body:
-        JSON.stringify({
-
-          secret
-
-        })
-
-      }
-    );
-
-    const result =
-    await parseResponse(
-      response
-    );
-
-    if(
-      !response.ok ||
-      !result.ok
-    ){
-
-      throw new Error(
-        result.error ||
-        "ADMIN_LOGIN_FAILED"
-      );
-
-    }
-
-    githubProviderState.authenticated =
-    true;
-
-    githubProviderState.lastError =
-    null;
-
-    return result;
-
-  }
-  catch(error){
-
-    githubProviderState.authenticated =
-    false;
-
-    githubProviderState.lastError =
-    error;
-
-    return {
-
-      ok:false,
-
-      error:
-      error?.message ||
-      String(error)
-
-    };
-
-  }
-
-}
-
-
-
-// =====================================
 // PROJECT SCAN
 // =====================================
 
@@ -473,6 +375,35 @@ async function moveFile(
 
 
 // =====================================
+// READ FILE
+// =====================================
+
+async function readFile(path){
+  try{
+    const response=await fetch(
+      "/api/admin-project-file?path=" + encodeURIComponent(String(path || "")),
+      { credentials:"same-origin", cache:"no-store" }
+    );
+    const result=await parseResponse(response);
+    if(response.status===401 || response.status===403){
+      githubProviderState.authenticated=false;
+    }
+    if(!response.ok || !result.ok){
+      throw new Error(result.error || "ADMIN_PROJECT_FILE_READ_FAILED");
+    }
+    githubProviderState.authenticated=true;
+    githubProviderState.lastResult=result;
+    githubProviderState.lastError=null;
+    return result;
+  }catch(error){
+    githubProviderState.lastError=error;
+    return {ok:false,error:error?.message || String(error)};
+  }
+}
+
+
+
+// =====================================
 // SNAPSHOT
 // =====================================
 
@@ -520,9 +451,10 @@ Object.freeze({
   id:
   "github-provider",
 
-  authenticate,
 
   scanProject,
+
+  readFile,
 
   createFile,
 
@@ -544,9 +476,10 @@ Object.freeze({
 
 export {
 
-  authenticate,
 
   scanProject,
+
+  readFile,
 
   createFile,
 

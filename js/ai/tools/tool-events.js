@@ -13,6 +13,9 @@ import {
 }
 from "./tool-utils.js";
 
+import ServiceManager
+from "../../services/service-manager.js";
+
 
 
 // =====================================
@@ -35,18 +38,19 @@ export async function emitToolEvent(
 
   }
 
-  if(
-    typeof emitSystemEvent !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
   try{
 
-    await emitSystemEvent(
+    const events =
+    await ServiceManager.resolve(
+      "events"
+    );
+
+    if(!events?.emit){
+      return false;
+    }
+
+    const emitted =
+    await events.emit(
 
       eventName,
 
@@ -64,7 +68,7 @@ export async function emitToolEvent(
 
     );
 
-    return true;
+    return Boolean(emitted);
 
   }
 

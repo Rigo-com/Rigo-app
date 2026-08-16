@@ -49,6 +49,13 @@ export async function cancelExecution(
   executionId
 ){
 
+  if(
+    !TOOL_EXECUTOR_CONFIG
+    .ENABLE_EXECUTION_CANCELLATION
+  ){
+    return false;
+  }
+
   const execution =
   toolExecutorState
   .activeExecutions
@@ -58,7 +65,39 @@ export async function cancelExecution(
 
   if(!execution){
 
-    return false;
+    const queueIndex =
+    toolExecutorState
+    .executionQueue
+    .findIndex((queued) => {
+      return queued.id === executionId;
+    });
+
+    if(queueIndex < 0){
+      return false;
+    }
+
+    const [queued] =
+    toolExecutorState
+    .executionQueue
+    .splice(queueIndex,1);
+
+    queued.state =
+    TOOL_EXECUTION_STATES.CANCELLED;
+
+    toolExecutorState
+    .diagnostics
+    .cancelled++;
+
+    await emitToolEvent(
+      TOOL_EVENTS.EXECUTION_CANCELLED,
+      {
+        executionId,
+        toolId:queued.toolId,
+        queued:true
+      }
+    );
+
+    return true;
 
   }
 
@@ -115,6 +154,15 @@ export function queueExecution(
   priority = 1
 ){
 
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_QUEUE){
+
+    return createStructuredError(
+      "QUEUE_DISABLED",
+      "Execution queue is disabled"
+    );
+
+  }
+
   if(
 
     toolExecutorState
@@ -137,6 +185,8 @@ export function queueExecution(
   }
 
   const duplicate =
+  TOOL_EXECUTOR_CONFIG.ENABLE_QUEUE_DEDUPLICATION
+  ?
   toolExecutorState
   .executionQueue
   .find((queued) => {
@@ -158,7 +208,8 @@ export function queueExecution(
 
     );
 
-  });
+  })
+  : null;
 
   if(duplicate){
 
@@ -209,16 +260,20 @@ export function queueExecution(
     queuedExecution
   );
 
-  toolExecutorState
-  .executionQueue
-  .sort((a,b) => {
+  if(TOOL_EXECUTOR_CONFIG.ENABLE_PRIORITY_QUEUE){
 
-    return (
-      b.priority -
-      a.priority
-    );
+    toolExecutorState
+    .executionQueue
+    .sort((a,b) => {
 
-  });
+      return (
+        b.priority -
+        a.priority
+      );
+
+    });
+
+  }
 
   toolExecutorState
   .diagnostics

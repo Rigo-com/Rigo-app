@@ -21,6 +21,10 @@ from "./workflow-executor.js";
 
 export async function resetWorkflowEngine(){
 
+  const executions = [
+    ...workflowEngineState.executions.values()
+  ];
+
   for(
     const workflowId
     of
@@ -34,6 +38,10 @@ export async function resetWorkflowEngine(){
 
   }
 
+  if(executions.length > 0){
+    await Promise.allSettled(executions);
+  }
+
   workflowEngineState
   .workflows
   .clear();
@@ -44,6 +52,10 @@ export async function resetWorkflowEngine(){
 
   workflowEngineState
   .executionLocks
+  .clear();
+
+  workflowEngineState
+  .executions
   .clear();
 
   workflowEngineState
@@ -66,41 +78,10 @@ export async function resetWorkflowEngine(){
   .failedWorkflows
   .clear();
 
-  workflowEngineState
-.diagnostics
-.created = 0;
-
-workflowEngineState
-.diagnostics
-.started = 0;
-
-workflowEngineState
-.diagnostics
-.completed = 0;
-
-workflowEngineState
-.diagnostics
-.failed = 0;
-
-workflowEngineState
-.diagnostics
-.terminated = 0;
-
-workflowEngineState
-.diagnostics
-.executedSteps = 0;
-
-workflowEngineState
-.diagnostics
-.retries = 0;
-
-workflowEngineState
-.diagnostics
-.queued = 0;
-
-workflowEngineState
-.diagnostics
-.rejected = 0;
+  Object.keys(workflowEngineState.diagnostics)
+  .forEach((key) => {
+    workflowEngineState.diagnostics[key] = 0;
+  });
 
   workflowEngineState
   .lastWorkflowAt =
@@ -159,9 +140,7 @@ export async function initializeWorkflowEngine(){
 
   }
 
-  workflowEngineState
-  .startupPromise =
-
+  const startupPromise =
   (async () => {
 
     if(
@@ -208,15 +187,19 @@ export async function initializeWorkflowEngine(){
       .initializing =
       false;
 
-      workflowEngineState
-      .startupPromise =
-      null;
-
     }
 
   })();
 
-  return workflowEngineState
-  .startupPromise;
+  workflowEngineState.startupPromise = startupPromise;
+
+  try{
+    return await startupPromise;
+  }
+  finally{
+    if(workflowEngineState.startupPromise === startupPromise){
+      workflowEngineState.startupPromise = null;
+    }
+  }
 
 }

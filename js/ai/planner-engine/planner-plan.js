@@ -4,7 +4,8 @@
 // =====================================
 
 import {
-  plannerEngineState
+  plannerEngineState,
+  incrementPlannerDiagnostic
 }
 from "./planner-state.js";
 
@@ -56,7 +57,6 @@ import {
 from "./planner-validator.js";
 
 
-
 // =====================================
 // PLAN OBJECT
 // =====================================
@@ -65,87 +65,113 @@ export function createPlanObject(
   config = {}
 ){
 
-  return {
+  const requestedTimeout =
+  Number(config.timeout);
 
+  const timeout =
+  Number.isFinite(requestedTimeout) &&
+  requestedTimeout > 0
+  ? Math.min(
+      Math.floor(requestedTimeout),
+      PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT
+    )
+  : PLANNER_ENGINE_CONFIG.PLAN_TIMEOUT;
+
+  return {
     id:
     normalizePlanId(
-
       config.id ||
       createPlannerId()
-
     ),
-
     goal:
     String(
       config.goal || ""
     ),
-
     description:
     String(
       config.description || ""
     ),
-
     priority:
     Number(
       config.priority
     ) || 1,
-
     retries:0,
-
+    timeout,
     state:
     PLAN_STATES.CREATED,
-
     strategy:
     String(
       config.strategy ||
-      "adaptive"
+      (
+        PLANNER_ENGINE_CONFIG.ENABLE_ADAPTIVE_STRATEGIES
+        ? "adaptive"
+        : "sequential"
+      )
     ),
-
     assignedAgent:
     config.assignedAgent ||
     null,
-
     selectedTools:
-
       Array.isArray(
         config.selectedTools
       )
-
-      ?
-
-      clonePlannerObject(
-        config.selectedTools
-      )
-
-      :
-
-      [],
-
+      ? clonePlannerObject(
+          config.selectedTools
+        )
+      : [],
     steps:[],
-
     context:
     clonePlannerObject(
       config.context || {}
     ),
-
     metadata:
     clonePlannerObject(
       config.metadata || {}
     ),
-
     runtime:
     createPlanRuntime(),
-
     createdAt:
     Date.now(),
-
     updatedAt:
     Date.now()
-
   };
 
 }
 
+
+async function assignStepExecutor(
+  step,
+  fallbackAgent
+){
+
+  const matchingTools =
+  PLANNER_ENGINE_CONFIG.ENABLE_TOOL_SELECTION
+  ? await selectToolsForGoal(step.objective)
+  : [];
+
+  if(matchingTools.length > 0){
+    return {
+      ...step,
+      assignedTool:
+      matchingTools[0],
+      assignedAgent:null,
+      state:
+      PLAN_STEP_STATES.READY
+    };
+  }
+
+  return {
+    ...step,
+    assignedTool:null,
+    assignedAgent:
+    PLANNER_ENGINE_CONFIG.ENABLE_AGENT_ASSIGNMENT
+    ? fallbackAgent || null
+    : null,
+    state:
+    PLAN_STEP_STATES.READY
+  };
+
+}
 
 
 // =====================================
@@ -160,28 +186,18 @@ export async function generateExecutionPlan(
     plannerEngineState
     .shuttingDown
   ){
-
     return false;
-
   }
 
   if(
-
     plannerEngineState
     .plans
     .size >=
-
     PLANNER_ENGINE_CONFIG
     .MAX_PLANS
-
   ){
-
-    plannerEngineState
-    .diagnostics
-    .rejected++;
-
+    incrementPlannerDiagnostic("rejected");
     return false;
-
   }
 
   if(
@@ -189,13 +205,8 @@ export async function generateExecutionPlan(
       config.context || {}
     )
   ){
-
-    plannerEngineState
-    .diagnostics
-    .rejected++;
-
+    incrementPlannerDiagnostic("rejected");
     return false;
-
   }
 
   const plan =
@@ -203,44 +214,54 @@ export async function generateExecutionPlan(
     config
   );
 
-  const steps =
-  decomposeGoal(
-    plan.goal
-  );
-
-  const tools =
-  await selectToolsForGoal(
-    plan.goal
-  );
+  const rawSteps =
+  (
+    PLANNER_ENGINE_CONFIG.ENABLE_DYNAMIC_PLANNING
+    ? decomposeGoal(plan.goal)
+    : clonePlannerObject(config.steps || [])
+      .slice(0,PLANNER_ENGINE_CONFIG.MAX_PLAN_STEPS)
+      .map((step,index) => ({
+        ...step,
+        id:step.id || createPlannerId(),
+        order:Number(step.order) || index + 1,
+        objective:String(step.objective || "").trim(),
+        state:PLAN_STEP_STATES.PENDING
+      }))
+  )
+  .filter(validatePlanStep);
 
   const assignedAgent =
-  await assignAgentToPlan();
+  PLANNER_ENGINE_CONFIG.ENABLE_AGENT_ASSIGNMENT
+  ? await assignAgentToPlan()
+  : null;
+
+  const steps = [];
+
+  for(
+    const step
+    of rawSteps
+  ){
+    steps.push(
+      await assignStepExecutor(
+        step,
+        assignedAgent
+      )
+    );
+  }
 
   plan.steps =
-  steps
-
-  .filter(validatePlanStep)
-
-  .map((step) => {
-
-    return {
-
-      ...step,
-
-      assignedTool:
-      tools[0] || null,
-
-      assignedAgent,
-
-      state:
-      PLAN_STEP_STATES.READY
-
-    };
-
-  });
+  steps;
 
   plan.selectedTools =
-  tools;
+  Array.from(
+    new Set(
+      steps
+      .map((step) => {
+        return step.assignedTool;
+      })
+      .filter(Boolean)
+    )
+  );
 
   plan.assignedAgent =
   assignedAgent;
@@ -255,28 +276,20 @@ export async function generateExecutionPlan(
     plan
   );
 
-  plannerEngineState
-  .diagnostics
-  .created++;
-
-  plannerEngineState
-  .diagnostics
-  .generated++;
+  incrementPlannerDiagnostic("created");
+  incrementPlannerDiagnostic("generated");
 
   plannerEngineState
   .lastPlanAt =
   Date.now();
 
   await emitPlannerEvent(
-
     PLAN_EVENTS
     .GENERATED,
-
     {
       planId:
       plan.id
     }
-
   );
 
   return freezePlannerObject(

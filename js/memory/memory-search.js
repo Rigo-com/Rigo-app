@@ -37,9 +37,15 @@ import {
 from "./memory-state.js";
 
 import {
-  MEMORY_LIMITS
+  MEMORY_LIMITS,
+  MEMORY_EVENTS
 }
 from "./memory-constants.js";
+
+import {
+  emit
+}
+from "./memory-events.js";
 
 
 
@@ -254,13 +260,30 @@ function searchMemories(
     MEMORY_LIMITS
     .MAX_SEARCH_RESULTS;
 
-  return getTopResults(
+  const results =
+  getTopResults(
 
     ranked,
 
     limit
 
+  )
+  .map((result) => {
+    return Object.freeze({
+      ...result.memory,
+      score:result.score
+    });
+  });
+
+  emit(
+    MEMORY_EVENTS.SEARCHED,
+    {
+      query:String(query),
+      results:results.length
+    }
   );
+
+  return results;
 
 }
 

@@ -110,7 +110,7 @@ function filterRankedResults(
 
   results = [],
 
-  minimumScore = 1
+  minimumScore = 0
 
 ){
 

@@ -57,6 +57,9 @@ Object.freeze({
   FAILED:
   "agent.failed",
 
+  RECOVERED:
+  "agent.recovered",
+
   TERMINATED:
   "agent.terminated"
 

@@ -33,6 +33,14 @@ export function createWorkflowSnapshot(){
     workflowEngineState
     .initialized,
 
+    initializing:
+    workflowEngineState
+    .initializing,
+
+    shuttingDown:
+    workflowEngineState
+    .shuttingDown,
+
     workflows:
     workflowEngineState
     .workflows
@@ -41,6 +49,11 @@ export function createWorkflowSnapshot(){
     activeWorkflows:
     workflowEngineState
     .activeWorkflows
+    .size,
+
+    executions:
+    workflowEngineState
+    .executions
     .size,
 
     completedWorkflows:
@@ -84,14 +97,26 @@ export function getWorkflowHealthReport(){
     workflowEngineState
     .initialized,
 
+    initializing:
+    workflowEngineState
+    .initializing,
+
+    shuttingDown:
+    workflowEngineState
+    .shuttingDown,
+
     healthy:
 
+      workflowEngineState.initialized === true &&
+      workflowEngineState.shuttingDown === false &&
       workflowEngineState
       .activeWorkflows
       .size <=
 
       WORKFLOW_ENGINE_CONFIG
-      .MAX_CONCURRENT_WORKFLOWS,
+      .MAX_CONCURRENT_WORKFLOWS &&
+      workflowEngineState.executionQueue.length <=
+      WORKFLOW_ENGINE_CONFIG.MAX_QUEUE_SIZE,
 
     workflows:
     workflowEngineState
@@ -101,6 +126,11 @@ export function getWorkflowHealthReport(){
     activeWorkflows:
     workflowEngineState
     .activeWorkflows
+    .size,
+
+    executions:
+    workflowEngineState
+    .executions
     .size,
 
     queue:
@@ -132,6 +162,14 @@ export function getWorkflowDiagnostics(){
     workflowEngineState
     .initialized,
 
+    initializing:
+    workflowEngineState
+    .initializing,
+
+    shuttingDown:
+    workflowEngineState
+    .shuttingDown,
+
     workflows:
     workflowEngineState
     .workflows
@@ -140,6 +178,11 @@ export function getWorkflowDiagnostics(){
     activeWorkflows:
     workflowEngineState
     .activeWorkflows
+    .size,
+
+    executions:
+    workflowEngineState
+    .executions
     .size,
 
     completedWorkflows:

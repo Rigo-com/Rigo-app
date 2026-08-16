@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+const calls=[];let scans=0;
+globalThis.fetch=async(url,options={})=>{calls.push({url:String(url),method:options.method||"GET",body:options.body||null});if(String(url)==="/api/admin-project-scan"){scans++;return new Response(JSON.stringify({ok:true,source:"test",owner:"Rigo-com",repo:"Rigo-app",branch:"ai-bootstrap-wiring",root:"js",raw:{files:[{name:"index.js",path:"js/index.js",size:20}],folders:[],imports:[],exports:[{file:"js/index.js",name:"API"}],systems:[{id:"root"}],services:[],routes:[],ui:[],ai:[],memory:[],debug:[],relationships:[],graph:{nodes:[{id:"js/index.js"}],edges:[]}}}),{status:200,headers:{"content-type":"application/json"}});}if(String(url)==="/api/admin-project-write"){return new Response(JSON.stringify({ok:true,action:"create-file",path:"js/e2e-test.js",branch:"ai-bootstrap-wiring",commit:{sha:"commit-e2e"}}),{status:200,headers:{"content-type":"application/json"}});}throw new Error("UNEXPECTED_FETCH:"+url);};
+const {default:Admin}=await import("../js/admin/index.js");
+assert.equal(await Admin.initialize(),true);assert.equal(await Admin.boot(),true);
+const pending=await Admin.command({type:"create-file",path:"js/e2e-test.js",content:"export default true;"});assert.equal(pending.ok,true);assert.equal(pending.status,"waiting-approval");const planId=pending.plan.id;
+const denied=await Admin.command({type:"execute-plan",planId});assert.equal(denied.ok,false);assert.equal(denied.error,"EXECUTION_PLAN_NOT_APPROVED");
+const approved=await Admin.command({type:"approve-plan",planId});assert.equal(approved.ok,true);
+const executed=await Admin.command({type:"execute-plan",planId});assert.equal(executed.ok,true);assert.equal(executed.plan.status,"completed");assert.equal(scans,2);assert.equal(calls.filter(call=>call.url==="/api/admin-project-write").length,1);
+const history=await Admin.command("execution history");assert.equal(history.ok,true);assert.equal(history.entries[0].planId,planId);assert.equal(history.entries[0].ok,true);
+const snapshot=Admin.snapshot();assert.equal(snapshot.state.running,true);assert.equal(snapshot.registry.modules.length,2);assert.equal(await Admin.shutdown(),true);console.log("Admin end-to-end runtime test passed");

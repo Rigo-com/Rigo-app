@@ -77,15 +77,18 @@ cleanupKernelRequests(){
         AI_KERNEL_CONFIG
         .STUCK_REQUEST_TIMEOUT
 
+        &&
+
+        !request.runtime
+        .controller
+        ?.signal
+        ?.aborted
+
       ){
 
         request.runtime
         .controller
         ?.abort();
-
-        aiKernelState
-        .activeRequests
-        .delete(id);
 
       }
 
@@ -107,11 +110,18 @@ export function
 startKernelCleanupLoop(){
 
   if(
+    !AI_KERNEL_CONFIG
+    .ENABLE_AUTO_REQUEST_CLEANUP
+  ){
+    return false;
+  }
+
+  if(
     aiKernelState
     .cleanupInterval
   ){
 
-    return;
+    return false;
 
   }
 
@@ -125,6 +135,8 @@ startKernelCleanupLoop(){
 
   AI_KERNEL_CONFIG
   .CLEANUP_INTERVAL);
+
+  return true;
 
 }
 
@@ -142,7 +154,7 @@ stopKernelCleanupLoop(){
     .cleanupInterval
   ){
 
-    return;
+    return false;
 
   }
 
@@ -156,5 +168,7 @@ stopKernelCleanupLoop(){
   aiKernelState
   .cleanupInterval =
   null;
+
+  return true;
 
 }

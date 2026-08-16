@@ -59,13 +59,18 @@ export function isCircuitBlocked(
   toolId
 ){
 
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_CIRCUIT_BREAKER){
+    return false;
+  }
+
   const breaker =
   getCircuitBreaker(
     toolId
   );
 
   if(
-
+    breaker.blockedUntil > 0
+    &&
     breaker.blockedUntil <=
     Date.now()
 
@@ -79,7 +84,10 @@ export function isCircuitBlocked(
 
   }
 
-  return true;
+  return (
+    breaker.blockedUntil >
+    Date.now()
+  );
 
 }
 
@@ -92,6 +100,10 @@ export function isCircuitBlocked(
 export function registerCircuitFailure(
   toolId
 ){
+
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_CIRCUIT_BREAKER){
+    return false;
+  }
 
   const breaker =
   getCircuitBreaker(
@@ -131,6 +143,11 @@ export function registerCircuitFailure(
 export function resetCircuitBreaker(
   toolId
 ){
+
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_CIRCUIT_BREAKER){
+    toolExecutorState.circuitBreakers.delete(toolId);
+    return false;
+  }
 
   const breaker =
   getCircuitBreaker(

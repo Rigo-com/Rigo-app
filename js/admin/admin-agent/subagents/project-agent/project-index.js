@@ -559,7 +559,7 @@ function queryProjectIndex(
     .files
     .filter(
       item =>
-      String(item)
+      JSON.stringify(item)
       .toLowerCase()
       .includes(
         keyword

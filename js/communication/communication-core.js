@@ -1,246 +1,54 @@
-// =====================================
-// RIGO AI
-// COMMUNICATION CORE
-// ORCHESTRATION LAYER
-// =====================================
-
-import {
-  COMMUNICATION_EVENTS
-}
-from "./communication-config.js";
-
-import {
-  emit
-}
-from "./communication-events.js";
-
-import {
-  CommunicationState
-}
-from "./communication-state.js";
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
+import { COMMUNICATION_EVENTS, COMMUNICATION_LIMITS } from "./communication-config.js";
+import { emit } from "./communication-events.js";
+import { CommunicationState } from "./communication-state.js";
 
 function initialize(){
-
-  if(
-    CommunicationState
-    .snapshot()
-    .initialized
-  ){
-    return true;
-  }
-
-  CommunicationState
-  .setInitialized(
-    true
-  );
-
-  emit(
-    COMMUNICATION_EVENTS
-    .INITIALIZED
-  );
-
+  if(CommunicationState.snapshot().initialized) return true;
+  CommunicationState.setInitialized(true);
+  CommunicationState.setHealthy(true);
+  emit(COMMUNICATION_EVENTS.INITIALIZED);
   return true;
-
 }
-
-
-
-// =====================================
-// DESTROY
-// =====================================
 
 function destroy(){
-
-  CommunicationState
-  .reset();
-
-  emit(
-    COMMUNICATION_EVENTS
-    .DESTROYED
-  );
-
+  emit(COMMUNICATION_EVENTS.DESTROYED);
+  CommunicationState.reset();
   return true;
-
 }
 
-
-
-// =====================================
-// REQUESTS
-// =====================================
-
-function startRequest(
-  requestId,
-  payload = {}
-){
-
-  CommunicationState
-  .registerRequest(
-    requestId,
-    payload
-  );
-
-  CommunicationState
-  .incrementRequests();
-
-  emit(
-
-    COMMUNICATION_EVENTS
-    .REQUEST_STARTED,
-
-    {
-
-      requestId,
-
-      payload
-
-    }
-
-  );
-
+function startRequest(requestId, payload = {}){
+  const state = CommunicationState.snapshot();
+  if(!requestId || state.activeRequests >= COMMUNICATION_LIMITS.MAX_ACTIVE_REQUESTS) return false;
+  if(!CommunicationState.registerRequest(requestId, payload)) return false;
+  CommunicationState.setProcessing(true);
+  CommunicationState.incrementRequests();
+  emit(COMMUNICATION_EVENTS.REQUEST_STARTED, { requestId, payload });
   return true;
-
 }
 
+function finishRequest(requestId){
+  const removed = CommunicationState.unregisterRequest(requestId);
+  CommunicationState.setProcessing(CommunicationState.snapshot().activeRequests > 0);
+  return removed;
+}
 
-
-function completeRequest(
-  requestId
-){
-
-  CommunicationState
-  .unregisterRequest(
-    requestId
-  );
-
-  CommunicationState
-  .incrementCompleted();
-
-  emit(
-
-    COMMUNICATION_EVENTS
-    .REQUEST_COMPLETED,
-
-    {
-
-      requestId
-
-    }
-
-  );
-
+function completeRequest(requestId){
+  if(!finishRequest(requestId)) return false;
+  CommunicationState.incrementCompleted();
+  CommunicationState.setHealthy(true);
+  emit(COMMUNICATION_EVENTS.REQUEST_COMPLETED, { requestId });
   return true;
-
 }
 
-
-
-function failRequest(
-  requestId,
-  error = null
-){
-
-  CommunicationState
-  .unregisterRequest(
-    requestId
-  );
-
-  CommunicationState
-  .incrementFailed();
-
-  emit(
-
-    COMMUNICATION_EVENTS
-    .REQUEST_FAILED,
-
-    {
-
-      requestId,
-
-      error
-
-    }
-
-  );
-
+function failRequest(requestId, error = null){
+  if(!finishRequest(requestId)) return false;
+  CommunicationState.incrementFailed();
+  CommunicationState.setHealthy(false);
+  emit(COMMUNICATION_EVENTS.REQUEST_FAILED, { requestId, error });
   return true;
-
 }
 
-
-
-// =====================================
-// HEALTH
-// =====================================
-
-function health(){
-
-  return Object.freeze({
-
-    ...CommunicationState
-    .snapshot(),
-
-    diagnostics:
-
-    CommunicationState
-    .diagnostics()
-
-  });
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const CommunicationCore =
-Object.freeze({
-
-  initialize,
-
-  destroy,
-
-  startRequest,
-
-  completeRequest,
-
-  failRequest,
-
-  health
-
-});
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  initialize,
-
-  destroy,
-
-  startRequest,
-
-  completeRequest,
-
-  failRequest,
-
-  health,
-
-  CommunicationCore
-
-};
-
-export default
-CommunicationCore;
+const health = () => Object.freeze({ ...CommunicationState.snapshot(), diagnostics:CommunicationState.diagnostics() });
+const CommunicationCore = Object.freeze({ initialize, destroy, startRequest, completeRequest, failRequest, health });
+export { initialize, destroy, startRequest, completeRequest, failRequest, health, CommunicationCore };
+export default CommunicationCore;

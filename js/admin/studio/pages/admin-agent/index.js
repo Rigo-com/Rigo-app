@@ -7,6 +7,8 @@ import {
 
   getAdminStatus,
 
+  getAdminViewData,
+
   executeAdminCommand
 
 }
@@ -59,6 +61,12 @@ Object.seal({
   null,
 
   messages:
+  [],
+
+  pendingChanges:
+  [],
+
+  executionHistory:
   [],
 
   admin:{
@@ -529,6 +537,10 @@ function render(){
 
   updateAdminStatus();
 
+  const viewData=getAdminViewData();
+  adminAgentPageState.pendingChanges=viewData.pendingChanges;
+  adminAgentPageState.executionHistory=viewData.executionHistory;
+
   container.innerHTML =
   renderLayout(
     adminAgentPageState
@@ -635,10 +647,9 @@ async function runCommand(
 ){
 
   const input =
-  String(
-    command || ""
-  )
-  .trim();
+  command && typeof command === "object"
+  ? command
+  : String(command || "").trim();
 
   if(
     !input ||
@@ -660,7 +671,7 @@ async function runCommand(
 
   addMessage(
     "user",
-    input
+    typeof input === "string" ? input : JSON.stringify(input)
   );
 
   render();
@@ -791,6 +802,9 @@ function reset(){
   adminAgentPageState.messages =
   [];
 
+  adminAgentPageState.pendingChanges=[];
+  adminAgentPageState.executionHistory=[];
+
   adminAgentPageState.admin = {
 
     available:
@@ -848,6 +862,12 @@ function snapshot(){
 
     messages:
     adminAgentPageState.messages.length,
+
+    pendingChanges:
+    adminAgentPageState.pendingChanges.length,
+
+    executionHistory:
+    adminAgentPageState.executionHistory.length,
 
     admin:{
 

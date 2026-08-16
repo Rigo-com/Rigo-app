@@ -298,13 +298,18 @@ async function resetModuleRuntime(){
 
   }
 
-  moduleRuntimeState
-  .resetting =
-  true;
-
   try{
 
+    const shutdown =
     await shutdownModuleRuntime();
+
+    if(!shutdown){
+      return false;
+    }
+
+    moduleRuntimeState
+    .resetting =
+    true;
 
     moduleRuntimeState
     .booted =
@@ -325,6 +330,10 @@ async function resetModuleRuntime(){
     moduleRuntimeState
     .stoppedAt =
     null;
+
+    moduleRuntimeState
+    .initialized =
+    false;
 
     return true;
 

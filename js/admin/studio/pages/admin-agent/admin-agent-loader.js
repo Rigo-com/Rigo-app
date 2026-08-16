@@ -312,6 +312,26 @@ async function ensureAdminReady(){
 // STATUS
 // =====================================
 
+function getAdminAgentSnapshot(){
+  const admin=getAdmin();
+  const agent=admin?.runtime?.registry?.get?.("admin-agent");
+  try{return typeof agent?.snapshot==="function"?agent.snapshot():{};}catch{return{};}
+}
+
+function getAdminViewData(){
+  const snapshot=getAdminAgentSnapshot();
+  return {
+    pendingChanges:snapshot?.execution?.pendingPlans||[],
+    executionHistory:snapshot?.execution?.runtime?.history?.latest||[]
+  };
+}
+
+
+
+// =====================================
+// STATUS
+// =====================================
+
 function getAdminStatus(){
 
   const admin =
@@ -373,13 +393,13 @@ async function executeAdminCommand(
 ){
 
   const command =
-  String(
-    input || ""
-  )
-  .trim();
+  input && typeof input === "object"
+  ? input
+  : String(input || "").trim();
 
   if(
-    !command
+    !command ||
+    (typeof command === "string" && !command)
   ){
 
     return failure(
@@ -451,6 +471,10 @@ Object.freeze({
 
   getAdminStatus,
 
+  getAdminAgentSnapshot,
+
+  getAdminViewData,
+
   executeAdminCommand
 
 });
@@ -468,6 +492,10 @@ export {
   ensureAdminReady,
 
   getAdminStatus,
+
+  getAdminAgentSnapshot,
+
+  getAdminViewData,
 
   executeAdminCommand,
 

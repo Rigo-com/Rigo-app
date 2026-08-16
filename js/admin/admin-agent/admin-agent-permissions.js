@@ -137,13 +137,13 @@ Object.seal({
   true,
 
   allowExecution:
-  false,
+  true,
 
   allowDeleteExecution:
-  false,
+  true,
 
   allowWriteExecution:
-  false
+  true
 
 });
 
