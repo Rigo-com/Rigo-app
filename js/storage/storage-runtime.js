@@ -1,506 +1,131 @@
-// =====================================
-// RIGO AI
-// STORAGE RUNTIME
-// ORCHESTRATION LAYER
-// =====================================
+import { STORAGE_EVENTS } from "./storage-config.js";
+import StorageState, { storageState } from "./storage-state.js";
+import StorageEngine from "./storage-engine.js";
+import StorageQueue from "./storage-queue.js";
 
-import {
-  STORAGE_EVENTS
-}
-from "./storage-config.js";
+const listeners = new Map();
 
-import {
-  setInitialized,
-  setLoading,
-  setSaving,
-  incrementLoads,
-  incrementSaves,
-  incrementFailures,
-  getStorageSnapshot,
-  getStorageDiagnostics,
-  resetStorageState
-}
-from "./storage-state.js";
-
-import {
-  saveItem,
-  loadItem,
-  removeItem,
-  clearStorage
-}
-from "./storage-engine.js";
-
-import {
-  enqueueOperation,
-  dequeueOperation,
-  isQueueEmpty
-}
-from "./storage-queue.js";
-
-
-
-// =====================================
-// EVENTS
-// =====================================
-
-const listeners =
-new Map();
-
-
-
-function emit(
-  eventName,
-  payload = null
-){
-
-  const handlers =
-
-    listeners.get(
-      eventName
-    );
-
-  if(
-    !handlers
-  ){
-    return true;
+function emit(eventName, payload = null){
+  for(const handler of listeners.get(eventName) || []){
+    try { handler(payload); } catch { /* listener isolation */ }
   }
-
-  for(
-    const handler
-    of handlers
-  ){
-
-    try{
-
-      handler(
-        payload
-      );
-
-    }
-
-    catch{}
-
-  }
-
   return true;
-
 }
 
-
-
-function on(
-  eventName,
-  callback
-){
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-    return false;
-  }
-
-  if(
-    !listeners.has(
-      eventName
-    )
-  ){
-
-    listeners.set(
-
-      eventName,
-
-      new Set()
-
-    );
-
-  }
-
-  listeners
-  .get(
-    eventName
-  )
-  .add(
-    callback
-  );
-
+function on(eventName, callback){
+  if(typeof eventName !== "string" || typeof callback !== "function") return false;
+  if(!listeners.has(eventName)) listeners.set(eventName, new Set());
+  listeners.get(eventName).add(callback);
   return true;
-
 }
 
+function off(eventName, callback){
+  const handlers = listeners.get(eventName);
+  if(!handlers) return false;
+  const removed = handlers.delete(callback);
+  if(!handlers.size) listeners.delete(eventName);
+  return removed;
+}
 
-
-// =====================================
-// INITIALIZE
-// =====================================
-
-function initialize(){
-
-  setInitialized(
-    true
-  );
-
-  emit(
-    STORAGE_EVENTS
-    .INITIALIZED
-  );
-
+async function initialize(){
+  if(storageState.initialized) return true;
+  StorageState.setInitialized(true);
+  StorageState.setHealthy(true);
+  emit(STORAGE_EVENTS.INITIALIZED);
   return true;
-
 }
 
+async function boot(){ return initialize(); }
 
-
-// =====================================
-// LOAD
-// =====================================
-
-function load(
-  key
-){
-
+function runOperation(kind, operation, successEvent, payload){
+  StorageState.incrementOperations();
+  if(kind === "load") StorageState.setLoading(true);
+  if(kind === "save") StorageState.setSaving(true);
   try{
-
-    setLoading(
-      true
-    );
-
-    const value =
-
-      loadItem(
-        key
-      );
-
-    incrementLoads();
-
-    emit(
-
-      STORAGE_EVENTS
-      .LOADED,
-
-      {
-        key
-      }
-
-    );
-
-    return value;
-
-  }
-
-  catch{
-
-    incrementFailures();
-
-    return null;
-
-  }
-
-  finally{
-
-    setLoading(
-      false
-    );
-
-  }
-
-}
-
-
-
-// =====================================
-// SAVE
-// =====================================
-
-function save(
-  key,
-  value
-){
-
-  try{
-
-    setSaving(
-      true
-    );
-
-    const result =
-
-      saveItem(
-
-        key,
-
-        value
-
-      );
-
-    if(
-      result
-    ){
-
-      incrementSaves();
-
-      emit(
-
-        STORAGE_EVENTS
-        .SAVED,
-
-        {
-          key
-        }
-
-      );
-
+    const result = operation();
+    const succeeded = kind === "load" ? true : Boolean(result);
+    if(!succeeded){
+      StorageState.incrementFailures();
+      StorageState.setHealthy(false);
+      emit(STORAGE_EVENTS.FAILED, payload);
+      return result;
     }
-
+    StorageState.setHealthy(true);
+    if(kind === "load") StorageState.incrementLoads();
+    if(kind === "save") StorageState.incrementSaves();
+    if(kind === "remove") StorageState.incrementRemovals();
+    if(kind === "clear") StorageState.incrementClears();
+    emit(successEvent, payload);
     return result;
-
   }
-
-  catch{
-
-    incrementFailures();
-
-    return false;
-
+  catch(error){
+    StorageState.incrementFailures();
+    StorageState.setHealthy(false);
+    emit(STORAGE_EVENTS.FAILED, { ...payload, error:String(error?.message || error) });
+    return kind === "load" ? null : false;
   }
-
   finally{
-
-    setSaving(
-      false
-    );
-
+    if(kind === "load") StorageState.setLoading(false);
+    if(kind === "save") StorageState.setSaving(false);
+    StorageState.decrementOperations();
   }
-
 }
 
-
-
-// =====================================
-// REMOVE
-// =====================================
-
-function remove(
-  key
-){
-
-  const result =
-
-    removeItem(
-      key
-    );
-
-  if(
-    result
-  ){
-
-    emit(
-
-      STORAGE_EVENTS
-      .REMOVED,
-
-      {
-        key
-      }
-
-    );
-
-  }
-
-  return result;
-
-}
-
-
-
-// =====================================
-// CLEAR
-// =====================================
-
-function clear(){
-
-  const result =
-  clearStorage();
-
-  if(
-    result
-  ){
-
-    emit(
-      STORAGE_EVENTS
-      .CLEARED
-    );
-
-  }
-
-  return result;
-
-}
-
-
-
-// =====================================
-// QUEUE
-// =====================================
-
-function queueSave(
-  key,
-  value
-){
-
-  return enqueueOperation({
-
-    type:"save",
-
-    key,
-
-    value
-
-  });
-
-}
-
-
+const load = key => runOperation("load", () => StorageEngine.loadItem(key), STORAGE_EVENTS.LOADED, { key });
+const save = (key, value) => runOperation("save", () => StorageEngine.saveItem(key, value), STORAGE_EVENTS.SAVED, { key });
+const remove = key => runOperation("remove", () => StorageEngine.removeItem(key), STORAGE_EVENTS.REMOVED, { key });
+const clear = () => runOperation("clear", () => StorageEngine.clearStorage(), STORAGE_EVENTS.CLEARED, null);
+const queueSave = (key, value) => StorageQueue.enqueueOperation({ type:"save", key, value });
 
 function flushQueue(){
-
-  while(
-
-    !isQueueEmpty()
-
-  ){
-
-    const operation =
-
-      dequeueOperation();
-
-    if(
-      !operation
-    ){
-      continue;
+  if(storageState.flushing) return false;
+  StorageState.setFlushing(true);
+  try{
+    const pending = StorageQueue.getQueueSize();
+    let succeeded = true;
+    for(let index = 0; index < pending; index++){
+      const operation = StorageQueue.dequeueOperation();
+      if(!operation) continue;
+      if(operation.type !== "save" || !save(operation.key, operation.value)){
+        StorageQueue.enqueueOperation(operation);
+        succeeded = false;
+      }
     }
-
-    if(
-      operation.type ===
-      "save"
-    ){
-
-      save(
-
-        operation.key,
-
-        operation.value
-
-      );
-
-    }
-
+    return succeeded;
   }
-
-  return true;
-
+  finally { StorageState.setFlushing(false); }
 }
 
-
-
-// =====================================
-// HEALTH
-// =====================================
-
-function health(){
-
+function snapshot(){
   return Object.freeze({
-
-    ...getStorageSnapshot(),
-
-    diagnostics:
-    getStorageDiagnostics()
-
+    ...StorageState.snapshot(),
+    diagnostics:StorageState.diagnostics(),
+    queue:StorageQueue.getQueueStats(),
+    engine:StorageEngine.getEngineStats(),
+    listeners:[...listeners.values()].reduce((count, handlers) => count + handlers.size, 0),
+    timestamp:Date.now()
   });
-
 }
 
+const health = snapshot;
 
-
-// =====================================
-// RESET
-// =====================================
-
-function destroy(){
-
-  resetStorageState();
-
-  emit(
-    STORAGE_EVENTS
-    .DESTROYED
-  );
-
+async function shutdown(){
+  if(storageState.initialized) flushQueue();
+  emit(STORAGE_EVENTS.DESTROYED);
+  listeners.clear();
+  StorageQueue.clearQueue();
+  StorageState.reset();
   return true;
-
 }
 
+async function reset(){ return shutdown(); }
+const destroy = shutdown;
 
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const StorageRuntime =
-Object.freeze({
-
-  on,
-
-  initialize,
-
-  load,
-
-  save,
-
-  remove,
-
-  clear,
-
-  queueSave,
-
-  flushQueue,
-
-  health,
-
-  destroy
-
+const StorageRuntime = Object.freeze({
+  id:"storage", priority:10,
+  on, off, initialize, boot, load, save, remove, clear, queueSave, flushQueue,
+  health, snapshot, shutdown, reset, destroy
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  on,
-
-  initialize,
-
-  load,
-
-  save,
-
-  remove,
-
-  clear,
-
-  queueSave,
-
-  flushQueue,
-
-  health,
-
-  destroy,
-
-  StorageRuntime
-
-};
-
-export default
-StorageRuntime;
+export { listeners, emit, on, off, initialize, boot, load, save, remove, clear, queueSave, flushQueue, health, snapshot, shutdown, reset, destroy, StorageRuntime };
+export default StorageRuntime;
