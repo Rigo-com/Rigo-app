@@ -4,7 +4,8 @@
 // =====================================
 
 import {
-  workflowEngineState
+  workflowEngineState,
+  incrementWorkflowDiagnostic
 }
 from "./workflow-state.js";
 
@@ -111,9 +112,7 @@ export async function registerWorkflow(
     workflow
   );
 
-  workflowEngineState
-  .diagnostics
-  .created++;
+  incrementWorkflowDiagnostic("created");
 
   workflowEngineState
   .lastWorkflowAt =

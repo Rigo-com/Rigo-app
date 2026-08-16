@@ -79,6 +79,8 @@ jobs:
           const workflowQueue = read('js/ai/workflow-engine/workflow-queue.js');
           const workflowPersistence = read('js/ai/workflow-engine/workflow-persistence.js');
           const workflowIndex = read('js/ai/workflow-engine/index.js');
+          const workflowState = read('js/ai/workflow-engine/workflow-state.js');
+          const workflowDiagnostics = read('js/ai/workflow-engine/workflow-diagnostics.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -183,6 +185,12 @@ jobs:
           assert.match(workflowPersistence, /ServiceManager\.resolve\s*\(\s*["']memory["']\s*\)/, 'Workflow persistence must resolve memory through ServiceManager');
           assert.match(workflow, /ENABLE_RECOVERY/, 'Workflow recovery flag must control runtime recovery');
           assert.match(workflowIndex, /recoverWorkflow/, 'Workflow recovery must be exposed by the public API');
+          assert.match(workflowState, /ENABLE_DIAGNOSTICS/, 'Workflow diagnostics flag must control metric collection');
+          assert.match(workflowState, /incrementWorkflowDiagnostic/, 'Workflow diagnostics must use a central increment helper');
+          assert.doesNotMatch(workflow, /\.diagnostics\s*\.\w+\+\+/, 'Workflow executor must not bypass the diagnostics flag');
+          assert.doesNotMatch(workflowDefinition, /\.diagnostics\s*\.\w+\+\+/, 'Workflow definition must not bypass the diagnostics flag');
+          assert.match(workflowDiagnostics, /shuttingDown/, 'Workflow health must expose shutdown state');
+          assert.match(workflowDiagnostics, /executions/, 'Workflow diagnostics must expose tracked executions');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -2732,6 +2740,11 @@ jobs:
           import {
             workflowEngineState
           } from './js/ai/workflow-engine/workflow-state.js';
+          import {
+            createWorkflowSnapshot,
+            getWorkflowHealthReport,
+            getWorkflowDiagnostics
+          } from './js/ai/workflow-engine/workflow-diagnostics.js';
 
           const persistedWorkflows = [];
 
@@ -2786,6 +2799,9 @@ jobs:
             .get('workflow-lifecycle-test'),
             execution
           );
+          assert.equal(createWorkflowSnapshot().executions,1);
+          assert.equal(getWorkflowDiagnostics().activeWorkflows,1);
+          assert.equal(getWorkflowHealthReport().healthy,true);
 
           await shutdownWorkflowEngine();
 
@@ -2794,11 +2810,14 @@ jobs:
           assert.equal(workflowEngineState.workflows.size,0);
           assert.equal(workflowEngineState.initialized,false);
           assert.equal(workflowEngineState.diagnostics.failed,0);
+          assert.equal(getWorkflowHealthReport().healthy,false);
+          assert.equal(getWorkflowHealthReport().shuttingDown,true);
 
           await initializeWorkflowEngine();
           assert.equal(workflowEngineState.shuttingDown,false);
           assert.equal(workflowEngineState.initialized,true);
           assert.equal(workflowEngineState.startupPromise,null);
+          assert.equal(getWorkflowHealthReport().healthy,true);
 
           const executedParallelSteps = [];
 

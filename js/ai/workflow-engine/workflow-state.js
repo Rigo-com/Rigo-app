@@ -3,6 +3,11 @@
 // WORKFLOW STATE
 // =====================================
 
+import {
+  WORKFLOW_ENGINE_CONFIG
+}
+from "./workflow-config.js";
+
 export const workflowEngineState =
 Object.seal({
 
@@ -66,3 +71,29 @@ Object.seal({
   lastWorkflowAt:null
 
 });
+
+
+export function incrementWorkflowDiagnostic(
+  key,
+  amount = 1
+){
+
+  if(!WORKFLOW_ENGINE_CONFIG.ENABLE_DIAGNOSTICS){
+    return false;
+  }
+
+  if(
+    !Object.prototype.hasOwnProperty.call(
+      workflowEngineState.diagnostics,
+      key
+    )
+  ){
+    return false;
+  }
+
+  workflowEngineState.diagnostics[key] +=
+  Number(amount) || 0;
+
+  return true;
+
+}

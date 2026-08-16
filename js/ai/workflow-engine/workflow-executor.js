@@ -16,7 +16,8 @@ import {
 from "./workflow-constants.js";
 
 import {
-  workflowEngineState
+  workflowEngineState,
+  incrementWorkflowDiagnostic
 }
 from "./workflow-state.js";
 
@@ -323,9 +324,7 @@ export async function executeWorkflowStep(
       step.retries =
       attempts - 1;
 
-      workflowEngineState
-      .diagnostics
-      .executedSteps++;
+      incrementWorkflowDiagnostic("executedSteps");
 
       await emitWorkflowEvent(
         WORKFLOW_EVENTS
@@ -376,9 +375,7 @@ export async function executeWorkflowStep(
 
       }
 
-      workflowEngineState
-      .diagnostics
-      .retries++;
+      incrementWorkflowDiagnostic("retries");
 
       await delayWorkflowExecution(
         WORKFLOW_ENGINE_CONFIG
@@ -482,9 +479,7 @@ async function executeWorkflowRuntime(
       context
     )
   ){
-    workflowEngineState
-    .diagnostics
-    .rejected++;
+    incrementWorkflowDiagnostic("rejected");
     return false;
   }
 
@@ -522,7 +517,7 @@ async function executeWorkflowRuntime(
   ){
 
     if(!WORKFLOW_ENGINE_CONFIG.ENABLE_QUEUE){
-      workflowEngineState.diagnostics.rejected++;
+      incrementWorkflowDiagnostic("rejected");
       return false;
     }
 
@@ -533,9 +528,7 @@ async function executeWorkflowRuntime(
       WORKFLOW_ENGINE_CONFIG
       .MAX_QUEUE_SIZE
     ){
-      workflowEngineState
-      .diagnostics
-      .rejected++;
+      incrementWorkflowDiagnostic("rejected");
       return false;
     }
 
@@ -561,9 +554,7 @@ async function executeWorkflowRuntime(
       context
     });
 
-    workflowEngineState
-    .diagnostics
-    .queued++;
+    incrementWorkflowDiagnostic("queued");
 
     return {
       queued:true
@@ -602,9 +593,7 @@ async function executeWorkflowRuntime(
     workflow
   );
 
-  workflowEngineState
-  .diagnostics
-  .started++;
+  incrementWorkflowDiagnostic("started");
 
   await emitWorkflowEvent(
     WORKFLOW_EVENTS
@@ -738,9 +727,7 @@ async function executeWorkflowRuntime(
 
     trimWorkflowHistory();
 
-    workflowEngineState
-    .diagnostics
-    .completed++;
+    incrementWorkflowDiagnostic("completed");
 
     await emitWorkflowEvent(
       WORKFLOW_EVENTS
@@ -788,7 +775,7 @@ async function executeWorkflowRuntime(
     trimWorkflowHistory();
 
     if(!terminated){
-      workflowEngineState.diagnostics.failed++;
+      incrementWorkflowDiagnostic("failed");
     }
 
     await emitWorkflowEvent(
@@ -963,9 +950,7 @@ export async function terminateWorkflow(
 
   removeQueuedWorkflow(normalizedId);
 
-  workflowEngineState
-  .diagnostics
-  .terminated++;
+  incrementWorkflowDiagnostic("terminated");
 
   await emitWorkflowEvent(
     WORKFLOW_EVENTS
