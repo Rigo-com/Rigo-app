@@ -132,13 +132,32 @@ function getContextHealthReport(){
     .initialized,
 
     healthy:
-
+      contextManagerState.initialized &&
+      !contextManagerState.initializing &&
+      !contextManagerState.shuttingDown &&
       contextManagerState
       .contexts
       .size <=
 
       CONTEXT_MANAGER_CONFIG
-      .MAX_CONTEXTS,
+      .MAX_CONTEXTS &&
+      contextManagerState.sessions.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_SESSION_CONTEXTS &&
+      contextManagerState.runtimeContexts.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_RUNTIME_CONTEXTS &&
+      contextManagerState.indexes.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_INDEX_SIZE &&
+      contextManagerState.retrievalCache.size <=
+      CONTEXT_MANAGER_CONFIG.MAX_CACHE_ITEMS,
+
+    initializing:
+    contextManagerState.initializing,
+
+    shuttingDown:
+    contextManagerState.shuttingDown,
+
+    operationActive:
+    Boolean(contextManagerState.activeOperation),
 
     contexts:
 

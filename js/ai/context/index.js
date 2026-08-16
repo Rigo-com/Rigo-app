@@ -41,6 +41,11 @@ import {
 }
 from "./context-diagnostics.js";
 
+import {
+  injectContext
+}
+from "./context-injection.js";
+
 
 
 export const ContextManager =
@@ -72,6 +77,9 @@ Object.freeze({
 
   buildWindow:
   buildContextWindow,
+
+  inject:
+  injectContext,
 
   diagnostics:
   getContextDiagnostics,

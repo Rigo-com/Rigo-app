@@ -46,6 +46,10 @@ from "./context-indexer.js";
 
 export async function acquireContextLock(){
 
+  if(contextManagerState.shuttingDown){
+    return false;
+  }
+
   while(
     contextManagerState
     .operationLock
@@ -59,9 +63,25 @@ export async function acquireContextLock(){
 
   }
 
+  if(contextManagerState.shuttingDown){
+    return false;
+  }
+
   contextManagerState
   .operationLock =
   true;
+
+  let releaseOperation;
+
+  contextManagerState.activeOperation =
+  new Promise((resolve) => {
+    releaseOperation = resolve;
+  });
+
+  contextManagerState.activeOperation.resolve =
+  releaseOperation;
+
+  return true;
 
 }
 
@@ -72,6 +92,9 @@ export function releaseContextLock(){
   contextManagerState
   .operationLock =
   false;
+
+  contextManagerState.activeOperation?.resolve?.();
+  contextManagerState.activeOperation = null;
 
 }
 
@@ -415,7 +438,9 @@ export async function registerContext(
   config = {}
 ){
 
-  await acquireContextLock();
+  if(!await acquireContextLock()){
+    return false;
+  }
 
   try{
 
@@ -577,7 +602,9 @@ export async function updateContext(
   updates = {}
 ){
 
-  await acquireContextLock();
+  if(!await acquireContextLock()){
+    return false;
+  }
 
   try{
 
@@ -801,7 +828,9 @@ export async function removeContext(
   options = {}
 ){
 
-  await acquireContextLock();
+  if(!await acquireContextLock()){
+    return false;
+  }
 
   try{
 

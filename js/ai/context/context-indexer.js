@@ -176,6 +176,21 @@ export function indexContext(
 
   });
 
+  while(
+    contextManagerState.indexes.size >
+    CONTEXT_MANAGER_CONFIG.MAX_INDEX_SIZE
+  ){
+    const oldestToken =
+    contextManagerState.indexes.keys().next().value;
+
+    contextManagerState.indexes.delete(oldestToken);
+
+    contextManagerState.contextTokens
+    .forEach((trackedTokens) => {
+      trackedTokens.delete(oldestToken);
+    });
+  }
+
   incrementContextDiagnostic(
     "indexed"
   );

@@ -21,6 +21,8 @@ Object.seal({
 
   operationLock:false,
 
+  activeOperation:null,
+
   contexts:
   new Map(),
 
