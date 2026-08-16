@@ -43,7 +43,9 @@ import {
 from "./planner-registry.js";
 
 import {
-  drainPlannerQueue
+  drainPlannerQueue,
+  enqueuePlan,
+  removeQueuedPlan
 }
 from "./planner-queue.js";
 
@@ -324,29 +326,14 @@ export async function executePlan(
     .MAX_PARALLEL_PLANS
   ){
 
-    if(
-      !plannerEngineState
-      .queuedPlans
-      .has(normalizedId)
-    ){
+    const queued =
+    enqueuePlan(normalizedId);
 
-      plannerEngineState
-      .queuedPlans
-      .add(normalizedId);
-
-      plannerEngineState
-      .executionQueue
-      .push(normalizedId);
-
+    if(!queued.queued){
+      plannerEngineState.diagnostics.rejected++;
     }
 
-    plannerEngineState
-    .diagnostics
-    .queued++;
-
-    return {
-      queued:true
-    };
+    return queued;
 
   }
 
@@ -584,6 +571,8 @@ export async function terminatePlan(
   plannerEngineState
   .queuedPlans
   .delete(normalizedId);
+
+  removeQueuedPlan(normalizedId);
 
   plannerEngineState
   .executionLocks

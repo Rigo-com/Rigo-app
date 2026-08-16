@@ -71,6 +71,8 @@ jobs:
           const toolIndex = read('js/ai/tools/tool-index.js');
           const toolLifecycle = read('js/ai/tools/tool-lifecycle.js');
           const toolReset = read('js/ai/tools/tool-reset.js');
+          const plannerQueue = read('js/ai/planner-engine/planner-queue.js');
+          const plannerRegistry = read('js/ai/planner-engine/planner-registry.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -148,6 +150,10 @@ jobs:
           assert.match(toolLifecycle, /await queueProcessor/, 'Tool shutdown must await the queue processor');
           assert.match(toolLifecycle, /startupPromise ===/, 'Tool startup promise must be cleared after initialization');
           assert.doesNotMatch(toolReset, /\.processing\s*=\s*false/, 'Tool reset must not detach a running queue processor');
+          assert.match(plannerQueue, /ENABLE_PLAN_QUEUE/, 'Planner queue flag must control queue admission');
+          assert.match(plannerQueue, /MAX_QUEUE_SIZE/, 'Planner queue must enforce its size limit');
+          assert.match(planner, /removeQueuedPlan/, 'Planner termination must remove queued plan entries');
+          assert.match(plannerRegistry, /executionQueue\s*=/, 'Planner removal must clean the execution queue');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -1326,6 +1332,127 @@ jobs:
 
           console.log(
             'Tool lifecycle reset and restart checks passed.'
+          );
+          EOF
+
+      - name: Verify planner queue runtime controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:PlannerEngine} =
+          await import('./js/ai/planner-engine/index.js');
+          const {plannerEngineState} =
+          await import('./js/ai/planner-engine/planner-state.js');
+          const {PLANNER_ENGINE_CONFIG} =
+          await import('./js/ai/planner-engine/planner-config.js');
+          const {drainPlannerQueue} =
+          await import('./js/ai/planner-engine/planner-queue.js');
+
+          const createPlan = id => ({
+            id,
+            state:'planned',
+            steps:[],
+            runtime:{
+              running:false,
+              controller:null,
+              startedAt:null,
+              completedAt:null,
+              terminatedAt:null
+            }
+          });
+
+          const queuedPlan = createPlan('queued-plan');
+          plannerEngineState.plans.set(queuedPlan.id,queuedPlan);
+
+          for(
+            let index=0;
+            index<PLANNER_ENGINE_CONFIG.MAX_PARALLEL_PLANS;
+            index++
+          ){
+            plannerEngineState.activePlans.add(`active-${index}`);
+          }
+
+          assert.deepEqual(
+            await PlannerEngine.execute(queuedPlan.id),
+            {queued:true,position:1}
+          );
+          assert.deepEqual(
+            await PlannerEngine.execute(queuedPlan.id),
+            {queued:true,duplicate:true}
+          );
+          assert.equal(plannerEngineState.diagnostics.queued,1);
+          assert.equal(plannerEngineState.executionQueue.length,1);
+
+          assert.equal(
+            await PlannerEngine.terminate(queuedPlan.id),
+            true
+          );
+          assert.equal(
+            plannerEngineState.queuedPlans.has(queuedPlan.id),
+            false
+          );
+          assert.equal(
+            plannerEngineState.executionQueue.includes(queuedPlan.id),
+            false
+          );
+
+          const drainPlan = createPlan('drain-plan');
+          plannerEngineState.plans.set(drainPlan.id,drainPlan);
+
+          assert.equal(
+            (await PlannerEngine.execute(drainPlan.id)).queued,
+            true
+          );
+
+          plannerEngineState.activePlans.clear();
+
+          let drainedId = null;
+
+          assert.equal(
+            await drainPlannerQueue(async id => {
+              drainedId = id;
+            }),
+            true
+          );
+          assert.equal(drainedId,drainPlan.id);
+          assert.equal(
+            plannerEngineState.queuedPlans.has(drainPlan.id),
+            false
+          );
+          assert.equal(plannerEngineState.executionQueue.length,0);
+
+          for(
+            let index=0;
+            index<PLANNER_ENGINE_CONFIG.MAX_QUEUE_SIZE;
+            index++
+          ){
+            plannerEngineState.executionQueue.push(`full-${index}`);
+            plannerEngineState.queuedPlans.add(`full-${index}`);
+          }
+          for(
+            let index=0;
+            index<PLANNER_ENGINE_CONFIG.MAX_PARALLEL_PLANS;
+            index++
+          ){
+            plannerEngineState.activePlans.add(`busy-${index}`);
+          }
+
+          const overflowPlan = createPlan('overflow-plan');
+          plannerEngineState.plans.set(overflowPlan.id,overflowPlan);
+
+          assert.deepEqual(
+            await PlannerEngine.execute(overflowPlan.id),
+            {queued:false,error:'PLAN_QUEUE_FULL'}
+          );
+          assert.equal(plannerEngineState.diagnostics.rejected,1);
+
+          await PlannerEngine.reset();
+
+          console.log(
+            'Planner queue runtime control checks passed.'
           );
           EOF
 

@@ -97,6 +97,12 @@ export async function removePlan(
     normalizedId
   );
 
+  plannerEngineState.executionQueue =
+  plannerEngineState.executionQueue
+  .filter((queuedPlanId) => {
+    return queuedPlanId !== normalizedId;
+  });
+
   plannerEngineState
   .activePlans
   .delete(
