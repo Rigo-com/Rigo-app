@@ -16,9 +16,9 @@ import ServiceManager from "../../services/service-manager.js";
 
 const SearchModule = Object.freeze({
   ...Search,
-  initialize:async() => Search.core.initialize(),
-  shutdown:async() => Search.core.destroy(),
-  snapshot:() => Search.health.getHealthReport()
+  initialize:async() => Search.initialize(),
+  shutdown:async() => Search.shutdown(),
+  snapshot:() => Search.snapshot()
 });
 
 const CommunicationModule = Object.freeze({

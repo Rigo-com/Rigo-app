@@ -1,300 +1,58 @@
-// =====================================
-// RIGO AI
-// SEARCH CORE
-// ORCHESTRATION LAYER
-// =====================================
-
-import {
-  SEARCH_EVENTS
-}
-from "./search-config.js";
-
-import {
-  emit
-}
-from "./search-events.js";
-
-import {
-  SearchState
-}
-from "./search-state.js";
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
+import { SEARCH_EVENTS } from "./search-config.js";
+import { emit } from "./search-events.js";
+import { SearchState } from "./search-state.js";
 
 function initialize(){
-
-  if(
-    SearchState
-    .snapshot()
-    .initialized
-  ){
-    return true;
-  }
-
-  SearchState
-  .setInitialized(
-    true
-  );
-
-  emit(
-    SEARCH_EVENTS
-    .INITIALIZED
-  );
-
+  if(SearchState.snapshot().initialized) return true;
+  SearchState.setInitialized(true);
+  SearchState.setHealthy(true);
+  emit(SEARCH_EVENTS.INITIALIZED);
   return true;
-
 }
-
-
-
-// =====================================
-// DESTROY
-// =====================================
 
 function destroy(){
-
-  SearchState
-  .reset();
-
-  emit(
-    SEARCH_EVENTS
-    .DESTROYED
-  );
-
+  emit(SEARCH_EVENTS.DESTROYED);
+  SearchState.reset();
   return true;
-
 }
 
-
-
-// =====================================
-// SEARCH START
-// =====================================
-
-function startSearch(
-  query = ""
-){
-
-  SearchState
-  .setSearching(
-    true
-  );
-
-  SearchState
-  .incrementActiveSearches();
-
-  SearchState
-  .incrementSearches();
-
-  emit(
-
-    SEARCH_EVENTS
-    .SEARCH_STARTED,
-
-    {
-      query
-    }
-
-  );
-
+function startSearch(query = ""){
+  SearchState.incrementActiveSearches();
+  SearchState.setSearching(true);
+  SearchState.incrementSearches();
+  emit(SEARCH_EVENTS.SEARCH_STARTED, { query });
   return true;
-
 }
 
+function finishSearch(){
+  SearchState.decrementActiveSearches();
+  SearchState.setSearching(SearchState.snapshot().activeSearches > 0);
+}
 
-
-// =====================================
-// SEARCH COMPLETE
-// =====================================
-
-function completeSearch(
-  query = "",
-  results = []
-){
-
-  SearchState
-  .setSearching(
-    false
-  );
-
-  SearchState
-  .decrementActiveSearches();
-
-  SearchState
-  .incrementCompleted();
-
-  emit(
-
-    SEARCH_EVENTS
-    .SEARCH_COMPLETED,
-
-    {
-
-      query,
-
-      results
-
-    }
-
-  );
-
+function completeSearch(query = "", results = []){
+  finishSearch();
+  SearchState.incrementCompleted();
+  SearchState.setHealthy(true);
+  emit(SEARCH_EVENTS.SEARCH_COMPLETED, { query, results });
   return true;
-
 }
 
-
-
-// =====================================
-// SEARCH FAILED
-// =====================================
-
-function failSearch(
-  query = "",
-  error = null
-){
-
-  SearchState
-  .setSearching(
-    false
-  );
-
-  SearchState
-  .decrementActiveSearches();
-
-  SearchState
-  .incrementFailed();
-
-  emit(
-
-    SEARCH_EVENTS
-    .SEARCH_FAILED,
-
-    {
-
-      query,
-
-      error
-
-    }
-
-  );
-
+function failSearch(query = "", error = null){
+  finishSearch();
+  SearchState.incrementFailed();
+  SearchState.setHealthy(false);
+  emit(SEARCH_EVENTS.SEARCH_FAILED, { query, error });
   return true;
-
 }
 
-
-
-// =====================================
-// SEARCH ABORTED
-// =====================================
-
-function abortSearch(
-  query = ""
-){
-
-  SearchState
-  .setSearching(
-    false
-  );
-
-  SearchState
-  .decrementActiveSearches();
-
-  SearchState
-  .incrementAborted();
-
-  emit(
-
-    SEARCH_EVENTS
-    .SEARCH_ABORTED,
-
-    {
-      query
-    }
-
-  );
-
+function abortSearch(query = ""){
+  finishSearch();
+  SearchState.incrementAborted();
+  emit(SEARCH_EVENTS.SEARCH_ABORTED, { query });
   return true;
-
 }
 
-
-
-// =====================================
-// HEALTH
-// =====================================
-
-function health(){
-
-  return Object.freeze({
-
-    ...SearchState
-    .snapshot(),
-
-    diagnostics:
-
-    SearchState
-    .diagnostics()
-
-  });
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const SearchCore =
-Object.freeze({
-
-  initialize,
-
-  destroy,
-
-  startSearch,
-
-  completeSearch,
-
-  failSearch,
-
-  abortSearch,
-
-  health
-
-});
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  initialize,
-
-  destroy,
-
-  startSearch,
-
-  completeSearch,
-
-  failSearch,
-
-  abortSearch,
-
-  health,
-
-  SearchCore
-
-};
-
-export default
-SearchCore;
+const health = () => Object.freeze({ ...SearchState.snapshot(), diagnostics:SearchState.diagnostics() });
+const SearchCore = Object.freeze({ initialize, destroy, startSearch, completeSearch, failSearch, abortSearch, health });
+export { initialize, destroy, startSearch, completeSearch, failSearch, abortSearch, health, SearchCore };
+export default SearchCore;
