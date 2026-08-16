@@ -21,4 +21,6 @@ jobs:
       - run: node --check api/admin-project-scan.js
       - run: node --check api/admin-project-write.js
       - run: node --check js/admin/admin-agent/admin-agent.js
+      - run: node --check js/admin/studio/pages/dashboard/dashboard-loader.js
       - run: node tests/admin-runtime.test.mjs
+      - run: node tests/admin-project-scanner.test.mjs
