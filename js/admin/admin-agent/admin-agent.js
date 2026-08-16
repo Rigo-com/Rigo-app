@@ -21,6 +21,9 @@ from "./subagents/architecture-agent/index.js";
 import DebugAgent
 from "./subagents/debug-agent/index.js";
 
+import GitAgent
+from "./subagents/git-agent/index.js";
+
 import GitHubProvider
 from "./subagents/project-agent/providers/github-provider.js";
 
@@ -1271,6 +1274,9 @@ async function handleCodeCommand(
   if(normalized === "debug report" || normalized === "تقرير الاخطاء" || normalized === "تقرير الأخطاء")return DebugAgent.report();
   if(normalized === "diagnose system" || normalized === "شخص النظام")return DebugAgent.capture();
   if(normalized === "list errors" || normalized === "اعرض الاخطاء" || normalized === "اعرض الأخطاء")return DebugAgent.errors();
+  if(normalized === "git status" || normalized === "حالة git")return GitAgent.status();
+  if(normalized === "git diff" || normalized === "تغييرات git")return GitAgent.diff();
+  if(normalized === "git commits" || normalized === "سجل git")return GitAgent.commits();
 
   return null;
 
@@ -1436,6 +1442,12 @@ async function command(
 
       "list errors",
 
+      "git status",
+
+      "git diff",
+
+      "git commits",
+
       "read file js/path/file.js",
 
       "analyze file js/path/file.js",
@@ -1510,7 +1522,10 @@ function snapshot(){
       ArchitectureAgent.snapshot(),
 
       debug:
-      DebugAgent.snapshot()
+      DebugAgent.snapshot(),
+
+      git:
+      GitAgent.snapshot()
 
     }
 
