@@ -76,6 +76,7 @@ jobs:
           const plannerState = read('js/ai/planner-engine/planner-state.js');
           const plannerDecomposition = read('js/ai/planner-engine/planner-decomposition.js');
           const plannerLifecycle = read('js/ai/planner-engine/planner-lifecycle.js');
+          const workflowQueue = read('js/ai/workflow-engine/workflow-queue.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -171,6 +172,11 @@ jobs:
           assert.match(planner, /ServiceManager\.resolve\s*\(\s*["']memory["']\s*\)/, 'Planner memory must resolve through ServiceManager');
           assert.match(planner, /ENABLE_RUNTIME_SYNC/, 'Planner runtime sync flag must control runtime metadata');
           assert.match(plannerLifecycle, /Promise\.allSettled\s*\(\s*executions\s*\)/, 'Planner reset must await active executions');
+          assert.match(workflow, /ENABLE_RETRIES/, 'Workflow retry flag must control retry attempts');
+          assert.match(workflow, /ENABLE_PARALLEL_EXECUTION/, 'Workflow parallel flag must control parallel execution');
+          assert.match(workflow, /MAX_PARALLEL_STEPS/, 'Workflow parallel execution must enforce a concurrency bound');
+          assert.match(workflow, /ENABLE_QUEUE/, 'Workflow queue flag must control queue admission');
+          assert.match(workflowQueue, /ENABLE_QUEUE/, 'Workflow queue drain must respect the queue flag');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -2770,6 +2776,53 @@ jobs:
           assert.equal(workflowEngineState.shuttingDown,false);
           assert.equal(workflowEngineState.initialized,true);
           assert.equal(workflowEngineState.startupPromise,null);
+
+          const executedParallelSteps = [];
+
+          await registerWorkflow({
+            id:'workflow-parallel-limit-test',
+            steps:Array.from({length:12},(_,index) => ({
+              id:`parallel-${index}`,
+              parallel:true,
+              execute:async () => {
+                executedParallelSteps.push(index);
+                return index;
+              }
+            }))
+          });
+
+          assert.equal(
+            await executeWorkflow('workflow-parallel-limit-test'),
+            true
+          );
+          assert.equal(executedParallelSteps.length,12);
+          assert.equal(
+            getWorkflow('workflow-parallel-limit-test').steps.length,
+            12
+          );
+
+          let retryAttempts = 0;
+
+          await registerWorkflow({
+            id:'workflow-retry-test',
+            steps:[{
+              id:'retry-step',
+              execute:async () => {
+                retryAttempts++;
+                throw new Error('EXPECTED RETRY FAILURE');
+              }
+            }]
+          });
+
+          assert.equal(await executeWorkflow('workflow-retry-test'),false);
+          assert.equal(retryAttempts,3);
+          assert.equal(
+            getWorkflow('workflow-retry-test').steps[0].retries,
+            3
+          );
+          assert.equal(workflowEngineState.diagnostics.retries,2);
+
+          await shutdownWorkflowEngine();
 
           console.log('Workflow custom step and lifecycle checks passed.');
           EOF

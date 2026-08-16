@@ -269,10 +269,14 @@ export async function executeWorkflowStep(
 
   let attempts = 0;
 
+  const maximumAttempts =
+  WORKFLOW_ENGINE_CONFIG.ENABLE_RETRIES
+  ? Math.max(1,WORKFLOW_ENGINE_CONFIG.MAX_RETRIES)
+  : 1;
+
   while(
     attempts <
-    WORKFLOW_ENGINE_CONFIG
-    .MAX_RETRIES
+    maximumAttempts
   ){
 
     attempts++;
@@ -334,14 +338,9 @@ export async function executeWorkflowStep(
     }
     catch(error){
 
-      workflowEngineState
-      .diagnostics
-      .retries++;
-
       if(
         attempts >=
-        WORKFLOW_ENGINE_CONFIG
-        .MAX_RETRIES
+        maximumAttempts
       ){
 
         step.state =
@@ -372,6 +371,10 @@ export async function executeWorkflowStep(
 
       }
 
+      workflowEngineState
+      .diagnostics
+      .retries++;
+
       await delayWorkflowExecution(
         WORKFLOW_ENGINE_CONFIG
         .RETRY_DELAY
@@ -394,22 +397,55 @@ export async function executeParallelSteps(
   context = {}
 ){
 
-  const limitedSteps =
-  steps.slice(
-    0,
-    WORKFLOW_ENGINE_CONFIG
-    .MAX_PARALLEL_STEPS
+  if(!WORKFLOW_ENGINE_CONFIG.ENABLE_PARALLEL_EXECUTION){
+    const results = [];
+    for(const step of steps){
+      results.push(
+        await executeWorkflowStep(workflow,step,context)
+      );
+    }
+    return results;
+  }
+
+  const results = [];
+  const batchSize = Math.max(
+    1,
+    WORKFLOW_ENGINE_CONFIG.MAX_PARALLEL_STEPS
   );
 
-  return Promise.all(
-    limitedSteps.map((step) => {
-      return executeWorkflowStep(
-        workflow,
-        step,
-        context
-      );
-    })
+  for(let index = 0;index < steps.length;index += batchSize){
+    const batch = steps.slice(index,index + batchSize);
+    results.push(
+      ...await Promise.all(
+        batch.map((step) => {
+          return executeWorkflowStep(workflow,step,context);
+        })
+      )
+    );
+  }
+
+  return results;
+
+}
+
+
+function recordWorkflowStepResult(
+  workflow,
+  result
+){
+
+  const stepIndex = workflow.steps.findIndex(
+    (step) => step.id === result.id
   );
+
+  if(stepIndex < 0){
+    return false;
+  }
+
+  workflow.steps[stepIndex] = result;
+  updateWorkflowTimestamp(workflow);
+
+  return true;
 
 }
 
@@ -479,6 +515,11 @@ async function executeWorkflowRuntime(
     WORKFLOW_ENGINE_CONFIG
     .MAX_CONCURRENT_WORKFLOWS
   ){
+
+    if(!WORKFLOW_ENGINE_CONFIG.ENABLE_QUEUE){
+      workflowEngineState.diagnostics.rejected++;
+      return false;
+    }
 
     if(
       workflowEngineState
@@ -596,6 +637,10 @@ async function executeWorkflowRuntime(
         ...results
       );
 
+      results.forEach((result) => {
+        recordWorkflowStepResult(workflow,result);
+      });
+
       const parallelFailure =
       results.find((result) => {
         return (
@@ -642,6 +687,8 @@ async function executeWorkflowRuntime(
 
       completedSteps.push(result);
 
+      recordWorkflowStepResult(workflow,result);
+
       if(
         result.state !==
         WORKFLOW_STEP_STATES
@@ -657,9 +704,6 @@ async function executeWorkflowRuntime(
       }
 
     }
-
-    workflow.steps =
-    completedSteps;
 
     workflow.state =
     WORKFLOW_STATES

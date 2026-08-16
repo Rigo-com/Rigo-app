@@ -23,7 +23,10 @@ export function drainWorkflowQueue(
   executor
 ){
 
-  if(workflowEngineState.shuttingDown){
+  if(
+    workflowEngineState.shuttingDown ||
+    !WORKFLOW_ENGINE_CONFIG.ENABLE_QUEUE
+  ){
     return false;
   }
 
