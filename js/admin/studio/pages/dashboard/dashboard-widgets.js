@@ -261,6 +261,10 @@ function renderDashboardStyles(){
         box-sizing:border-box;
       }
 
+      .rigo-dashboard-mobile-control{
+        display:none;
+      }
+
       .rigo-dashboard-main{
         min-width:0;
         min-height:0;
@@ -1108,7 +1112,233 @@ function renderDashboardStyles(){
       @media(max-width:680px){
 
         .rigo-dashboard-page{
-          padding:13px;
+          min-height:100%;
+          padding:12px 12px 20px;
+          overflow-y:auto;
+          -webkit-overflow-scrolling:touch;
+        }
+
+        .rigo-dashboard-header,
+        .rigo-dashboard-footer,
+        .rigo-dashboard-content{
+          display:none;
+        }
+
+        .rigo-dashboard-mobile-control{
+          display:flex;
+          flex-direction:column;
+          gap:12px;
+        }
+
+        .rigo-mobile-control-card{
+          overflow:hidden;
+          border:1px solid rgba(94,126,163,.25);
+          border-radius:16px;
+          background:linear-gradient(145deg,rgba(11,27,47,.98),rgba(6,17,31,.98));
+          box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 12px 30px rgba(0,0,0,.18);
+        }
+
+        .rigo-mobile-health{
+          display:grid;
+          grid-template-columns:118px minmax(0,1fr);
+          align-items:center;
+          gap:12px;
+          padding:16px;
+        }
+
+        .rigo-mobile-health-ring{
+          --health-score:100;
+          width:106px;
+          height:106px;
+          display:grid;
+          place-items:center;
+          border-radius:50%;
+          background:conic-gradient(var(--rigo-primary) calc(var(--health-score) * 1%),rgba(72,93,119,.22) 0);
+          box-shadow:0 0 24px rgba(0,230,157,.12);
+        }
+
+        .rigo-mobile-health-ring::before{
+          content:"";
+          grid-area:1 / 1;
+          width:84px;
+          height:84px;
+          border-radius:50%;
+          background:#071321;
+        }
+
+        .rigo-mobile-health-score{
+          z-index:1;
+          grid-area:1 / 1;
+          text-align:center;
+        }
+
+        .rigo-mobile-health-score strong{
+          display:block;
+          font-size:29px;
+          line-height:1;
+        }
+
+        .rigo-mobile-health-score span{
+          display:block;
+          margin-top:4px;
+          color:#9fb0c4;
+          font-size:9px;
+        }
+
+        .rigo-mobile-health-copy h2{
+          margin:0 0 9px;
+          font-size:18px;
+        }
+
+        .rigo-mobile-health-copy p{
+          margin:0 0 10px;
+          color:#aebccd;
+          font-size:11px;
+          line-height:1.45;
+        }
+
+        .rigo-mobile-health-line{
+          display:flex;
+          align-items:center;
+          gap:7px;
+          margin-top:7px;
+          color:#d8e0ea;
+          font-size:10px;
+        }
+
+        .rigo-mobile-health-line i{
+          width:7px;
+          height:7px;
+          border-radius:50%;
+          background:var(--rigo-primary);
+          box-shadow:0 0 8px rgba(0,230,157,.35);
+        }
+
+        .rigo-mobile-section-title{
+          margin:2px 2px -2px;
+          color:#e7edf5;
+          font-size:13px;
+          font-weight:800;
+        }
+
+        .rigo-mobile-quick-actions{
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:7px;
+        }
+
+        .rigo-mobile-quick-action{
+          min-width:0;
+          min-height:72px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          gap:7px;
+          padding:8px 3px;
+          border:1px solid rgba(94,126,163,.22);
+          border-radius:13px;
+          color:#e7edf5;
+          background:linear-gradient(180deg,rgba(13,31,51,.96),rgba(7,20,35,.96));
+          font:700 9px/1.2 inherit;
+          text-align:center;
+          text-decoration:none;
+        }
+
+        .rigo-mobile-quick-action span{
+          color:var(--action-color,var(--rigo-primary));
+          font-size:24px;
+          line-height:1;
+        }
+
+        .rigo-mobile-status-list{
+          padding:0 14px;
+        }
+
+        .rigo-mobile-status-item{
+          min-height:54px;
+          display:grid;
+          grid-template-columns:28px minmax(0,1fr) auto;
+          align-items:center;
+          gap:10px;
+          border-bottom:1px solid rgba(94,126,163,.14);
+        }
+
+        .rigo-mobile-status-item:last-child{
+          border-bottom:0;
+        }
+
+        .rigo-mobile-status-icon{
+          color:var(--status-color,var(--rigo-primary));
+          font-size:19px;
+          text-align:center;
+        }
+
+        .rigo-mobile-status-copy strong{
+          display:block;
+          font-size:12px;
+        }
+
+        .rigo-mobile-status-copy small{
+          display:block;
+          margin-top:2px;
+          overflow:hidden;
+          color:#8fa0b5;
+          font-size:9px;
+          text-overflow:ellipsis;
+          white-space:nowrap;
+        }
+
+        .rigo-mobile-status-result{
+          max-width:94px;
+          overflow:hidden;
+          color:var(--rigo-primary);
+          font-size:10px;
+          font-weight:800;
+          text-overflow:ellipsis;
+          white-space:nowrap;
+        }
+
+        .rigo-mobile-status-result.danger{
+          color:var(--rigo-red);
+        }
+
+        .rigo-mobile-metrics{
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:7px;
+        }
+
+        .rigo-mobile-metric{
+          min-width:0;
+          padding:12px 8px;
+          border:1px solid rgba(94,126,163,.18);
+          border-radius:12px;
+          background:rgba(8,22,38,.82);
+        }
+
+        .rigo-mobile-metric strong{
+          display:block;
+          overflow:hidden;
+          font-size:18px;
+          text-overflow:ellipsis;
+        }
+
+        .rigo-mobile-metric span{
+          display:block;
+          margin-top:4px;
+          color:#93a4b8;
+          font-size:8px;
+        }
+
+        .rigo-mobile-primary-action{
+          width:100%;
+          min-height:48px;
+          border:1px solid rgba(0,230,157,.35);
+          border-radius:13px;
+          color:#02130d;
+          background:linear-gradient(135deg,#20e6a0,#00bc78);
+          font:800 13px/1 inherit;
         }
 
         .rigo-dashboard-header h1{
@@ -1780,6 +2010,79 @@ function createDebugWidget(
 
 
 
+function renderMobileControlCenter(
+  data = {}
+){
+
+  const debug = data.debug || {};
+  const runtimeErrors = Number(debug.runtimeErrors || 0) + Number(debug.consoleErrors || 0);
+  const github = data.github || {};
+  const memory = data.memory || {};
+  const healthScore = Math.max(0,100 - Math.min(60,runtimeErrors * 12) - (github.connected ? 0 : 12) - (memory.available ? 0 : 8));
+  const healthLabel = healthScore >= 90 ? "Excellent" : healthScore >= 75 ? "Stable" : "Needs attention";
+
+  return `
+    <div class="rigo-dashboard-mobile-control">
+
+      <section class="rigo-mobile-control-card rigo-mobile-health">
+        <div class="rigo-mobile-health-ring" style="--health-score:${healthScore}">
+          <div class="rigo-mobile-health-score">
+            <strong>${healthScore}</strong>
+            <span>${escapeHTML(healthLabel)}</span>
+          </div>
+        </div>
+        <div class="rigo-mobile-health-copy">
+          <h2>System Health</h2>
+          <p>Live project, memory, provider, and runtime overview.</p>
+          <div class="rigo-mobile-health-line"><i></i><span>${runtimeErrors ? `${runtimeErrors} runtime errors` : "Runtime clear"}</span></div>
+          <div class="rigo-mobile-health-line"><i></i><span>${memory.available ? "Memory available" : "Memory unavailable"}</span></div>
+        </div>
+      </section>
+
+      <div class="rigo-mobile-section-title">Quick Actions</div>
+      <div class="rigo-mobile-quick-actions">
+        <button type="button" class="rigo-mobile-quick-action" data-dashboard-action="scan-project"><span>⌕</span>Scan</button>
+        <a class="rigo-mobile-quick-action" href="#studio/admin-agent" style="--action-color:var(--rigo-purple)"><span>✦</span>Agents</a>
+        <a class="rigo-mobile-quick-action" href="#studio/debug" style="--action-color:var(--rigo-red)"><span>⌁</span>Debug</a>
+        <button type="button" class="rigo-mobile-quick-action" data-dashboard-action="refresh" style="--action-color:var(--rigo-blue)"><span>↻</span>Refresh</button>
+      </div>
+
+      <div class="rigo-mobile-section-title">Status</div>
+      <section class="rigo-mobile-control-card rigo-mobile-status-list">
+        <div class="rigo-mobile-status-item">
+          <span class="rigo-mobile-status-icon" style="--status-color:#f8fafc">●</span>
+          <div class="rigo-mobile-status-copy"><strong>GitHub</strong><small>${escapeHTML(github.repository || github.repo || "Repository provider")}</small></div>
+          <span class="rigo-mobile-status-result ${github.connected ? "" : "danger"}">${github.connected ? "Connected" : formatStatus(github.status)}</span>
+        </div>
+        <div class="rigo-mobile-status-item">
+          <span class="rigo-mobile-status-icon" style="--status-color:var(--rigo-cyan)">◉</span>
+          <div class="rigo-mobile-status-copy"><strong>Memory</strong><small>Memory subsystem</small></div>
+          <span class="rigo-mobile-status-result ${memory.available ? "" : "danger"}">${memory.available ? "Available" : "Unavailable"}</span>
+        </div>
+        <div class="rigo-mobile-status-item">
+          <span class="rigo-mobile-status-icon" style="--status-color:var(--rigo-red)">⌁</span>
+          <div class="rigo-mobile-status-copy"><strong>Debug</strong><small>Runtime and console</small></div>
+          <span class="rigo-mobile-status-result ${runtimeErrors ? "danger" : ""}">${runtimeErrors} errors</span>
+        </div>
+      </section>
+
+      <div class="rigo-mobile-section-title">Project</div>
+      <div class="rigo-mobile-metrics">
+        <div class="rigo-mobile-metric"><strong>${formatNumber(data.files)}</strong><span>Files</span></div>
+        <div class="rigo-mobile-metric"><strong>${formatNumber(data.folders)}</strong><span>Folders</span></div>
+        <div class="rigo-mobile-metric"><strong>${formatNumber(data.systems)}</strong><span>Systems</span></div>
+        <div class="rigo-mobile-metric"><strong>${formatNumber(data.agents)}</strong><span>Agents</span></div>
+      </div>
+
+      <button type="button" class="rigo-mobile-primary-action" data-dashboard-action="scan-project">Scan Project</button>
+
+    </div>
+  `;
+
+}
+
+
+
 // =====================================
 // RENDER
 // =====================================
@@ -1790,6 +2093,8 @@ function renderWidgets(
 
   return `
     ${renderDashboardStyles()}
+
+    ${renderMobileControlCenter(data)}
 
     <div class="rigo-dashboard-content">
 
