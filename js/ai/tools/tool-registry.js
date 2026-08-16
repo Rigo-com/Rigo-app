@@ -306,6 +306,20 @@ export async function removeTool(
     normalizedId
   );
 
+  toolExecutorState
+  .disabledTools
+  .delete(normalizedId);
+
+  toolExecutorState
+  .circuitBreakers
+  .delete(normalizedId);
+
+  for(const cacheKey of toolExecutorState.permissionCache.keys()){
+    if(cacheKey.startsWith(`${normalizedId}::`)){
+      toolExecutorState.permissionCache.delete(cacheKey);
+    }
+  }
+
   return toolExecutorState
   .tools
   .delete(

@@ -27,7 +27,8 @@ import {
   createStructuredError,
   createExecutionId,
   delayExecution,
-  trimExecutionHistory
+  trimExecutionHistory,
+  trimPermissionCache
 }
 from "./tool-utils.js";
 
@@ -152,6 +153,67 @@ export async function executeWithTimeout(
 // EXECUTE TOOL
 // =====================================
 
+const TRUSTED_TOOL_SOURCES =
+new Set([
+  "rigo-main-assistant",
+  "planner-engine",
+  "workflow-engine"
+]);
+
+
+export function validateToolPermissions(
+  tool,
+  context = {}
+){
+
+  if(!tool.permissions?.length){
+    return true;
+  }
+
+  const source =
+  String(context.source || "external")
+  .trim()
+  .toLowerCase();
+
+  const granted =
+  Array.isArray(context.permissions)
+  ? [...new Set(
+      context.permissions.map((permission) => {
+        return String(permission).trim().toLowerCase();
+      })
+    )].sort()
+  : [];
+
+  const cacheKey = [
+    tool.id,
+    source,
+    granted.join(",")
+  ].join("::");
+
+  if(
+    TOOL_EXECUTOR_CONFIG.ENABLE_PERMISSION_CACHE &&
+    toolExecutorState.permissionCache.has(cacheKey)
+  ){
+    return toolExecutorState.permissionCache.get(cacheKey);
+  }
+
+  const allowed =
+  TRUSTED_TOOL_SOURCES.has(source) ||
+  tool.permissions.every((permission) => {
+    return granted.includes(
+      String(permission).trim().toLowerCase()
+    );
+  });
+
+  if(TOOL_EXECUTOR_CONFIG.ENABLE_PERMISSION_CACHE){
+    toolExecutorState.permissionCache.set(cacheKey,allowed);
+    trimPermissionCache();
+  }
+
+  return allowed;
+
+}
+
 export async function executeTool(
   toolId,
   payload = {},
@@ -173,6 +235,20 @@ export async function executeTool(
     return createStructuredError(
       "TOOL_NOT_FOUND",
       "Tool does not exist"
+    );
+
+  }
+
+  if(!validateToolPermissions(tool,context)){
+
+    toolExecutorState
+    .diagnostics
+    .rejected++;
+
+    return createStructuredError(
+      "PERMISSION_DENIED",
+      "Tool permissions were not granted",
+      {toolId:normalizedId}
     );
 
   }
@@ -305,6 +381,16 @@ export async function executeTool(
 
   let attempts = 0;
 
+  const sandboxedExecution =
+  TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_SANDBOX &&
+  tool.sandboxed;
+
+  if(sandboxedExecution){
+    toolExecutorState
+    .diagnostics
+    .sandboxed++;
+  }
+
   const maximumAttempts =
   TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_RETRIES
   ? tool.retries
@@ -353,14 +439,14 @@ export async function executeTool(
           return tool.execute({
 
             payload:
-            cloneToolObject(
-              payload
-            ),
+            sandboxedExecution
+            ? cloneToolObject(payload)
+            : payload,
 
             context:
-            cloneToolObject(
-              context
-            ),
+            sandboxedExecution
+            ? cloneToolObject(context)
+            : context,
 
             signal:
             controller

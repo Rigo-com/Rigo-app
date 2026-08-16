@@ -9,6 +9,11 @@ import {
 from "./tool-state.js";
 
 import {
+  TOOL_EXECUTOR_CONFIG
+}
+from "./tool-config.js";
+
+import {
   normalizeToolName,
   cloneToolObject,
   freezeToolObject
@@ -24,6 +29,10 @@ from "./tool-utils.js";
 export function indexTool(
   tool
 ){
+
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_INDEXING){
+    return false;
+  }
 
   const tokens = [
 
@@ -111,6 +120,10 @@ export function searchTools(
   query = ""
 ){
 
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_SEARCH){
+    return freezeToolObject([]);
+  }
+
   const normalized =
   normalizeToolName(
     query
@@ -119,7 +132,28 @@ export function searchTools(
   const matchedIds =
   new Set();
 
-  normalized
+  if(!TOOL_EXECUTOR_CONFIG.ENABLE_TOOL_INDEXING){
+
+    toolExecutorState.tools
+    .forEach((tool,id) => {
+
+      const searchable = [
+        tool.id,
+        tool.name,
+        tool.description
+      ]
+      .join(" ")
+      .toLowerCase();
+
+      if(searchable.includes(normalized)){
+        matchedIds.add(id);
+      }
+
+    });
+
+  }
+
+  else normalized
   .split(/\s+/)
   .forEach((token) => {
 

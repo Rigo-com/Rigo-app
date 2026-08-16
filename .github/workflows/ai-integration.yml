@@ -68,6 +68,7 @@ jobs:
           const toolRegistry = read('js/ai/tools/tool-registry.js');
           const toolUtils = read('js/ai/tools/tool-utils.js');
           const toolCircuitBreaker = read('js/ai/tools/tool-circuit-breaker.js');
+          const toolIndex = read('js/ai/tools/tool-index.js');
           const bootstrapSetup = read('js/bootstrap/bootstrap-setup.js');
           const runtimeBootSequence = read('js/core/runtime/runtime-boot-sequence.js');
           const home = read('home.html');
@@ -138,6 +139,10 @@ jobs:
           assert.match(toolExecutor, /ENABLE_EXECUTION_HISTORY/, 'Execution history flag must control history writes');
           assert.match(toolExecutor, /ENABLE_RUNTIME_METADATA/, 'Runtime metadata flag must control tool counters');
           assert.match(toolRegistry, /ENABLE_TOOL_DISABLE/, 'Tool disable flag must control enable and disable operations');
+          assert.match(toolIndex, /ENABLE_TOOL_SEARCH/, 'Tool search flag must control search results');
+          assert.match(toolIndex, /ENABLE_TOOL_INDEXING/, 'Tool indexing flag must control index writes');
+          assert.match(toolExecutor, /ENABLE_PERMISSION_CACHE/, 'Permission cache flag must control cached decisions');
+          assert.match(toolExecutor, /ENABLE_TOOL_SANDBOX/, 'Tool sandbox flag must control input isolation');
 
           console.log('RIGO AI architecture wiring checks passed.');
           EOF
@@ -1105,6 +1110,113 @@ jobs:
 
           console.log(
             'Tool circuit and runtime metadata checks passed.'
+          );
+          EOF
+
+      - name: Verify tool search permissions and sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+
+          const {default:ToolExecutor} =
+          await import('./js/ai/tools/index.js');
+          const {toolExecutorState} =
+          await import('./js/ai/tools/tool-state.js');
+
+          let calls = 0;
+
+          await ToolExecutor.register({
+            id:'secure-weather',
+            name:'Secure Weather',
+            description:'live weather forecast',
+            permissions:['network','location'],
+            sandboxed:true,
+            retries:1,
+            execute:async ({payload,context}) => {
+              calls++;
+              payload.nested.value = 'changed';
+              context.source = 'changed';
+              return 'ok';
+            }
+          });
+
+          const found = ToolExecutor.search('weather');
+
+          assert.equal(found.length,1);
+          assert.equal(found[0].id,'secure-weather');
+          assert.equal(Object.isFrozen(found[0].runtime),true);
+          assert.equal(
+            Object.isFrozen(
+              toolExecutorState.tools.get('secure-weather').runtime
+            ),
+            false
+          );
+
+          const denied = await ToolExecutor.execute(
+            'secure-weather',
+            {nested:{value:'original'}},
+            {
+              source:'external',
+              permissions:['network']
+            }
+          );
+
+          assert.equal(denied.error.code,'PERMISSION_DENIED');
+          assert.equal(calls,0);
+          assert.equal(toolExecutorState.permissionCache.size,1);
+
+          await ToolExecutor.execute(
+            'secure-weather',
+            {nested:{value:'original'}},
+            {
+              source:'external',
+              permissions:['network']
+            }
+          );
+
+          assert.equal(toolExecutorState.permissionCache.size,1);
+
+          const payload = {nested:{value:'original'}};
+          const context = {
+            source:'external',
+            permissions:['location','network']
+          };
+          const allowed = await ToolExecutor.execute(
+            'secure-weather',
+            payload,
+            context
+          );
+
+          assert.equal(allowed.success,true);
+          assert.equal(payload.nested.value,'original');
+          assert.equal(context.source,'external');
+          assert.equal(toolExecutorState.diagnostics.sandboxed,1);
+          assert.equal(toolExecutorState.permissionCache.size,2);
+
+          const trustedPayload = {nested:{value:'trusted'}};
+          const trusted = await ToolExecutor.execute(
+            'secure-weather',
+            trustedPayload,
+            {source:'planner-engine'}
+          );
+
+          assert.equal(trusted.success,true);
+          assert.equal(trustedPayload.nested.value,'trusted');
+          assert.equal(toolExecutorState.permissionCache.size,3);
+
+          assert.equal(
+            await ToolExecutor.remove('secure-weather'),
+            true
+          );
+          assert.equal(toolExecutorState.permissionCache.size,0);
+          assert.equal(ToolExecutor.search('weather').length,0);
+
+          await ToolExecutor.reset();
+
+          console.log(
+            'Tool search permission and sandbox checks passed.'
           );
           EOF
 
