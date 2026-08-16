@@ -3,8 +3,9 @@ import { renderPendingChanges } from "../js/admin/studio/pages/admin-agent/admin
 const plan={id:"PLAN-1",title:"Update app",risk:{level:"high"},approval:{approved:false},graph:{nodes:{one:{payload:{path:"js/app.js"}}}}};
 const html=renderPendingChanges([plan],[{planId:"OLD"}]);
 assert.match(html,/Pending Changes/);assert.match(html,/PLAN-1/);assert.match(html,/js\/app\.js/);assert.match(html,/data-admin-plan-action="approve"/);assert.match(html,/History \(1\)/);
-globalThis.window={Admin:{runtime:{registry:{get(){return{snapshot(){return{execution:{pendingPlans:[plan],runtime:{history:{latest:[{planId:"OLD"}]}}}};}};}}},snapshot(){return{state:{initialized:true,booted:true}};},command(input){return Promise.resolve({ok:true,input});}}};
+globalThis.window={};
 const loader=await import("../js/admin/studio/pages/admin-agent/admin-agent-loader.js");
+window.Admin={runtime:{registry:{get(){return{snapshot(){return{execution:{pendingPlans:[plan],runtime:{history:{latest:[{planId:"OLD"}]}}}};}};}}},snapshot(){return{state:{initialized:true,booted:true}};},command(input){return Promise.resolve({ok:true,input});}};
 assert.equal(loader.getAdminViewData().pendingChanges.length,1);
 const result=await loader.executeAdminCommand({type:"approve-plan",planId:"PLAN-1"});
 assert.equal(result.input.type,"approve-plan");
