@@ -329,9 +329,29 @@ function createStudioStyles(){
       @media(max-width:760px){
 
         #rigo-studio-root{
-          grid-template-columns:
-            92px
-            minmax(0,1fr) !important;
+          grid-template-columns:minmax(0,1fr) !important;
+          grid-template-rows:58px minmax(0,1fr) 70px !important;
+          min-height:100dvh !important;
+          height:100dvh !important;
+        }
+
+        #rigo-studio-topbar{
+          grid-column:1 !important;
+          grid-row:1 !important;
+        }
+
+        #rigo-studio-workspace{
+          grid-column:1 !important;
+          grid-row:2 !important;
+          padding:0 !important;
+          overflow:hidden !important;
+        }
+
+        #rigo-studio-sidebar{
+          grid-column:1 !important;
+          grid-row:3 !important;
+          padding:0 !important;
+          overflow:visible !important;
         }
 
         .rigo-studio-topbar-inner{
