@@ -98,6 +98,15 @@ function shutdownSubsystem(options = {}){
   return schedulerState.shutdownPromise;
 }
 
-const MemorySubsystem = Object.freeze({ initialize:initializeSubsystem, maintenance:runMaintenance, rebuildIndexes, configureCloudSync, scheduler:getSchedulerStatus, status:getSubsystemStatus, shutdown:shutdownSubsystem });
-export { schedulerState, initializeSubsystem, runMaintenance, rebuildIndexes, startScheduledMaintenance, stopScheduledMaintenance, configureCloudSync, getSchedulerStatus, getSubsystemStatus, shutdownSubsystem, MemorySubsystem };
+function resetSubsystem(){
+  stopScheduledMaintenance();
+  destroy();
+  if(!initialize()) return false;
+  reload();
+  startScheduledMaintenance();
+  return true;
+}
+
+const MemorySubsystem = Object.freeze({ initialize:initializeSubsystem, maintenance:runMaintenance, rebuildIndexes, configureCloudSync, scheduler:getSchedulerStatus, status:getSubsystemStatus, shutdown:shutdownSubsystem, reset:resetSubsystem });
+export { schedulerState, initializeSubsystem, runMaintenance, rebuildIndexes, startScheduledMaintenance, stopScheduledMaintenance, configureCloudSync, getSchedulerStatus, getSubsystemStatus, shutdownSubsystem, resetSubsystem, MemorySubsystem };
 export default MemorySubsystem;

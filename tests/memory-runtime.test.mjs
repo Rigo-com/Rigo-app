@@ -23,6 +23,8 @@ const created = Memory.create("RIGO memory runtime test", { tags:["runtime"] });
 assert.ok(created?.id);
 assert.equal(Memory.search("runtime").length, 1);
 assert.equal(Memory.snapshot().memory.memories, 1);
+assert.equal(Memory.reset(), true);
+assert.equal(Memory.search("runtime").length, 1);
 
 await Memory.shutdown();
 assert.equal(Memory.snapshot().memory.initialized, false);

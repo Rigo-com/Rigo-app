@@ -9,7 +9,7 @@ import { MemorySyncCloud } from "./memory-sync-cloud.js";
 const initialize = () => MemorySubsystem.initialize();
 const boot = initialize;
 const shutdown = () => MemorySubsystem.shutdown();
-async function reset(){ await MemorySubsystem.shutdown({ preserveCloudProvider:true }); return MemorySubsystem.initialize(); }
+const reset = () => MemorySubsystem.reset();
 const create = (content, options = {}) => MemoryCore.createMemory(content, options);
 const update = (memoryId, updates) => MemoryCore.updateMemory(memoryId, updates);
 const remove = memoryId => MemoryCore.deleteMemory(memoryId);
