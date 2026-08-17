@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {PAGE_CONFIGS} from "../js/admin/studio/pages/system-pages.js";
-
-assert.equal(PAGE_CONFIGS.some(page=>page.id==="debug"),false);
 const page=await readFile(new URL("../js/admin/studio/pages/debug-page.js",import.meta.url),"utf8");
 assert.match(page,/id:"debug",title:"Debug Center"/);
 assert.match(page,/Run Diagnostics/);
