@@ -17,6 +17,18 @@ async function getTree(){
   return tree.tree||[];
 }
 async function readBlob(sha){const blob=await githubJSON(`https://api.github.com/repos/${OWNER}/${REPO}/git/blobs/${sha}`);return blob.encoding==="base64"?Buffer.from(String(blob.content||"").replace(/\n/g,""),"base64").toString("utf8"):String(blob.content||"");}
+async function readRaw(filePath){
+  const encodedPath=String(filePath||"").split("/").map(encodeURIComponent).join("/");
+  const url=`https://raw.githubusercontent.com/${encodeURIComponent(OWNER)}/${encodeURIComponent(REPO)}/${encodeURIComponent(BRANCH)}/${encodedPath}`;
+  const response=await fetch(url,{headers:{"User-Agent":"RIGO-Admin-Agent"}});
+  if(!response.ok)throw new Error(`GITHUB_RAW_REQUEST_FAILED:${response.status}`);
+  return response.text();
+}
+async function readSource(entry){
+  return process.env.GITHUB_TOKEN
+  ? readBlob(entry.sha)
+  : readRaw(entry.path);
+}
 function unique(values){return [...new Set(values.filter(Boolean))];}
 function resolveImport(source,specifier,fileSet){
   if(!specifier.startsWith("."))return specifier;
@@ -58,7 +70,7 @@ async function scan(){
   const files=fileEntries.map(entry=>({name:path.posix.basename(entry.path),path:entry.path,size:entry.size||0,sha:entry.sha,url:`https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/${entry.path}`}));
   const folders=tree.filter(entry=>entry.type==="tree"&&entry.path.startsWith(rootPrefix)).map(entry=>({name:path.posix.basename(entry.path),path:entry.path,url:`https://github.com/${OWNER}/${REPO}/tree/${BRANCH}/${entry.path}`}));
   const candidates=fileEntries.filter(entry=>/\.(?:js|mjs|json|html|css)$/.test(entry.path)&&entry.size<=MAX_FILE_SIZE).slice(0,MAX_FILES);
-  const contents=await mapLimit(candidates,8,async entry=>{try{return await readBlob(entry.sha);}catch{return null;}});
+  const contents=await mapLimit(candidates,8,async entry=>{try{return await readSource(entry);}catch{return null;}});
   const sources={};candidates.forEach((entry,index)=>{if(contents[index]!==null)sources[entry.path]=contents[index];});
   return {files,folders,...analyzeProject(files,sources)};
 }
