@@ -2,7 +2,6 @@ import {executeAdminCommand} from "./admin-agent/admin-agent-loader.js";
 import Auth from "../../../auth/index.js";
 
 const PAGE_CONFIGS=Object.freeze([
-  {id:"code",title:"System",description:"Detected systems and source-code analysis.",actions:[["List Systems","list systems"],["Analyze Code","analyze code"],["Test Status","test status"],["Run Tests","run tests"]]},
   {id:"architecture",title:"Code Map",description:"Architecture, relationships, and project documentation.",actions:[["Analyze Architecture","analyze architecture"],["Generate Documentation","generate documentation"],["Project Snapshot","project snapshot"]]},
   {id:"memory",title:"Memory",description:"Open and inspect the RIGO memory subsystem.",actions:[["Open Memory","@memory"],["Refresh Status","@refresh"]]},
   {id:"git",title:"Extensions",description:"GitHub, tests, commits, and repository changes.",actions:[["Git Status","git status"],["Git Diff","git diff"],["Git Commits","git commits"],["Test Failures","test failures"],["Run Tests","run tests"]]},
