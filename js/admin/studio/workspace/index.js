@@ -22,6 +22,9 @@ from "../pages/debug-page.js";
 import ProjectPage
 from "../pages/project-page.js";
 
+import SystemCenterPage
+from "../pages/system-center-page.js";
+
 const workspaceRootState = Object.seal({initialized:false});
 
 async function initialize(){
@@ -32,6 +35,7 @@ async function initialize(){
   for(const page of SystemPages){await WorkspaceManager.register(page);}
   await WorkspaceManager.register(DebugPage);
   await WorkspaceManager.register(ProjectPage);
+  await WorkspaceManager.register(SystemCenterPage);
   workspaceRootState.initialized = true;
   return true;
 }
