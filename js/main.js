@@ -10,15 +10,15 @@ import AccountSync from "./storage/account-sync.js";
 async function startApplication(){
   const started=await Bootstrap.boot();
   if(started===false){throw new Error("RIGO BOOTSTRAP FAILED");}
-
-  try{await AccountSync.sync();}catch{}
-
   return true;
 }
 
 const applicationReady=startApplication()
-.then(async(result)=>{
-  try{await applyAdminUIAccess();}catch{}
+.then((result)=>{
+  // Account data and server-side admin visibility are useful, but neither is
+  // required to paint an interactive page. Keep them off the critical path.
+  void AccountSync.sync().catch(()=>{});
+  void applyAdminUIAccess().catch(()=>{});
   return result;
 })
 .catch((error)=>{
