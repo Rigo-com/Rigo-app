@@ -12,8 +12,7 @@ import DashboardState, {
 from "./dashboard-state.js";
 
 import {
-  loadDashboardData,
-  getProjectAgent
+  loadDashboardData
 }
 from "./dashboard-loader.js";
 
@@ -190,46 +189,11 @@ async function refresh(){
 // =====================================
 
 async function scanProject(){
-
-  const projectAgent =
-  getProjectAgent();
-
   try{
-
-    if(
-      projectAgent &&
-      typeof projectAgent.scan === "function"
-    ){
-
-      await projectAgent
-      .scan();
-
-    }
-    else if(
-      projectAgent &&
-      typeof projectAgent.scanProject === "function"
-    ){
-
-      await projectAgent
-      .scanProject();
-
-    }
-    else if(
-      window?.Admin &&
-      typeof window.Admin.scanProject === "function"
-    ){
-
-      await window.Admin
-      .scanProject();
-
-    }
-    else{
-
-      throw new Error(
-        "Project scan API is not available."
-      );
-
-    }
+    const admin = typeof window !== "undefined" ? window.Admin : null;
+    if(typeof admin?.command !== "function")throw new Error("Admin command API is not available.");
+    const result = await admin.command("scan project");
+    if(!result?.ok)throw new Error(result?.error || "Project scan failed.");
 
     await refresh();
 
