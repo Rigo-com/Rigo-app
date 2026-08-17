@@ -6,7 +6,6 @@ const PAGE_CONFIGS=Object.freeze([
   {id:"code",title:"System",description:"Detected systems and source-code analysis.",actions:[["List Systems","list systems"],["Analyze Code","analyze code"],["Test Status","test status"],["Run Tests","run tests"]]},
   {id:"architecture",title:"Code Map",description:"Architecture, relationships, and project documentation.",actions:[["Analyze Architecture","analyze architecture"],["Generate Documentation","generate documentation"],["Project Snapshot","project snapshot"]]},
   {id:"memory",title:"Memory",description:"Open and inspect the RIGO memory subsystem.",actions:[["Open Memory","@memory"],["Refresh Status","@refresh"]]},
-  {id:"debug",title:"Debug",description:"Runtime diagnostics, reports, and captured errors.",actions:[["Diagnose System","diagnose system"],["Debug Report","debug report"],["List Errors","list errors"]]},
   {id:"git",title:"Extensions",description:"GitHub, tests, commits, and repository changes.",actions:[["Git Status","git status"],["Git Diff","git diff"],["Git Commits","git commits"],["Test Failures","test failures"],["Run Tests","run tests"]]},
   {id:"settings",title:"Settings",description:"Admin session and application controls.",actions:[["Refresh Admin Status","@refresh"],["Return to RIGO AI","@home"],["Log Out","@logout"]]}
 ]);
