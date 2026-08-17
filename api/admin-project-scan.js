@@ -8,8 +8,14 @@ const ROOT=process.env.RIGO_ADMIN_ROOT||"js";
 const MAX_FILES=Math.max(1,Number(process.env.RIGO_ADMIN_SCAN_MAX_FILES)||350);
 const MAX_FILE_SIZE=Math.max(1024,Number(process.env.RIGO_ADMIN_SCAN_MAX_FILE_SIZE)||250000);
 
-function headers(){const value={"Accept":"application/vnd.github+json","User-Agent":"RIGO-Admin-Agent","X-GitHub-Api-Version":"2022-11-28"};if(process.env.GITHUB_TOKEN)value.Authorization=`Bearer ${process.env.GITHUB_TOKEN}`;return value;}
-async function githubJSON(url){const response=await fetch(url,{headers:headers()});const body=await response.json().catch(()=>null);if(!response.ok)throw new Error(body?.message||`GITHUB_REQUEST_FAILED:${response.status}`);return body;}
+function headers(authenticated=true){const value={"Accept":"application/vnd.github+json","User-Agent":"RIGO-Admin-Agent","X-GitHub-Api-Version":"2022-11-28"};if(authenticated&&process.env.GITHUB_TOKEN)value.Authorization=`Bearer ${process.env.GITHUB_TOKEN}`;return value;}
+async function githubJSON(url){
+  let response=await fetch(url,{headers:headers(true)});
+  if(response.status===401&&process.env.GITHUB_TOKEN){response=await fetch(url,{headers:headers(false)});}
+  const body=await response.json().catch(()=>null);
+  if(!response.ok)throw new Error(body?.message||`GITHUB_REQUEST_FAILED:${response.status}`);
+  return body;
+}
 async function getTree(){
   const branch=await githubJSON(`https://api.github.com/repos/${OWNER}/${REPO}/branches/${encodeURIComponent(BRANCH)}`);
   const tree=await githubJSON(`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${branch.commit.commit.tree.sha}?recursive=1`);
@@ -25,9 +31,8 @@ async function readRaw(filePath){
   return response.text();
 }
 async function readSource(entry){
-  return process.env.GITHUB_TOKEN
-  ? readBlob(entry.sha)
-  : readRaw(entry.path);
+  if(!process.env.GITHUB_TOKEN)return readRaw(entry.path);
+  try{return await readBlob(entry.sha);}catch{return readRaw(entry.path);}
 }
 function unique(values){return [...new Set(values.filter(Boolean))];}
 function resolveImport(source,specifier,fileSet){
