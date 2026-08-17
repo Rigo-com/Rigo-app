@@ -16,9 +16,6 @@ from "../chat/chat-runtime/chat-runtime.js";
 import Debug
 from "../debug/index.js";
 
-import Admin
-from "../admin/index.js";
-
 import ServiceManager
 from "../services/service-manager.js";
 
@@ -105,14 +102,41 @@ function registerDebugSystem(){
 
 
 
+let adminModulePromise = null;
+
+function loadAdminSystem(){
+
+  if(!adminModulePromise){
+    adminModulePromise = import("../admin/index.js").then(module => module.default);
+  }
+
+  return adminModulePromise;
+
+}
+
+function shouldRegisterAdminSystem(){
+
+  if(typeof window === "undefined"){
+    return true;
+  }
+
+  const path = String(window.location?.pathname || "").toLowerCase();
+  return path.endsWith("/admin.html") || path.endsWith("/admin");
+
+}
+
 function registerAdminSystem(){
+
+  if(!shouldRegisterAdminSystem()){
+    return true;
+  }
 
   return registerBootstrapSystem({
     id:"admin",
     priority:40,
-    initialize:Admin.initialize,
-    boot:Admin.boot,
-    shutdown:Admin.shutdown
+    initialize:async () => (await loadAdminSystem()).initialize(),
+    boot:async () => (await loadAdminSystem()).boot(),
+    shutdown:async () => (await loadAdminSystem()).shutdown()
   });
 
 }
@@ -147,6 +171,8 @@ export {
   registerAISystem,
   registerChatSystem,
   registerDebugSystem,
+  loadAdminSystem,
+  shouldRegisterAdminSystem,
   registerAdminSystem,
   registerBootstrapSystems
 };
