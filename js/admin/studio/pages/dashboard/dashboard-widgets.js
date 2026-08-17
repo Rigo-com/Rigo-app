@@ -1113,8 +1113,9 @@ function renderDashboardStyles(){
 
         .rigo-dashboard-page{
           min-height:100%;
-          padding:12px 12px 20px;
+          padding:12px 12px calc(96px + env(safe-area-inset-bottom));
           overflow-y:auto;
+          scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom));
           -webkit-overflow-scrolling:touch;
         }
 
