@@ -19,6 +19,9 @@ from "../pages/system-pages.js";
 import DebugPage
 from "../pages/debug-page.js";
 
+import ProjectPage
+from "../pages/project-page.js";
+
 const workspaceRootState = Object.seal({initialized:false});
 
 async function initialize(){
@@ -28,6 +31,7 @@ async function initialize(){
   await WorkspaceManager.register(AdminAgentPage);
   for(const page of SystemPages){await WorkspaceManager.register(page);}
   await WorkspaceManager.register(DebugPage);
+  await WorkspaceManager.register(ProjectPage);
   workspaceRootState.initialized = true;
   return true;
 }
