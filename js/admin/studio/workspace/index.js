@@ -13,8 +13,17 @@ from "../pages/dashboard/index.js";
 import AdminAgentPage
 from "../pages/admin-agent/index.js";
 
-import SystemPages
-from "../pages/system-pages.js";
+import CodeMapPage
+from "../pages/code-map-page.js";
+
+import MemoryPage
+from "../pages/memory-page.js";
+
+import ExtensionsPage
+from "../pages/extensions-page.js";
+
+import SettingsPage
+from "../pages/settings-page.js";
 
 import DebugPage
 from "../pages/debug-page.js";
@@ -32,7 +41,10 @@ async function initialize(){
   WorkspaceManager.initialize();
   await WorkspaceManager.register(DashboardPage);
   await WorkspaceManager.register(AdminAgentPage);
-  for(const page of SystemPages){await WorkspaceManager.register(page);}
+  await WorkspaceManager.register(CodeMapPage);
+  await WorkspaceManager.register(MemoryPage);
+  await WorkspaceManager.register(ExtensionsPage);
+  await WorkspaceManager.register(SettingsPage);
   await WorkspaceManager.register(DebugPage);
   await WorkspaceManager.register(ProjectPage);
   await WorkspaceManager.register(SystemCenterPage);
