@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {PAGE_CONFIGS} from "../js/admin/studio/pages/system-pages.js";
 
-assert.deepEqual(PAGE_CONFIGS.map(page=>page.id),["project","code","architecture","memory","debug","git","settings"]);
+assert.deepEqual(PAGE_CONFIGS.map(page=>page.id),["project","code","architecture","memory","git","settings"]);
 assert.ok(PAGE_CONFIGS.every(page=>page.actions.length>0));
 
 const workspace=await readFile(new URL("../js/admin/studio/workspace/index.js",import.meta.url),"utf8");
