@@ -51,6 +51,9 @@ import {
 }
 from "./api-diagnostics.js";
 
+import APIEvents
+from "./api-events.js";
+
 
 
 // =====================================
@@ -132,6 +135,8 @@ async function resetAPIRuntime(){
 
     uploads:0,
 
+    uploadFailures:0,
+
     retries:0
 
   };
@@ -209,7 +214,10 @@ Object.freeze({
   createAPISnapshot,
 
   health:
-  getAPIHealth
+  getAPIHealth,
+
+  events:
+  APIEvents
 
 });
 
