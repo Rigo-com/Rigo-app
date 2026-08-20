@@ -4,9 +4,10 @@
   "type": "module",
   "scripts": {
     "check:ai": "find js/ai -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
-    "check:api": "find js/api -type f -name '*.js' -print0 | xargs -0 -n1 node --check && node tests/api-runtime.test.mjs"
+    "check:api": "find js/api api -type f -name '*.js' -print0 | xargs -0 -n1 node --check && node tests/api-runtime.test.mjs && node tests/blob-upload.test.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "^2.6.1",
     "@neondatabase/serverless": "^1.0.1"
   }
 }
