@@ -4,585 +4,244 @@
 // =====================================
 
 import {
-
   enqueueItem,
-
   dequeueItem,
-
   removeQueueItem,
-
   getQueueItem,
-
   getQueueItems,
-
   hasQueueItem,
-
   getQueueSize,
-
   isQueueEmpty,
-
   clearQueue,
-
   setQueueProcessing,
-
   setQueuePaused,
-
   setActiveQueueItem,
-
   incrementEnqueued,
-
   incrementDequeued,
-
   incrementCompleted,
-
   incrementFailed,
-
   incrementCleared,
-
   getChatQueueSnapshot,
-
   resetChatQueueState
-
 }
 from "../chat-state/chat-queue-state.js";
 
-import {
-  emit
-}
+import { emit }
 from "../chat-events/chat-events.js";
 
-import {
-  CHAT_EVENTS
-}
+import { CHAT_EVENTS }
 from "../chat-config.js";
 
-
-
-// =====================================
-// SERVICE STATE
-// =====================================
-
-const serviceState =
-Object.seal({
-
-  initialized:false
-
+const serviceState = Object.seal({
+  initialized:false,
+  activeItem:null
 });
-
-
 
 let queueCounter = 0;
 
-
-
-// =====================================
-// HELPERS
-// =====================================
-
 function createQueueItemId(){
-
   queueCounter++;
-
-  return (
-    "queue_" +
-    Date.now() +
-    "_" +
-    queueCounter
-  );
-
+  return "queue_" + Date.now() + "_" + queueCounter;
 }
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
 
 function initialize(){
-
-  if(
-    serviceState.initialized
-  ){
-    return true;
-  }
-
-  serviceState.initialized =
-  true;
-
+  if(serviceState.initialized) return true;
+  serviceState.initialized = true;
   return true;
-
 }
-
-
-
-// =====================================
-// DESTROY
-// =====================================
 
 function destroy(){
-
   reset();
-
-  serviceState.initialized =
-  false;
-
+  serviceState.initialized = false;
   return true;
-
 }
-
-
-
-// =====================================
-// RESET
-// =====================================
 
 function reset(){
-
   queueCounter = 0;
-
+  serviceState.activeItem = null;
   resetChatQueueState();
-
   return true;
-
 }
 
-
-
-// =====================================
-// ENQUEUE
-// =====================================
-
-function enqueue(
-  payload = {}
-){
-
+function enqueue(payload = {}){
   const item = {
-
-    id:
-    createQueueItemId(),
-
-    type:
-    String(
-      payload.type ||
-      "default"
-    ),
-
-    data:
-    payload.data ??
-    null,
-
-    createdAt:
-    Date.now()
-
+    id:createQueueItemId(),
+    type:String(payload.type || "default"),
+    data:payload.data ?? null,
+    createdAt:Date.now()
   };
 
-  enqueueItem(
-    item
-  );
-
+  if(!enqueueItem(item)) return null;
   incrementEnqueued();
-
-  emit(
-    CHAT_EVENTS
-    .QUEUE_ENQUEUED,
-    structuredClone(
-      item
-    )
-  );
-
-  return structuredClone(
-    item
-  );
-
+  emit(CHAT_EVENTS.QUEUE_ENQUEUED, structuredClone(item));
+  return structuredClone(item);
 }
-
-
-
-// =====================================
-// DEQUEUE
-// =====================================
 
 function dequeue(){
+  const item = dequeueItem();
+  if(!item) return null;
 
-  const item =
-  dequeueItem();
-
-  if(
-    !item
-  ){
-    return null;
-  }
-
+  serviceState.activeItem = structuredClone(item);
+  setActiveQueueItem(item.id);
   incrementDequeued();
-
-  emit(
-    CHAT_EVENTS
-    .QUEUE_DEQUEUED,
-    structuredClone(
-      item
-    )
-  );
-
-  return structuredClone(
-    item
-  );
-
+  emit(CHAT_EVENTS.QUEUE_DEQUEUED, structuredClone(item));
+  return structuredClone(item);
 }
 
-
-
-// =====================================
-// REMOVE
-// =====================================
-
-function remove(
-  itemId
-){
-
-  if(
-    !hasQueueItem(
-      itemId
-    )
-  ){
-    return false;
+function remove(itemId){
+  if(serviceState.activeItem?.id === itemId){
+    serviceState.activeItem = null;
+    setActiveQueueItem(null);
+    return true;
   }
-
-  return removeQueueItem(
-    itemId
-  );
-
+  if(!hasQueueItem(itemId)) return false;
+  return removeQueueItem(itemId);
 }
 
-
-
-// =====================================
-// COMPLETE
-// =====================================
-
-function complete(
-  itemId
-){
-
-  const item =
-  getQueueItem(
-    itemId
-  );
-
-  if(
-    !item
-  ){
-    return false;
+function resolveTrackedItem(itemId){
+  if(serviceState.activeItem?.id === itemId){
+    return serviceState.activeItem;
   }
+  return getQueueItem(itemId);
+}
+
+function complete(itemId){
+  const item = resolveTrackedItem(itemId);
+  if(!item) return false;
 
   incrementCompleted();
-  emit(
-  CHAT_EVENTS
-  .QUEUE_COMPLETED,
-  structuredClone(
-    item
-  )
-);
+  emit(CHAT_EVENTS.QUEUE_COMPLETED, structuredClone(item));
+
+  if(serviceState.activeItem?.id === itemId){
+    serviceState.activeItem = null;
+    setActiveQueueItem(null);
+  }
+  else{
+    removeQueueItem(itemId);
+  }
 
   return true;
-
 }
 
-
-
-// =====================================
-// FAIL
-// =====================================
-
-function fail(
-  itemId
-){
-
-  const item =
-  getQueueItem(
-    itemId
-  );
-
-  if(
-    !item
-  ){
-    return false;
-  }
+function fail(itemId){
+  const item = resolveTrackedItem(itemId);
+  if(!item) return false;
 
   incrementFailed();
-  emit(
-  CHAT_EVENTS
-  .QUEUE_FAILED,
-  structuredClone(
-    item
-  )
-);
+  emit(CHAT_EVENTS.QUEUE_FAILED, structuredClone(item));
 
-  return true;
-
-}
-
-
-
-// =====================================
-// PAUSE
-// =====================================
-
-function pause(){
-
-  setQueuePaused(
-    true
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// RESUME
-// =====================================
-
-function resume(){
-
-  setQueuePaused(
-    false
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// CLEAR
-// =====================================
-
-function clear(){
-
-  clearQueue();
-
-  incrementCleared();
-
-  emit(
-    CHAT_EVENTS
-    .QUEUE_CLEARED
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// PROCESSING
-// =====================================
-
-function startProcessing(){
-
-  setQueueProcessing(
-    true
-  );
-
-  emit(
-    CHAT_EVENTS
-    .QUEUE_STARTED
-  );
-
-  return true;
-
-}
-
-
-
-function stopProcessing(){
-
-  setQueueProcessing(
-    false
-  );
-
-  setActiveQueueItem(
-    null
-  );
-
-  return true;
-
-}
-
-
-
-// =====================================
-// GETTERS
-// =====================================
-
-function get(
-  itemId
-){
-
-  const item =
-  getQueueItem(
-    itemId
-  );
-
-  if(
-    !item
-  ){
-    return null;
+  if(serviceState.activeItem?.id === itemId){
+    serviceState.activeItem = null;
+    setActiveQueueItem(null);
+  }
+  else{
+    removeQueueItem(itemId);
   }
 
-  return structuredClone(
-    item
-  );
-
+  return true;
 }
 
+function pause(){
+  setQueuePaused(true);
+  return true;
+}
 
+function resume(){
+  setQueuePaused(false);
+  return true;
+}
+
+function clear(){
+  clearQueue();
+  serviceState.activeItem = null;
+  incrementCleared();
+  emit(CHAT_EVENTS.QUEUE_CLEARED);
+  return true;
+}
+
+function startProcessing(){
+  setQueueProcessing(true);
+  emit(CHAT_EVENTS.QUEUE_STARTED);
+  return true;
+}
+
+function stopProcessing(){
+  setQueueProcessing(false);
+  serviceState.activeItem = null;
+  setActiveQueueItem(null);
+  return true;
+}
+
+function get(itemId){
+  const item = resolveTrackedItem(itemId);
+  return item ? structuredClone(item) : null;
+}
 
 function getAll(){
-
-  return getQueueItems()
-  .map(
-
-    item =>
-
-    structuredClone(
-      item
-    )
-
-  );
-
+  const items = getQueueItems().map(item => structuredClone(item));
+  if(serviceState.activeItem){
+    items.unshift(structuredClone(serviceState.activeItem));
+  }
+  return items;
 }
-
-
-
-// =====================================
-// STATUS
-// =====================================
 
 function getStatus(){
-
   return Object.freeze({
-
-    initialized:
-    serviceState
-    .initialized,
-
-    size:
-    getQueueSize(),
-
-    empty:
-    isQueueEmpty()
-
+    initialized:serviceState.initialized,
+    size:getQueueSize(),
+    empty:isQueueEmpty(),
+    activeItemId:serviceState.activeItem?.id || null
   });
-
 }
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
 
 function getSnapshot(){
-
-  return getChatQueueSnapshot();
-
+  return Object.freeze({
+    ...getChatQueueSnapshot(),
+    activeItem:serviceState.activeItem
+      ? structuredClone(serviceState.activeItem)
+      : null
+  });
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const ChatQueueService =
-Object.freeze({
-
+const ChatQueueService = Object.freeze({
   initialize,
-
   destroy,
-
   reset,
-
-  status:
-  getStatus,
-
-  snapshot:
-  getSnapshot,
-
+  status:getStatus,
+  snapshot:getSnapshot,
   enqueue,
-
   dequeue,
-
   remove,
-
   complete,
-
   fail,
-
   pause,
-
   resume,
-
   clear,
-
   startProcessing,
-
   stopProcessing,
-
   get,
-
   getAll
-
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   initialize,
-
   destroy,
-
   reset,
-
   enqueue,
-
   dequeue,
-
   remove,
-
   complete,
-
   fail,
-
   pause,
-
   resume,
-
   clear,
-
   startProcessing,
-
   stopProcessing,
-
   get,
-
   getAll,
-
   getStatus,
-
   getSnapshot,
-
   ChatQueueService
-
 };
 
-export default
-ChatQueueService;
+export default ChatQueueService;
