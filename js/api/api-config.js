@@ -19,7 +19,7 @@ Object.freeze({
   100,
 
   UPLOAD_ENDPOINT:
-  "/files/upload"
+  null
 
 });
 
