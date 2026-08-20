@@ -131,12 +131,14 @@ function getAPIHealth(){
     .initialized,
 
     healthy:
+      apiState.initialized &&
+      apiState.pendingRequests < API_CONFIG.MAX_CONCURRENT_REQUESTS &&
+      apiState.lastError === null,
 
-      apiState
-      .pendingRequests <=
-
-      API_CONFIG
-      .MAX_CONCURRENT_REQUESTS,
+    reason:
+      !apiState.initialized ? "not-initialized" :
+      apiState.pendingRequests >= API_CONFIG.MAX_CONCURRENT_REQUESTS ? "concurrency-limit" :
+      apiState.lastError !== null ? "last-request-failed" : "ready",
 
     timestamp:
     Date.now()
