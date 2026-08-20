@@ -2,6 +2,7 @@ import { API_CONFIG } from "./api-config.js";
 import { apiState } from "./api-state.js";
 import APIRuntime from "./api-runtime.js";
 import APIManager from "./api-manager.js";
+import APIEvents from "./api-events.js";
 
 const initializeAPI = () => APIManager.initialize();
 const bootAPI = () => APIManager.start();
@@ -12,11 +13,10 @@ const createAPISnapshot = () => Object.freeze({ manager:APIManager.snapshot(), r
 
 const API = Object.freeze({
   id:"api", priority:55,
-  config:API_CONFIG, state:apiState, runtime:APIRuntime, manager:APIManager,
+  config:API_CONFIG, state:apiState, runtime:APIRuntime, manager:APIManager, events:APIEvents,
   initialize:initializeAPI, boot:bootAPI, start:startAPI,
   shutdown:shutdownAPI, reset:resetAPI, snapshot:createAPISnapshot
 });
 
-export { API_CONFIG, apiState, APIRuntime, APIManager, initializeAPI, bootAPI, startAPI, shutdownAPI, resetAPI, createAPISnapshot, API };
+export { API_CONFIG, apiState, APIRuntime, APIManager, APIEvents, initializeAPI, bootAPI, startAPI, shutdownAPI, resetAPI, createAPISnapshot, API };
 export default API;
-
