@@ -35,6 +35,8 @@ Object.seal({
 
     uploads:0,
 
+    uploadFailures:0,
+
     retries:0
 
   }
