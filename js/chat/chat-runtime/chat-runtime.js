@@ -29,32 +29,13 @@ from "../chat-services/chat-render-service.js";
 import ChatUIManager
 from "../chat-ui/chat-ui-manager.js";
 
-
-// =====================================
-// RUNTIME STATE
-// =====================================
-
-const runtimeState =
-Object.seal({
-
+const runtimeState = Object.seal({
   initialized:false,
-
   startedAt:null
-
 });
 
-
-// =====================================
-// INITIALIZE
-// =====================================
-
 function initialize(){
-
-  if(
-    runtimeState.initialized
-  ){
-    return true;
-  }
+  if(runtimeState.initialized) return true;
 
   updateChatState({
     initializing:true,
@@ -62,22 +43,14 @@ function initialize(){
   });
 
   ChatEvents.initialize();
-
   ChatMessageService.initialize();
-
   ChatQueueService.initialize();
-
   ChatStreamService.initialize();
-
   ChatRenderService.initialize();
-
   ChatUIManager.initialize();
 
-  runtimeState.initialized =
-  true;
-
-  runtimeState.startedAt =
-  Date.now();
+  runtimeState.initialized = true;
+  runtimeState.startedAt = Date.now();
 
   updateChatState({
     initialized:true,
@@ -87,29 +60,18 @@ function initialize(){
   return true;
 }
 
-
-// =====================================
-// DESTROY
-// =====================================
+function boot(){
+  return initialize();
+}
 
 function destroy(){
-
-  if(
-    !runtimeState.initialized
-  ){
-    return true;
-  }
+  if(!runtimeState.initialized) return true;
 
   ChatUIManager.destroy();
-
   ChatRenderService.destroy();
-
   ChatStreamService.destroy();
-
   ChatQueueService.destroy();
-
   ChatMessageService.destroy();
-
   ChatEvents.destroy();
 
   updateChatState({
@@ -117,135 +79,70 @@ function destroy(){
     destroyed:true
   });
 
-  runtimeState.initialized =
-  false;
-
-  runtimeState.startedAt =
-  null;
-
+  runtimeState.initialized = false;
+  runtimeState.startedAt = null;
   return true;
 }
 
-
-// =====================================
-// RESET
-// =====================================
+function shutdown(){
+  return destroy();
+}
 
 function reset(){
-
   ChatUIManager.reset();
-
   ChatRenderService.reset();
-
   ChatStreamService.reset();
-
   ChatQueueService.reset();
-
   ChatMessageService.reset();
-
   resetChatState();
-
   return true;
 }
 
-
-// =====================================
-// STATUS
-// =====================================
-
 function getStatus(){
-
   return Object.freeze({
-
-    initialized:
-    runtimeState.initialized,
-
-    startedAt:
-    runtimeState.startedAt,
-
-    ui:
-    ChatUIManager.status()
-
+    initialized:runtimeState.initialized,
+    startedAt:runtimeState.startedAt,
+    messages:ChatMessageService.status(),
+    queue:ChatQueueService.status(),
+    stream:ChatStreamService.status(),
+    render:ChatRenderService.status(),
+    ui:ChatUIManager.status()
   });
 }
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
 
 function getSnapshot(){
-
   return Object.freeze({
-
-    runtime:
-    structuredClone(
-      runtimeState
-    ),
-
-    chat:
-    getChatSnapshot(),
-
-    messages:
-    ChatMessageService.snapshot(),
-
-    queue:
-    ChatQueueService.snapshot(),
-
-    stream:
-    ChatStreamService.snapshot(),
-
-    render:
-    ChatRenderService.snapshot(),
-
-    ui:
-    ChatUIManager.status()
-
+    runtime:structuredClone(runtimeState),
+    chat:getChatSnapshot(),
+    messages:ChatMessageService.snapshot(),
+    queue:ChatQueueService.snapshot(),
+    stream:ChatStreamService.snapshot(),
+    render:ChatRenderService.snapshot(),
+    ui:ChatUIManager.status()
   });
 }
 
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const ChatRuntime =
-Object.freeze({
-
+const ChatRuntime = Object.freeze({
+  id:"chat",
+  priority:20,
   initialize,
-
+  boot,
+  shutdown,
   destroy,
-
   reset,
-
-  status:
-  getStatus,
-
-  snapshot:
-  getSnapshot
-
+  status:getStatus,
+  snapshot:getSnapshot
 });
 
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   initialize,
-
+  boot,
+  shutdown,
   destroy,
-
   reset,
-
   getStatus,
-
   getSnapshot,
-
   ChatRuntime
-
 };
 
-export default
-ChatRuntime;
+export default ChatRuntime;
