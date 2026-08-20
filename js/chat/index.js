@@ -4,67 +4,13 @@
 // CENTRAL EXPORT HUB
 // =====================================
 
-
-
-// =====================================
-// CONFIG
-// =====================================
-
 export * from "./chat-config.js";
-
-
-
-// =====================================
-// STATE
-// =====================================
-
 export * from "./chat-state/index.js";
-
-
-
-// =====================================
-// EVENTS
-// =====================================
-
 export * from "./chat-events/index.js";
-
-
-
-// =====================================
-// RUNTIME
-// =====================================
-
 export * from "./chat-runtime/index.js";
-
-
-
-// =====================================
-// SERVICES
-// =====================================
-
 export * from "./chat-services/index.js";
-
-
-
-// =====================================
-// ACTIONS
-// =====================================
-
 export * from "./chat-actions/index.js";
-
-
-
-// =====================================
-// UI
-// =====================================
-
 export * from "./chat-ui/index.js";
-
-
-
-// =====================================
-// IMPORTS
-// =====================================
 
 import ChatStates
 from "./chat-state/index.js";
@@ -84,155 +30,98 @@ from "./chat-actions/index.js";
 import ChatUI
 from "./chat-ui/index.js";
 
-
-
-// =====================================
-// MEMORY SHORTCUT
-// =====================================
-
 function mountMemoryShortcut(){
+  if(typeof document === "undefined") return false;
 
-  if(
-    typeof document === "undefined"
-  ){
-    return false;
+  const sidebar = document.getElementById("sidebar");
+  if(!sidebar) return false;
+
+  let memoryButton =
+    document.getElementById("memory") ||
+    document.getElementById("memory-manager");
+
+  if(!memoryButton){
+    const adminButton = document.getElementById("admin");
+    memoryButton = document.createElement("button");
+    memoryButton.id = "memory-manager";
+    memoryButton.type = "button";
+    memoryButton.className = "side-btn";
+    memoryButton.textContent = "Memory";
+
+    if(adminButton && adminButton.parentNode === sidebar){
+      sidebar.insertBefore(memoryButton,adminButton);
+    }
+    else{
+      sidebar.appendChild(memoryButton);
+    }
   }
 
-  const sidebar =
-  document.getElementById(
-    "sidebar"
-  );
-
-  if(
-    !sidebar
-    ||
-    document.getElementById(
-      "memory-manager"
-    )
-  ){
-    return false;
-  }
-
-  const adminButton =
-  document.getElementById(
-    "admin"
-  );
-
-  const memoryButton =
-  document.createElement(
-    "button"
-  );
-
-  memoryButton.id =
-  "memory-manager";
-
-  memoryButton.type =
-  "button";
-
-  memoryButton.className =
-  "side-btn";
-
-  memoryButton.textContent =
-  "Memory";
-
-  memoryButton.onclick =
-  () => {
-
-    window.location.href =
-    "./memory.html";
-
+  memoryButton.onclick = () => {
+    window.location.href = "./memory.html";
   };
 
-  if(
-    adminButton
-    &&
-    adminButton.parentNode === sidebar
-  ){
+  return true;
+}
 
-    sidebar.insertBefore(
-      memoryButton,
-      adminButton
-    );
+function bindChatElements(){
+  if(typeof document === "undefined") return false;
 
+  const root = document.querySelector(".chat");
+  const messages = document.getElementById("conversation");
+  const input = document.getElementById("input");
+  const sendButton = document.getElementById("send");
+  const scrollContainer = document.getElementById("messages");
+
+  if(!root && !messages && !input && !sendButton && !scrollContainer){
+    return false;
   }
-  else{
 
-    sidebar.appendChild(
-      memoryButton
-    );
-
-  }
+  ChatUI.ChatElements.registerElements({
+    root,
+    messages,
+    input,
+    sendButton,
+    scrollContainer
+  });
 
   return true;
-
 }
 
-if(
-  typeof document !== "undefined"
-){
+function mountChatBindings(){
+  mountMemoryShortcut();
+  bindChatElements();
+  return true;
+}
 
-  if(
-    document.readyState ===
-    "loading"
-  ){
-
+if(typeof document !== "undefined"){
+  if(document.readyState === "loading"){
     document.addEventListener(
       "DOMContentLoaded",
-      mountMemoryShortcut,
+      mountChatBindings,
       {once:true}
     );
-
   }
   else{
-
-    mountMemoryShortcut();
-
+    mountChatBindings();
   }
-
 }
 
-
-
-// =====================================
-// CHAT MODULE
-// =====================================
-
-const Chat =
-Object.freeze({
-
-  State:
-  ChatStates,
-
-  Events:
-  ChatEvents,
-
-  Runtime:
-  ChatRuntime,
-
-  Services:
-  ChatServices,
-
-  Actions:
-  ChatActions,
-
-  UI:
-  ChatUI
-
+const Chat = Object.freeze({
+  State:ChatStates,
+  Events:ChatEvents,
+  Runtime:ChatRuntime,
+  Services:ChatServices,
+  Actions:ChatActions,
+  UI:ChatUI,
+  bindUI:bindChatElements,
+  mount:mountChatBindings
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   Chat,
-
-  mountMemoryShortcut
-
+  mountMemoryShortcut,
+  bindChatElements,
+  mountChatBindings
 };
 
-export default
-Chat;
+export default Chat;
