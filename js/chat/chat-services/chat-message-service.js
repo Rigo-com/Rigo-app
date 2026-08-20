@@ -50,6 +50,24 @@ function normalizeContent(content){
   return value;
 }
 
+function streamMessageContent(message){
+  if(message.role !== "assistant" || !message.content) return true;
+
+  ChatStreamService.start(message.id);
+
+  const chunkSize = Math.max(1,CHAT_LIMITS.MAX_STREAM_BUFFER_SIZE);
+  for(let offset = 0; offset < message.content.length; offset += chunkSize){
+    const chunk = message.content.slice(offset,offset + chunkSize);
+    if(!ChatStreamService.pushChunk(chunk)){
+      ChatStreamService.fail("CHAT_STREAM_BUFFER_LIMIT");
+      return false;
+    }
+    ChatStreamService.flush();
+  }
+
+  return ChatStreamService.complete();
+}
+
 function initialize(){
   if(serviceState.initialized) return true;
   ChatQueueService.initialize();
@@ -114,13 +132,8 @@ function createMessage(payload = {}){
     addMessage(message);
     incrementCreated();
 
-    if(message.role === "assistant" && message.content){
-      ChatStreamService.start(message.id);
-      if(!ChatStreamService.pushChunk(message.content)){
-        throw new Error("CHAT_STREAM_BUFFER_LIMIT");
-      }
-      ChatStreamService.flush();
-      ChatStreamService.complete();
+    if(!streamMessageContent(message)){
+      throw new Error("CHAT_STREAM_FAILED");
     }
 
     emit(CHAT_EVENTS.MESSAGE_CREATED,structuredClone(message));
