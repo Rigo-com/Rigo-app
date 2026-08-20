@@ -3,6 +3,7 @@ import { apiState } from "./api-state.js";
 import { APIRequestError, APINetworkError, APITimeoutError, APIAbortError } from "./api-errors.js";
 import { createRequestId, wait, parseResponse, validateEndpoint } from "./api-helpers.js";
 import CommunicationCore from "../communication/communication-core.js";
+import { API_EVENTS, emitAPIEvent } from "./api-events.js";
 
 function fetchWithTimeout(request, timeout, masterSignal){
   const controller = new AbortController();
@@ -68,6 +69,7 @@ async function executeRequest(endpoint, options = {}){
   apiState.activeRequests.set(requestId, masterController);
   apiState.abortControllers.set(requestId, masterController);
   CommunicationCore.startRequest(requestId, { endpoint, method:fetchOptions.method || "GET" });
+  emitAPIEvent(API_EVENTS.REQUEST_STARTED, { requestId, endpoint, method:fetchOptions.method || "GET" });
 
   let finalError = null;
   try{
@@ -82,6 +84,7 @@ async function executeRequest(endpoint, options = {}){
         apiState.diagnostics.successful += 1;
         apiState.lastError = null;
         CommunicationCore.completeRequest(requestId);
+        emitAPIEvent(API_EVENTS.REQUEST_SUCCESS, { requestId, endpoint, method:fetchOptions.method || "GET", status:response.status, attempt });
         return data;
       } catch(error){
         finalError = normalizeRequestError(error, masterController.signal);
@@ -96,6 +99,10 @@ async function executeRequest(endpoint, options = {}){
     else apiState.diagnostics.failed += 1;
     apiState.lastError = finalError;
     CommunicationCore.failRequest(requestId, finalError);
+    emitAPIEvent(
+      finalError instanceof APIAbortError ? API_EVENTS.REQUEST_ABORTED : API_EVENTS.REQUEST_FAILED,
+      { requestId, endpoint, method:fetchOptions.method || "GET", code:finalError.code, message:finalError.message }
+    );
     throw finalError;
   } finally {
     externalSignal?.removeEventListener("abort", abortFromExternal);
@@ -124,4 +131,3 @@ function abortAllRequests(){
 }
 
 export { executeRequest, get, post, put, patch, remove, abortRequest, abortAllRequests };
-
