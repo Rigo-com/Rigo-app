@@ -13,13 +13,20 @@ from "./bootstrap-setup.js";
 
 
 
-
-
 // =====================================
 // SETUP
 // =====================================
 
+const bootstrapSystemsRegistered =
 registerBootstrapSystems();
+
+if(!bootstrapSystemsRegistered){
+
+  throw new Error(
+    "BOOTSTRAP_SYSTEM_REGISTRATION_FAILED"
+  );
+
+}
 
 
 
@@ -28,9 +35,8 @@ registerBootstrapSystems();
 // =====================================
 
 export {
-
-  BootstrapManager
-
+  BootstrapManager,
+  bootstrapSystemsRegistered
 };
 
 export default
