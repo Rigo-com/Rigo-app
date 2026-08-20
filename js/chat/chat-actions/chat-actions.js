@@ -5,13 +5,13 @@
 // =====================================
 
 import {
-  CHAT_EVENTS
+  CHAT_EVENTS,
+  CHAT_LIMITS,
+  CHAT_TIMERS
 }
 from "../chat-config.js";
 
-import {
-  emit
-}
+import { emit }
 from "../chat-events/chat-events.js";
 
 import ChatRuntime
@@ -26,10 +26,7 @@ from "../chat-services/chat-queue-service.js";
 import ChatStreamService
 from "../chat-services/chat-stream-service.js";
 
-import ChatState,
-{
-  chatState
-}
+import ChatState,{ chatState }
 from "../chat-state/chat-state.js";
 
 import {
@@ -38,912 +35,326 @@ import {
 }
 from "../../storage/account-data-client.js";
 
-
-// =====================================
-// INTERNAL STATE
-// =====================================
-
-const conversationRuntime =
-Object.seal({
-
+const conversationRuntime = Object.seal({
   localKey:null,
   saveTimer:null,
-  initialized:false
-
+  initialized:false,
+  messageCounter:0
 });
-
-
-// =====================================
-// HELPERS
-// =====================================
 
 function createConversationId(){
-
-  return (
-    "chat-" +
-    Date.now() +
-    "-" +
-    Math.random()
-    .toString(36)
-    .slice(2,8)
-  );
-
+  return "chat-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
 }
 
-
-function normalizeOwner(
-  owner
-){
-
-  return String(
-    owner ||
-    ""
-  )
-  .trim()
-  .toLowerCase();
-
+function createConversationMessageId(){
+  conversationRuntime.messageCounter++;
+  return "chatmsg_" + Date.now() + "_" + conversationRuntime.messageCounter;
 }
 
-
-function createLocalKey(
-  owner
-){
-
-  return (
-    "rigo_user_" +
-    encodeURIComponent(
-      owner
-    ) +
-    "_chat_history_v2"
-  );
-
+function normalizeOwner(owner){
+  return String(owner || "").trim().toLowerCase();
 }
 
+function normalizeMessageContent(content){
+  const value = String(content || "");
+  if(value.length > CHAT_LIMITS.MAX_MESSAGE_LENGTH){
+    throw new Error("CHAT_MESSAGE_TOO_LONG");
+  }
+  return value;
+}
+
+function createLocalKey(owner){
+  return "rigo_user_" + encodeURIComponent(owner) + "_chat_history_v2";
+}
 
 function clone(value){
-
-  if(
-    typeof structuredClone ===
-    "function"
-  ){
-
-    return structuredClone(
-      value
-    );
-
-  }
-
-  return JSON.parse(
-    JSON.stringify(value)
-  );
-
+  if(typeof structuredClone === "function") return structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
 }
-
 
 function persistLocal(){
-
-  if(
-    typeof localStorage ===
-    "undefined" ||
-    !conversationRuntime.localKey
-  ){
-    return false;
-  }
-
+  if(typeof localStorage === "undefined" || !conversationRuntime.localKey) return false;
   try{
-
-    localStorage
-    .setItem(
-      conversationRuntime.localKey,
-      JSON.stringify(
-        ChatState.getStore()
-      )
-    );
-
+    localStorage.setItem(conversationRuntime.localKey,JSON.stringify(ChatState.getStore()));
     return true;
-
   }
   catch{
     return false;
   }
-
 }
-
 
 function loadLocal(){
-
-  if(
-    typeof localStorage ===
-    "undefined" ||
-    !conversationRuntime.localKey
-  ){
-    return null;
-  }
-
+  if(typeof localStorage === "undefined" || !conversationRuntime.localKey) return null;
   try{
-
-    const parsed =
-    JSON.parse(
-      localStorage
-      .getItem(
-        conversationRuntime.localKey
-      ) ||
-      "null"
-    );
-
-    if(
-      !parsed ||
-      parsed.owner !==
-      chatState.owner ||
-      !Array.isArray(
-        parsed.chats
-      )
-    ){
-      return null;
-    }
-
+    const parsed = JSON.parse(localStorage.getItem(conversationRuntime.localKey) || "null");
+    if(!parsed || parsed.owner !== chatState.owner || !Array.isArray(parsed.chats)) return null;
     return parsed;
-
   }
   catch{
     return null;
   }
-
 }
-
 
 async function persistRemote(){
-
-  if(
-    !chatState.remoteReady
-  ){
-    return false;
-  }
-
-  chatState.syncing =
-  true;
-
+  if(!chatState.remoteReady) return false;
+  chatState.syncing = true;
   try{
-
-    await saveAccountSection(
-      "chats",
-      ChatState.getStore()
-    );
-
-    chatState.lastSyncAt =
-    Date.now();
-
-    ChatState
-    .incrementDiagnostic(
-      "syncWrites"
-    );
-
+    await saveAccountSection("chats",ChatState.getStore());
+    chatState.lastSyncAt = Date.now();
+    ChatState.incrementDiagnostic("syncWrites");
     return true;
-
   }
   catch(error){
-
-    ChatState
-    .incrementDiagnostic(
-      "syncFailures"
-    );
-
+    ChatState.incrementDiagnostic("syncFailures");
     throw error;
-
   }
   finally{
-
-    chatState.syncing =
-    false;
-
+    chatState.syncing = false;
   }
-
 }
-
 
 function scheduleRemoteSave(){
-
-  if(
-    !chatState.remoteReady
-  ){
-    return false;
-  }
-
-  clearTimeout(
-    conversationRuntime
-    .saveTimer
-  );
-
-  conversationRuntime.saveTimer =
-  setTimeout(
-
-    () => {
-
-      persistRemote()
-      .catch(
-        () => {}
-      );
-
-    },
-
-    250
-
-  );
-
+  if(!chatState.remoteReady) return false;
+  clearTimeout(conversationRuntime.saveTimer);
+  conversationRuntime.saveTimer = setTimeout(() => {
+    persistRemote().catch(() => {});
+  },CHAT_TIMERS.SAVE_DEBOUNCE);
   return true;
-
 }
-
 
 function persistConversationStore(){
-
   persistLocal();
   scheduleRemoteSave();
-
   return true;
-
 }
 
+async function initializeConversationStore(owner){
+  const normalizedOwner = normalizeOwner(owner);
+  if(!normalizedOwner) throw new Error("CHAT_OWNER_REQUIRED");
 
-// =====================================
-// CONVERSATION STORE INITIALIZATION
-// =====================================
+  ChatState.setOwner(normalizedOwner);
+  conversationRuntime.localKey = createLocalKey(normalizedOwner);
 
-async function initializeConversationStore(
-  owner
-){
-
-  const normalizedOwner =
-  normalizeOwner(
-    owner
-  );
-
-  if(
-    !normalizedOwner
-  ){
-
-    throw new Error(
-      "CHAT_OWNER_REQUIRED"
-    );
-
-  }
-
-  ChatState
-  .setOwner(
-    normalizedOwner
-  );
-
-  conversationRuntime.localKey =
-  createLocalKey(
-    normalizedOwner
-  );
-
-  const localStore =
-  loadLocal();
-
-  if(
-    localStore
-  ){
-
-    ChatState
-    .replaceConversations(
-      localStore.chats,
-      localStore.activeId
-    );
-
+  const localStore = loadLocal();
+  if(localStore){
+    ChatState.replaceConversations(localStore.chats,localStore.activeId);
   }
 
   try{
+    const remoteStore = await loadAccountSection("chats");
+    ChatState.incrementDiagnostic("syncReads");
 
-    const remoteStore =
-    await loadAccountSection(
-      "chats"
-    );
-
-    ChatState
-    .incrementDiagnostic(
-      "syncReads"
-    );
-
-    if(
-      remoteStore &&
-      Array.isArray(
-        remoteStore.chats
-      )
-    ){
-
-      ChatState
-      .replaceConversations(
-        remoteStore.chats,
-        remoteStore.activeId
-      );
-
+    if(remoteStore && Array.isArray(remoteStore.chats)){
+      ChatState.replaceConversations(remoteStore.chats,remoteStore.activeId);
       persistLocal();
-
     }
-    else if(
-      localStore &&
-      localStore.chats.length
-    ){
-
-      chatState.remoteReady =
-      true;
-
+    else if(localStore && localStore.chats.length){
+      chatState.remoteReady = true;
       await persistRemote();
-
     }
-
   }
   catch{
-
-    ChatState
-    .incrementDiagnostic(
-      "syncFailures"
-    );
-
+    ChatState.incrementDiagnostic("syncFailures");
   }
 
-  chatState.hydrated =
-  true;
-
-  chatState.remoteReady =
-  true;
-
-  conversationRuntime.initialized =
-  true;
-
+  chatState.hydrated = true;
+  chatState.remoteReady = true;
+  conversationRuntime.initialized = true;
   return getConversationStore();
-
 }
 
-
-// =====================================
-// CONVERSATIONS
-// =====================================
-
-function createConversation(
-  options = {}
-){
-
-  const conversation =
-  ChatState
-  .addConversation({
-
-    id:
-    options.id ||
-    createConversationId(),
-
-    owner:
-    chatState.owner,
-
-    title:
-    String(
-      options.title ||
-      ""
-    ),
-
-    createdAt:
-    Date.now(),
-
-    updatedAt:
-    Date.now(),
-
-    messages:
-    Array.isArray(
-      options.messages
-    )
-      ? clone(
-          options.messages
-        )
-      : []
-
+function createConversation(options = {}){
+  const conversation = ChatState.addConversation({
+    id:options.id || createConversationId(),
+    owner:chatState.owner,
+    title:String(options.title || ""),
+    createdAt:Date.now(),
+    updatedAt:Date.now(),
+    messages:Array.isArray(options.messages) ? clone(options.messages) : []
   });
 
-  if(
-    !conversation
-  ){
-    return null;
-  }
-
-  ChatState
-  .setActiveConversation(
-    conversation.id
-  );
-
+  if(!conversation) return null;
+  ChatState.setActiveConversation(conversation.id);
   persistConversationStore();
-
   return conversation;
-
 }
-
 
 function ensureConversation(){
-
-  const active =
-  ChatState
-  .getActiveConversation();
-
-  if(
-    active
-  ){
-    return active;
-  }
-
-  return createConversation();
-
+  return ChatState.getActiveConversation() || createConversation();
 }
 
-
-function activateConversation(
-  conversationId
-){
-
-  const activated =
-  ChatState
-  .setActiveConversation(
-    conversationId
-  );
-
-  if(
-    activated
-  ){
-    persistConversationStore();
-  }
-
+function activateConversation(conversationId){
+  const activated = ChatState.setActiveConversation(conversationId);
+  if(activated) persistConversationStore();
   return activated;
-
 }
 
-
-function renameConversation(
-  conversationId,
-  title
-){
-
-  const nextTitle =
-  String(
-    title ||
-    ""
-  )
-  .trim()
-  .slice(0,80);
-
-  const conversation =
-  ChatState
-  .updateConversation(
-    conversationId,
-    {
-      title:
-      nextTitle,
-
-      updatedAt:
-      Date.now()
-    }
-  );
-
-  if(
-    !conversation
-  ){
-    return null;
-  }
-
-  ChatState
-  .incrementDiagnostic(
-    "conversationsRenamed"
-  );
-
+function renameConversation(conversationId,title){
+  const conversation = ChatState.updateConversation(conversationId,{
+    title:String(title || "").trim().slice(0,80),
+    updatedAt:Date.now()
+  });
+  if(!conversation) return null;
+  ChatState.incrementDiagnostic("conversationsRenamed");
   persistConversationStore();
-
   return conversation;
-
 }
 
-
-function deleteConversation(
-  conversationId
-){
-
-  const removed =
-  ChatState
-  .removeConversation(
-    conversationId
-  );
-
-  if(
-    removed
-  ){
-    persistConversationStore();
-  }
-
+function deleteConversation(conversationId){
+  const removed = ChatState.removeConversation(conversationId);
+  if(removed) persistConversationStore();
   return removed;
-
 }
 
-
-function appendConversationMessage(
-  conversationId,
-  message = {}
-){
-
-  const conversation =
-  ChatState
-  .getConversation(
-    conversationId
-  );
-
-  if(
-    !conversation
-  ){
-    return null;
+function findMirroredMessage(payload = {}){
+  const id = String(payload.id || "").trim();
+  if(id){
+    const byId = ChatMessageService.get(id);
+    if(byId) return byId;
   }
 
-  const nextMessage = {
+  const role = String(payload.role || "assistant");
+  const content = String(payload.content || "");
+  const conversationId = payload.conversationId ?? payload.metadata?.conversationId ?? null;
 
-    role:
-    String(
-      message.role ||
-      "assistant"
-    ),
-
-    content:
-    String(
-      message.content ||
-      ""
-    ),
-
-    ...(message.id
-      ? {
-          id:
-          String(message.id)
-        }
-      : {}),
-
-    createdAt:
-    Number(
-      message.createdAt ||
-      Date.now()
-    )
-
-  };
-
-  const messages = [
-    ...conversation.messages,
-    nextMessage
-  ];
-
-  const updated =
-  ChatState
-  .updateConversation(
-    conversationId,
-    {
-      messages,
-      updatedAt:
-      Date.now()
-    }
-  );
-
-  if(
-    updated
-  ){
-    persistConversationStore();
-  }
-
-  return updated;
-
+  return ChatMessageService.getAll()
+  .slice()
+  .reverse()
+  .find(message =>
+    message.role === role &&
+    message.content === content &&
+    (message.metadata?.conversationId ?? null) === conversationId
+  ) || null;
 }
 
-
-function replaceConversationMessages(
-  conversationId,
-  messages = []
-){
-
-  const updated =
-  ChatState
-  .updateConversation(
-    conversationId,
-    {
-      messages:
-      Array.isArray(messages)
-        ? clone(messages)
-        : [],
-
-      updatedAt:
-      Date.now()
-    }
-  );
-
-  if(
-    updated
-  ){
-    persistConversationStore();
-  }
-
-  return updated;
-
-}
-
-
-function getConversationStore(){
-
-  return ChatState
-  .getStore();
-
-}
-
-
-function getConversations(){
-
-  return ChatState
-  .getConversations();
-
-}
-
-
-function getActiveConversation(){
-
-  return ChatState
-  .getActiveConversation();
-
-}
-
-
-async function flushConversationStore(){
-
-  persistLocal();
-
-  clearTimeout(
-    conversationRuntime
-    .saveTimer
-  );
-
-  if(
-    chatState.remoteReady
-  ){
-
-    await persistRemote();
-
-  }
-
-  return true;
-
-}
-
-
-// =====================================
-// SEND MESSAGE
-// =====================================
-
-function sendMessage(
-  payload = {}
-){
-
-  const message =
-
-    ChatMessageService
-    .create(
-      payload
-    );
-
-  emit(
-    CHAT_EVENTS
-    .MESSAGE_SENT,
-    structuredClone(
-      message
-    )
-  );
-
-  return message;
-
-}
-
-
-// =====================================
-// DELETE MESSAGE
-// =====================================
-
-function deleteMessage(
-  messageId
-){
-
-  return ChatMessageService
-  .delete(
-    messageId
-  );
-
-}
-
-
-// =====================================
-// RETRY MESSAGE
-// =====================================
-
-function retryMessage(
-  messageId
-){
-
-  emit(
-    CHAT_EVENTS
-    .MESSAGE_RETRY,
-    {
-      messageId
-    }
-  );
-
-  return true;
-
-}
-
-
-// =====================================
-// GENERATION
-// =====================================
-
-function startGeneration(
-  payload = null
-){
-
-  emit(
-    CHAT_EVENTS
-    .GENERATION_STARTED,
-    payload
-  );
-
-  return true;
-
-}
-
-
-function completeGeneration(
-  payload = null
-){
-
-  emit(
-    CHAT_EVENTS
-    .GENERATION_COMPLETED,
-    payload
-  );
-
-  return true;
-
-}
-
-
-function abortGeneration(
-  payload = null
-){
-
-  emit(
-    CHAT_EVENTS
-    .GENERATION_ABORTED,
-    payload
-  );
-
-  return true;
-
-}
-
-
-// =====================================
-// STREAM
-// =====================================
-
-function startStream(
-  messageId
-){
-
-  return ChatStreamService
-  .start(
-    messageId
-  );
-
-}
-
-
-function pushChunk(
-  chunk
-){
-
-  return ChatStreamService
-  .pushChunk(
-    chunk
-  );
-
-}
-
-
-function completeStream(){
-
-  return ChatStreamService
-  .complete();
-
-}
-
-
-function abortStream(){
-
-  return ChatStreamService
-  .abort();
-
-}
-
-
-// =====================================
-// CLEAR CHAT
-// =====================================
-
-function clearChat(){
-
-  ChatRuntime
-  .reset();
-
-  return true;
-
-}
-
-
-// =====================================
-// STATUS
-// =====================================
-
-function getStatus(){
-
-  return Object.freeze({
-
-    runtime:
-    ChatRuntime
-    .status(),
-
-    messages:
-    ChatMessageService
-    .status(),
-
-    queue:
-    ChatQueueService
-    .status(),
-
-    stream:
-    ChatStreamService
-    .status(),
-
-    conversations:{
-
-      initialized:
-      conversationRuntime.initialized,
-
-      hydrated:
-      chatState.hydrated,
-
-      syncing:
-      chatState.syncing,
-
-      count:
-      chatState
-      .conversations
-      .length,
-
-      activeId:
-      chatState
-      .activeConversationId,
-
-      lastSyncAt:
-      chatState
-      .lastSyncAt
-
-    }
-
+function sendMessage(payload = {}){
+  const existing = findMirroredMessage(payload);
+  if(existing) return existing;
+
+  const message = ChatMessageService.create({
+    ...payload,
+    content:normalizeMessageContent(payload.content)
   });
 
+  emit(CHAT_EVENTS.MESSAGE_SENT,structuredClone(message));
+  ChatState.incrementDiagnostic("messagesSent");
+  return message;
 }
 
+function appendConversationMessage(conversationId,message = {}){
+  const conversation = ChatState.getConversation(conversationId);
+  if(!conversation) return null;
 
-// =====================================
-// PUBLIC API
-// =====================================
+  const nextMessage = {
+    id:String(message.id || createConversationMessageId()),
+    role:String(message.role || "assistant"),
+    content:normalizeMessageContent(message.content),
+    createdAt:Number(message.createdAt || Date.now())
+  };
 
-const ChatActions =
-Object.freeze({
+  const messages = [...conversation.messages,nextMessage]
+  .slice(-CHAT_LIMITS.MAX_MESSAGES);
 
+  const updated = ChatState.updateConversation(conversationId,{
+    messages,
+    updatedAt:Date.now()
+  });
+
+  if(!updated) return null;
+
+  persistConversationStore();
+  ChatState.incrementDiagnostic("messagesCreated");
+
+  try{
+    sendMessage({
+      ...nextMessage,
+      userId:chatState.owner,
+      conversationId
+    });
+  }
+  catch{
+    ChatState.incrementDiagnostic("messagesFailed");
+  }
+
+  return updated;
+}
+
+function replaceConversationMessages(conversationId,messages = []){
+  const normalized = Array.isArray(messages)
+    ? messages.slice(-CHAT_LIMITS.MAX_MESSAGES).map(message => ({
+        ...clone(message || {}),
+        id:String(message?.id || createConversationMessageId()),
+        role:String(message?.role || "assistant"),
+        content:normalizeMessageContent(message?.content),
+        createdAt:Number(message?.createdAt || Date.now())
+      }))
+    : [];
+
+  const updated = ChatState.updateConversation(conversationId,{
+    messages:normalized,
+    updatedAt:Date.now()
+  });
+
+  if(updated) persistConversationStore();
+  return updated;
+}
+
+function getConversationStore(){ return ChatState.getStore(); }
+function getConversations(){ return ChatState.getConversations(); }
+function getActiveConversation(){ return ChatState.getActiveConversation(); }
+
+async function flushConversationStore(){
+  persistLocal();
+  clearTimeout(conversationRuntime.saveTimer);
+  conversationRuntime.saveTimer = null;
+  if(chatState.remoteReady) await persistRemote();
+  return true;
+}
+
+function deleteMessage(messageId){
+  return ChatMessageService.delete(messageId);
+}
+
+function retryMessage(messageId){
+  ChatState.incrementDiagnostic("retries");
+  emit(CHAT_EVENTS.MESSAGE_RETRY,{messageId});
+  return true;
+}
+
+function startGeneration(payload = null){ emit(CHAT_EVENTS.GENERATION_STARTED,payload); return true; }
+function completeGeneration(payload = null){ emit(CHAT_EVENTS.GENERATION_COMPLETED,payload); return true; }
+function abortGeneration(payload = null){ emit(CHAT_EVENTS.GENERATION_ABORTED,payload); return true; }
+
+function startStream(messageId){ return ChatStreamService.start(messageId); }
+function pushChunk(chunk){ return ChatStreamService.pushChunk(chunk); }
+function completeStream(){ return ChatStreamService.complete(); }
+function abortStream(){ return ChatStreamService.abort(); }
+
+function clearChat(){
+  ChatRuntime.reset();
+  return true;
+}
+
+function getStatus(){
+  return Object.freeze({
+    runtime:ChatRuntime.status(),
+    messages:ChatMessageService.status(),
+    queue:ChatQueueService.status(),
+    stream:ChatStreamService.status(),
+    conversations:{
+      initialized:conversationRuntime.initialized,
+      hydrated:chatState.hydrated,
+      syncing:chatState.syncing,
+      count:chatState.conversations.length,
+      activeId:chatState.activeConversationId,
+      lastSyncAt:chatState.lastSyncAt,
+      maxMessages:CHAT_LIMITS.MAX_MESSAGES,
+      maxMessageLength:CHAT_LIMITS.MAX_MESSAGE_LENGTH
+    }
+  });
+}
+
+const ChatActions = Object.freeze({
   initializeConversationStore,
   createConversation,
   ensureConversation,
@@ -956,34 +367,21 @@ Object.freeze({
   getConversations,
   getActiveConversation,
   flushConversationStore,
-
   sendMessage,
   deleteMessage,
   retryMessage,
-
   startGeneration,
   completeGeneration,
   abortGeneration,
-
   startStream,
   pushChunk,
   completeStream,
   abortStream,
-
   clearChat,
-
-  status:
-  getStatus
-
+  status:getStatus
 });
 
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   initializeConversationStore,
   createConversation,
   ensureConversation,
@@ -996,27 +394,19 @@ export {
   getConversations,
   getActiveConversation,
   flushConversationStore,
-
   sendMessage,
   deleteMessage,
   retryMessage,
-
   startGeneration,
   completeGeneration,
   abortGeneration,
-
   startStream,
   pushChunk,
   completeStream,
   abortStream,
-
   clearChat,
-
   getStatus,
-
   ChatActions
-
 };
 
-export default
-ChatActions;
+export default ChatActions;
