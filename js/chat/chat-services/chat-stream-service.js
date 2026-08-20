@@ -139,15 +139,14 @@ function start(messageId){
 function pushChunk(chunk){
   if(!isStreamActive() || typeof chunk !== "string" || chunk.length <= 0) return false;
 
-  const projectedLength = getPartialContent().length + streamRuntime.bufferedLength + chunk.length;
-  if(projectedLength > CHAT_LIMITS.MAX_STREAM_BUFFER_SIZE){
+  const projectedBuffer = streamRuntime.bufferedLength + chunk.length;
+  if(projectedBuffer > CHAT_LIMITS.MAX_STREAM_BUFFER_SIZE){
     incrementDroppedChunks();
-    fail("CHAT_STREAM_BUFFER_LIMIT");
     return false;
   }
 
   streamRuntime.chunkBuffer.push(chunk);
-  streamRuntime.bufferedLength += chunk.length;
+  streamRuntime.bufferedLength = projectedBuffer;
   streamRuntime.chunkCount++;
   incrementChunks();
   setCurrentChunk(chunk);
@@ -209,20 +208,16 @@ function complete(){
 function abort(){
   if(!getActiveStreamId()) return false;
   clearTimeoutTimer();
-
   try{ streamRuntime.controller?.abort(); }catch{}
-
   setStreamAborted(true);
   setStreamActive(false);
   setStreamStatus(CHAT_STREAM_STATUS.ABORTED);
   setStreamEndAt(Date.now());
   incrementAborted();
-
   emit(CHAT_EVENTS.STREAM_ABORTED,{
     streamId:getActiveStreamId(),
     messageId:getActiveMessageId()
   });
-
   resetRuntime();
   return true;
 }
@@ -234,13 +229,11 @@ function fail(error = null){
   setStreamStatus(CHAT_STREAM_STATUS.FAILED);
   setStreamEndAt(Date.now());
   incrementFailed();
-
   emit(CHAT_EVENTS.STREAM_FAILED,{
     streamId:getActiveStreamId(),
     messageId:getActiveMessageId(),
     error
   });
-
   resetRuntime();
   return true;
 }
