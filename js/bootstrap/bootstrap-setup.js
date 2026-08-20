@@ -69,7 +69,10 @@ function registerAISystem(){
     id:"ai",
     priority:10,
     initialize:AI.initialize,
-    shutdown:AI.shutdown
+    boot:AI.boot,
+    shutdown:AI.shutdown,
+    reset:AI.reset,
+    snapshot:AI.snapshot
   });
 
 }
