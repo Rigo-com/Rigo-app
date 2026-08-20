@@ -2,8 +2,9 @@ name: Auth Runtime
 
 on:
   push:
-    branches: [ai-bootstrap-wiring]
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
