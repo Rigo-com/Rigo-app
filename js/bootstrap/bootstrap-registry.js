@@ -11,6 +11,86 @@ from "./bootstrap-state.js";
 
 
 // =====================================
+// CONTRACT
+// =====================================
+
+const REQUIRED_SYSTEM_METHODS =
+Object.freeze([
+  "initialize",
+  "boot",
+  "shutdown",
+  "reset",
+  "snapshot"
+]);
+
+
+
+function normalizeSystemId(
+  value
+){
+
+  return String(
+    value || ""
+  )
+  .trim()
+  .toLowerCase();
+
+}
+
+
+
+function validateBootstrapSystem(
+  system
+){
+
+  if(
+    !system ||
+    typeof system !== "object"
+  ){
+
+    return false;
+
+  }
+
+  const id =
+  normalizeSystemId(
+    system.id
+  );
+
+  if(!id){
+
+    return false;
+
+  }
+
+  const priority =
+  Number(
+    system.priority
+  );
+
+  if(
+    !Number.isFinite(
+      priority
+    )
+  ){
+
+    return false;
+
+  }
+
+  return REQUIRED_SYSTEM_METHODS
+  .every((method) => {
+
+    return typeof system[method] ===
+    "function";
+
+  });
+
+}
+
+
+
+// =====================================
 // REGISTER
 // =====================================
 
@@ -19,9 +99,9 @@ export function registerBootstrapSystem(
 ){
 
   if(
-    !system ||
-    typeof system !==
-    "object"
+    !validateBootstrapSystem(
+      system
+    )
   ){
 
     return false;
@@ -29,17 +109,9 @@ export function registerBootstrapSystem(
   }
 
   const id =
-  String(
-    system.id || ""
-  )
-  .trim()
-  .toLowerCase();
-
-  if(!id){
-
-    return false;
-
-  }
+  normalizeSystemId(
+    system.id
+  );
 
   bootstrapState
   .registeredSystems
@@ -53,23 +125,23 @@ export function registerBootstrapSystem(
 
       priority:
       Number(
-        system.priority || 0
+        system.priority
       ),
 
       initialize:
-      system.initialize || null,
+      system.initialize,
 
       boot:
-      system.boot || null,
+      system.boot,
 
       shutdown:
-      system.shutdown || null,
+      system.shutdown,
 
       reset:
-      system.reset || null,
+      system.reset,
 
       snapshot:
-      system.snapshot || null
+      system.snapshot
 
     })
 
@@ -93,11 +165,9 @@ export function removeBootstrapSystem(
   .registeredSystems
   .delete(
 
-    String(
-      systemId || ""
+    normalizeSystemId(
+      systemId
     )
-    .trim()
-    .toLowerCase()
 
   );
 
@@ -117,11 +187,9 @@ export function getBootstrapSystem(
   .registeredSystems
   .get(
 
-    String(
-      systemId || ""
+    normalizeSystemId(
+      systemId
     )
-    .trim()
-    .toLowerCase()
 
   ) || null;
 
@@ -152,3 +220,15 @@ export function listBootstrapSystems(){
   });
 
 }
+
+
+
+// =====================================
+// EXPORTS
+// =====================================
+
+export {
+  REQUIRED_SYSTEM_METHODS,
+  normalizeSystemId,
+  validateBootstrapSystem
+};
