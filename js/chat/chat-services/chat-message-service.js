@@ -22,7 +22,10 @@ from "../chat-state/chat-message-state.js";
 import { emit }
 from "../chat-events/chat-events.js";
 
-import { CHAT_EVENTS }
+import {
+  CHAT_EVENTS,
+  CHAT_LIMITS
+}
 from "../chat-config.js";
 
 import ChatQueueService
@@ -31,15 +34,20 @@ from "./chat-queue-service.js";
 import ChatStreamService
 from "./chat-stream-service.js";
 
-const serviceState = Object.seal({
-  initialized:false
-});
-
+const serviceState = Object.seal({ initialized:false });
 let messageCounter = 0;
 
 function createMessageId(){
   messageCounter++;
   return "msg_" + Date.now() + "_" + messageCounter;
+}
+
+function normalizeContent(content){
+  const value = String(content || "");
+  if(value.length > CHAT_LIMITS.MAX_MESSAGE_LENGTH){
+    throw new Error("CHAT_MESSAGE_TOO_LONG");
+  }
+  return value;
 }
 
 function initialize(){
@@ -66,7 +74,11 @@ function reset(){
 
 function createMessage(payload = {}){
   if(!serviceState.initialized) initialize();
+  if(getMessageCount() >= CHAT_LIMITS.MAX_MESSAGES){
+    throw new Error("CHAT_MESSAGE_LIMIT_REACHED");
+  }
 
+  const content = normalizeContent(payload.content);
   const queueItem = ChatQueueService.enqueue({
     type:"message",
     data:{
@@ -74,6 +86,8 @@ function createMessage(payload = {}){
       conversationId:payload.conversationId ?? payload.metadata?.conversationId ?? null
     }
   });
+
+  if(!queueItem) throw new Error("CHAT_QUEUE_FULL");
 
   ChatQueueService.startProcessing();
   const activeItem = ChatQueueService.dequeue() || queueItem;
@@ -87,11 +101,9 @@ function createMessage(payload = {}){
     const message = {
       id,
       role:String(payload.role || "assistant"),
-      content:String(payload.content || ""),
+      content,
       metadata:{
-        ...(payload.metadata && typeof payload.metadata === "object"
-          ? payload.metadata
-          : {}),
+        ...(payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {}),
         ...(payload.userId ? {userId:payload.userId} : {}),
         ...(payload.conversationId ? {conversationId:payload.conversationId} : {})
       },
@@ -104,16 +116,17 @@ function createMessage(payload = {}){
 
     if(message.role === "assistant" && message.content){
       ChatStreamService.start(message.id);
-      ChatStreamService.pushChunk(message.content);
+      if(!ChatStreamService.pushChunk(message.content)){
+        throw new Error("CHAT_STREAM_BUFFER_LIMIT");
+      }
       ChatStreamService.flush();
       ChatStreamService.complete();
     }
 
-    emit(CHAT_EVENTS.MESSAGE_CREATED, structuredClone(message));
+    emit(CHAT_EVENTS.MESSAGE_CREATED,structuredClone(message));
 
     if(activeItem?.id) ChatQueueService.complete(activeItem.id);
     ChatQueueService.stopProcessing();
-
     return structuredClone(message);
   }
   catch(error){
@@ -123,27 +136,28 @@ function createMessage(payload = {}){
   }
 }
 
-function updateMessage(messageId, updates = {}){
+function updateMessage(messageId,updates = {}){
   if(!hasMessage(messageId)) return null;
+  const safeUpdates = {...updates};
+  if("content" in safeUpdates) safeUpdates.content = normalizeContent(safeUpdates.content);
 
-  updateMessageRecord(messageId, {
-    ...updates,
+  updateMessageRecord(messageId,{
+    ...safeUpdates,
     updatedAt:Date.now()
   });
 
   const message = getStoredMessage(messageId);
   incrementUpdated();
-  emit(CHAT_EVENTS.MESSAGE_UPDATED, structuredClone(message));
+  emit(CHAT_EVENTS.MESSAGE_UPDATED,structuredClone(message));
   return structuredClone(message);
 }
 
 function deleteMessage(messageId){
   const message = getStoredMessage(messageId);
   if(!message) return false;
-
   removeMessage(messageId);
   incrementDeleted();
-  emit(CHAT_EVENTS.MESSAGE_DELETED, structuredClone(message));
+  emit(CHAT_EVENTS.MESSAGE_DELETED,structuredClone(message));
   return true;
 }
 
@@ -160,6 +174,8 @@ function getStatus(){
   return Object.freeze({
     initialized:serviceState.initialized,
     messages:getMessageCount(),
+    messageLimit:CHAT_LIMITS.MAX_MESSAGES,
+    messageLengthLimit:CHAT_LIMITS.MAX_MESSAGE_LENGTH,
     queue:ChatQueueService.status(),
     stream:ChatStreamService.status()
   });
@@ -169,7 +185,11 @@ function getSnapshot(){
   return Object.freeze({
     messages:getChatMessageSnapshot(),
     queue:ChatQueueService.snapshot(),
-    stream:ChatStreamService.snapshot()
+    stream:ChatStreamService.snapshot(),
+    limits:{
+      messages:CHAT_LIMITS.MAX_MESSAGES,
+      messageLength:CHAT_LIMITS.MAX_MESSAGE_LENGTH
+    }
   });
 }
 
