@@ -29,7 +29,10 @@ from "../chat-state/chat-queue-state.js";
 import { emit }
 from "../chat-events/chat-events.js";
 
-import { CHAT_EVENTS }
+import {
+  CHAT_EVENTS,
+  CHAT_LIMITS
+}
 from "../chat-config.js";
 
 const serviceState = Object.seal({
@@ -64,6 +67,11 @@ function reset(){
 }
 
 function enqueue(payload = {}){
+  const trackedSize = getQueueSize() + (serviceState.activeItem ? 1 : 0);
+  if(trackedSize >= CHAT_LIMITS.MAX_QUEUE_SIZE){
+    return null;
+  }
+
   const item = {
     id:createQueueItemId(),
     type:String(payload.type || "default"),
@@ -73,18 +81,20 @@ function enqueue(payload = {}){
 
   if(!enqueueItem(item)) return null;
   incrementEnqueued();
-  emit(CHAT_EVENTS.QUEUE_ENQUEUED, structuredClone(item));
+  emit(CHAT_EVENTS.QUEUE_ENQUEUED,structuredClone(item));
   return structuredClone(item);
 }
 
 function dequeue(){
+  if(serviceState.activeItem) return structuredClone(serviceState.activeItem);
+
   const item = dequeueItem();
   if(!item) return null;
 
   serviceState.activeItem = structuredClone(item);
   setActiveQueueItem(item.id);
   incrementDequeued();
-  emit(CHAT_EVENTS.QUEUE_DEQUEUED, structuredClone(item));
+  emit(CHAT_EVENTS.QUEUE_DEQUEUED,structuredClone(item));
   return structuredClone(item);
 }
 
@@ -99,9 +109,7 @@ function remove(itemId){
 }
 
 function resolveTrackedItem(itemId){
-  if(serviceState.activeItem?.id === itemId){
-    return serviceState.activeItem;
-  }
+  if(serviceState.activeItem?.id === itemId) return serviceState.activeItem;
   return getQueueItem(itemId);
 }
 
@@ -110,7 +118,7 @@ function complete(itemId){
   if(!item) return false;
 
   incrementCompleted();
-  emit(CHAT_EVENTS.QUEUE_COMPLETED, structuredClone(item));
+  emit(CHAT_EVENTS.QUEUE_COMPLETED,structuredClone(item));
 
   if(serviceState.activeItem?.id === itemId){
     serviceState.activeItem = null;
@@ -128,7 +136,7 @@ function fail(itemId){
   if(!item) return false;
 
   incrementFailed();
-  emit(CHAT_EVENTS.QUEUE_FAILED, structuredClone(item));
+  emit(CHAT_EVENTS.QUEUE_FAILED,structuredClone(item));
 
   if(serviceState.activeItem?.id === itemId){
     serviceState.activeItem = null;
@@ -141,19 +149,13 @@ function fail(itemId){
   return true;
 }
 
-function pause(){
-  setQueuePaused(true);
-  return true;
-}
-
-function resume(){
-  setQueuePaused(false);
-  return true;
-}
+function pause(){ setQueuePaused(true); return true; }
+function resume(){ setQueuePaused(false); return true; }
 
 function clear(){
   clearQueue();
   serviceState.activeItem = null;
+  setActiveQueueItem(null);
   incrementCleared();
   emit(CHAT_EVENTS.QUEUE_CLEARED);
   return true;
@@ -167,8 +169,7 @@ function startProcessing(){
 
 function stopProcessing(){
   setQueueProcessing(false);
-  serviceState.activeItem = null;
-  setActiveQueueItem(null);
+  if(!serviceState.activeItem) setActiveQueueItem(null);
   return true;
 }
 
@@ -179,27 +180,26 @@ function get(itemId){
 
 function getAll(){
   const items = getQueueItems().map(item => structuredClone(item));
-  if(serviceState.activeItem){
-    items.unshift(structuredClone(serviceState.activeItem));
-  }
+  if(serviceState.activeItem) items.unshift(structuredClone(serviceState.activeItem));
   return items;
 }
 
 function getStatus(){
   return Object.freeze({
     initialized:serviceState.initialized,
-    size:getQueueSize(),
-    empty:isQueueEmpty(),
-    activeItemId:serviceState.activeItem?.id || null
+    size:getQueueSize() + (serviceState.activeItem ? 1 : 0),
+    waiting:getQueueSize(),
+    empty:isQueueEmpty() && !serviceState.activeItem,
+    activeItemId:serviceState.activeItem?.id || null,
+    limit:CHAT_LIMITS.MAX_QUEUE_SIZE
   });
 }
 
 function getSnapshot(){
   return Object.freeze({
     ...getChatQueueSnapshot(),
-    activeItem:serviceState.activeItem
-      ? structuredClone(serviceState.activeItem)
-      : null
+    activeItem:serviceState.activeItem ? structuredClone(serviceState.activeItem) : null,
+    limit:CHAT_LIMITS.MAX_QUEUE_SIZE
   });
 }
 
