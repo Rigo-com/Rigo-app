@@ -24,29 +24,17 @@ import {
 }
 from "./bootstrap-registry.js";
 
-
-
-// =====================================
-// REGISTER CORE
-// =====================================
-
 async function initializeCoreSystem(){
-
   if(!ServiceManager.has("events")){
-
     await ServiceManager.register(
       "events",
       async () => Core.events
     );
-
   }
-
   return Core.initialize();
-
 }
 
 function registerCoreSystem(){
-
   return registerBootstrapSystem({
     id:"core",
     priority:0,
@@ -56,17 +44,9 @@ function registerCoreSystem(){
     reset:Core.reset,
     snapshot:Core.snapshot
   });
-
 }
 
-
-
-// =====================================
-// REGISTER AI
-// =====================================
-
 function registerAISystem(){
-
   return registerBootstrapSystem({
     id:"ai",
     priority:10,
@@ -76,46 +56,25 @@ function registerAISystem(){
     reset:AI.reset,
     snapshot:AI.snapshot
   });
-
 }
 
-
-
-// =====================================
-// REGISTER CHAT
-// =====================================
-
-async function bootChatSystem(){
-
-  // Chat runtime performs its boot work during initialize().
-  // Keep a dedicated boot hook so every bootstrap system
-  // follows the common lifecycle contract.
-  return true;
-
+function bootChatSystem(){
+  return ChatRuntime.boot();
 }
 
 function registerChatSystem(){
-
   return registerBootstrapSystem({
-    id:"chat",
-    priority:20,
+    id:ChatRuntime.id,
+    priority:ChatRuntime.priority,
     initialize:ChatRuntime.initialize,
-    boot:bootChatSystem,
-    shutdown:ChatRuntime.destroy,
+    boot:ChatRuntime.boot,
+    shutdown:ChatRuntime.shutdown,
     reset:ChatRuntime.reset,
     snapshot:ChatRuntime.snapshot
   });
-
 }
 
-
-
-// =====================================
-// REGISTER DEBUG
-// =====================================
-
 function registerDebugSystem(){
-
   return registerBootstrapSystem({
     id:"debug",
     priority:30,
@@ -125,73 +84,45 @@ function registerDebugSystem(){
     reset:Debug.reset,
     snapshot:Debug.snapshot
   });
-
 }
-
-
-
-// =====================================
-// REGISTER ADMIN
-// =====================================
 
 let adminModulePromise = null;
 
 function loadAdminSystem(){
-
   if(!adminModulePromise){
     adminModulePromise = import("../admin/index.js").then(module => module.default);
   }
-
   return adminModulePromise;
-
 }
 
 function shouldRegisterAdminSystem(){
-
-  if(typeof window === "undefined"){
-    return true;
-  }
-
+  if(typeof window === "undefined") return true;
   const path = String(window.location?.pathname || "").toLowerCase();
   return path.endsWith("/admin.html") || path.endsWith("/admin");
-
 }
 
 async function initializeAdminSystem(){
-
   return (await loadAdminSystem()).initialize();
-
 }
 
 async function bootAdminSystem(){
-
   return (await loadAdminSystem()).boot();
-
 }
 
 async function shutdownAdminSystem(){
-
   return (await loadAdminSystem()).shutdown();
-
 }
 
 async function resetAdminSystem(){
-
   return (await loadAdminSystem()).reset();
-
 }
 
 async function snapshotAdminSystem(){
-
   return (await loadAdminSystem()).snapshot();
-
 }
 
 function registerAdminSystem(){
-
-  if(!shouldRegisterAdminSystem()){
-    return true;
-  }
+  if(!shouldRegisterAdminSystem()) return true;
 
   return registerBootstrapSystem({
     id:"admin",
@@ -202,17 +133,9 @@ function registerAdminSystem(){
     reset:resetAdminSystem,
     snapshot:snapshotAdminSystem
   });
-
 }
 
-
-
-// =====================================
-// REGISTER ALL
-// =====================================
-
 function registerBootstrapSystems(){
-
   const results = [
     registerCoreSystem(),
     registerAISystem(),
@@ -220,17 +143,8 @@ function registerBootstrapSystems(){
     registerDebugSystem(),
     registerAdminSystem()
   ];
-
-  return results
-  .every(Boolean);
-
+  return results.every(Boolean);
 }
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
 
 export {
   initializeCoreSystem,
