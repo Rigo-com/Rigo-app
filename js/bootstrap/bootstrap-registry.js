@@ -63,7 +63,13 @@ export function registerBootstrapSystem(
       system.boot || null,
 
       shutdown:
-      system.shutdown || null
+      system.shutdown || null,
+
+      reset:
+      system.reset || null,
+
+      snapshot:
+      system.snapshot || null
 
     })
 

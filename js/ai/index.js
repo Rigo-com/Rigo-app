@@ -47,7 +47,12 @@ const aiRuntimeState = Object.seal({
   startupPromise:null,
   shutdownPromise:null,
   startedAt:null,
-  lastError:null
+  lastError:null,
+  degraded:Object.seal({
+    memoryReadFailures:0,
+    memoryWriteFailures:0,
+    lastMemoryError:null
+  })
 });
 
 
@@ -172,6 +177,8 @@ async function buildLongTermMemoryContext(
     );
   }
   catch(error){
+    aiRuntimeState.degraded.memoryReadFailures++;
+    aiRuntimeState.degraded.lastMemoryError=String(error?.message||error);
     return "";
   }
 
@@ -219,6 +226,8 @@ async function rememberAssistantExchange({
     );
   }
   catch(error){
+    aiRuntimeState.degraded.memoryWriteFailures++;
+    aiRuntimeState.degraded.lastMemoryError=String(error?.message||error);
     return false;
   }
 
@@ -275,7 +284,7 @@ async function executeWeatherTool({
   );
 
   const data =
-  response?.data || {};
+  response?.data ?? response ?? {};
 
   if(data?.ok === false){
     throw new Error(
@@ -483,7 +492,7 @@ async function executeMainAssistant(
   const response =
   await API.runtime.post(
     AI_CHAT_ENDPOINT,
-    JSON.stringify({
+    {
       message,
       messages:
       Array.isArray(input.messages)
@@ -494,7 +503,7 @@ async function executeMainAssistant(
       4000,
       context:
       contextParts.join("\n\n")
-    }),
+    },
     {
       headers:{
         "Content-Type":"application/json",
@@ -505,7 +514,7 @@ async function executeMainAssistant(
   );
 
   const result =
-  response?.data || {};
+  response?.data ?? response ?? {};
 
   if(result?.ok === false){
     throw new Error(
@@ -604,6 +613,7 @@ async function ensureMainAssistantAgent(){
 async function registerAIServices(){
 
   const services = [
+    ["ai",AI],
     ["contexts",ContextManager],
     ["tools",ToolExecutor],
     ["agents",AgentManager],
@@ -772,6 +782,9 @@ async function reset(){
     aiRuntimeState.initialized = false;
     aiRuntimeState.startedAt = null;
     aiRuntimeState.lastError = null;
+    aiRuntimeState.degraded.memoryReadFailures = 0;
+    aiRuntimeState.degraded.memoryWriteFailures = 0;
+    aiRuntimeState.degraded.lastMemoryError = null;
 
     return true;
 
@@ -833,6 +846,7 @@ function diagnostics(){
         : 0,
       lastError:aiRuntimeState.lastError
     },
+    degraded:{...aiRuntimeState.degraded},
     kernel:AIKernel.diagnostics(),
     context:ContextManager.diagnostics(),
     tools:ToolExecutor.diagnostics(),
@@ -853,6 +867,7 @@ function snapshot(){
       initializing:aiRuntimeState.initializing,
       shuttingDown:aiRuntimeState.shuttingDown
     },
+    degraded:{...aiRuntimeState.degraded},
     kernel:AIKernel.state(),
     context:ContextManager.snapshot(),
     tools:ToolExecutor.snapshot(),
@@ -871,7 +886,10 @@ function snapshot(){
 
 export const AI =
 Object.freeze({
+  id:"ai",
+  priority:10,
   initialize,
+  boot:initialize,
   shutdown,
   reset,
   process,
