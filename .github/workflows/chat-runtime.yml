@@ -1,0 +1,41 @@
+name: RIGO Chat Runtime
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "js/chat/**"
+      - "tests/chat-runtime.test.mjs"
+      - ".github/workflows/chat-runtime.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "js/chat/**"
+      - "tests/chat-runtime.test.mjs"
+      - ".github/workflows/chat-runtime.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chat-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check Chat syntax
+        run: |
+          find js/chat -name "*.js" -print0 | xargs -0 -n1 node --check
+
+      - name: Verify Chat runtime
+        run: node tests/chat-runtime.test.mjs
