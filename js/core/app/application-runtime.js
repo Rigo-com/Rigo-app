@@ -6,6 +6,9 @@
 import AppState from "./app-state.js";
 import AppDOM from "./app-dom.js";
 import AppRecovery from "./app-recovery.js";
+import Config from "../config/index.js";
+import Events from "../events/index.js";
+import State from "../state/index.js";
 import Lifecycle from "../lifecycle/index.js";
 import Health from "../health/index.js";
 
@@ -27,12 +30,23 @@ async function initializeApplication(){
   const initialization = Promise.resolve().then(async () => {
     try{
       await AppDOM.waitForDOMReady();
+
+      if(!await Config.initialize()){
+        throw new Error("CONFIG INITIALIZATION FAILED");
+      }
+      if(!await Events.initialize()){
+        throw new Error("EVENTS INITIALIZATION FAILED");
+      }
+      if(!await State.initialize()){
+        throw new Error("STATE INITIALIZATION FAILED");
+      }
       if(!await Lifecycle.initialize()){
         throw new Error("LIFECYCLE INITIALIZATION FAILED");
       }
       if(!await Health.initialize()){
         throw new Error("HEALTH INITIALIZATION FAILED");
       }
+
       AppState.setInitialized(true);
       AppState.setLastError(null);
       return true;
@@ -117,8 +131,17 @@ async function shutdownApplication(){
       AppDOM.hideApp();
       const healthStopped = await Health.stop();
       const lifecycleStopped = await Lifecycle.shutdown();
+      const stateStopped = await State.shutdown();
+      const eventsStopped = await Events.shutdown();
+      const configStopped = await Config.shutdown();
 
-      if(!healthStopped || !lifecycleStopped){
+      if(
+        !healthStopped ||
+        !lifecycleStopped ||
+        !stateStopped ||
+        !eventsStopped ||
+        !configStopped
+      ){
         throw new Error("APPLICATION SHUTDOWN FAILED");
       }
 
@@ -152,8 +175,12 @@ async function resetApplication(){
       if(!await shutdownApplication()){
         return false;
       }
+
       await Health.reset();
       await Lifecycle.reset();
+      await State.reset();
+      await Events.reset();
+      await Config.reset();
       AppRecovery.reset();
       AppState.reset();
       return true;
@@ -176,6 +203,9 @@ function createApplicationSnapshot(){
       shuttingDown:Boolean(runtimeOperations.shutdown),
       resetting:Boolean(runtimeOperations.reset)
     },
+    config:Config.snapshot(),
+    events:Events.snapshot(),
+    state:State.snapshot(),
     dom:AppDOM.snapshot(),
     recovery:AppRecovery.snapshot(),
     lifecycle:Lifecycle.snapshot(),
