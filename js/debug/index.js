@@ -13,7 +13,9 @@ const debugState = Object.seal({
   startedAt:null,
   stoppedAt:null,
   lastScanAt:null,
+  lastAuditAt:null,
   lastError:null,
+  lastAudit:null,
   eventUnsubscribe:null
 });
 
@@ -32,6 +34,11 @@ const CORE_MODULE_PATHS = Object.freeze([
   "../voice/index.js",
   "../ai/index.js",
   "../chat/index.js"
+]);
+
+const EXPECTED_CORE_MODULES = Object.freeze([
+  "shared","security","storage","auth","settings","memory","search",
+  "communication","api","services","ui","voice"
 ]);
 
 function browserAvailable(){
@@ -69,8 +76,16 @@ function stopMonitors(){
   return true;
 }
 
-async function bindApplicationTelemetry(){
-  if(debugState.telemetryBound) return true;
+async function bindApplicationTelemetry(options={}){
+  const force = Boolean(options.force);
+  if(debugState.telemetryBound && !force) return true;
+
+  if(force && typeof debugState.eventUnsubscribe === "function"){
+    try{ debugState.eventUnsubscribe(); }catch{}
+    debugState.eventUnsubscribe = null;
+    debugState.telemetryBound = false;
+  }
+
   try{
     const [{ default:ServiceManager }, { default:ModuleRegistry }] = await Promise.all([
       import("../services/service-manager.js"),
@@ -78,15 +93,15 @@ async function bindApplicationTelemetry(){
     ]);
 
     for(const serviceName of ServiceManager.list?.() || []){
-      Monitor.services.register(String(serviceName));
+      if(!Monitor.services.get(String(serviceName))) Monitor.services.register(String(serviceName));
     }
 
     for(const moduleName of ModuleRegistry.getRegisteredModules?.() || []){
-      if(!Monitor.services.get(`module:${moduleName}`)){
-        Monitor.services.register(`module:${moduleName}`);
-      }
+      const id = `module:${moduleName}`;
+      if(!Monitor.services.get(id)) Monitor.services.register(id);
     }
 
+    let eventBound = false;
     if(ServiceManager.has?.("events")){
       const events = await ServiceManager.resolve("events");
       if(events && typeof events.onAny === "function"){
@@ -98,11 +113,16 @@ async function bindApplicationTelemetry(){
         debugState.eventUnsubscribe = typeof result === "function"
           ? result
           : () => { try{ events.offAny?.(listener); }catch{} };
+        eventBound = true;
       }
     }
 
-    debugState.telemetryBound = true;
-    Diagnostics.recordEvent("debug:telemetry-bound");
+    debugState.telemetryBound = eventBound || (ServiceManager.list?.() || []).length > 0;
+    Diagnostics.recordEvent("debug:telemetry-bound",{
+      services:(ServiceManager.list?.() || []).length,
+      modules:(ModuleRegistry.getRegisteredModules?.() || []).length,
+      events:eventBound
+    });
     return true;
   }catch(error){
     Diagnostics.addWarning(`DEBUG TELEMETRY BIND FAILED: ${error?.message || error}`);
@@ -165,6 +185,62 @@ async function runDeepScan(){
   }
 }
 
+async function auditApplicationWiring(){
+  try{
+    const [{ default:ModuleRegistry }, { default:ServiceManager }] = await Promise.all([
+      import("../core/modules/module-registry.js"),
+      import("../services/service-manager.js")
+    ]);
+    const registeredModules = [...(ModuleRegistry.getRegisteredModules?.() || [])];
+    const registeredServices = [...(ServiceManager.list?.() || [])].map(String);
+    const missingModules = EXPECTED_CORE_MODULES.filter(name => !registeredModules.includes(name));
+    const moduleStates = {};
+    for(const name of registeredModules){
+      const state = ModuleRegistry.getModuleRuntimeState?.(name);
+      moduleStates[name] = state?.state || "unknown";
+      const status = String(state?.state || "").toLowerCase();
+      if(status === "failed") Monitor.services.update?.(`module:${name}`,"critical");
+      else if(status === "active") Monitor.services.update?.(`module:${name}`,"healthy");
+    }
+
+    const suspiciousModules = registeredModules.filter(name => {
+      const state = String(moduleStates[name] || "").toLowerCase();
+      return state && state !== "active" && state !== "loading" && state !== "initializing";
+    });
+
+    const audit = Object.freeze({
+      ok:missingModules.length===0 && suspiciousModules.length===0,
+      registeredModules,
+      registeredServices,
+      missingModules,
+      suspiciousModules,
+      moduleStates,
+      note:"Dead-code detection is heuristic at runtime; unwired or inactive modules are reported as suspicious candidates.",
+      timestamp:Date.now()
+    });
+
+    debugState.lastAudit = audit;
+    debugState.lastAuditAt = audit.timestamp;
+    if(missingModules.length) Diagnostics.addError(`UNWIRED CORE MODULES: ${missingModules.join(", ")}`);
+    if(suspiciousModules.length) Diagnostics.addWarning(`INACTIVE MODULE CANDIDATES: ${suspiciousModules.join(", ")}`);
+    Diagnostics.recordEvent("debug:wiring-audit",audit);
+    Diagnostics.save();
+    return audit;
+  }catch(error){
+    const message = error?.message || String(error);
+    Diagnostics.addError(`DEBUG WIRING AUDIT FAILED: ${message}`);
+    debugState.lastError = message;
+    return {ok:false,error:message,timestamp:Date.now()};
+  }
+}
+
+async function postBootAudit(){
+  await bindApplicationTelemetry({force:true});
+  const wiring = await auditApplicationWiring();
+  const scan = await runDeepScan();
+  return Object.freeze({ok:Boolean(wiring?.ok && scan?.ok),wiring,scan,timestamp:Date.now()});
+}
+
 function initializeDebugSystem(){
   if(debugState.initialized) return true;
   Diagnostics.initialize();
@@ -180,12 +256,12 @@ async function bootDebugSystem(){
   try{
     initializeDebugSystem();
     Diagnostics.start();
-    Diagnostics.recordEvent("debug:initialized");
+    Diagnostics.recordEvent("debug:early-boot");
     startMonitors();
-    await bindApplicationTelemetry();
     debugState.running = true;
     debugState.startedAt = Date.now();
     debugState.stoppedAt = null;
+    await bindApplicationTelemetry();
     return true;
   }catch(error){
     stopMonitors();
@@ -221,7 +297,7 @@ function resetDebugSystem(){
   Diagnostics.clearStorage();
   Object.assign(debugState,{
     initialized:false,running:false,telemetryBound:false,scanRunning:false,
-    startedAt:null,stoppedAt:null,lastScanAt:null,lastError:null,eventUnsubscribe:null
+    startedAt:null,stoppedAt:null,lastScanAt:null,lastAuditAt:null,lastError:null,lastAudit:null,eventUnsubscribe:null
   });
   return true;
 }
@@ -251,8 +327,10 @@ function createDebugSnapshot(){
       startedAt:debugState.startedAt,
       stoppedAt:debugState.stoppedAt,
       lastScanAt:debugState.lastScanAt,
+      lastAuditAt:debugState.lastAuditAt,
       lastError:debugState.lastError
     }),
+    audit:debugState.lastAudit,
     diagnostics:Diagnostics.snapshot(),
     memory:Monitor.memory.snapshot(),
     performance:Monitor.performance.snapshot(),
@@ -278,7 +356,7 @@ function openDashboard(){
 
 const Debug = Object.freeze({
   id:"debug",
-  priority:8,
+  priority:-100,
   diagnostics:Diagnostics,
   scanner:Scanner,
   monitor:Monitor,
@@ -288,6 +366,9 @@ const Debug = Object.freeze({
   initialize:initializeDebugSystem,
   boot:bootDebugSystem,
   start:bootDebugSystem,
+  attach:bindApplicationTelemetry,
+  audit:postBootAudit,
+  wiring:auditApplicationWiring,
   shutdown:stopDebugSystem,
   stop:stopDebugSystem,
   reset:resetDebugSystem,
@@ -304,6 +385,8 @@ export {
   stopDebugSystem,
   resetDebugSystem,
   bindApplicationTelemetry,
+  auditApplicationWiring,
+  postBootAudit,
   runDeepScan,
   createSystemReport,
   createDebugSnapshot,
