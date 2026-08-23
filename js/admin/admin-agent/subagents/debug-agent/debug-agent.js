@@ -39,8 +39,9 @@ export function analyzeDebugSnapshot(snapshot={}){
   const dependency=snapshot.dependency||{};
   const services=snapshot.services||{};
   const events=snapshot.events||{};
-  const errors=count(diagnostics.errors)+count(runtime.runtimeErrors)+count(runtime.promiseRejections)+count(syntax.failed);
-  const warnings=count(diagnostics.warnings)+count(dependency.failed)+count(services?.diagnostics?.warning);
+  const audit=snapshot.audit||{};
+  const errors=count(diagnostics.errors)+count(runtime.runtimeErrors)+count(runtime.promiseRejections)+count(syntax.failed)+count(audit.missingModules);
+  const warnings=count(diagnostics.warnings)+count(dependency.failed)+count(services?.diagnostics?.warning)+count(audit.suspiciousModules);
   const critical=count(diagnostics.critical)+count(runtime.crashes)+count(services?.diagnostics?.critical)+count(services?.diagnostics?.offline);
   const circularDependencies=count(circular.circularFound||circular.cycles);
   const healthScore=Number.isFinite(diagnostics.healthScore)
@@ -48,7 +49,7 @@ export function analyzeDebugSnapshot(snapshot={}){
     : Math.max(0,100-errors*10-warnings*3-critical*20-circularDependencies*5);
 
   return {
-    healthy:errors===0&&critical===0,
+    healthy:errors===0&&critical===0&&count(audit.missingModules)===0,
     healthScore,
     errors,
     warnings,
@@ -58,6 +59,12 @@ export function analyzeDebugSnapshot(snapshot={}){
       errors:count(runtime.runtimeErrors),
       rejections:count(runtime.promiseRejections),
       crashes:count(runtime.crashes)
+    },
+    wiring:{
+      missingModules:audit.missingModules||[],
+      suspiciousModules:audit.suspiciousModules||[],
+      moduleStates:audit.moduleStates||{},
+      note:audit.note||null
     },
     telemetry:{
       services:services.services||0,
@@ -94,9 +101,9 @@ async function scan(){
   try{
     const Debug=await getDebug();
     await Debug.boot();
-    const result=await Debug.scan();
+    const audit=await Debug.audit();
     const captured=await capture();
-    return { ok:Boolean(result?.ok),mode:"admin-debug-deep-scan",scan:result,analysis:captured.analysis||null };
+    return { ok:Boolean(audit?.ok),mode:"admin-debug-deep-audit",audit,analysis:captured.analysis||null };
   }catch(error){
     DebugAgentState.set({ lastError:error });
     return { ok:false,error:error?.message||String(error) };
@@ -120,7 +127,7 @@ async function report(){
 async function errors(){
   const result=await capture();
   if(!result.ok) return result;
-  const d=result.snapshot.diagnostics||{},r=result.snapshot.runtime||{};
+  const d=result.snapshot.diagnostics||{},r=result.snapshot.runtime||{},a=result.snapshot.audit||{};
   return {
     ok:true,
     mode:"admin-debug-errors",
@@ -130,6 +137,8 @@ async function errors(){
     runtimeErrors:r.runtimeErrors||0,
     promiseRejections:r.promiseRejections||0,
     crashes:r.crashes||0,
+    missingModules:a.missingModules||[],
+    suspiciousModules:a.suspiciousModules||[],
     recentEvents:d.recentEvents||[]
   };
 }
