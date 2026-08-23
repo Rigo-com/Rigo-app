@@ -1,9 +1,18 @@
 import { API_CONFIG } from "./api-config.js";
 import { apiState } from "./api-state.js";
 import { APIRequestError, APINetworkError, APITimeoutError, APIAbortError } from "./api-errors.js";
-import { createRequestId, wait, parseResponse, validateEndpoint } from "./api-helpers.js";
-import CommunicationCore from "../communication/communication-core.js";
+import { parseResponse, validateEndpoint } from "./api-helpers.js";
+import Communication from "../communication/index.js";
 import { API_EVENTS, emitAPIEvent } from "./api-events.js";
+
+function cloneValue(value){
+  try{
+    return typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value));
+  }
+  catch{
+    return value;
+  }
+}
 
 function fetchWithTimeout(request, timeout, masterSignal){
   const controller = new AbortController();
@@ -41,92 +50,192 @@ function shouldRetry(error){
   return error instanceof APIRequestError && Number(error.details?.status) >= 500;
 }
 
+function createCacheKey(endpoint, fetchOptions){
+  return Communication.helpers.createMessageHash(
+    JSON.stringify({
+      endpoint,
+      method:String(fetchOptions.method || "GET").toUpperCase(),
+      body:fetchOptions.body ?? null
+    })
+  );
+}
+
+async function parseCommunicationResponse(response, requestId, options, masterSignal){
+  if(options.stream === true || typeof options.onChunk === "function"){
+    const chunks = [];
+    const streamed = await Communication.stream.processStream(response,{
+      requestId,
+      timeout:Number(options.streamTimeout) > 0
+        ? Number(options.streamTimeout)
+        : Communication.config.timers.STREAM_TIMEOUT,
+      signal:masterSignal,
+      onChunk:chunk => {
+        chunks.push(chunk);
+        if(typeof options.onChunk === "function") options.onChunk(chunk);
+      }
+    });
+
+    if(!streamed){
+      if(masterSignal?.aborted) throw new APIAbortError("Request aborted");
+      throw new APIRequestError("Response stream failed", "STREAM_ERROR");
+    }
+
+    return chunks.join("");
+  }
+
+  return parseResponse(response);
+}
+
 async function executeRequest(endpoint, options = {}){
   validateEndpoint(endpoint);
-  if(apiState.pendingRequests >= API_CONFIG.MAX_CONCURRENT_REQUESTS){
+  Communication.initialize();
+
+  const maxConcurrent = Math.min(
+    API_CONFIG.MAX_CONCURRENT_REQUESTS,
+    Communication.config.limits.MAX_ACTIVE_REQUESTS
+  );
+
+  if(apiState.pendingRequests >= maxConcurrent){
     throw new APIRequestError("Maximum concurrent requests reached", "CONCURRENCY_LIMIT");
   }
 
-  const requestId = options.requestId || createRequestId();
-  const masterController = new AbortController();
+  const requestId = options.requestId || Communication.helpers.createCommunicationId("api");
+  const masterController = Communication.abort.createAbortController(requestId);
+  if(!masterController){
+    throw new APIRequestError("Unable to allocate request controller", "ABORT_CONTROLLER_LIMIT");
+  }
+
   const externalSignal = options.signal;
   const abortFromExternal = () => masterController.abort();
   if(externalSignal?.aborted) masterController.abort();
   else externalSignal?.addEventListener("abort", abortFromExternal, { once:true });
 
-  const attempts = Math.max(1, Math.min(Number(options.retries) || API_CONFIG.MAX_RETRIES, API_CONFIG.MAX_RETRIES));
-  const timeout = Number(options.timeout) > 0 ? Number(options.timeout) : API_CONFIG.DEFAULT_TIMEOUT;
-  const retryDelay = Number(options.retryDelay) >= 0 ? Number(options.retryDelay) : API_CONFIG.RETRY_DELAY;
+  const attempts = Math.max(
+    1,
+    Math.min(
+      Number(options.retries) || API_CONFIG.MAX_RETRIES,
+      API_CONFIG.MAX_RETRIES,
+      Communication.config.limits.MAX_RETRIES
+    )
+  );
+
+  const timeout = Number(options.timeout) > 0
+    ? Number(options.timeout)
+    : Math.min(API_CONFIG.DEFAULT_TIMEOUT,Communication.config.timers.REQUEST_TIMEOUT);
+
+  const retryDelay = Number(options.retryDelay) >= 0
+    ? Number(options.retryDelay)
+    : Communication.config.timers.RETRY_DELAY;
+
   const fetchOptions = { ...options };
-  delete fetchOptions.requestId;
-  delete fetchOptions.retries;
-  delete fetchOptions.retryDelay;
-  delete fetchOptions.timeout;
-  delete fetchOptions.signal;
+  for(const key of ["requestId","retries","retryDelay","timeout","signal","stream","streamTimeout","onChunk","cache"]){
+    delete fetchOptions[key];
+  }
+
+  const method = String(fetchOptions.method || "GET").toUpperCase();
+  const cacheEnabled = options.cache === true && method === "GET" && Communication.config.features.ENABLE_CACHE;
+  const cacheKey = createCacheKey(endpoint,fetchOptions);
+
+  if(cacheEnabled){
+    const cached = Communication.storage.getCache(cacheKey);
+    if(cached !== null) return cloneValue(cached);
+  }
 
   apiState.pendingRequests += 1;
   apiState.lastRequestAt = Date.now();
   apiState.activeRequests.set(requestId, masterController);
   apiState.abortControllers.set(requestId, masterController);
-  CommunicationCore.startRequest(requestId, { endpoint, method:fetchOptions.method || "GET" });
-  emitAPIEvent(API_EVENTS.REQUEST_STARTED, { requestId, endpoint, method:fetchOptions.method || "GET" });
+
+  if(!Communication.core.startRequest(requestId,{ endpoint, method })){
+    apiState.pendingRequests = Math.max(0,apiState.pendingRequests - 1);
+    apiState.activeRequests.delete(requestId);
+    apiState.abortControllers.delete(requestId);
+    Communication.abort.cleanupAbortController(requestId);
+    throw new APIRequestError("Communication request registration failed", "COMMUNICATION_LIMIT");
+  }
+
+  emitAPIEvent(API_EVENTS.REQUEST_STARTED,{ requestId, endpoint, method });
 
   let finalError = null;
   try{
     for(let attempt = 1; attempt <= attempts; attempt += 1){
       try{
-        const response = await fetchWithTimeout({ endpoint, options:fetchOptions }, timeout, masterController.signal);
-        const data = await parseResponse(response);
+        const response = await fetchWithTimeout({ endpoint, options:fetchOptions },timeout,masterController.signal);
+        const data = await parseCommunicationResponse(response,requestId,options,masterController.signal);
+
         if(!response.ok){
-          throw new APIRequestError(`Request failed with status ${response.status}`, "HTTP_ERROR", { status:response.status, data });
+          throw new APIRequestError(`Request failed with status ${response.status}`,"HTTP_ERROR",{
+            status:response.status,
+            data
+          });
         }
+
         apiState.diagnostics.requests += 1;
         apiState.diagnostics.successful += 1;
         apiState.lastError = null;
-        CommunicationCore.completeRequest(requestId);
-        emitAPIEvent(API_EVENTS.REQUEST_SUCCESS, { requestId, endpoint, method:fetchOptions.method || "GET", status:response.status, attempt });
+        Communication.core.completeRequest(requestId);
+        Communication.storage.registerHash(cacheKey);
+        if(cacheEnabled) Communication.storage.setCache(cacheKey,cloneValue(data));
+
+        emitAPIEvent(API_EVENTS.REQUEST_SUCCESS,{
+          requestId, endpoint, method, status:response.status, attempt
+        });
+
         return data;
-      } catch(error){
-        finalError = normalizeRequestError(error, masterController.signal);
+      }
+      catch(error){
+        finalError = normalizeRequestError(error,masterController.signal);
         if(attempt >= attempts || !shouldRetry(finalError)) break;
         apiState.diagnostics.retries += 1;
-        await wait(retryDelay);
+        Communication.state.incrementRetries();
+        await Communication.helpers.waitCommunication(retryDelay);
       }
     }
 
     apiState.diagnostics.requests += 1;
-    if(finalError instanceof APIAbortError) apiState.diagnostics.aborted += 1;
-    else apiState.diagnostics.failed += 1;
+    if(finalError instanceof APIAbortError){
+      apiState.diagnostics.aborted += 1;
+      Communication.abort.abortRequest(requestId);
+    }
+    else{
+      apiState.diagnostics.failed += 1;
+      Communication.core.failRequest(requestId,finalError);
+    }
+
     apiState.lastError = finalError;
-    CommunicationCore.failRequest(requestId, finalError);
     emitAPIEvent(
       finalError instanceof APIAbortError ? API_EVENTS.REQUEST_ABORTED : API_EVENTS.REQUEST_FAILED,
-      { requestId, endpoint, method:fetchOptions.method || "GET", code:finalError.code, message:finalError.message }
+      { requestId, endpoint, method, code:finalError?.code, message:finalError?.message }
     );
     throw finalError;
-  } finally {
-    externalSignal?.removeEventListener("abort", abortFromExternal);
-    apiState.pendingRequests = Math.max(0, apiState.pendingRequests - 1);
+  }
+  finally{
+    externalSignal?.removeEventListener("abort",abortFromExternal);
+    apiState.pendingRequests = Math.max(0,apiState.pendingRequests - 1);
     apiState.activeRequests.delete(requestId);
     apiState.abortControllers.delete(requestId);
+    Communication.abort.cleanupAbortController(requestId);
   }
 }
 
-const get = (endpoint, options = {}) => executeRequest(endpoint, { ...options, method:"GET" });
-const post = (endpoint, body, options = {}) => executeRequest(endpoint, { ...options, method:"POST", body:JSON.stringify(body), headers:{ "content-type":"application/json", ...(options.headers || {}) } });
-const put = (endpoint, body, options = {}) => executeRequest(endpoint, { ...options, method:"PUT", body:JSON.stringify(body), headers:{ "content-type":"application/json", ...(options.headers || {}) } });
-const patch = (endpoint, body, options = {}) => executeRequest(endpoint, { ...options, method:"PATCH", body:JSON.stringify(body), headers:{ "content-type":"application/json", ...(options.headers || {}) } });
-const remove = (endpoint, options = {}) => executeRequest(endpoint, { ...options, method:"DELETE" });
+const get = (endpoint, options = {}) => executeRequest(endpoint,{ ...options, method:"GET" });
+const post = (endpoint, body, options = {}) => executeRequest(endpoint,{ ...options, method:"POST", body:JSON.stringify(body), headers:{ "content-type":"application/json", ...(options.headers || {}) } });
+const put = (endpoint, body, options = {}) => executeRequest(endpoint,{ ...options, method:"PUT", body:JSON.stringify(body), headers:{ "content-type":"application/json", ...(options.headers || {}) } });
+const patch = (endpoint, body, options = {}) => executeRequest(endpoint,{ ...options, method:"PATCH", body:JSON.stringify(body), headers:{ "content-type":"application/json", ...(options.headers || {}) } });
+const remove = (endpoint, options = {}) => executeRequest(endpoint,{ ...options, method:"DELETE" });
 
 function abortRequest(requestId){
+  const aborted = Communication.abort.abortRequest(requestId);
   const controller = apiState.activeRequests.get(requestId);
-  if(!controller) return false;
-  controller.abort();
-  return true;
+  if(controller && !controller.signal.aborted) controller.abort();
+  return aborted || Boolean(controller);
 }
 
 function abortAllRequests(){
-  for(const controller of apiState.activeRequests.values()) controller.abort();
+  Communication.abort.abortAllRequests();
+  for(const controller of apiState.activeRequests.values()){
+    if(!controller.signal.aborted) controller.abort();
+  }
   return true;
 }
 
