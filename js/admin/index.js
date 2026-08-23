@@ -69,6 +69,25 @@ async function command(input){
   return agentModule.command(input);
 }
 
+async function debug(action="capture"){
+  if(!(await hasServerAdminSession())){
+    return { ok:false,error:"SERVER_ADMIN_ACCESS_REQUIRED" };
+  }
+
+  const agent = AdminRuntime.registry.get("debug-agent");
+  if(!agent){
+    return { ok:false,error:"ADMIN_DEBUG_AGENT_NOT_AVAILABLE" };
+  }
+
+  const method = String(action || "capture").trim().toLowerCase();
+  if(method === "capture" || method === "diagnose") return agent.capture?.();
+  if(method === "scan" || method === "audit") return agent.scan?.();
+  if(method === "report") return agent.report?.();
+  if(method === "errors") return agent.errors?.();
+  if(method === "snapshot") return {ok:true,mode:"admin-debug-state",snapshot:agent.snapshot?.()};
+  return {ok:false,error:"UNKNOWN_ADMIN_DEBUG_ACTION",action:method};
+}
+
 function snapshot(){
   return AdminRuntime.snapshot();
 }
@@ -82,6 +101,7 @@ const Admin = Object.freeze({
   recover,
   reset,
   command,
+  debug,
   snapshot,
   runtime:AdminRuntime
 });
@@ -94,6 +114,7 @@ export {
   recover,
   reset,
   command,
+  debug,
   snapshot,
   Admin
 };
