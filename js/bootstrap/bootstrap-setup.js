@@ -32,8 +32,8 @@ async function initializeCoreSystem(){
 
 async function bootCoreSystem(){
   const result = await Core.boot();
-  await Debug.attach?.();
-  await Debug.audit?.();
+  await Debug.attach?.({force:true});
+  await Debug.wiring?.();
   return result;
 }
 
