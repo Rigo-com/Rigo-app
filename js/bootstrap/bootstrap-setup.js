@@ -4,32 +4,15 @@
 // SYSTEM REGISTRATION
 // =====================================
 
-import Core
-from "../core/index.js";
-
-import AI
-from "../ai/index.js";
-
-import ChatRuntime
-from "../chat/chat-runtime/chat-runtime.js";
-
-import Debug
-from "../debug/index.js";
-
-import ServiceManager
-from "../services/service-manager.js";
-
-import {
-  registerBootstrapSystem
-}
-from "./bootstrap-registry.js";
+import Core from "../core/index.js";
+import AI from "../ai/index.js";
+import ChatRuntime from "../chat/chat-runtime/chat-runtime.js";
+import ServiceManager from "../services/service-manager.js";
+import { registerBootstrapSystem } from "./bootstrap-registry.js";
 
 async function initializeCoreSystem(){
   if(!ServiceManager.has("events")){
-    await ServiceManager.register(
-      "events",
-      async () => Core.events
-    );
+    await ServiceManager.register("events",async () => Core.events);
   }
   return Core.initialize();
 }
@@ -74,18 +57,6 @@ function registerChatSystem(){
   });
 }
 
-function registerDebugSystem(){
-  return registerBootstrapSystem({
-    id:"debug",
-    priority:30,
-    initialize:Debug.initialize,
-    boot:Debug.boot,
-    shutdown:Debug.shutdown,
-    reset:Debug.reset,
-    snapshot:Debug.snapshot
-  });
-}
-
 let adminModulePromise = null;
 
 function loadAdminSystem(){
@@ -123,7 +94,6 @@ async function snapshotAdminSystem(){
 
 function registerAdminSystem(){
   if(!shouldRegisterAdminSystem()) return true;
-
   return registerBootstrapSystem({
     id:"admin",
     priority:40,
@@ -140,7 +110,6 @@ function registerBootstrapSystems(){
     registerCoreSystem(),
     registerAISystem(),
     registerChatSystem(),
-    registerDebugSystem(),
     registerAdminSystem()
   ];
   return results.every(Boolean);
@@ -152,7 +121,6 @@ export {
   registerAISystem,
   bootChatSystem,
   registerChatSystem,
-  registerDebugSystem,
   loadAdminSystem,
   shouldRegisterAdminSystem,
   initializeAdminSystem,
