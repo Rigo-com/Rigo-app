@@ -1,534 +1,182 @@
 // =====================================
 // RIGO AI
-// APP STATE
+// STATE APP FACADE
+// CANONICAL APP STATE ADAPTER
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
+import CanonicalAppState
+from "../app/app-state.js";
 
 import APP_PHASES
 from "../constants/app-phases.js";
 
-import {
-  createImmutableState
-}
-from "./state-utils.js";
-
-
-
-// =====================================
-// STATE
-// =====================================
-
-const appState =
-Object.seal({
-
-  initialized:false,
-
-  started:false,
-
-  starting:false,
-
-  booting:false,
-
-  ready:false,
-
-  shuttingDown:false,
-
-  recovering:false,
-
-  crashed:false,
-
-  phase:
-  APP_PHASES.IDLE,
-
-  initializedAt:null,
-
-  startupStartedAt:null,
-
-  startupCompletedAt:null,
-
-  shutdownAt:null,
-
-  lastError:null,
-
-  recoveryAttempts:0,
-
-  failedStarts:0,
-
-  crashCount:0,
-
-  startupDuration:0,
-
-  lastHealthcheckAt:null,
-
-  activeModules:
-  new Set(),
-
-  failedModules:
-  new Set(),
-
-  activeServices:
-  new Set(),
-
-  pendingTasks:
-  new Set(),
-
-  runtimeLocks:
-  new Set(),
-
-  observers:
-  new Set(),
-
-  healthcheckTimer:null
-
-});
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
-
-function createAppStateSnapshot(){
-
-  return createImmutableState({
-
-    initialized:
-    appState.initialized,
-
-    started:
-    appState.started,
-
-    starting:
-    appState.starting,
-
-    booting:
-    appState.booting,
-
-    ready:
-    appState.ready,
-
-    shuttingDown:
-    appState.shuttingDown,
-
-    recovering:
-    appState.recovering,
-
-    crashed:
-    appState.crashed,
-
-    phase:
-    appState.phase,
-
-    initializedAt:
-    appState.initializedAt,
-
-    startupStartedAt:
-    appState.startupStartedAt,
-
-    startupCompletedAt:
-    appState.startupCompletedAt,
-
-    shutdownAt:
-    appState.shutdownAt,
-
-    lastError:
-    appState.lastError
-      ? String(appState.lastError)
-      : null,
-
-    recoveryAttempts:
-    appState.recoveryAttempts,
-
-    failedStarts:
-    appState.failedStarts,
-
-    crashCount:
-    appState.crashCount,
-
-    startupDuration:
-    appState.startupDuration,
-
-    lastHealthcheckAt:
-    appState.lastHealthcheckAt,
-
-    observers:
-    appState.observers.size,
-
-    activeModules:[
-      ...appState.activeModules
-    ],
-
-    failedModules:[
-      ...appState.failedModules
-    ],
-
-    activeServices:[
-      ...appState.activeServices
-    ],
-
-    pendingTasks:[
-      ...appState.pendingTasks
-    ],
-
-    runtimeLocks:[
-      ...appState.runtimeLocks
-    ]
-
-  });
-
+function getAppState(){
+  return CanonicalAppState.snapshot();
 }
 
+function applyDraft(
+  draft
+){
+  if(!draft || typeof draft !== "object"){
+    return false;
+  }
 
+  if("initialized" in draft){
+    CanonicalAppState.setInitialized(draft.initialized);
+  }
 
-// =====================================
-// OBSERVERS
-// =====================================
+  if("booted" in draft || "started" in draft){
+    CanonicalAppState.setBooted(
+      "booted" in draft
+        ? draft.booted
+        : draft.started
+    );
+  }
 
-function notifyAppStateObservers(){
+  if("booting" in draft || "starting" in draft){
+    CanonicalAppState.setBooting(
+      "booting" in draft
+        ? draft.booting
+        : draft.starting
+    );
+  }
 
-  const snapshot =
-  createAppStateSnapshot();
+  if("ready" in draft){
+    CanonicalAppState.setReady(draft.ready);
+  }
 
-  for(
-    const listener
-    of [...appState.observers]
-  ){
+  if("shuttingDown" in draft){
+    CanonicalAppState.setShuttingDown(draft.shuttingDown);
+  }
 
-    try{
+  if("recovering" in draft){
+    CanonicalAppState.setRecovering(draft.recovering);
+  }
 
-      listener(snapshot);
-
-    }
-
-    catch(error){}
-
+  if("lastError" in draft){
+    CanonicalAppState.setLastError(draft.lastError);
   }
 
   return true;
-
 }
-
-
-
-// =====================================
-// CORE
-// =====================================
 
 function updateAppState(
   updater
 ){
-
-  if(
-    typeof updater !==
-    "function"
-  ){
-
+  if(typeof updater !== "function"){
     return false;
-
   }
+
+  const current =
+  CanonicalAppState.snapshot();
+
+  const draft = {
+    ...current,
+    started:current.booted,
+    starting:current.booting
+  };
 
   try{
-
-    updater(appState);
-
-    notifyAppStateObservers();
-
-    return true;
-
+    updater(draft);
+    return applyDraft(draft);
   }
-
-  catch(error){
-
+  catch{
     return false;
-
   }
-
 }
-
-
-
-function getAppState(){
-
-  return createAppStateSnapshot();
-
-}
-
-
-
-// =====================================
-// SUBSCRIPTIONS
-// =====================================
-
-function subscribeAppState(
-  listener
-){
-
-  if(
-    typeof listener !==
-    "function"
-  ){
-
-    return false;
-
-  }
-
-  appState.observers.add(
-    listener
-  );
-
-  return true;
-
-}
-
-
-
-function unsubscribeAppState(
-  listener
-){
-
-  return appState.observers.delete(
-    listener
-  );
-
-}
-
-
-
-// =====================================
-// PHASE
-// =====================================
 
 function updateAppPhase(
   phase
 ){
-
-  if(
-    typeof phase !==
-    "string"
-  ){
-
+  if(typeof phase !== "string"){
     return false;
-
   }
 
-  return updateAppState(
-    (state) => {
-
-      state.phase =
-      phase;
-
-      state.starting = (
-
-        phase === APP_PHASES.PREINIT ||
-        phase === APP_PHASES.INITIALIZING ||
-        phase === APP_PHASES.BOOTING
-
-      );
-
-      state.booting =
-      phase ===
-      APP_PHASES.BOOTING;
-
-      state.ready =
-      phase ===
-      APP_PHASES.READY;
-
-      state.shuttingDown =
-      phase ===
-      APP_PHASES.SHUTTING_DOWN;
-
-      state.recovering =
-      phase ===
-      APP_PHASES.RECOVERING;
-
-      state.started =
-      phase ===
-      APP_PHASES.READY;
-
-    }
+  CanonicalAppState.setBooting(
+    phase === APP_PHASES.BOOTING ||
+    phase === APP_PHASES.INITIALIZING ||
+    phase === APP_PHASES.PREINIT
   );
 
+  CanonicalAppState.setReady(
+    phase === APP_PHASES.READY
+  );
+
+  CanonicalAppState.setBooted(
+    phase === APP_PHASES.READY
+  );
+
+  CanonicalAppState.setShuttingDown(
+    phase === APP_PHASES.SHUTTING_DOWN
+  );
+
+  CanonicalAppState.setRecovering(
+    phase === APP_PHASES.RECOVERING
+  );
+
+  return true;
 }
-
-
-
-// =====================================
-// HELPERS
-// =====================================
 
 function setAppError(
   error
 ){
-
-  return updateAppState(
-    (state) => {
-
-      state.lastError =
-      error;
-
-      state.crashed =
-      Boolean(error);
-
-    }
-  );
-
+  return CanonicalAppState.setLastError(error);
 }
-
-
-
-function updateHealthcheckTimestamp(){
-
-  return updateAppState(
-    (state) => {
-
-      state.lastHealthcheckAt =
-      Date.now();
-
-    }
-  );
-
-}
-
-
-
-function addActiveModule(
-  moduleName
-){
-
-  if(!moduleName){
-
-    return false;
-
-  }
-
-  return updateAppState(
-    (state) => {
-
-      state.activeModules.add(
-        String(moduleName)
-      );
-
-    }
-  );
-
-}
-
-
-
-function removeActiveModule(
-  moduleName
-){
-
-  if(!moduleName){
-
-    return false;
-
-  }
-
-  return updateAppState(
-    (state) => {
-
-      state.activeModules.delete(
-        String(moduleName)
-      );
-
-    }
-  );
-
-}
-
-
-
-// =====================================
-// RESET
-// =====================================
 
 function resetAppState(){
-
-  appState.initialized = false;
-  appState.started = false;
-  appState.starting = false;
-  appState.booting = false;
-  appState.ready = false;
-  appState.shuttingDown = false;
-  appState.recovering = false;
-  appState.crashed = false;
-
-  appState.phase =
-  APP_PHASES.IDLE;
-
-  appState.initializedAt = null;
-  appState.startupStartedAt = null;
-  appState.startupCompletedAt = null;
-  appState.shutdownAt = null;
-  appState.lastError = null;
-  appState.recoveryAttempts = 0;
-  appState.failedStarts = 0;
-  appState.crashCount = 0;
-  appState.startupDuration = 0;
-  appState.lastHealthcheckAt = null;
-
-  appState.activeModules.clear();
-  appState.failedModules.clear();
-  appState.activeServices.clear();
-  appState.pendingTasks.clear();
-  appState.runtimeLocks.clear();
-
-  return notifyAppStateObservers();
-
+  return CanonicalAppState.reset();
 }
 
+function subscribeAppState(){
+  return false;
+}
 
+function unsubscribeAppState(){
+  return false;
+}
 
-// =====================================
-// API
-// =====================================
+function updateHealthcheckTimestamp(){
+  return true;
+}
+
+function addActiveModule(){
+  return true;
+}
+
+function removeActiveModule(){
+  return true;
+}
 
 const AppState =
 Object.freeze({
-
-  get:
-  getAppState,
-
-  update:
-  updateAppState,
-
-  subscribe:
-  subscribeAppState,
-
-  unsubscribe:
-  unsubscribeAppState,
-
-  setPhase:
-  updateAppPhase,
-
-  setError:
-  setAppError,
-
-  updateHealthcheck:
-  updateHealthcheckTimestamp,
-
-  addModule:
-  addActiveModule,
-
-  removeModule:
-  removeActiveModule,
-
-  reset:
-  resetAppState
-
+  canonical:CanonicalAppState,
+  state:CanonicalAppState.state,
+  get:getAppState,
+  snapshot:getAppState,
+  update:updateAppState,
+  subscribe:subscribeAppState,
+  unsubscribe:unsubscribeAppState,
+  setPhase:updateAppPhase,
+  setError:setAppError,
+  updateHealthcheck:updateHealthcheckTimestamp,
+  addModule:addActiveModule,
+  removeModule:removeActiveModule,
+  reset:resetAppState
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
+export {
+  getAppState,
+  updateAppState,
+  subscribeAppState,
+  unsubscribeAppState,
+  updateAppPhase,
+  setAppError,
+  updateHealthcheckTimestamp,
+  addActiveModule,
+  removeActiveModule,
+  resetAppState,
+  AppState
+};
 
 export default
 AppState;
