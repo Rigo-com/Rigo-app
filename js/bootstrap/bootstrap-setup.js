@@ -4,11 +4,24 @@
 // SYSTEM REGISTRATION
 // =====================================
 
+import Debug from "../debug/index.js";
 import Core from "../core/index.js";
 import AI from "../ai/index.js";
 import ChatRuntime from "../chat/chat-runtime/chat-runtime.js";
 import ServiceManager from "../services/service-manager.js";
 import { registerBootstrapSystem } from "./bootstrap-registry.js";
+
+function registerDebugSystem(){
+  return registerBootstrapSystem({
+    id:"debug",
+    priority:-100,
+    initialize:Debug.initialize,
+    boot:Debug.boot,
+    shutdown:Debug.shutdown,
+    reset:Debug.reset,
+    snapshot:Debug.snapshot
+  });
+}
 
 async function initializeCoreSystem(){
   if(!ServiceManager.has("events")){
@@ -17,12 +30,19 @@ async function initializeCoreSystem(){
   return Core.initialize();
 }
 
+async function bootCoreSystem(){
+  const result = await Core.boot();
+  await Debug.attach?.();
+  await Debug.audit?.();
+  return result;
+}
+
 function registerCoreSystem(){
   return registerBootstrapSystem({
     id:"core",
     priority:0,
     initialize:initializeCoreSystem,
-    boot:Core.boot,
+    boot:bootCoreSystem,
     shutdown:Core.shutdown,
     reset:Core.reset,
     snapshot:Core.snapshot
@@ -107,6 +127,7 @@ function registerAdminSystem(){
 
 function registerBootstrapSystems(){
   const results = [
+    registerDebugSystem(),
     registerCoreSystem(),
     registerAISystem(),
     registerChatSystem(),
@@ -116,7 +137,9 @@ function registerBootstrapSystems(){
 }
 
 export {
+  registerDebugSystem,
   initializeCoreSystem,
+  bootCoreSystem,
   registerCoreSystem,
   registerAISystem,
   bootChatSystem,
