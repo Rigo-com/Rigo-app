@@ -4,231 +4,98 @@
 // PRIVATE ADMIN SYSTEM
 // =====================================
 
-import AdminRuntime
-from "./runtime/index.js";
+import AdminRuntime from "./runtime/index.js";
+import createAdminDebugPanel from "./admin-debug-panel.js";
 
-import createAdminDebugPanel
-from "./admin-debug-panel.js";
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
+async function hasServerAdminSession(){
+  if(typeof window === "undefined") return true;
+  try{
+    const response = await fetch("/api/admin-session",{
+      method:"GET",
+      credentials:"same-origin",
+      cache:"no-store"
+    });
+    const data = await response.json().catch(()=>({}));
+    return Boolean(response.ok && data?.authenticated && data?.admin);
+  }catch{
+    return false;
+  }
+}
 
 async function initialize(){
-
-  return AdminRuntime
-  .initialize();
-
+  if(!(await hasServerAdminSession())) return false;
+  return AdminRuntime.initialize();
 }
-
-
-
-// =====================================
-// BOOT
-// =====================================
 
 async function boot(){
+  if(!(await hasServerAdminSession())) return false;
+  const result = await AdminRuntime.boot();
 
-  const result =
-  await AdminRuntime
-  .boot();
-
-  if(
-    typeof window !== "undefined"
-  ){
-
-    window.Admin =
-    Admin;
-
-    const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-    if(
-      params.get("adminDebug") === "1"
-    ){
-
-      createAdminDebugPanel(
-        Admin
-      );
-
+  if(typeof window !== "undefined" && result){
+    window.Admin = Admin;
+    const params = new URLSearchParams(window.location.search);
+    if(params.get("adminDebug") === "1"){
+      await createAdminDebugPanel(Admin);
     }
-
   }
-
   return result;
-
 }
-
-
-
-// =====================================
-// SHUTDOWN
-// =====================================
 
 async function shutdown(){
-
-  return AdminRuntime
-  .shutdown();
-
+  if(typeof window !== "undefined" && window.Admin === Admin){
+    try{ delete window.Admin; }catch{ window.Admin=undefined; }
+  }
+  return AdminRuntime.shutdown();
 }
-
-
-
-// =====================================
-// RECOVER
-// =====================================
 
 async function recover(){
-
-  return AdminRuntime
-  .recover();
-
+  if(!(await hasServerAdminSession())) return false;
+  return AdminRuntime.recover();
 }
-
-
-
-// =====================================
-// RESET
-// =====================================
 
 async function reset(){
-
-  return AdminRuntime
-  .reset();
-
+  return AdminRuntime.reset();
 }
 
-
-
-// =====================================
-// COMMAND
-// =====================================
-
-async function command(
-  input
-){
-
-  const agentModule =
-  AdminRuntime
-  .registry
-  .get(
-    "admin-agent"
-  );
-
-  if(
-    !agentModule ||
-    typeof agentModule.command !== "function"
-  ){
-
-    return {
-      ok:
-      false,
-
-      error:
-      "ADMIN_AGENT_COMMAND_NOT_AVAILABLE"
-    };
-
+async function command(input){
+  if(!(await hasServerAdminSession())){
+    return { ok:false,error:"SERVER_ADMIN_ACCESS_REQUIRED" };
   }
 
-  return agentModule
-  .command(
-    input
-  );
-
+  const agentModule = AdminRuntime.registry.get("admin-agent");
+  if(!agentModule || typeof agentModule.command !== "function"){
+    return { ok:false,error:"ADMIN_AGENT_COMMAND_NOT_AVAILABLE" };
+  }
+  return agentModule.command(input);
 }
-
-
-
-// =====================================
-// SNAPSHOT
-// =====================================
 
 function snapshot(){
-
-  return AdminRuntime
-  .snapshot();
-
+  return AdminRuntime.snapshot();
 }
 
-
-
-// =====================================
-// API
-// =====================================
-
-const Admin =
-Object.freeze({
-
-  id:
-  "admin",
-
-  priority:
-  30,
-
+const Admin = Object.freeze({
+  id:"admin",
+  priority:30,
   initialize,
-
   boot,
-
   shutdown,
-
   recover,
-
   reset,
-
   command,
-
   snapshot,
-
-  runtime:
-  AdminRuntime
-
+  runtime:AdminRuntime
 });
 
-
-
-// =====================================
-// DEV EXPOSURE
-// TEMPORARY ADMIN CONSOLE ACCESS
-// =====================================
-
-if(
-  typeof window !== "undefined"
-){
-
-  window.Admin =
-  Admin;
-
-}
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
+  hasServerAdminSession,
   initialize,
-
   boot,
-
   shutdown,
-
   recover,
-
   reset,
-
   command,
-
   snapshot,
-
   Admin
-
 };
 
-export default
-Admin;
+export default Admin;
