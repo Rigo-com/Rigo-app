@@ -2,8 +2,21 @@ name: Communication Runtime
 
 on:
   push:
-    branches: [ai-bootstrap-wiring]
+    branches:
+      - main
+    paths:
+      - "js/communication/**"
+      - "js/api/api-request.js"
+      - "tests/communication-runtime.test.mjs"
+      - ".github/workflows/communication-runtime.yml"
   pull_request:
+    branches:
+      - main
+    paths:
+      - "js/communication/**"
+      - "js/api/api-request.js"
+      - "tests/communication-runtime.test.mjs"
+      - ".github/workflows/communication-runtime.yml"
   workflow_dispatch:
 
 permissions:
@@ -12,16 +25,20 @@ permissions:
 jobs:
   runtime-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "22"
+
       - name: Syntax checks
         run: |
-          node --check js/communication/index.js
-          node --check js/communication/communication-core.js
-          node --check js/communication/communication-abort.js
-          node --check js/communication/communication-stream.js
+          for file in js/communication/*.js; do node --check "$file"; done
+          node --check js/api/api-request.js
+
       - name: Runtime checks
         run: node tests/communication-runtime.test.mjs
