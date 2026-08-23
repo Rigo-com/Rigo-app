@@ -1,9 +1,18 @@
-name: Core App Health Runtime
+name: Core Runtime
 
 on:
   push:
-    branches: [ai-bootstrap-wiring]
+    branches: [main]
+    paths:
+      - "js/core/**"
+      - "tests/core-app-health-runtime.test.mjs"
+      - ".github/workflows/core-app-health-runtime.yml"
   pull_request:
+    branches: [main]
+    paths:
+      - "js/core/**"
+      - "tests/core-app-health-runtime.test.mjs"
+      - ".github/workflows/core-app-health-runtime.yml"
   workflow_dispatch:
 
 permissions:
@@ -18,14 +27,11 @@ jobs:
         with:
           node-version: 20
       - name: Syntax checks
+        shell: bash
         run: |
-          node --check js/core/app/application-runtime.js
-          node --check js/core/app/app-recovery.js
-          node --check js/core/lifecycle/lifecycle-state.js
-          node --check js/core/lifecycle/lifecycle-startup.js
-          node --check js/core/lifecycle/lifecycle-shutdown.js
-          node --check js/core/lifecycle/lifecycle-manager.js
-          node --check js/core/health/health-manager.js
-          node --check js/core/health/health-state.js
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find js/core -type f -name '*.js' -print0)
       - name: Runtime checks
         run: node tests/core-app-health-runtime.test.mjs
