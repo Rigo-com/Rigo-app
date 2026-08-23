@@ -1,9 +1,20 @@
-name: Debug Module Runtime
+name: Unified Admin Debug Runtime
 
 on:
   push:
-    branches: [ai-bootstrap-wiring]
+    branches: [main]
+    paths:
+      - 'js/debug/**'
+      - 'js/admin/**'
+      - 'js/bootstrap/bootstrap-setup.js'
+      - 'debug.html'
+      - 'dashboard.html'
+      - 'snapshot.html'
+      - 'diagnostics.html'
+      - 'tests/debug-module-runtime.test.mjs'
+      - '.github/workflows/debug-module-runtime.yml'
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +30,10 @@ jobs:
           node-version: 20
       - name: Syntax checks
         run: |
-          node --check js/debug/index.js
-          node --check js/core/modules/module-setup.js
-      - name: Wiring checks
+          find js/debug -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check js/admin/admin-agent/subagents/debug-agent/debug-agent.js
+          node --check js/admin/runtime/admin-runtime-setup.js
+          node --check js/admin/index.js
+          node --check js/bootstrap/bootstrap-setup.js
+      - name: Unified debug runtime checks
         run: node tests/debug-module-runtime.test.mjs
