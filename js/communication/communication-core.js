@@ -19,6 +19,7 @@ function destroy(){
 function startRequest(requestId, payload = {}){
   const state = CommunicationState.snapshot();
   if(!requestId || state.activeRequests >= COMMUNICATION_LIMITS.MAX_ACTIVE_REQUESTS) return false;
+  if(CommunicationState.getRequest(requestId)) return false;
   if(!CommunicationState.registerRequest(requestId, payload)) return false;
   CommunicationState.setProcessing(true);
   CommunicationState.incrementRequests();
@@ -43,7 +44,6 @@ function completeRequest(requestId){
 function failRequest(requestId, error = null){
   if(!finishRequest(requestId)) return false;
   CommunicationState.incrementFailed();
-  CommunicationState.setHealthy(false);
   emit(COMMUNICATION_EVENTS.REQUEST_FAILED, { requestId, error });
   return true;
 }
