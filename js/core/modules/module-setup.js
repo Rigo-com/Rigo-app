@@ -1,7 +1,6 @@
 import ModuleRegistry from "./module-registry.js";
 import Shared from "../../shared/index.js";
 import Security from "../../security/index.js";
-import Debug from "../../debug/index.js";
 import Storage from "../../storage/index.js";
 import Auth from "../../auth/index.js";
 import Settings from "../../settings/index.js";
@@ -46,7 +45,6 @@ function registerModule(name, instance, options = {}){
 function registerCoreModules(){
   registerModule("shared", Shared, { priority:0 });
   registerModule("security", Security, { priority:5, dependencies:["shared"] });
-  registerModule("debug", Debug, { priority:8, dependencies:["security"] });
   registerModule("storage", Storage, { priority:10, dependencies:["shared"] });
   registerModule("auth", Auth, { priority:15, dependencies:["storage", "security"] });
   registerModule("settings", Settings, { priority:20, dependencies:["storage"] });
