@@ -3,206 +3,139 @@
 // CONFIG MANAGER
 // =====================================
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
 import ConfigTypes
 from "./config-types.js";
-
-
 
 const {
   CONFIG_DEFAULTS
 } = ConfigTypes;
 
-
-
-// =====================================
-// CONFIG STATE
-// =====================================
-
 const configState =
 Object.seal({
-
-  values:
-  new Map(
+  initialized:false,
+  values:new Map(
     Object.entries(
       CONFIG_DEFAULTS
     )
   )
-
 });
 
+function initialize(){
+  configState.initialized = true;
+  return true;
+}
 
+const boot = initialize;
 
-// =====================================
-// CONFIG API
-// =====================================
+function shutdown(){
+  configState.initialized = false;
+  return true;
+}
 
 function get(
   key,
   fallback = null
 ){
-
-  if(
-    !key
-  ){
-
+  if(!key){
     return fallback;
-
   }
 
-  return configState
-  .values
-  .has(
-    key
-  )
-
-    ?
-
-    configState
-    .values
-    .get(
-      key
-    )
-
-    :
-
-    fallback;
-
+  return configState.values.has(key)
+    ? configState.values.get(key)
+    : fallback;
 }
-
-
 
 function set(
   key,
   value
 ){
-
-  if(
-    !key
-  ){
-
+  if(!key){
     throw new Error(
       "INVALID_CONFIG_KEY"
     );
-
   }
 
-  configState
-  .values
-  .set(
+  configState.values.set(
     key,
     value
   );
 
   return value;
-
 }
-
-
 
 function has(
   key
 ){
-
-  return configState
-  .values
-  .has(
-    key
-  );
-
+  return configState.values.has(key);
 }
-
-
 
 function remove(
   key
 ){
-
-  return configState
-  .values
-  .delete(
-    key
-  );
-
+  return configState.values.delete(key);
 }
 
-
-
 function reset(){
-
-  configState
-  .values
-  .clear();
+  configState.values.clear();
 
   for(
-    const [
-      key,
-      value
-    ]
-    of Object.entries(
-      CONFIG_DEFAULTS
-    )
+    const [key,value]
+    of Object.entries(CONFIG_DEFAULTS)
   ){
-
-    configState
-    .values
-    .set(
+    configState.values.set(
       key,
       value
     );
-
   }
 
+  configState.initialized = false;
   return true;
-
 }
-
-
 
 function all(){
-
   return Object.freeze(
     Object.fromEntries(
-      configState
-      .values
+      configState.values
     )
   );
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
+function snapshot(){
+  return Object.freeze({
+    initialized:configState.initialized,
+    values:all(),
+    timestamp:Date.now()
+  });
+}
 
 const RIGOConfig =
 Object.freeze({
-
+  initialize,
+  boot,
+  shutdown,
   get,
-
   set,
-
   has,
-
   remove,
-
   reset,
-
-  all
-
+  all,
+  snapshot
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
+export {
+  configState,
+  initialize,
+  boot,
+  shutdown,
+  get,
+  set,
+  has,
+  remove,
+  reset,
+  all,
+  snapshot,
+  RIGOConfig
+};
 
 export default
 RIGOConfig;
