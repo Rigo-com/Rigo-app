@@ -4,434 +4,101 @@
 // STORAGE LAYER
 // =====================================
 
-import {
-
-  COMMUNICATION_LIMITS,
-
-  COMMUNICATION_TIMERS
-
-}
+import { COMMUNICATION_LIMITS, COMMUNICATION_TIMERS }
 from "./communication-config.js";
 
+import CommunicationState
+from "./communication-state.js";
 
+const processedHashes = new Map();
+const responseCache = new Map();
 
-// =====================================
-// STORAGE
-// =====================================
+function registerHash(hash){
+  if(!hash) return false;
+  processedHashes.set(hash,Date.now());
+  while(processedHashes.size > COMMUNICATION_LIMITS.MAX_HASH_CACHE){
+    processedHashes.delete(processedHashes.keys().next().value);
+  }
+  return true;
+}
 
-const processedHashes =
-new Map();
-
-
-
-const responseCache =
-new Map();
-
-
-
-// =====================================
-// HASH STORAGE
-// =====================================
-
-function registerHash(
-  hash
-){
-
-  if(
-    !hash
-  ){
+function hasHash(hash){
+  if(!hash) return false;
+  const timestamp = processedHashes.get(hash);
+  if(!timestamp) return false;
+  if(Date.now() - timestamp > COMMUNICATION_TIMERS.HASH_TTL){
+    processedHashes.delete(hash);
     return false;
   }
-
-  processedHashes.set(
-
-    hash,
-
-    Date.now()
-
-  );
-
-  while(
-
-    processedHashes.size >
-
-    COMMUNICATION_LIMITS
-    .MAX_HASH_CACHE
-
-  ){
-
-    const oldest =
-
-      processedHashes
-      .keys()
-      .next()
-      .value;
-
-    processedHashes.delete(
-      oldest
-    );
-
-  }
-
   return true;
-
 }
 
+function clearHashes(){ processedHashes.clear(); return true; }
 
-
-function hasHash(
-  hash
-){
-
-  if(
-    !hash
-  ){
-    return false;
+function setCache(key,value){
+  if(!key) return false;
+  responseCache.set(key,{ value, timestamp:Date.now() });
+  while(responseCache.size > COMMUNICATION_LIMITS.MAX_CACHE_ENTRIES){
+    responseCache.delete(responseCache.keys().next().value);
   }
-
-  return processedHashes.has(
-    hash
-  );
-
-}
-
-
-
-function clearHashes(){
-
-  processedHashes.clear();
-
   return true;
-
 }
 
-
-
-// =====================================
-// CACHE STORAGE
-// =====================================
-
-function setCache(
-  key,
-  value
-){
-
-  if(
-    !key
-  ){
-    return false;
-  }
-
-  responseCache.set(
-
-    key,
-
-    {
-
-      value,
-
-      timestamp:
-      Date.now()
-
-    }
-
-  );
-
-  while(
-
-    responseCache.size >
-
-    COMMUNICATION_LIMITS
-    .MAX_CACHE_ENTRIES
-
-  ){
-
-    const oldest =
-
-      responseCache
-      .keys()
-      .next()
-      .value;
-
-    responseCache.delete(
-      oldest
-    );
-
-  }
-
-  return true;
-
-}
-
-
-
-function getCache(
-  key
-){
-
-  const entry =
-
-    responseCache.get(
-      key
-    );
-
-  if(
-    !entry
-  ){
+function getCache(key){
+  const entry = responseCache.get(key);
+  if(!entry){
+    CommunicationState.incrementCacheMisses();
     return null;
   }
-
-  const expired =
-
-    Date.now()
-
-    -
-
-    entry.timestamp
-
-    >
-
-    COMMUNICATION_TIMERS
-    .CACHE_TTL;
-
-  if(
-    expired
-  ){
-
-    responseCache.delete(
-      key
-    );
-
+  if(Date.now() - entry.timestamp > COMMUNICATION_TIMERS.CACHE_TTL){
+    responseCache.delete(key);
+    CommunicationState.incrementCacheMisses();
     return null;
-
   }
-
+  CommunicationState.incrementCacheHits();
   return entry.value;
-
 }
 
-
-
-function removeCache(
-  key
-){
-
-  return responseCache.delete(
-    key
-  );
-
-}
-
-
-
-function clearCache(){
-
-  responseCache.clear();
-
-  return true;
-
-}
-
-
-
-// =====================================
-// TTL CLEANUP
-// =====================================
+function removeCache(key){ return responseCache.delete(key); }
+function clearCache(){ responseCache.clear(); return true; }
 
 function cleanupExpiredHashes(){
-
-  const now =
-  Date.now();
-
-  for(
-    const [
-
-      hash,
-
-      timestamp
-
-    ]
-
-    of
-
-    processedHashes
-  ){
-
-    const expired =
-
-      now -
-
-      timestamp >
-
-      COMMUNICATION_TIMERS
-      .HASH_TTL;
-
-    if(
-      expired
-    ){
-
-      processedHashes
-      .delete(
-        hash
-      );
-
-    }
-
+  const now = Date.now();
+  for(const [hash,timestamp] of processedHashes){
+    if(now - timestamp > COMMUNICATION_TIMERS.HASH_TTL) processedHashes.delete(hash);
   }
-
   return true;
-
 }
-
-
 
 function cleanupExpiredCache(){
-
-  const now =
-  Date.now();
-
-  for(
-    const [
-
-      key,
-
-      entry
-
-    ]
-
-    of
-
-    responseCache
-  ){
-
-    const expired =
-
-      now -
-
-      entry.timestamp >
-
-      COMMUNICATION_TIMERS
-      .CACHE_TTL;
-
-    if(
-      expired
-    ){
-
-      responseCache
-      .delete(
-        key
-      );
-
-    }
-
+  const now = Date.now();
+  for(const [key,entry] of responseCache){
+    if(now - entry.timestamp > COMMUNICATION_TIMERS.CACHE_TTL) responseCache.delete(key);
   }
-
   return true;
-
 }
-
-
-
-// =====================================
-// STATS
-// =====================================
 
 function getStorageStats(){
-
-  return Object.freeze({
-
-    hashes:
-    processedHashes.size,
-
-    cache:
-    responseCache.size
-
-  });
-
+  cleanupExpiredHashes();
+  cleanupExpiredCache();
+  return Object.freeze({ hashes:processedHashes.size, cache:responseCache.size });
 }
-
-
-
-// =====================================
-// RESET
-// =====================================
 
 function resetStorage(){
-
   processedHashes.clear();
-
   responseCache.clear();
-
   return true;
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const CommunicationStorage =
-Object.freeze({
-
-  registerHash,
-
-  hasHash,
-
-  clearHashes,
-
-  setCache,
-
-  getCache,
-
-  removeCache,
-
-  clearCache,
-
-  cleanupExpiredHashes,
-
-  cleanupExpiredCache,
-
-  getStorageStats,
-
-  resetStorage
-
+const CommunicationStorage = Object.freeze({
+  registerHash,hasHash,clearHashes,setCache,getCache,removeCache,clearCache,
+  cleanupExpiredHashes,cleanupExpiredCache,getStorageStats,resetStorage
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
-  registerHash,
-
-  hasHash,
-
-  clearHashes,
-
-  setCache,
-
-  getCache,
-
-  removeCache,
-
-  clearCache,
-
-  cleanupExpiredHashes,
-
-  cleanupExpiredCache,
-
-  getStorageStats,
-
-  resetStorage,
-
+  registerHash,hasHash,clearHashes,setCache,getCache,removeCache,clearCache,
+  cleanupExpiredHashes,cleanupExpiredCache,getStorageStats,resetStorage,
   CommunicationStorage
-
 };
 
-export default
-CommunicationStorage;
+export default CommunicationStorage;
