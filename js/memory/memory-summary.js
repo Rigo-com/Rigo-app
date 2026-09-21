@@ -6,7 +6,8 @@
 
 import {
   MEMORY_LIMITS,
-  MEMORY_EVENTS
+  MEMORY_EVENTS,
+  MEMORY_FEATURES
 }
 from "./memory-constants.js";
 
@@ -113,6 +114,10 @@ function summarizeMemory(
 function summarizeMemories(
   memories = []
 ){
+
+  if(!MEMORY_FEATURES.ENABLE_SUMMARIES){
+    return [];
+  }
 
   incrementSummarized();
 
