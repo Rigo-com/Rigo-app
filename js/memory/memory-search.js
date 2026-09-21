@@ -212,6 +212,7 @@ function searchMemories(
   setSearching(true);
   setState(MEMORY_STATES.SEARCHING);
 
+  try{
   const exactResults =
 
     exactSearch(
@@ -292,10 +293,11 @@ function searchMemories(
     }
   );
 
-  setSearching(false);
-  setState(MEMORY_STATES.READY);
-
   return results;
+  } finally {
+    setSearching(false);
+    setState(MEMORY_STATES.READY);
+  }
 
 }
 
