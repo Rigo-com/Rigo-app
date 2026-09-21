@@ -38,7 +38,8 @@ from "./memory-state.js";
 
 import {
   MEMORY_LIMITS,
-  MEMORY_EVENTS
+  MEMORY_EVENTS,
+  MEMORY_FEATURES
 }
 from "./memory-constants.js";
 
@@ -190,11 +191,10 @@ function searchMemories(
 ){
 
   if(
-
+    !MEMORY_FEATURES.ENABLE_SEARCH ||
     !validateSearchQuery(
       query
     )
-
   ){
 
     return [];
