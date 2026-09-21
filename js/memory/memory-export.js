@@ -10,14 +10,8 @@ import {
 }
 from "./memory-storage.js";
 
-import {
-  MEMORY_FEATURES,
-  MEMORY_EVENTS
-}
+import { MEMORY_FEATURES }
 from "./memory-constants.js";
-
-import { emit }
-from "./memory-events.js";
 
 import {
   createSafeExport,
