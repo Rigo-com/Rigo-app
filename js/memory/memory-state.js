@@ -476,6 +476,22 @@ function incrementFailures(){
 
 }
 
+function resetMemoryDiagnostics(){
+
+  Object.keys(
+    memoryState.diagnostics
+  )
+  .forEach(key => {
+
+    memoryState
+    .diagnostics[key] = 0;
+
+  });
+
+  return true;
+
+}
+
 
 
 // =====================================
@@ -620,6 +636,7 @@ Object.freeze({
   incrementSummarized,
   incrementSynced,
   incrementFailures,
+  resetMemoryDiagnostics,
 
   snapshot:
   getMemorySnapshot,
@@ -674,6 +691,7 @@ export {
   incrementSummarized,
   incrementSynced,
   incrementFailures,
+  resetMemoryDiagnostics,
 
   getMemorySnapshot,
   getMemoryDiagnostics,
