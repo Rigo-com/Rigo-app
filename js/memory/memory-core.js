@@ -52,6 +52,8 @@ function reload(){
 }
 
 function createMemory(content,options={}){
+  MemoryState.setProcessing(true);
+  try{
   const memory=createMemoryRecord(content,options);
   if(!validateMemoryRecord(memory))return null;
 
@@ -63,6 +65,9 @@ function createMemory(content,options={}){
   MemoryState.incrementCreated();
   emit(MEMORY_EVENTS.CREATED,memory);
   return memory;
+  } finally {
+    MemoryState.setProcessing(false);
+  }
 }
 
 function updateMemory(memoryId,updates={}){
