@@ -7,9 +7,13 @@
 import {
   setIndex,
   getIndex,
-  incrementIndexed
+  incrementIndexed,
+  setIndexing,
+  setState
 }
 from "./memory-state.js";
+
+import { MEMORY_STATES } from "./memory-types.js";
 
 import {
   MEMORY_EVENTS,
@@ -108,7 +112,12 @@ function createMemoryIndex(){
 
 function buildIndex(){
 
+  setIndexing(true);
+  setState(MEMORY_STATES.INDEXING);
+
   if(!MEMORY_FEATURES.ENABLE_INDEXING){
+    setIndexing(false);
+    setState(MEMORY_STATES.READY);
     return setIndex("memory", new Map());
   }
 
