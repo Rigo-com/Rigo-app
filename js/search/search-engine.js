@@ -25,6 +25,7 @@ async function executeSemanticSearch(query, provider = null, options = {}){
   const controller = new AbortController();
   const externalSignal = options.signal;
   let timer;
+  let timedOut = false;
   let removeAbortListener = null;
 
   if(externalSignal){
@@ -36,10 +37,18 @@ async function executeSemanticSearch(query, provider = null, options = {}){
   }
 
   try{
+    const providerPromise = Promise.resolve()
+      .then(() => provider(query, { signal:controller.signal }))
+      .catch(error => {
+        if(timedOut) throw new Error("SEARCH_TIMEOUT");
+        throw error;
+      });
+
     const results = await Promise.race([
-      Promise.resolve().then(() => provider(query, { signal:controller.signal })),
+      providerPromise,
       new Promise((_, reject) => {
         timer = setTimeout(() => {
+          timedOut = true;
           controller.abort();
           reject(new Error("SEARCH_TIMEOUT"));
         }, timeout);
