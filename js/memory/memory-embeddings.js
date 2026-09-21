@@ -18,6 +18,11 @@ import {
 }
 from "./memory-utils.js";
 
+import {
+  MEMORY_FEATURES
+}
+from "./memory-constants.js";
+
 
 
 // =====================================
@@ -134,6 +139,10 @@ function generateEmbedding(
   content
 
 ){
+
+  if(!MEMORY_FEATURES.ENABLE_EMBEDDINGS){
+    return null;
+  }
 
   const embedding =
 
