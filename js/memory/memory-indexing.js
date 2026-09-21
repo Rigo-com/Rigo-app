@@ -12,7 +12,8 @@ import {
 from "./memory-state.js";
 
 import {
-  MEMORY_EVENTS
+  MEMORY_EVENTS,
+  MEMORY_FEATURES
 }
 from "./memory-constants.js";
 
@@ -107,19 +108,25 @@ function createMemoryIndex(){
 
 function buildIndex(){
 
+  if(!MEMORY_FEATURES.ENABLE_INDEXING){
+    return setIndex("memory", new Map());
+  }
+
   const memories =
   loadMemories();
 
   const index =
   createMemoryIndex();
 
-  resetEmbeddings();
+  if(MEMORY_FEATURES.ENABLE_EMBEDDINGS){
+    resetEmbeddings();
 
-  for(const memory of memories){
-    generateEmbedding(
-      memory.id,
-      memory.content
-    );
+    for(const memory of memories){
+      generateEmbedding(
+        memory.id,
+        memory.content
+      );
+    }
   }
 
   setIndex(
@@ -174,6 +181,7 @@ function indexMemory(
 ){
 
   if(
+    !MEMORY_FEATURES.ENABLE_INDEXING ||
     !memory?.id
   ){
     return false;
@@ -218,13 +226,12 @@ function indexMemory(
 
   }
 
-  generateEmbedding(
-
-    memory.id,
-
-    memory.content
-
-  );
+  if(MEMORY_FEATURES.ENABLE_EMBEDDINGS){
+    generateEmbedding(
+      memory.id,
+      memory.content
+    );
+  }
 
   setIndex(
     "memory",
