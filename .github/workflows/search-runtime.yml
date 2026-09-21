@@ -2,7 +2,7 @@ name: Search Runtime
 
 on:
   push:
-    branches: [ai-bootstrap-wiring]
+    branches: [main, ai-bootstrap-wiring]
   pull_request:
   workflow_dispatch:
 
