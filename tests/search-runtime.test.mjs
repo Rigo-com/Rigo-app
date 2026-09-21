@@ -77,6 +77,7 @@ assert.equal(Search.snapshot().activeSearches, 0);
 assert.equal(Search.snapshot().healthy, false);
 
 const controller = new AbortController();
+setTimeout(() => controller.abort(), 5);
 
 assert.deepEqual(
   await Search.search("cancelled", {
@@ -91,7 +92,6 @@ assert.deepEqual(
   []
 );
 
-controller.abort();
 assert.equal(Search.snapshot().activeSearches, 0);
 
 assert.equal(Search.shutdown(), true);
