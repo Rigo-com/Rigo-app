@@ -32,9 +32,16 @@ import {
 from "./memory-utils.js";
 
 import {
-  incrementSearches
+  incrementSearches,
+  setSearching,
+  setState
 }
 from "./memory-state.js";
+
+import {
+  MEMORY_STATES
+}
+from "./memory-types.js";
 
 import {
   MEMORY_LIMITS,
@@ -202,6 +209,8 @@ function searchMemories(
   }
 
   incrementSearches();
+  setSearching(true);
+  setState(MEMORY_STATES.SEARCHING);
 
   const exactResults =
 
@@ -282,6 +291,9 @@ function searchMemories(
       results:results.length
     }
   );
+
+  setSearching(false);
+  setState(MEMORY_STATES.READY);
 
   return results;
 
