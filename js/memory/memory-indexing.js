@@ -121,6 +121,7 @@ function buildIndex(){
     return setIndex("memory", new Map());
   }
 
+  try{
   const memories =
   loadMemories();
 
