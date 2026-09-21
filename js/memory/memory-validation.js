@@ -249,8 +249,18 @@ function validateEmbedding(
   embedding
 ){
 
-  return Array.isArray(
-    embedding
+  if(Array.isArray(embedding)){
+    return embedding.every(
+      value => Number.isFinite(Number(value))
+    );
+  }
+
+  if(!isObject(embedding)){
+    return false;
+  }
+
+  return Object.values(embedding).every(
+    value => Number.isFinite(Number(value)) && Number(value) >= 0
   );
 
 }
