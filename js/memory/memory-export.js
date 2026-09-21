@@ -11,6 +11,15 @@ import {
 from "./memory-storage.js";
 
 import {
+  MEMORY_FEATURES,
+  MEMORY_EVENTS
+}
+from "./memory-constants.js";
+
+import { emit }
+from "./memory-events.js";
+
+import {
   createSafeExport,
   createSafeImport
 }
@@ -28,6 +37,10 @@ from "./memory-validation.js";
 // =====================================
 
 function exportMemories(){
+
+  if(!MEMORY_FEATURES.ENABLE_EXPORT){
+    return null;
+  }
 
   const memories =
   loadMemories();
@@ -47,6 +60,10 @@ function exportMemories(){
 function exportMemory(
   memoryId
 ){
+
+  if(!MEMORY_FEATURES.ENABLE_EXPORT){
+    return null;
+  }
 
   const memories =
   loadMemories();
@@ -83,6 +100,10 @@ function exportMemory(
 function importMemories(
   rawData
 ){
+
+  if(!MEMORY_FEATURES.ENABLE_EXPORT){
+    return false;
+  }
 
   const imported =
 
@@ -127,6 +148,10 @@ function importMemories(
 function appendImportedMemories(
   rawData
 ){
+
+  if(!MEMORY_FEATURES.ENABLE_EXPORT){
+    return false;
+  }
 
   const imported =
 
