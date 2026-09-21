@@ -7,6 +7,7 @@
 import {
   getMemorySnapshot,
   getMemoryDiagnostics,
+  resetMemoryDiagnostics,
   memoryState
 }
 from "./memory-state.js";
@@ -157,7 +158,7 @@ function exportDebugData(){
 
 function resetDebugSession(){
 
-  return true;
+  return resetMemoryDiagnostics();
 
 }
 
