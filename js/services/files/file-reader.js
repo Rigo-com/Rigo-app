@@ -18,7 +18,10 @@ async function readFileAsText(file){
     if(!FILE_CONFIG.TEXT_READABLE_TYPES.includes(file.type)){reject(new Error("FILE TYPE NOT READABLE"));return;}
     const reader=new FileReader();
     reader.onload=async()=>{await emitFileEvent(FILE_EVENTS.FILE_READ);resolve(String(reader.result??""));};
-    reader.onerror=()=>reject(new Error("FILE READ FAILED"));
+    reader.onerror=async()=>{
+      await emitFileEvent(FILE_EVENTS.FILE_READ,{success:false,error:"FILE READ FAILED"});
+      reject(new Error("FILE READ FAILED"));
+    };
     reader.readAsText(file);
   });
 }
