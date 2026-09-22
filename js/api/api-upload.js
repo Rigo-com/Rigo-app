@@ -4,6 +4,13 @@ import { APIValidationError } from "./api-errors.js";
 import { executeRequest } from "./api-request.js";
 import { createRequestId } from "./api-helpers.js";
 import { API_EVENTS, emitAPIEvent } from "./api-events.js";
+import {
+  addFile,
+  getFiles,
+  enqueueUpload,
+  dequeueUpload,
+  removeFile
+} from "../services/files/index.js";
 
 function validateFile(file){
   if(typeof File === "undefined") throw new APIValidationError("File API unavailable");
@@ -11,19 +18,63 @@ function validateFile(file){
   return true;
 }
 
+async function registerUploadFile(file){
+  const added = await addFile(file);
+  if(!added) throw new APIValidationError("Unable to register file");
+
+  const files = getFiles();
+  const fileEntry = files[files.length - 1];
+  if(!fileEntry?.id || !enqueueUpload(fileEntry.id)){
+    await removeFile(fileEntry?.id);
+    throw new APIValidationError("Unable to queue file");
+  }
+
+  const queuedId = dequeueUpload();
+  if(queuedId !== fileEntry.id){
+    await removeFile(fileEntry.id);
+    throw new APIValidationError("Unable to dequeue file");
+  }
+
+  return fileEntry.id;
+}
+
 async function uploadFile(file, options = {}){
   validateFile(file);
-  const { endpoint = API_CONFIG.UPLOAD_ENDPOINT, fieldName = "file", metadata, headers = {}, ...requestOptions } = options;
+
+  const {
+    endpoint = API_CONFIG.UPLOAD_ENDPOINT,
+    fieldName = "file",
+    metadata,
+    headers = {},
+    ...requestOptions
+  } = options;
+
   if(typeof endpoint !== "string" || endpoint.trim() === ""){
     throw new APIValidationError("Upload endpoint is required");
   }
 
+  const fileId = await registerUploadFile(file);
   const uploadId = createRequestId();
   const formData = new FormData();
   formData.append(fieldName, file);
-  if(metadata !== undefined) formData.append("metadata", typeof metadata === "string" ? metadata : JSON.stringify(metadata));
+  if(metadata !== undefined){
+    formData.append(
+      "metadata",
+      typeof metadata === "string" ? metadata : JSON.stringify(metadata)
+    );
+  }
 
-  const upload = { id:uploadId, endpoint, name:file.name, size:file.size, type:file.type, state:"uploading", startedAt:Date.now() };
+  const upload = {
+    id:uploadId,
+    fileId,
+    endpoint,
+    name:file.name,
+    size:file.size,
+    type:file.type,
+    state:"uploading",
+    startedAt:Date.now()
+  };
+
   apiState.uploads.set(uploadId, upload);
   apiState.diagnostics.uploads += 1;
   emitAPIEvent(API_EVENTS.UPLOAD_STARTED, { ...upload });
@@ -36,17 +87,25 @@ async function uploadFile(file, options = {}){
       body:formData,
       headers:{ Accept:"application/json", ...headers }
     });
+
     upload.state = "completed";
     upload.completedAt = Date.now();
     emitAPIEvent(API_EVENTS.UPLOAD_COMPLETED, { ...upload });
     return result;
-  } catch(error){
+  }
+  catch(error){
     upload.state = "failed";
     upload.failedAt = Date.now();
     apiState.diagnostics.uploadFailures += 1;
-    emitAPIEvent(API_EVENTS.UPLOAD_FAILED, { ...upload, code:error?.code, message:error?.message });
+    emitAPIEvent(API_EVENTS.UPLOAD_FAILED, {
+      ...upload,
+      code:error?.code,
+      message:error?.message
+    });
     throw error;
-  } finally {
+  }
+  finally{
+    await removeFile(fileId);
     apiState.uploads.delete(uploadId);
   }
 }
