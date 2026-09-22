@@ -15,30 +15,6 @@ from "./settings-types.js";
 // IDS
 // =====================================
 
-function createSettingsId(
-  prefix = "settings"
-){
-
-  return (
-
-    String(prefix)
-
-    + "_"
-
-    + Date.now()
-
-    + "_"
-
-    + Math.random()
-    .toString(36)
-    .slice(2,10)
-
-  );
-
-}
-
-
-
 // =====================================
 // TYPE HELPERS
 // =====================================
@@ -304,8 +280,6 @@ function setSettingValue(
 
 const SettingsUtils =
 Object.freeze({
-
-  createSettingsId,
 
   isObject,
 

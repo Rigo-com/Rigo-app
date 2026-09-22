@@ -145,62 +145,6 @@ function verifyIntegrity(
 
 
 // =====================================
-// EXPORT SAFETY
-// =====================================
-
-function createSafeExport(
-  settings
-){
-
-  return JSON.stringify(
-
-    sanitizeSettings(
-      settings
-    ),
-
-    null,
-
-    2
-
-  );
-
-}
-
-
-
-// =====================================
-// IMPORT SAFETY
-// =====================================
-
-function createSafeImport(
-  rawData
-){
-
-  try{
-
-    const parsed =
-
-      JSON.parse(
-        rawData
-      );
-
-    return sanitizeSettings(
-      parsed
-    );
-
-  }
-
-  catch{
-
-    return null;
-
-  }
-
-}
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
@@ -209,11 +153,7 @@ Object.freeze({
 
   sanitizeSettings,
 
-  verifyIntegrity,
-
-  createSafeExport,
-
-  createSafeImport
+  verifyIntegrity
 
 });
 
@@ -230,10 +170,6 @@ export {
   sanitizeSettings,
 
   verifyIntegrity,
-
-  createSafeExport,
-
-  createSafeImport,
 
   SettingsSecurity
 

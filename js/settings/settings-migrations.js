@@ -80,6 +80,8 @@ function migrateSettings(
   settings = {}
 ){
 
+  if(isLatestVersion(settings)) return structuredClone(settings);
+
   const version =
 
     getSettingsVersion(

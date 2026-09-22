@@ -16,6 +16,10 @@ assert.equal(Settings.boot(), true);
 assert.equal(Settings.snapshot().initialized, true);
 
 assert.equal(Settings.update({ ui:{ compactMode:true } }), true);
+assert.equal(Settings.getValue("ui.compactMode"), true);
+assert.equal(Settings.setValue("ui.compactMode", false), true);
+assert.equal(Settings.getValue("ui.compactMode"), false);
+assert.equal(Settings.setValue("invalid.path", true), false);
 let current = Settings.getSettings();
 assert.equal(current.ui.compactMode, true);
 assert.equal(current.ui.theme, SETTINGS_DEFAULTS.ui.theme);

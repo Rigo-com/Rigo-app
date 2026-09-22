@@ -31,7 +31,12 @@ function loadSettings(){
     if(!key)return structuredClone(SETTINGS_DEFAULTS);
     const raw=localStorage.getItem(key);
     if(!raw)return structuredClone(SETTINGS_DEFAULTS);
-    return JSON.parse(raw);
+    try{
+      return JSON.parse(raw);
+    }catch{
+      const backup = loadBackup();
+      return backup && typeof backup === "object" ? backup : structuredClone(SETTINGS_DEFAULTS);
+    }
   }
   catch{
     return structuredClone(SETTINGS_DEFAULTS);

@@ -129,12 +129,11 @@ function off(
   callback
 ){
 
-  return getListeners(
-    eventName
-  )
-  .delete(
-    callback
-  );
+  const handlers = listeners.get(eventName);
+  if(!handlers) return false;
+  const removed = handlers.delete(callback);
+  if(handlers.size===0) listeners.delete(eventName);
+  return removed;
 
 }
 
@@ -250,10 +249,7 @@ function listenerCount(
   eventName
 ){
 
-  return getListeners(
-    eventName
-  )
-  .size;
+  return listeners.get(eventName)?.size || 0;
 
 }
 

@@ -6,12 +6,12 @@ import { validateSettings } from "./settings-validation.js";
 import { sanitizeSettings } from "./settings-security.js";
 import { migrateSettings } from "./settings-migrations.js";
 import { syncFromStorage, syncToStorage } from "./settings-sync.js";
-import { deepMerge } from "./settings-utils.js";
-
-const managerOperations = Object.seal({ initialize:null });
+import { deepMerge, normalizeSettings as normalizeUtilitySettings, getSettingValue, setSettingValue, isSettingsSection } from "./settings-utils.js";
+import { verifyIntegrity } from "./settings-security.js";
 
 function normalizeSettings(settings){
-  return validateSettings(sanitizeSettings(migrateSettings(settings || {})));
+  const normalized = normalizeUtilitySettings(settings || {});
+  return validateSettings(sanitizeSettings(migrateSettings(normalized)));
 }
 
 function initialize(){
@@ -50,6 +50,7 @@ function save(){
   try{
     const current = SettingsState.getSettings();
     const settings = normalizeSettings(current);
+    if(!verifyIntegrity(settings)) throw new Error("SETTINGS_INTEGRITY_FAILED");
     createBackup(current);
     const result = syncToStorage(settings);
     if(!result) throw new Error("SETTINGS_SAVE_FAILED");
@@ -102,6 +103,18 @@ function shutdown(){
 }
 
 const getSettings = () => SettingsState.getSettings();
+
+function getValue(path){
+  return getSettingValue(SettingsState.getSettings(), path);
+}
+
+function setValue(path, value){
+  const section = String(path || "").split(".")[0];
+  if(!isSettingsSection(section)) return false;
+  const next = SettingsState.getSettings();
+  if(!setSettingValue(next, path, value)) return false;
+  return update(next);
+}
 function snapshot(){
   return Object.freeze({
     ...SettingsState.snapshot(),
@@ -114,8 +127,8 @@ const health = snapshot;
 const SettingsManager = Object.freeze({
   id:"settings", priority:20,
   initialize, boot, load, save, update, reset, shutdown,
-  getSettings, health, snapshot
+  getSettings, getValue, setValue, health, snapshot
 });
 
-export { normalizeSettings, initialize, boot, load, save, update, reset, shutdown, getSettings, health, snapshot, SettingsManager };
+export { normalizeSettings, initialize, boot, load, save, update, reset, shutdown, getSettings, getValue, setValue, health, snapshot, SettingsManager };
 export default SettingsManager;
