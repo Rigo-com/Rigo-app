@@ -1,0 +1,35 @@
+name: Services Runtime
+
+on:
+  push:
+    branches: [main, ai-bootstrap-wiring]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax checks
+        run: |
+          node --check js/services/index.js
+          node --check js/services/service-manager.js
+          node --check js/services/service-registration.js
+          node --check js/services/service-resolution.js
+          node --check js/services/service-runtime.js
+          node --check js/services/analytics/analytics-runtime.js
+          node --check js/services/files/file-manager.js
+          node --check js/services/files/file-queue.js
+          node --check js/services/files/file-reader.js
+          node --check js/services/files/file-runtime.js
+          node --check js/services/files/file-url.js
+          node --check js/services/files/file-validator.js
+      - name: Runtime checks
+        run: node tests/services-runtime.test.mjs
