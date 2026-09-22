@@ -1,237 +1,71 @@
-// =====================================
-// RIGO AI
-// SECURITY FREEZE
-// IMMUTABILITY LAYER
-// =====================================
-
-
-
-// =====================================
-// HELPERS
-// =====================================
-
-function isObjectLike(
-  value
-){
-
-  return (
-
-    value !== null
-
-    &&
-
-    typeof value ===
-    "object"
-
-  );
-
+function isObjectLike(value){
+  return value !== null && typeof value === "object";
 }
 
-
-
-// =====================================
-// SAFE FREEZE
-// =====================================
-
-function safeFreeze(
-  value
-){
-
-  if(
-    !isObjectLike(
-      value
-    )
-  ){
-
-    return value;
-
-  }
+function safeFreeze(value){
+  if(!isObjectLike(value)) return value;
 
   try{
-
-    return Object.freeze(
-      value
-    );
-
-  }
-
-  catch{
-
+    return Object.freeze(value);
+  }catch{
     return value;
-
   }
-
 }
 
+function deepFreeze(value, visited = new WeakSet()){
+  if(!isObjectLike(value)) return value;
+  if(visited.has(value)) return value;
 
+  visited.add(value);
 
-// =====================================
-// DEEP FREEZE
-// =====================================
-
-function deepFreeze(
-  value,
-  visited = new WeakSet()
-){
-
-  if(
-    !isObjectLike(
-      value
-    )
-  ){
-
-    return value;
-
+  for(const key of Reflect.ownKeys(value)){
+    try{
+      deepFreeze(value[key], visited);
+    }catch{}
   }
 
-  if(
-    visited.has(
-      value
-    )
-  ){
+  return safeFreeze(value);
+}
 
-    return value;
+function immutableCopy(value){
+  if(!isObjectLike(value)) return value;
 
+  if(typeof structuredClone !== "function"){
+    throw new TypeError("structuredClone is required for immutableCopy");
   }
 
-  visited.add(
-    value
-  );
-
-  Reflect
-.ownKeys(value)
-.forEach((key) => {
+  let cloned;
 
   try{
-
-    deepFreeze(
-
-      value[key],
-
-      visited
-
+    cloned = structuredClone(value);
+  }catch(error){
+    throw new TypeError(
+      `immutableCopy could not clone value: ${error?.message || error}`,
+      { cause:error }
     );
-
   }
 
-  catch{}
-
-});
-
-  return safeFreeze(
-    value
-  );
-
+  return deepFreeze(cloned);
 }
 
-
-
-// =====================================
-// IMMUTABLE COPY
-// =====================================
-
-function immutableCopy(
-  value
-){
-
-  if(
-    !isObjectLike(
-      value
-    )
-  ){
-
-    return value;
-
-  }
-
-  try{
-
-    const cloned =
-
-    structuredClone(
-      value
-    );
-
-    return deepFreeze(
-      cloned
-    );
-
-  }
-
-  catch{
-
-    return deepFreeze(
-      value
-    );
-
-  }
-
+function isFrozen(value){
+  if(!isObjectLike(value)) return false;
+  return Object.isFrozen(value);
 }
 
-
-
-// =====================================
-// FROZEN CHECK
-// =====================================
-
-function isFrozen(
-  value
-){
-
-  if(
-    !isObjectLike(
-      value
-    )
-  ){
-
-    return false;
-
-  }
-
-  return Object.isFrozen(
-    value
-  );
-
-}
-
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const SecurityFreeze =
-Object.freeze({
-
-  freeze:
-  safeFreeze,
-
+const SecurityFreeze = Object.freeze({
+  freeze:safeFreeze,
   deepFreeze,
-
   immutableCopy,
-
   isFrozen
-
 });
-
-
-
-// =====================================
-// EXPORTS
-// =====================================
 
 export {
-
   safeFreeze,
-
   deepFreeze,
-
   immutableCopy,
-
   isFrozen,
-
   SecurityFreeze
-
 };
 
 export default SecurityFreeze;
