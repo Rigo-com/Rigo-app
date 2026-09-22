@@ -1,5 +1,6 @@
 import SETTINGS_DEFAULTS from "./settings-defaults.js";
 import { SettingsState } from "./settings-state.js";
+import { SETTINGS_STATES, SETTINGS_OPERATIONS, SETTINGS_STATUS } from "./settings-types.js";
 import SettingsEvents, { SETTINGS_EVENTS, emit } from "./settings-events.js";
 import { loadSettings, createBackup } from "./settings-storage.js";
 import { validateSettings } from "./settings-validation.js";
@@ -15,11 +16,18 @@ function normalizeSettings(settings){
 
 function initialize(){
   if(SettingsState.snapshot().initialized) return true;
+  SettingsState.setSyncing(true);
   const settings = syncFromStorage();
+  if(settings) SettingsState.incrementSyncs();
+  else SettingsState.incrementFailedSyncs();
   SettingsState.setSettings(settings || structuredClone(SETTINGS_DEFAULTS));
   SettingsState.setInitialized(true);
   SettingsState.setHealthy(Boolean(settings));
-  emit(SETTINGS_EVENTS.INITIALIZED);
+  emit(SETTINGS_EVENTS.INITIALIZED, {
+    operation:SETTINGS_OPERATIONS.LOAD,
+    status:settings ? SETTINGS_STATUS.SUCCESS : SETTINGS_STATUS.FAILED
+  });
+  SettingsState.setSyncing(false);
   return true;
 }
 
@@ -51,21 +59,26 @@ function save(){
     const settings = normalizeSettings(current);
     if(!verifyIntegrity(settings)) throw new Error("SETTINGS_INTEGRITY_FAILED");
     createBackup(current);
+    SettingsState.setSyncing(true);
     const result = syncToStorage(settings);
-    if(!result) throw new Error("SETTINGS_SAVE_FAILED");
+    if(!result){
+      SettingsState.incrementFailedSyncs();
+      throw new Error("SETTINGS_SAVE_FAILED");
+    }
+    SettingsState.incrementSyncs();
     SettingsState.setSettings(settings);
     SettingsState.setHealthy(true);
     SettingsState.incrementSaves();
-    emit(SETTINGS_EVENTS.SAVED, structuredClone(settings));
+    emit(SETTINGS_EVENTS.SAVED, { operation:SETTINGS_OPERATIONS.SAVE, status:SETTINGS_STATUS.SUCCESS, settings:structuredClone(settings) });
     return true;
   }
   catch(error){
     SettingsState.setHealthy(false);
     SettingsState.incrementFailedSaves();
-    emit(SETTINGS_EVENTS.SYNC_FAILED, { error:String(error?.message || error) });
+    emit(SETTINGS_EVENTS.SYNC_FAILED, { operation:SETTINGS_OPERATIONS.SYNC, status:SETTINGS_STATUS.FAILED, error:String(error?.message || error) });
     return false;
   }
-  finally { SettingsState.setSaving(false); }
+  finally { SettingsState.setSaving(false); SettingsState.setSyncing(false); }
 }
 
 function update(updates = {}){
@@ -115,8 +128,15 @@ function setValue(path, value){
   return update(next);
 }
 function snapshot(){
+  const stateSnapshot = SettingsState.snapshot();
+  const state = stateSnapshot.saving ? SETTINGS_STATES.SAVING
+    : stateSnapshot.syncing ? SETTINGS_STATES.SYNCING
+    : stateSnapshot.loading ? SETTINGS_STATES.LOADING
+    : stateSnapshot.healthy ? SETTINGS_STATES.READY
+    : SETTINGS_STATES.ERROR;
   return Object.freeze({
-    ...SettingsState.snapshot(),
+    ...stateSnapshot,
+    state,
     diagnostics:SettingsState.diagnostics(),
     timestamp:Date.now()
   });

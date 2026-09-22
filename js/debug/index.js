@@ -4,6 +4,7 @@ import Monitor from "./monitor/index.js";
 import Reporter from "./reporter/index.js";
 import UI from "./ui/index.js";
 import Utils from "./utils/index.js";
+import SettingsDebug from "../settings/settings-debug.js";
 
 const debugState = Object.seal({
   initialized:false,
@@ -313,7 +314,8 @@ function createSystemReport(){
     critical:diagnostics.critical,
     events:diagnostics.eventCount || 0,
     runtimeErrors:runtime.runtimeErrors || 0,
-    circularDependencies:circular.circularFound || 0
+    circularDependencies:circular.circularFound || 0,
+    settings:SettingsDebug.snapshot()
   });
 }
 
@@ -343,6 +345,7 @@ function createDebugSnapshot(){
     imports:Scanner.imports.snapshot(),
     syntax:Scanner.syntax.snapshot(),
     circular:Scanner.circular.snapshot(),
+    settings:SettingsDebug.snapshot(),
     timestamp:Date.now()
   });
 }

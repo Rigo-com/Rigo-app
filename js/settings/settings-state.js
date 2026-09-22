@@ -208,18 +208,9 @@ function setSettings(
 function updateSettings(
   updates = {}
 ){
-
-  Object.assign(
-
-    settingsState
-    .settings,
-
-    updates
-
-  );
-
+  if(!updates || typeof updates !== "object") return false;
+  settingsState.settings = structuredClone(updates);
   return true;
-
 }
 
 
