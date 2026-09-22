@@ -1,6 +1,6 @@
 import SETTINGS_DEFAULTS from "./settings-defaults.js";
 import { SettingsState } from "./settings-state.js";
-import { SETTINGS_STATES, SETTINGS_OPERATIONS, SETTINGS_STATUS } from "./settings-types.js";
+import { SETTINGS_STATES } from "./settings-types.js";
 import SettingsEvents, { SETTINGS_EVENTS, emit } from "./settings-events.js";
 import { loadSettings, createBackup } from "./settings-storage.js";
 import { validateSettings } from "./settings-validation.js";
@@ -23,10 +23,7 @@ function initialize(){
   SettingsState.setSettings(settings || structuredClone(SETTINGS_DEFAULTS));
   SettingsState.setInitialized(true);
   SettingsState.setHealthy(Boolean(settings));
-  emit(SETTINGS_EVENTS.INITIALIZED, {
-    operation:SETTINGS_OPERATIONS.LOAD,
-    status:settings ? SETTINGS_STATUS.SUCCESS : SETTINGS_STATUS.FAILED
-  });
+  emit(SETTINGS_EVENTS.INITIALIZED);
   SettingsState.setSyncing(false);
   return true;
 }
@@ -69,13 +66,13 @@ function save(){
     SettingsState.setSettings(settings);
     SettingsState.setHealthy(true);
     SettingsState.incrementSaves();
-    emit(SETTINGS_EVENTS.SAVED, { operation:SETTINGS_OPERATIONS.SAVE, status:SETTINGS_STATUS.SUCCESS, settings:structuredClone(settings) });
+    emit(SETTINGS_EVENTS.SAVED, structuredClone(settings));
     return true;
   }
   catch(error){
     SettingsState.setHealthy(false);
     SettingsState.incrementFailedSaves();
-    emit(SETTINGS_EVENTS.SYNC_FAILED, { operation:SETTINGS_OPERATIONS.SYNC, status:SETTINGS_STATUS.FAILED, error:String(error?.message || error) });
+    emit(SETTINGS_EVENTS.SYNC_FAILED, { error:String(error?.message || error) });
     return false;
   }
   finally { SettingsState.setSaving(false); SettingsState.setSyncing(false); }
