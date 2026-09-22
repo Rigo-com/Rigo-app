@@ -1,223 +1,58 @@
-// =====================================
-// RIGO AI
-// FILE VALIDATOR
-// FILE VALIDATION LAYER
-// =====================================
+import { FILE_CONFIG } from "./file-config.js";
+import { fileState, setFileError } from "./file-state.js";
+import { getFileExtension, sanitizeFileName, createFileFingerprint } from "./file-utils.js";
 
-import {
+const MIME_EXTENSIONS = Object.freeze({
+  "image/jpeg":Object.freeze([".jpg",".jpeg"]),
+  "image/png":Object.freeze([".png"]),
+  "image/webp":Object.freeze([".webp"]),
+  "text/plain":Object.freeze([".txt"]),
+  "application/json":Object.freeze([".json"]),
+  "application/pdf":Object.freeze([".pdf"])
+});
 
-  FILE_CONFIG
-
-}
-from "./file-config.js";
-
-import {
-
-  fileState,
-
-  setFileError
-
-}
-from "./file-state.js";
-
-import {
-
-  getFileExtension,
-
-  createFileFingerprint
-
-}
-from "./file-utils.js";
-
-
-
-// =====================================
-// FILE EXTENSION
-// =====================================
-
-function validateFileExtension(
-  filename
-){
-
-  const extension =
-  getFileExtension(
-    filename
-  );
-
-  return (
-
-    FILE_CONFIG
-    .ALLOWED_EXTENSIONS
-    .includes(
-      extension
-    )
-
-  );
-
+function validateFileExtension(filename){
+  const extension = getFileExtension(filename);
+  return FILE_CONFIG.ALLOWED_EXTENSIONS.includes(extension);
 }
 
-
-
-// =====================================
-// FILE VALIDATION
-// =====================================
-
-function validateFile(
-  file
-){
-
-  if(
-
-    !file ||
-
-    typeof file !==
-    "object"
-
-  ){
-
-    setFileError(
-      "INVALID FILE OBJECT"
-    );
-
+function validateFile(file){
+  if(!file || typeof file !== "object"){
+    setFileError("INVALID FILE OBJECT");
     return false;
-
   }
 
-  const validName =
+  const safeName = sanitizeFileName(file.name);
+  const validName = safeName.length > 0 && safeName !== "." && safeName !== ".." && safeName.length <= 255;
+  const validSize = Number.isFinite(file.size) && file.size >= 0;
+  const validType = typeof file.type === "string" && file.type.length > 0;
 
-    typeof file.name ===
-    "string"
-
-    &&
-
-    file.name.trim()
-    .length > 0;
-
-  const validSize =
-
-    Number.isFinite(
-      file.size
-    )
-
-    &&
-
-    file.size >= 0;
-
-  const validType =
-
-    typeof file.type ===
-    "string";
-
-  if(
-
-    !validName ||
-
-    !validSize ||
-
-    !validType
-
-  ){
-
-    setFileError(
-      "INVALID FILE DATA"
-    );
-
+  if(!validName || !validSize || !validType){
+    setFileError("INVALID FILE DATA");
     return false;
-
   }
 
-  const validMimeType =
+  const extension = getFileExtension(safeName);
+  const validMimeType = FILE_CONFIG.ALLOWED_TYPES.includes(file.type);
+  const validExtension = FILE_CONFIG.ALLOWED_EXTENSIONS.includes(extension);
+  const mimeMatchesExtension = MIME_EXTENSIONS[file.type]?.includes(extension) === true;
 
-    FILE_CONFIG
-    .ALLOWED_TYPES
-    .includes(
-      file.type
-    );
-
-  const validExtension =
-  validateFileExtension(
-    file.name
-  );
-
-  if(
-
-    !validMimeType ||
-
-    !validExtension
-
-  ){
-
-    setFileError(
-      "INVALID FILE TYPE"
-    );
-
+  if(!validMimeType || !validExtension || !mimeMatchesExtension){
+    setFileError("INVALID FILE TYPE");
     return false;
-
   }
 
-  if(
-
-    file.size >
-
-    FILE_CONFIG
-    .MAX_FILE_SIZE
-
-  ){
-
-    setFileError(
-      "FILE TOO LARGE"
-    );
-
+  if(file.size > FILE_CONFIG.MAX_FILE_SIZE){
+    setFileError("FILE TOO LARGE");
     return false;
-
   }
 
-  setFileError(
-    null
-  );
-
+  setFileError(null);
   return true;
-
 }
 
-
-
-// =====================================
-// DUPLICATE CHECK
-// =====================================
-
-function isDuplicateFile(
-  file
-){
-
-  return (
-
-    fileState
-    .fingerprints
-    .has(
-
-      createFileFingerprint(
-        file
-      )
-
-    )
-
-  );
-
+function isDuplicateFile(file){
+  return fileState.fingerprints.has(createFileFingerprint(file));
 }
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  validateFileExtension,
-
-  validateFile,
-
-  isDuplicateFile
-
-};
+export { MIME_EXTENSIONS, validateFileExtension, validateFile, isDuplicateFile };
