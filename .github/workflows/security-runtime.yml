@@ -2,7 +2,7 @@ name: Security Runtime
 
 on:
   push:
-    branches: [ai-bootstrap-wiring]
+    branches: [main, ai-bootstrap-wiring]
   pull_request:
   workflow_dispatch:
 
@@ -20,7 +20,14 @@ jobs:
       - name: Syntax checks
         run: |
           node --check js/security/index.js
-          node --check js/security/security-state.js
+          node --check js/security/security-core.js
+          node --check js/security/security-policy.js
+          node --check js/security/security-sandbox.js
+          node --check js/security/security-sanitize.js
+          node --check js/security/security-validator.js
+          node --check js/security/security-url.js
+          node --check js/security/security-freeze.js
           node --check js/security/security-monitor.js
+          node --check js/security/security-runtime.js
       - name: Runtime checks
         run: node tests/security-runtime.test.mjs
