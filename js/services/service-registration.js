@@ -1,157 +1,66 @@
-// =====================================
-// RIGO AI
-// SERVICE REGISTRATION
-// CONTAINER ADAPTER LAYER
-// =====================================
+import { RIGOContainer } from "../core/container/index.js";
+import { SERVICE_LIFECYCLES, isValidServiceLifecycle } from "./service-types.js";
 
+function validateServiceRegistration(serviceName, factory, options = {}){
+  const name = String(serviceName ?? "").trim();
+  if(!name) throw new Error("INVALID_SERVICE_NAME");
+  if(typeof factory !== "function") throw new Error("INVALID_SERVICE_FACTORY");
 
+  if(!options || typeof options !== "object" || Array.isArray(options)){
+    throw new Error("INVALID_SERVICE_OPTIONS");
+  }
 
-// =====================================
-// IMPORTS
-// =====================================
+  const dependencies = options.dependencies ?? [];
+  if(!Array.isArray(dependencies) || dependencies.some(dep => typeof dep !== "string" || !dep.trim())){
+    throw new Error("INVALID_SERVICE_DEPENDENCIES");
+  }
 
-import {
-  RIGOContainer
+  const lifecycle = options.lifecycle ?? SERVICE_LIFECYCLES.SINGLETON;
+  if(!isValidServiceLifecycle(lifecycle)){
+    throw new Error("INVALID_SERVICE_LIFECYCLE");
+  }
+
+  return { name, dependencies:[...dependencies], lifecycle };
 }
-from "../core/container/index.js";
 
-import {
-  SERVICE_LIFECYCLES
-}
-from "./service-types.js";
+async function registerService(serviceName, factory, options = {}){
+  const definition = validateServiceRegistration(serviceName, factory, options);
 
-import {
-  serviceState
-}
-from "./service-state.js";
-
-
-
-// =====================================
-// REGISTER
-// =====================================
-
-async function registerService(
-  serviceName,
-  factory,
-  options = {}
-){
-
-  await RIGOContainer
-  .register({
-
-    name:
-    serviceName,
-
+  await RIGOContainer.register({
+    name:definition.name,
     factory,
-
-    dependencies:
-
-      options
-      .dependencies ||
-
-      [],
-
-    lifecycle:
-
-      options
-      .lifecycle ||
-
-      SERVICE_LIFECYCLES
-      .SINGLETON
-
+    dependencies:definition.dependencies,
+    lifecycle:definition.lifecycle
   });
-
-  serviceState
-  .diagnostics
-  .registered++;
 
   return true;
-
 }
 
-
-
-// =====================================
-// UNREGISTER
-// =====================================
-
-function unregisterService(
-  serviceName
-){
-
-  return RIGOContainer
-  .remove(
-    serviceName
-  );
-
+function unregisterService(serviceName){
+  return RIGOContainer.remove(serviceName);
 }
 
-
-
-// =====================================
-// LOOKUP
-// =====================================
-
-function hasRegisteredService(
-  serviceName
-){
-
-  return RIGOContainer
-  .has(
-    serviceName
-  );
-
+function hasRegisteredService(serviceName){
+  return RIGOContainer.has(serviceName);
 }
-
-
 
 function getRegisteredServices(){
-
-  return RIGOContainer
-  .services();
-
+  return RIGOContainer.services();
 }
-
-
-
-// =====================================
-// DIAGNOSTICS
-// =====================================
 
 function getServiceRegistrationDiagnostics(){
-
   return Object.freeze({
-
-    registered:
-
-      RIGOContainer
-      .services()
-      .length,
-
-    timestamp:
-    Date.now()
-
+    registered:RIGOContainer.services().length,
+    services:Object.freeze([...RIGOContainer.services()]),
+    timestamp:Date.now()
   });
-
 }
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
+  validateServiceRegistration,
   registerService,
-
   unregisterService,
-
   hasRegisteredService,
-
   getRegisteredServices,
-
   getServiceRegistrationDiagnostics
-
 };
