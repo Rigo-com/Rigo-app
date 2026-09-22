@@ -7,5 +7,6 @@ export {StorageQueue} from "./storage-queue.js";
 export {StorageEngine} from "./storage-engine.js";
 export {StorageRuntime} from "./storage-runtime.js";
 export {StorageScope} from "./storage-scope.js";
-export {loadAccountSection,saveAccountSection,removeAccountSection,AccountDataClient,AccountSync} from "./account-sync.js";
+export {loadAccountSection,saveAccountSection,removeAccountSection,AccountDataClient} from "./account-data-client.js";
+export {syncAccountData,syncMemory,syncSettings,AccountSync} from "./account-sync.js";
 export {StorageRuntime as default} from "./storage-runtime.js";
