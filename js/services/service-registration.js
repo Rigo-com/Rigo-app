@@ -1,5 +1,6 @@
 import { RIGOContainer } from "../core/container/index.js";
 import { SERVICE_LIFECYCLES, isValidServiceLifecycle } from "./service-types.js";
+import { serviceState } from "./service-state.js";
 
 function validateServiceRegistration(serviceName, factory, options = {}){
   const name = String(serviceName ?? "").trim();
@@ -23,6 +24,10 @@ function validateServiceRegistration(serviceName, factory, options = {}){
   return { name, dependencies:[...dependencies], lifecycle };
 }
 
+function syncRegisteredCount(){
+  serviceState.diagnostics.registered = RIGOContainer.services().length;
+}
+
 async function registerService(serviceName, factory, options = {}){
   const definition = validateServiceRegistration(serviceName, factory, options);
 
@@ -33,11 +38,14 @@ async function registerService(serviceName, factory, options = {}){
     lifecycle:definition.lifecycle
   });
 
+  syncRegisteredCount();
   return true;
 }
 
 function unregisterService(serviceName){
-  return RIGOContainer.remove(serviceName);
+  const removed = RIGOContainer.remove(serviceName);
+  syncRegisteredCount();
+  return removed;
 }
 
 function hasRegisteredService(serviceName){
@@ -49,9 +57,12 @@ function getRegisteredServices(){
 }
 
 function getServiceRegistrationDiagnostics(){
+  const services = RIGOContainer.services();
+  serviceState.diagnostics.registered = services.length;
+
   return Object.freeze({
-    registered:RIGOContainer.services().length,
-    services:Object.freeze([...RIGOContainer.services()]),
+    registered:services.length,
+    services:Object.freeze([...services]),
     timestamp:Date.now()
   });
 }
