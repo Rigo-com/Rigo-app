@@ -1,531 +1,232 @@
-// =====================================
-// RIGO AI
-// SERVICE RUNTIME
-// LIFECYCLE RUNTIME
-// =====================================
+import { RIGOContainer } from "../core/container/index.js";
+import { SERVICE_STATES } from "./service-types.js";
+import { serviceState } from "./service-state.js";
+import { getRegisteredServices } from "./service-registration.js";
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
-import {
-  RIGOContainer
-}
-from "../core/container/index.js";
-
-import {
-  SERVICE_STATES
-}
-from "./service-types.js";
-
-import {
-  serviceState
-}
-from "./service-state.js";
-
-import {
-  getRegisteredServices
-}
-from "./service-registration.js";
-
-
-
-// =====================================
-// INTERNAL STATE
-// =====================================
-
-const serviceRuntimeState =
-Object.seal({
-
+const serviceRuntimeState = Object.seal({
   initialized:false,
-
   booted:false,
-
   booting:false,
-
   shuttingDown:false,
-
   resetting:false,
-
   startedAt:null,
-
   stoppedAt:null,
-
-  runtime:
-  new Map()
-
+  runtime:new Map()
 });
-
-
-
-// =====================================
-// HELPERS
-// =====================================
 
 function isRuntimeBusy(){
-
-  return (
-
-    serviceRuntimeState
-    .booting ||
-
-    serviceRuntimeState
-    .shuttingDown ||
-
-    serviceRuntimeState
-    .resetting
-
-  );
-
+  return serviceRuntimeState.booting || serviceRuntimeState.shuttingDown || serviceRuntimeState.resetting;
 }
-
-
-
-// =====================================
-// INITIALIZE
-// =====================================
 
 async function initializeServiceRuntime(){
-
-  if(
-    serviceRuntimeState
-    .initialized
-  ){
-
-    return true;
-
-  }
-
-  serviceRuntimeState
-  .initialized =
-  true;
-
-  serviceState
-  .initialized =
-  true;
-
+  if(serviceRuntimeState.initialized) return true;
+  serviceRuntimeState.initialized = true;
+  serviceState.initialized = true;
   return true;
-
 }
 
-
-
-// =====================================
-// START SERVICE
-// =====================================
-
-async function startService(
-  serviceName
-){
-
+async function startService(serviceName){
+  let instance = null;
   try{
-
-    serviceRuntimeState
-    .runtime
-    .set(
-
-      serviceName,
-
-      {
-
-        state:
-        SERVICE_STATES
-        .INITIALIZING,
-
-        initializedAt:
-        null,
-
-        failedAt:
-        null
-
-      }
-
-    );
-
-    await RIGOContainer
-    .resolve(
-      serviceName
-    );
-
-    serviceRuntimeState
-    .runtime
-    .set(
-
-      serviceName,
-
-      {
-
-        state:
-        SERVICE_STATES
-        .ACTIVE,
-
-        initializedAt:
-        Date.now(),
-
-        failedAt:
-        null
-
-      }
-
-    );
-
-    serviceState
-    .diagnostics
-    .started++;
-
-    return true;
-
-  }
-
-  catch(error){
-
-    serviceRuntimeState
-    .runtime
-    .set(
-
-      serviceName,
-
-      {
-
-        state:
-        SERVICE_STATES
-        .FAILED,
-
-        initializedAt:
-        null,
-
-        failedAt:
-        Date.now()
-
-      }
-
-    );
-
-    serviceState
-    .diagnostics
-    .failed++;
-
-    return false;
-
-  }
-
-}
-
-
-
-// =====================================
-// BOOT
-// =====================================
-
-async function bootServiceRuntime(){
-
-  if(
-    isRuntimeBusy()
-  ){
-
-    return false;
-
-  }
-
-  if(
-    serviceRuntimeState
-    .booted
-  ){
-
-    return true;
-
-  }
-
-  serviceRuntimeState
-  .booting =
-  true;
-
-  try{
-
-    await initializeServiceRuntime();
-
-    const services =
-    getRegisteredServices();
-
-    for(
-      const serviceName
-      of services
-    ){
-
-      const started =
-      await startService(
-        serviceName
-      );
-
-      if(
-        !started
-      ){
-
-        return false;
-
-      }
-
-    }
-
-    serviceRuntimeState
-    .booted =
-    true;
-
-    serviceRuntimeState
-    .startedAt =
-    Date.now();
-
-    serviceState
-    .booted =
-    true;
-
-    serviceState
-    .startedAt =
-    Date.now();
-
-    return true;
-
-  }
-
-  finally{
-
-    serviceRuntimeState
-    .booting =
-    false;
-
-  }
-
-}
-
-
-
-// =====================================
-// SHUTDOWN
-// =====================================
-
-async function shutdownServiceRuntime(){
-
-  if(
-    isRuntimeBusy()
-  ){
-
-    return false;
-
-  }
-
-  if(
-    !serviceRuntimeState
-    .booted
-  ){
-
-    return true;
-
-  }
-
-  serviceRuntimeState
-  .shuttingDown =
-  true;
-
-  try{
-
-    serviceRuntimeState
-    .runtime
-    .forEach((runtime) => {
-
-      runtime.state =
-      SERVICE_STATES
-      .STOPPED;
-
+    serviceRuntimeState.runtime.set(serviceName, {
+      state:SERVICE_STATES.INITIALIZING,
+      initializedAt:null,
+      failedAt:null,
+      instance:null
     });
 
-    serviceRuntimeState
-    .booted =
-    false;
+    instance = await RIGOContainer.resolve(serviceName);
 
-    serviceRuntimeState
-    .stoppedAt =
-    Date.now();
+    if(typeof instance?.initialize === "function"){
+      const initialized = await instance.initialize();
+      if(initialized === false) throw new Error("SERVICE_INITIALIZE_FAILED");
+    }
 
-    serviceState
-    .booted =
-    false;
+    if(typeof instance?.boot === "function"){
+      const booted = await instance.boot();
+      if(booted === false) throw new Error("SERVICE_BOOT_FAILED");
+    }
 
-    serviceState
-    .stoppedAt =
-    Date.now();
+    serviceRuntimeState.runtime.set(serviceName, {
+      state:SERVICE_STATES.ACTIVE,
+      initializedAt:Date.now(),
+      failedAt:null,
+      instance
+    });
 
+    serviceState.diagnostics.started++;
     return true;
+  }catch(error){
+    if(instance && typeof instance.shutdown === "function"){
+      try{ await instance.shutdown(); }catch{}
+    }
 
+    serviceRuntimeState.runtime.set(serviceName, {
+      state:SERVICE_STATES.FAILED,
+      initializedAt:null,
+      failedAt:Date.now(),
+      instance:null,
+      error:String(error?.message || error)
+    });
+
+    serviceState.diagnostics.failed++;
+    return false;
   }
-
-  finally{
-
-    serviceRuntimeState
-    .shuttingDown =
-    false;
-
-  }
-
 }
 
+async function stopService(serviceName, runtime){
+  if(!runtime) return true;
 
-
-// =====================================
-// RESET
-// =====================================
-
-async function resetServiceRuntime(){
-
-  if(
-    isRuntimeBusy()
-  ){
-
-    return false;
-
-  }
-
-  serviceRuntimeState
-  .resetting =
-  true;
+  runtime.state = SERVICE_STATES.SHUTTING_DOWN;
 
   try{
+    if(runtime.instance && typeof runtime.instance.shutdown === "function"){
+      const stopped = await runtime.instance.shutdown();
+      if(stopped === false) throw new Error("SERVICE_SHUTDOWN_FAILED");
+    }
 
-    await shutdownServiceRuntime();
-
-    serviceRuntimeState
-    .runtime
-    .clear();
-
-    serviceRuntimeState
-    .booted =
-    false;
-
-    serviceRuntimeState
-    .startedAt =
-    null;
-
-    serviceRuntimeState
-    .stoppedAt =
-    null;
-
+    runtime.state = SERVICE_STATES.STOPPED;
+    runtime.stoppedAt = Date.now();
+    runtime.instance = null;
     return true;
-
+  }catch(error){
+    runtime.state = SERVICE_STATES.FAILED;
+    runtime.failedAt = Date.now();
+    runtime.error = String(error?.message || error);
+    return false;
   }
-
-  finally{
-
-    serviceRuntimeState
-    .resetting =
-    false;
-
-  }
-
 }
 
+async function bootServiceRuntime(){
+  if(serviceRuntimeState.booting || serviceRuntimeState.shuttingDown || serviceRuntimeState.resetting) return false;
+  if(serviceRuntimeState.booted) return true;
 
+  serviceRuntimeState.booting = true;
+  const startedNames = [];
 
-// =====================================
-// SNAPSHOT
-// =====================================
+  try{
+    await initializeServiceRuntime();
+
+    for(const serviceName of getRegisteredServices()){
+      const started = await startService(serviceName);
+      if(!started){
+        for(const name of startedNames.reverse()){
+          await stopService(name, serviceRuntimeState.runtime.get(name));
+        }
+        serviceRuntimeState.booted = false;
+        serviceState.booted = false;
+        return false;
+      }
+      startedNames.push(serviceName);
+    }
+
+    serviceRuntimeState.booted = true;
+    serviceRuntimeState.startedAt = Date.now();
+    serviceState.booted = true;
+    serviceState.startedAt = serviceRuntimeState.startedAt;
+    return true;
+  }finally{
+    serviceRuntimeState.booting = false;
+  }
+}
+
+async function shutdownServiceRuntime(){
+  if(serviceRuntimeState.booting || serviceRuntimeState.shuttingDown) return false;
+  if(!serviceRuntimeState.booted && serviceRuntimeState.runtime.size === 0) return true;
+
+  serviceRuntimeState.shuttingDown = true;
+  let success = true;
+
+  try{
+    const names = [...serviceRuntimeState.runtime.keys()].reverse();
+    for(const name of names){
+      const stopped = await stopService(name, serviceRuntimeState.runtime.get(name));
+      if(!stopped) success = false;
+    }
+
+    serviceRuntimeState.booted = false;
+    serviceRuntimeState.stoppedAt = Date.now();
+    serviceState.booted = false;
+    serviceState.stoppedAt = serviceRuntimeState.stoppedAt;
+    return success;
+  }finally{
+    serviceRuntimeState.shuttingDown = false;
+  }
+}
+
+async function resetServiceRuntime(){
+  if(serviceRuntimeState.booting || serviceRuntimeState.shuttingDown) return false;
+
+  serviceRuntimeState.resetting = true;
+  try{
+    const previousBooted = serviceRuntimeState.booted;
+    if(previousBooted || serviceRuntimeState.runtime.size){
+      const names = [...serviceRuntimeState.runtime.keys()].reverse();
+      for(const name of names) await stopService(name, serviceRuntimeState.runtime.get(name));
+    }
+
+    serviceRuntimeState.runtime.clear();
+    serviceRuntimeState.booted = false;
+    serviceRuntimeState.initialized = false;
+    serviceRuntimeState.startedAt = null;
+    serviceRuntimeState.stoppedAt = null;
+
+    serviceState.initialized = false;
+    serviceState.booted = false;
+    serviceState.startedAt = null;
+    serviceState.stoppedAt = null;
+    serviceState.diagnostics.started = 0;
+    serviceState.diagnostics.failed = 0;
+    return true;
+  }finally{
+    serviceRuntimeState.resetting = false;
+  }
+}
 
 function createServiceRuntimeSnapshot(){
-
   return Object.freeze({
-
-    initialized:
-    serviceRuntimeState
-    .initialized,
-
-    booted:
-    serviceRuntimeState
-    .booted,
-
-    booting:
-    serviceRuntimeState
-    .booting,
-
-    shuttingDown:
-    serviceRuntimeState
-    .shuttingDown,
-
-    resetting:
-    serviceRuntimeState
-    .resetting,
-
-    services:
-
-      serviceRuntimeState
-      .runtime
-      .size,
-
-    startedAt:
-    serviceRuntimeState
-    .startedAt,
-
-    stoppedAt:
-    serviceRuntimeState
-    .stoppedAt,
-
-    timestamp:
-    Date.now()
-
+    initialized:serviceRuntimeState.initialized,
+    booted:serviceRuntimeState.booted,
+    booting:serviceRuntimeState.booting,
+    shuttingDown:serviceRuntimeState.shuttingDown,
+    resetting:serviceRuntimeState.resetting,
+    services:serviceRuntimeState.runtime.size,
+    serviceStates:Object.freeze(
+      Object.fromEntries(
+        [...serviceRuntimeState.runtime.entries()].map(([name, value]) => [
+          name,
+          Object.freeze({
+            state:value.state,
+            initializedAt:value.initializedAt ?? null,
+            stoppedAt:value.stoppedAt ?? null,
+            failedAt:value.failedAt ?? null,
+            error:value.error ?? null
+          })
+        ])
+      )
+    ),
+    startedAt:serviceRuntimeState.startedAt,
+    stoppedAt:serviceRuntimeState.stoppedAt,
+    timestamp:Date.now()
   });
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const ServiceRuntime =
-Object.freeze({
-
-  initialize:
-  initializeServiceRuntime,
-
-  boot:
-  bootServiceRuntime,
-
-  shutdown:
-  shutdownServiceRuntime,
-
-  reset:
-  resetServiceRuntime,
-
+const ServiceRuntime = Object.freeze({
+  initialize:initializeServiceRuntime,
+  boot:bootServiceRuntime,
+  shutdown:shutdownServiceRuntime,
+  reset:resetServiceRuntime,
   startService,
-
-  snapshot:
-  createServiceRuntimeSnapshot
-
+  snapshot:createServiceRuntimeSnapshot
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   initializeServiceRuntime,
-
   bootServiceRuntime,
-
   shutdownServiceRuntime,
-
   resetServiceRuntime,
-
   startService,
-
   createServiceRuntimeSnapshot,
-
   ServiceRuntime
-
 };
-
-export default
-ServiceRuntime;
+export default ServiceRuntime;
