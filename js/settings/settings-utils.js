@@ -305,8 +305,6 @@ Object.freeze({
 
 export {
 
-  createSettingsId,
-
   isObject,
 
   deepClone,

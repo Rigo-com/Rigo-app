@@ -3,11 +3,10 @@ import { SettingsState } from "./settings-state.js";
 import SettingsEvents, { SETTINGS_EVENTS, emit } from "./settings-events.js";
 import { loadSettings, createBackup } from "./settings-storage.js";
 import { validateSettings } from "./settings-validation.js";
-import { sanitizeSettings } from "./settings-security.js";
+import { sanitizeSettings, verifyIntegrity } from "./settings-security.js";
 import { migrateSettings } from "./settings-migrations.js";
 import { syncFromStorage, syncToStorage } from "./settings-sync.js";
 import { deepMerge, normalizeSettings as normalizeUtilitySettings, getSettingValue, setSettingValue, isSettingsSection } from "./settings-utils.js";
-import { verifyIntegrity } from "./settings-security.js";
 
 function normalizeSettings(settings){
   const normalized = normalizeUtilitySettings(settings || {});
