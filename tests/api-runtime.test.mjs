@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import API, { apiState, API_CONFIG } from "../js/api/index.js";
+import Analytics from "../js/services/analytics/index.js";
+import Files from "../js/services/files/index.js";
 import { APITimeoutError, APIAbortError, APIRequestError } from "../js/api/api-errors.js";
 import { File } from "node:buffer";
 
@@ -9,6 +11,7 @@ await API.reset();
 assert.equal(await API.initialize(), true);
 assert.equal(API.id, "api");
 assert.equal(API.runtime.health().healthy, true);
+assert.equal(Analytics.diagnostics().initialized, true);
 
 const events = [];
 const stopStarted = API.events.on(API.events.types.REQUEST_STARTED, event => events.push(event));
@@ -47,6 +50,8 @@ assert.equal(uploadedBody.get("metadata"), '{"scope":"test"}');
 assert.equal(apiState.uploads.size, 0);
 assert.equal(apiState.diagnostics.uploads, 1);
 assert.deepEqual(uploadEvents.map(event => event.event), [API.events.types.UPLOAD_STARTED, API.events.types.UPLOAD_COMPLETED]);
+assert.equal(Analytics.diagnostics().trackedEvents >= 4, true);
+assert.equal(Files.snapshot().files, 0);
 await API.runtime.upload(new File(["x"], "x.txt"));
 assert.equal(apiState.diagnostics.uploads, 2);
 globalThis.File = originalFile;
