@@ -86,7 +86,7 @@ function update(updates = {}){
     const sanitizedUpdates = sanitizeSettings(updates);
     const merged = deepMerge(SettingsState.getSettings(), sanitizedUpdates);
     const validated = validateSettings(merged);
-    SettingsState.setSettings(validated);
+    SettingsState.updateSettings(validated);
     SettingsState.setHealthy(true);
     emit(SETTINGS_EVENTS.UPDATED, structuredClone(validated));
     return true;
