@@ -1,5 +1,5 @@
 import { RIGOContainer } from "../core/container/index.js";
-import { SERVICE_STATES } from "./service-types.js";
+import { SERVICE_STATES, isValidServiceState } from "./service-types.js";
 import { serviceState, createServiceStateSnapshot, resetServiceState } from "./service-state.js";
 import { getRegisteredServices } from "./service-registration.js";
 
@@ -244,7 +244,7 @@ function createServiceRuntimeSnapshot(){
         [...serviceRuntimeState.runtime.entries()].map(([name, value]) => [
           name,
           Object.freeze({
-            state:value.state,
+            state:isValidServiceState(value.state) ? value.state : SERVICE_STATES.FAILED,
             initializedAt:value.initializedAt ?? null,
             stoppedAt:value.stoppedAt ?? null,
             failedAt:value.failedAt ?? null,
