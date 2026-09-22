@@ -11,6 +11,7 @@ import {
   dequeueUpload,
   removeFile
 } from "../services/files/index.js";
+import { createFileFingerprint } from "../services/files/file-utils.js";
 
 function validateFile(file){
   if(typeof File === "undefined") throw new APIValidationError("File API unavailable");
@@ -22,8 +23,9 @@ async function registerUploadFile(file){
   const added = await addFile(file);
   if(!added) throw new APIValidationError("Unable to register file");
 
-  const files = getFiles();
-  const fileEntry = files[files.length - 1];
+  const fingerprint = createFileFingerprint(file);
+  const fileEntry = getFiles().find(entry => entry.fingerprint === fingerprint);
+
   if(!fileEntry?.id || !enqueueUpload(fileEntry.id)){
     await removeFile(fileEntry?.id);
     throw new APIValidationError("Unable to queue file");
