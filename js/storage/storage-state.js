@@ -25,9 +25,6 @@ Object.seal({
 
   activeOperations:0,
 
-  cache:
-  new Map(),
-
   diagnostics:
   Object.seal({
 
@@ -200,70 +197,7 @@ function decrementOperations(){
 // CACHE
 // =====================================
 
-function setCacheItem(
-  key,
-  value
-){
 
-  storageState
-  .cache
-  .set(
-
-    key,
-
-    value
-
-  );
-
-  return true;
-
-}
-
-
-
-function getCacheItem(
-  key
-){
-
-  return (
-
-    storageState
-    .cache
-    .get(
-      key
-    )
-
-    ?? null
-
-  );
-
-}
-
-
-
-function removeCacheItem(
-  key
-){
-
-  return storageState
-  .cache
-  .delete(
-    key
-  );
-
-}
-
-
-
-function clearCache(){
-
-  storageState
-  .cache
-  .clear();
-
-  return true;
-
-}
 
 
 
@@ -453,15 +387,8 @@ Object.freeze({
 
   incrementOperations,
 
-  decrementOperations,
+  decrementOperations
 
-  setCacheItem,
-
-  getCacheItem,
-
-  removeCacheItem,
-
-  clearCache,
 
   incrementLoads,
 
@@ -471,11 +398,7 @@ Object.freeze({
 
   incrementClears,
 
-  incrementFailures,
-
-  incrementCacheHits,
-
-  incrementCacheMisses,
+  incrementFailures
 
   snapshot:
   getStorageSnapshot,
@@ -510,15 +433,8 @@ export {
 
   incrementOperations,
 
-  decrementOperations,
+  decrementOperations
 
-  setCacheItem,
-
-  getCacheItem,
-
-  removeCacheItem,
-
-  clearCache,
 
   incrementLoads,
 
@@ -528,11 +444,7 @@ export {
 
   incrementClears,
 
-  incrementFailures,
-
-  incrementCacheHits,
-
-  incrementCacheMisses,
+  incrementFailures
 
   getStorageSnapshot,
 
