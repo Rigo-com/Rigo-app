@@ -1,166 +1,38 @@
-// =====================================
-// RIGO AI
-// FILE URL
-// OBJECT URL MANAGEMENT LAYER
-// =====================================
+import { fileState } from "./file-state.js";
+import { validateFile } from "./file-validator.js";
 
-import {
-
-  fileState
-
-}
-from "./file-state.js";
-
-import {
-
-  validateFile
-
-}
-from "./file-validator.js";
-
-
-
-// =====================================
-// CREATE URL
-// =====================================
-
-function createFileURL(
-  file
-){
-
-  if(
-    !validateFile(
-      file
-    )
-  ){
-
-    return null;
-
-  }
-
-  if(
-    typeof URL ===
-    "undefined"
-  ){
-
-    return null;
-
-  }
+function createFileURL(file){
+  if(!validateFile(file) || typeof URL === "undefined" || typeof URL.createObjectURL !== "function") return null;
 
   try{
-
-    const objectURL =
-
-      URL.createObjectURL(
-        file
-      );
-
-    fileState
-    .activeObjectURLs
-    .add(
-      objectURL
-    );
-
+    const objectURL = URL.createObjectURL(file);
+    fileState.activeObjectURLs.add(objectURL);
     return objectURL;
-
-  }
-
-  catch{
-
+  }catch{
     return null;
-
   }
-
 }
 
-
-
-// =====================================
-// REVOKE URL
-// =====================================
-
-function revokeFileURL(
-  url
-){
-
-  if(
-    typeof URL ===
-    "undefined"
-  ){
-
-    return false;
-
-  }
+function revokeFileURL(url){
+  if(typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") return false;
+  if(typeof url !== "string" || !url) return false;
 
   try{
-
-    URL.revokeObjectURL(
-      url
-    );
-
-    fileState
-    .activeObjectURLs
-    .delete(
-      url
-    );
-
+    URL.revokeObjectURL(url);
+    fileState.activeObjectURLs.delete(url);
     return true;
-
-  }
-
-  catch{
-
+  }catch{
     return false;
-
   }
-
 }
-
-
-
-// =====================================
-// CLEANUP URLS
-// =====================================
 
 function cleanupObjectURLs(){
-
-  for(
-
-    const url
-
-    of
-
-    fileState
-    .activeObjectURLs
-
-  ){
-
-    revokeFileURL(
-      url
-    );
-
+  const urls = [...fileState.activeObjectURLs];
+  let success = true;
+  for(const url of urls){
+    if(!revokeFileURL(url)) success = false;
   }
-
-  fileState
-  .activeObjectURLs
-  .clear();
-
-  return true;
-
+  return success;
 }
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  createFileURL,
-
-  revokeFileURL,
-
-  cleanupObjectURLs
-
-};
+export { createFileURL, revokeFileURL, cleanupObjectURLs };
