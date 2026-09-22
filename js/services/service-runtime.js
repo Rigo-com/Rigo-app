@@ -14,10 +14,6 @@ const serviceRuntimeState = Object.seal({
   runtime:new Map()
 });
 
-function isRuntimeBusy(){
-  return serviceRuntimeState.booting || serviceRuntimeState.shuttingDown || serviceRuntimeState.resetting;
-}
-
 async function initializeServiceRuntime(){
   if(serviceRuntimeState.initialized) return true;
   serviceRuntimeState.initialized = true;
@@ -25,17 +21,60 @@ async function initializeServiceRuntime(){
   return true;
 }
 
+function resolveServiceStartOrder(){
+  const order = [];
+  const visiting = new Set();
+  const visited = new Set();
+
+  function visit(serviceName){
+    const normalizedName = String(serviceName ?? "").trim().toLowerCase();
+    if(!normalizedName || visited.has(normalizedName)) return;
+
+    if(visiting.has(normalizedName)){
+      throw new Error(`CIRCULAR_SERVICE_DEPENDENCY:${normalizedName}`);
+    }
+
+    if(!RIGOContainer.has(normalizedName)){
+      throw new Error(`SERVICE_NOT_FOUND:${normalizedName}`);
+    }
+
+    visiting.add(normalizedName);
+
+    const definition = RIGOContainer.get(normalizedName);
+    for(const dependency of definition?.dependencies || []){
+      visit(dependency);
+    }
+
+    visiting.delete(normalizedName);
+    visited.add(normalizedName);
+    order.push(normalizedName);
+  }
+
+  for(const serviceName of getRegisteredServices()){
+    visit(serviceName);
+  }
+
+  return order;
+}
+
 async function startService(serviceName){
+  const normalizedName = String(serviceName ?? "").trim().toLowerCase();
+  if(!normalizedName) return false;
+
+  const current = serviceRuntimeState.runtime.get(normalizedName);
+  if(current?.state === SERVICE_STATES.ACTIVE) return true;
+
   let instance = null;
+
   try{
-    serviceRuntimeState.runtime.set(serviceName, {
+    serviceRuntimeState.runtime.set(normalizedName, {
       state:SERVICE_STATES.INITIALIZING,
       initializedAt:null,
       failedAt:null,
       instance:null
     });
 
-    instance = await RIGOContainer.resolve(serviceName);
+    instance = await RIGOContainer.resolve(normalizedName);
 
     if(typeof instance?.initialize === "function"){
       const initialized = await instance.initialize();
@@ -47,7 +86,7 @@ async function startService(serviceName){
       if(booted === false) throw new Error("SERVICE_BOOT_FAILED");
     }
 
-    serviceRuntimeState.runtime.set(serviceName, {
+    serviceRuntimeState.runtime.set(normalizedName, {
       state:SERVICE_STATES.ACTIVE,
       initializedAt:Date.now(),
       failedAt:null,
@@ -61,7 +100,7 @@ async function startService(serviceName){
       try{ await instance.shutdown(); }catch{}
     }
 
-    serviceRuntimeState.runtime.set(serviceName, {
+    serviceRuntimeState.runtime.set(normalizedName, {
       state:SERVICE_STATES.FAILED,
       initializedAt:null,
       failedAt:Date.now(),
@@ -107,10 +146,18 @@ async function bootServiceRuntime(){
   try{
     await initializeServiceRuntime();
 
-    for(const serviceName of getRegisteredServices()){
+    let startOrder;
+    try{
+      startOrder = resolveServiceStartOrder();
+    }catch(error){
+      serviceState.diagnostics.failed++;
+      return false;
+    }
+
+    for(const serviceName of startOrder){
       const started = await startService(serviceName);
       if(!started){
-        for(const name of startedNames.reverse()){
+        for(const name of [...startedNames].reverse()){
           await stopService(name, serviceRuntimeState.runtime.get(name));
         }
         serviceRuntimeState.booted = false;
@@ -159,10 +206,9 @@ async function resetServiceRuntime(){
 
   serviceRuntimeState.resetting = true;
   try{
-    const previousBooted = serviceRuntimeState.booted;
-    if(previousBooted || serviceRuntimeState.runtime.size){
-      const names = [...serviceRuntimeState.runtime.keys()].reverse();
-      for(const name of names) await stopService(name, serviceRuntimeState.runtime.get(name));
+    const names = [...serviceRuntimeState.runtime.keys()].reverse();
+    for(const name of names){
+      await stopService(name, serviceRuntimeState.runtime.get(name));
     }
 
     serviceRuntimeState.runtime.clear();
