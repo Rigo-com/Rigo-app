@@ -1,8 +1,3 @@
-// =====================================
-// RIGO AI
-// CORE CONTAINER
-// =====================================
-
 import {
   CONTAINER_LIFECYCLE
 }
@@ -34,8 +29,9 @@ const containerState =
 Object.seal({
   services:new Map(),
   singletons:new Map(),
+  singletonPromises:new Map(),
   scopes:new Map(),
-  resolutionStack:new Set()
+  scopedPromises:new Map()
 });
 
 async function register(definition){
@@ -58,7 +54,7 @@ async function register(definition){
   }
 
   const dependencies = Array.isArray(definition.dependencies)
-    ? definition.dependencies
+    ? [...definition.dependencies]
     : [];
 
   const serviceDefinition = Object.freeze({
@@ -81,7 +77,9 @@ function remove(serviceName){
 
   const normalizedName = String(serviceName || "").trim().toLowerCase();
   containerState.singletons.delete(normalizedName);
+  containerState.singletonPromises.delete(normalizedName);
   containerState.scopes.forEach(scopeStore => scopeStore.delete(normalizedName));
+  containerState.scopedPromises.forEach(scopeStore => scopeStore.delete(normalizedName));
   return true;
 }
 
@@ -113,23 +111,30 @@ function createScope(scopeName){
   if(!containerState.scopes.has(normalizedScope)){
     containerState.scopes.set(normalizedScope, new Map());
   }
+  if(!containerState.scopedPromises.has(normalizedScope)){
+    containerState.scopedPromises.set(normalizedScope, new Map());
+  }
   return normalizedScope;
 }
 
 function removeScope(scopeName){
-  return containerState.scopes.delete(normalizeContainerScope(scopeName));
+  const normalizedScope = normalizeContainerScope(scopeName);
+  containerState.scopedPromises.delete(normalizedScope);
+  return containerState.scopes.delete(normalizedScope);
 }
 
 function clearScopes(){
   containerState.scopes.clear();
+  containerState.scopedPromises.clear();
   return true;
 }
 
 function clear(){
   containerState.services.clear();
   containerState.singletons.clear();
+  containerState.singletonPromises.clear();
   containerState.scopes.clear();
-  containerState.resolutionStack.clear();
+  containerState.scopedPromises.clear();
   return true;
 }
 
@@ -140,7 +145,8 @@ function snapshot(){
     singletons:containerState.singletons.size,
     scopes:containerState.scopes.size,
     scopeNames:[...containerState.scopes.keys()],
-    resolving:[...containerState.resolutionStack],
+    pendingSingletons:containerState.singletonPromises.size,
+    pendingScopedScopes:containerState.scopedPromises.size,
     timestamp:Date.now()
   });
 }
