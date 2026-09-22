@@ -4,13 +4,18 @@
 // =====================================
 
 import {
-
   APIValidationError,
-
   APIAbortError
-
 }
 from "./api-errors.js";
+
+import {
+  wait as sharedWait,
+  deepClone as sharedDeepClone,
+  deepFreeze as sharedDeepFreeze,
+  createUniqueId
+}
+from "../shared/utils.js";
 
 
 

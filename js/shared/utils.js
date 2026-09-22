@@ -73,52 +73,6 @@ function wait(
 
 
 // =====================================
-// NO OPERATION
-// =====================================
-
-function noop(){}
-
-
-
-// =====================================
-// CLAMP NUMBER
-// =====================================
-
-function clamp(
-  value,
-  minimum,
-  maximum
-){
-
-  const normalized =
-  Number(value);
-
-  if(
-    !Number.isFinite(
-      normalized
-    )
-  ){
-
-    return minimum;
-
-  }
-
-  return Math.min(
-
-    maximum,
-
-    Math.max(
-      minimum,
-      normalized
-    )
-
-  );
-
-}
-
-
-
-// =====================================
 // SAFE STRING TRIM
 // =====================================
 
@@ -135,133 +89,6 @@ function safeTrim(
 
   return String(value)
   .trim();
-
-}
-
-
-
-// =====================================
-// SAFE NUMBER
-// =====================================
-
-function safeParseNumber(
-  value,
-  fallback = 0
-){
-
-  const normalized =
-  Number(value);
-
-  return Number.isFinite(
-    normalized
-  )
-
-  ? normalized
-
-  : fallback;
-
-}
-
-
-
-// =====================================
-// SAFE BOOLEAN
-// =====================================
-
-function safeParseBoolean(
-  value
-){
-
-  if(
-    typeof value ===
-    "boolean"
-  ){
-
-    return value;
-
-  }
-
-  if(
-    typeof value ===
-    "number"
-  ){
-
-    return value !== 0;
-
-  }
-
-  if(
-    typeof value ===
-    "string"
-  ){
-
-    const normalized =
-    value
-    .trim()
-    .toLowerCase();
-
-    if(
-
-      normalized ===
-      "true"
-
-      ||
-
-      normalized ===
-      "1"
-
-      ||
-
-      normalized ===
-      "yes"
-
-      ||
-
-      normalized ===
-      "on"
-
-    ){
-
-      return true;
-
-    }
-
-    if(
-
-      normalized ===
-      "false"
-
-      ||
-
-      normalized ===
-      "0"
-
-      ||
-
-      normalized ===
-      "no"
-
-      ||
-
-      normalized ===
-      "off"
-
-      ||
-
-      normalized ===
-      ""
-
-    ){
-
-      return false;
-
-    }
-
-  }
-
-  return Boolean(
-    value
-  );
 
 }
 
@@ -603,124 +430,6 @@ function createUniqueId(
 
 
 // =====================================
-// DEBOUNCE
-// =====================================
-
-function debounce(
-  callback,
-  delay =
-
-  SHARED_UTILS_CONFIG
-  .DEFAULT_DELAY
-
-){
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-
-    return noop;
-
-  }
-
-  let timeoutId =
-  null;
-
-  return function(
-    ...args
-  ){
-
-    clearTimeout(
-      timeoutId
-    );
-
-    timeoutId =
-    setTimeout(async() => {
-
-      await safeExecute(
-        () => callback.apply(
-          this,
-          args
-        )
-      );
-
-    },
-
-    Math.max(
-      0,
-      Number(delay) || 0
-    ));
-
-  };
-
-}
-
-
-
-// =====================================
-// THROTTLE
-// =====================================
-
-function throttle(
-  callback,
-  delay =
-
-  SHARED_UTILS_CONFIG
-  .DEFAULT_DELAY
-
-){
-
-  if(
-    typeof callback !==
-    "function"
-  ){
-
-    return noop;
-
-  }
-
-  let waiting =
-  false;
-
-  return function(
-    ...args
-  ){
-
-    if(waiting){
-
-      return;
-    }
-
-    waiting = true;
-
-    safeExecute(() => {
-
-      return callback.apply(
-        this,
-        args
-      );
-
-    });
-
-    setTimeout(() => {
-
-      waiting = false;
-
-    },
-
-    Math.max(
-      0,
-      Number(delay) || 0
-    ));
-
-  };
-
-}
-
-
-
-// =====================================
 // PUBLIC API
 // =====================================
 
@@ -729,15 +438,7 @@ Object.freeze({
 
   wait,
 
-  noop,
-
-  clamp,
-
   safeTrim,
-
-  safeParseNumber,
-
-  safeParseBoolean,
 
   isPlainObject,
 
@@ -751,9 +452,7 @@ Object.freeze({
 
   createUniqueId,
 
-  debounce,
-
-  throttle
+  createUniqueId
 
 });
 
@@ -786,10 +485,6 @@ export {
   sharedDeepClone,
 
   createUniqueId,
-
-  debounce,
-
-  throttle,
 
   SharedUtils
 

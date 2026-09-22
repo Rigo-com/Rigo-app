@@ -5,11 +5,11 @@
 // =====================================
 
 import {
-
   ValidationError
-
 }
 from "./security-errors.js";
+
+import { isPlainObject } from "../shared/utils.js";
 
 
 

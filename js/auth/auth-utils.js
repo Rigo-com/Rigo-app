@@ -5,6 +5,13 @@
 
 
 
+import {
+  deepClone,
+  deepFreeze,
+  createUniqueId as createSharedUniqueId
+}
+from "../shared/utils.js";
+
 // =====================================
 // ERROR
 // =====================================
