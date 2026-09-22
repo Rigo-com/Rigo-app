@@ -450,8 +450,6 @@ Object.freeze({
   deepClone:
   sharedDeepClone,
 
-  createUniqueId,
-
   createUniqueId
 
 });
@@ -466,15 +464,7 @@ export {
 
   wait,
 
-  noop,
-
-  clamp,
-
   safeTrim,
-
-  safeParseNumber,
-
-  safeParseBoolean,
 
   isPlainObject,
 
