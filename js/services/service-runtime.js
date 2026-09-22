@@ -1,6 +1,6 @@
 import { RIGOContainer } from "../core/container/index.js";
 import { SERVICE_STATES } from "./service-types.js";
-import { serviceState } from "./service-state.js";
+import { serviceState, createServiceStateSnapshot, resetServiceState } from "./service-state.js";
 import { getRegisteredServices } from "./service-registration.js";
 
 const serviceRuntimeState = Object.seal({
@@ -223,6 +223,7 @@ async function resetServiceRuntime(){
     serviceState.stoppedAt = null;
     serviceState.diagnostics.started = 0;
     serviceState.diagnostics.failed = 0;
+    resetServiceState();
     return true;
   }finally{
     serviceRuntimeState.resetting = false;
