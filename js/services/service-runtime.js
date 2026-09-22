@@ -238,6 +238,7 @@ function createServiceRuntimeSnapshot(){
     shuttingDown:serviceRuntimeState.shuttingDown,
     resetting:serviceRuntimeState.resetting,
     services:serviceRuntimeState.runtime.size,
+    state:createServiceStateSnapshot(),
     serviceStates:Object.freeze(
       Object.fromEntries(
         [...serviceRuntimeState.runtime.entries()].map(([name, value]) => [
