@@ -1,252 +1,115 @@
-// =====================================
-// RIGO AI
-// SECURITY SANDBOX
-// EXECUTION SAFETY LAYER
-// =====================================
+import { SandboxError } from "./security-errors.js";
 
-import {
-
-  SandboxError
-
-}
-from "./security-errors.js";
-
-
-
-// =====================================
-// CONFIG
-// =====================================
-
-const SECURITY_SANDBOX_CONFIG =
-Object.freeze({
-
-  BLOCKED_PATTERNS:
-  Object.freeze([
-
+const SECURITY_SANDBOX_CONFIG = Object.freeze({
+  MAX_CODE_LENGTH:100000,
+  BLOCKED_PATTERNS:Object.freeze([
     /\beval\s*\(/i,
-
     /\bFunction\s*\(/i,
-
+    /\bAsyncFunction\b/i,
+    /\bGeneratorFunction\b/i,
+    /\bAsyncGeneratorFunction\b/i,
     /\bsetTimeout\s*\(/i,
-
     /\bsetInterval\s*\(/i,
-
+    /\bsetImmediate\s*\(/i,
     /\bimport\s*\(/i,
-
     /\brequire\s*\(/i,
-
     /\bglobalThis\b/i,
-
     /\bwindow\b/i,
-
     /\bdocument\b/i,
-
-    /\bprocess\b/i
-
+    /\bprocess\b/i,
+    /\bglobal\b/i,
+    /\bmodule\b/i,
+    /\bexports\b/i,
+    /\b__dirname\b/i,
+    /\b__filename\b/i,
+    /\bWebAssembly\b/i,
+    /\bSharedArrayBuffer\b/i,
+    /\bAtomics\b/i,
+    /\bfetch\s*\(/i,
+    /\bXMLHttpRequest\b/i,
+    /\bWebSocket\b/i
   ])
-
 });
 
-
-
-// =====================================
-// SAFE CODE CHECK
-// =====================================
-
-function isSafeCode(
-  code
-){
-
-  if(
-    typeof code !==
-    "string"
-  ){
-
-    return false;
-
+function normalizeCode(code){
+  if(typeof code !== "string"){
+    throw new SandboxError("Sandbox code must be a string");
   }
 
-  return !
+  if(code.length > SECURITY_SANDBOX_CONFIG.MAX_CODE_LENGTH){
+    throw new SandboxError("Sandbox code exceeds maximum length");
+  }
 
-  SECURITY_SANDBOX_CONFIG
-  .BLOCKED_PATTERNS
-
-  .some((pattern) =>
-
-    pattern.test(
-      code
-    )
-
-  );
-
+  return code;
 }
 
+function isSafeCode(code){
+  try{
+    const normalized = normalizeCode(code);
+    return !SECURITY_SANDBOX_CONFIG.BLOCKED_PATTERNS.some(pattern => pattern.test(normalized));
+  }catch{
+    return false;
+  }
+}
 
+/*
+ * This module is a static gate, not a JavaScript execution sandbox.
+ * Untrusted code must never be executed in the application context.
+ */
+function validateExecution(code){
+  normalizeCode(code);
 
-// =====================================
-// VALIDATE EXECUTION
-// =====================================
-
-function validateExecution(
-  code
-){
-
-  if(
-    !isSafeCode(
-      code
-    )
-  ){
-
-    throw new SandboxError(
-      "Unsafe code detected"
-    );
-
+  if(!isSafeCode(code)){
+    throw new SandboxError("Unsafe code detected");
   }
 
   return true;
-
 }
 
-
-
-// =====================================
-// RESTRICTED SCOPE
-// =====================================
-
-function createRestrictedScope(
-  scope = {}
-){
-
-  if(
-
-    !scope ||
-
-    typeof scope !==
-    "object"
-
-  ){
-
-    throw new SandboxError(
-      "Invalid sandbox scope"
-    );
-
+function createRestrictedScope(scope = {}){
+  if(!scope || typeof scope !== "object" || Array.isArray(scope)){
+    throw new SandboxError("Invalid sandbox scope");
   }
 
-  const blockedKeys =
-  new Set([
-
-    "window",
-
-    "document",
-
-    "globalThis",
-
-    "process",
-
-    "require",
-
-    "eval",
-
-    "Function"
-
+  const blockedKeys = new Set([
+    "window","document","globalThis","global","process",
+    "require","module","exports","eval","Function",
+    "WebAssembly","SharedArrayBuffer","Atomics","fetch",
+    "XMLHttpRequest","WebSocket"
   ]);
 
-  const restricted =
-  Object.create(null);
+  const restricted = Object.create(null);
 
-  Object.entries(scope)
-  .forEach(([
+  for(const [key, value] of Object.entries(scope)){
+    if(blockedKeys.has(key)) continue;
+    restricted[key] = value;
+  }
 
-    key,
-
-    value
-
-  ]) => {
-
-    if(
-      blockedKeys.has(
-        key
-      )
-    ){
-
-      return;
-
-    }
-
-    restricted[key] =
-    value;
-
-  });
-
-  return Object.freeze(
-    restricted
-  );
-
+  return Object.freeze(restricted);
 }
 
-
-
-// =====================================
-// CONTEXT
-// =====================================
-
-function createContext(
-  scope = {}
-){
-
+function createContext(scope = {}){
   return Object.freeze({
-
-    createdAt:
-    Date.now(),
-
-    scope:
-    createRestrictedScope(
-      scope
-    )
-
+    createdAt:Date.now(),
+    scope:createRestrictedScope(scope)
   });
-
 }
 
-
-
-// =====================================
-// PUBLIC API
-// =====================================
-
-const SecuritySandbox =
-Object.freeze({
-
+const SecuritySandbox = Object.freeze({
   isSafeCode,
-
   validateExecution,
-
   createRestrictedScope,
-
   createContext
-
 });
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
 export {
-
   SECURITY_SANDBOX_CONFIG,
-
+  normalizeCode,
   isSafeCode,
-
   validateExecution,
-
   createRestrictedScope,
-
   createContext,
-
   SecuritySandbox
-
 };
 
 export default SecuritySandbox;
