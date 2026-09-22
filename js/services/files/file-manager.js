@@ -4,6 +4,7 @@ import { fileState, setFileError } from "./file-state.js";
 import { validateFileId } from "./file-utils.js";
 import { validateFile, isDuplicateFile } from "./file-validator.js";
 import { createFileObject } from "./file-factory.js";
+import { cleanupObjectURLs } from "./file-url.js";
 import { ServiceManager } from "../service-manager.js";
 
 async function emitFileEvent(eventName, payload = {}){
@@ -40,6 +41,7 @@ async function removeFile(fileId){
 function getFiles(){return [...fileState.files];}
 function findFileById(fileId){return fileState.files.find(file=>file.id===fileId)||null;}
 async function clearFiles(){
+  cleanupObjectURLs();
   fileState.files=[];
   fileState.uploadQueue=[];
   fileState.fingerprints.clear();
