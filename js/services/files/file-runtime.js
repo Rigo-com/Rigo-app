@@ -1,6 +1,5 @@
 import { fileState, resetFileState, clearFileError } from "./file-state.js";
 import { clearFiles } from "./file-manager.js";
-import { cleanupObjectURLs } from "./file-url.js";
 
 async function initializeFileRuntime(){
   if(fileState.initialized) return true;
@@ -10,7 +9,6 @@ async function initializeFileRuntime(){
 }
 
 async function resetFileRuntime(){
-  cleanupObjectURLs();
   await clearFiles();
   resetFileState();
   return true;
