@@ -1,70 +1,17 @@
-// =====================================
-// RIGO AI
-// SERVICE RESOLUTION
-// CONTAINER ADAPTER LAYER
-// =====================================
+import { RIGOContainer } from "../core/container/index.js";
 
-
-
-// =====================================
-// IMPORTS
-// =====================================
-
-import {
-  RIGOContainer
-}
-from "../core/container/index.js";
-
-
-
-// =====================================
-// RESOLVE
-// =====================================
-
-async function resolveService(
-  container,
-  serviceName,
-  scope = "global"
-){
-
-  return RIGOContainer
-  .resolve(
-    serviceName,
-    scope
-  );
-
+function resolveService(container, serviceName, scope = "global"){
+  const target = container && typeof container.resolve === "function"
+    ? container
+    : RIGOContainer;
+  return target.resolve(serviceName, scope);
 }
 
-
-
-// =====================================
-// RESOLVE MANY
-// =====================================
-
-async function resolveServices(
-  container,
-  serviceNames = [],
-  scope = "global"
-){
-
-  return RIGOContainer
-  .resolveMany(
-    serviceNames,
-    scope
-  );
-
+function resolveServices(container, serviceNames = [], scope = "global"){
+  const target = container && typeof container.resolveMany === "function"
+    ? container
+    : RIGOContainer;
+  return target.resolveMany(serviceNames, scope);
 }
 
-
-
-// =====================================
-// EXPORTS
-// =====================================
-
-export {
-
-  resolveService,
-
-  resolveServices
-
-};
+export { resolveService, resolveServices };
