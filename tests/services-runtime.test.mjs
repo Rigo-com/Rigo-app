@@ -14,7 +14,10 @@ import Files, {
   createFileURL,
   cleanupObjectURLs,
   sanitizeFileName,
-  validateFile
+  validateFile,
+  validateFileExtension,
+  formatFileSize,
+  readFileText
 } from "../js/services/files/index.js";
 
 await ServiceManager.reset();
@@ -131,8 +134,11 @@ Analytics.reset();
 await clearFiles();
 const fakeFile={name:"photo.png",size:1024,type:"image/png",lastModified:1};
 assert.equal(validateFile(fakeFile),true);
+assert.equal(validateFileExtension("photo.png"),true);
+assert.equal(formatFileSize(2048),"2.0 KB");
 assert.equal(sanitizeFileName("../photo.png"),"..photo.png");
 assert.equal(await addFile(fakeFile),true);
+assert.equal(typeof getFiles()[0].sizeLabel,"string");
 assert.equal(getFiles().length,1);
 const fileId=getFiles()[0].id;
 assert.equal(findFileById(fileId)?.id,fileId);
