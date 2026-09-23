@@ -175,8 +175,7 @@ const RIGOContainer = Object.freeze({
 
 export {
   RIGOContainer,
-  containerState,
-  snapshot
+  containerState
 };
 
 export default RIGOContainer;
