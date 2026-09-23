@@ -44,10 +44,6 @@ const UiState = Object.freeze({
 
 export {
   uiState,
-  setInitialized,
-  setMobile,
-  getUiSnapshot,
-  resetUiState,
   UiState
 };
 
