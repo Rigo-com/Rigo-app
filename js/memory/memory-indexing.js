@@ -122,41 +122,54 @@ function buildIndex(){
   }
 
   try{
-  const memories =
-  loadMemories();
+    const memories =
+    loadMemories();
 
-  const index =
-  createMemoryIndex();
+    const index =
+    createMemoryIndex();
 
-  if(MEMORY_FEATURES.ENABLE_EMBEDDINGS){
-    resetEmbeddings();
+    if(MEMORY_FEATURES.ENABLE_EMBEDDINGS){
+      resetEmbeddings();
 
-    for(const memory of memories){
-      generateEmbedding(
-        memory.id,
-        memory.content
-      );
+      for(const memory of memories){
+        generateEmbedding(
+          memory.id,
+          memory.content
+        );
+      }
     }
+
+    setIndex(
+      "memory",
+      index
+    );
+
+    incrementIndexed();
+
+    emit(
+      MEMORY_EVENTS.INDEXED,
+      {
+        mode:"rebuild",
+        tokens:index.size
+      }
+    );
+
+    setIndexing(false);
+    setState(MEMORY_STATES.READY);
+    return index;
   }
-
-  setIndex(
-    "memory",
-    index
-  );
-
-  incrementIndexed();
-
-  emit(
-    MEMORY_EVENTS.INDEXED,
-    {
-      mode:"rebuild",
-      tokens:index.size
-    }
-  );
-
-  return index;
-
-}
+  catch(error){
+    setIndexing(false);
+    setState(MEMORY_STATES.ERROR);
+    emit(
+      MEMORY_EVENTS.FAILED,
+      {
+        mode:"rebuild",
+        error:String(error?.message || error)
+      }
+    );
+    return new Map();
+  }
 
 
 
