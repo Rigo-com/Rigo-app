@@ -54,23 +54,3 @@ export function validatePassword(
 
 
 
-export function validateToken(
-  token
-){
-
-  return (
-
-    typeof token ===
-    "string"
-
-    &&
-
-    token.trim()
-    .length >= 20
-
-  );
-
-}
-
-
-
