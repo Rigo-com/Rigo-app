@@ -3,13 +3,6 @@
 // UI STATE
 // =====================================
 
-const UI_CONFIG = Object.freeze({
-  RESIZE_DELAY:120,
-  MAX_RENDER_QUEUE:500,
-  ENABLE_ANIMATIONS:true,
-  ENABLE_BATCH_RENDERING:true
-});
-
 const uiState = Object.seal({
   initialized:false,
   mobile:false,
@@ -23,10 +16,6 @@ function setInitialized(value){
 
 function setMobile(value){
   uiState.mobile = Boolean(value);
-}
-
-function setRendering(value){
-  uiState.rendering = Boolean(value);
 }
 
 function getUiSnapshot(){
@@ -49,17 +38,14 @@ function resetUiState(){
 const UiState = Object.freeze({
   setInitialized,
   setMobile,
-  setRendering,
   snapshot:getUiSnapshot,
   reset:resetUiState
 });
 
 export {
-  UI_CONFIG,
   uiState,
   setInitialized,
   setMobile,
-  setRendering,
   getUiSnapshot,
   resetUiState,
   UiState
