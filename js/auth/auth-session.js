@@ -19,15 +19,6 @@ from "./auth-state.js";
 // ACTIVITY
 // =====================================
 
-export function updateLastActivity(){
-
-  authRuntimeState.lastActivityAt =
-  Date.now();
-
-  return true;
-
-}
-
 
 
 // =====================================
