@@ -8,7 +8,9 @@
     "audit:dead-code": "node tests/dead-code-audit.mjs",
     "check:all": "npm run check:syntax && npm run audit:dead-code && npm run audit:exports && npm run check:api && npm run check:ai",
     "check:syntax": "find js api server tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
-    "audit:exports": "node tests/export-usage-audit.mjs"
+    "audit:exports": "node tests/export-usage-audit.mjs",
+    "test:all": "set -e; for test in tests/*.test.mjs; do echo \"=== $test ===\"; node \"$test\"; done",
+    "verify": "npm run check:all && npm run test:all"
   },
   "dependencies": {
     "@vercel/blob": "^2.6.1",
