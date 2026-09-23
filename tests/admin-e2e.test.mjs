@@ -8,4 +8,4 @@ const denied=await Admin.command({type:"execute-plan",planId});assert.equal(deni
 const approved=await Admin.command({type:"approve-plan",planId});assert.equal(approved.ok,true);
 const executed=await Admin.command({type:"execute-plan",planId});assert.equal(executed.ok,true);assert.equal(executed.plan.status,"completed");assert.equal(scans,1);assert.equal(calls.filter(call=>call.url==="/api/admin-project-write").length,1);
 const history=await Admin.command("execution history");assert.equal(history.ok,true);assert.equal(history.entries[0].planId,planId);assert.equal(history.entries[0].ok,true);
-const snapshot=Admin.snapshot();assert.equal(snapshot.state.running,true);assert.equal(snapshot.registry.modules.length,2);assert.equal(await Admin.shutdown(),true);console.log("Admin end-to-end runtime test passed");
+const snapshot=Admin.snapshot();assert.equal(snapshot.state.running,true);assert.equal(snapshot.registry.modules.length,3);assert.equal(await Admin.shutdown(),true);console.log("Admin end-to-end runtime test passed");
