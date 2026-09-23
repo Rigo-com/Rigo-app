@@ -17,10 +17,7 @@ from "./bootstrap-state.js";
 const REQUIRED_SYSTEM_METHODS =
 Object.freeze([
   "initialize",
-  "boot",
-  "shutdown",
-  "reset",
-  "snapshot"
+  "shutdown"
 ]);
 
 
