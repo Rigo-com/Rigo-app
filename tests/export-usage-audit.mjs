@@ -53,7 +53,7 @@ const internalExports = [];
 for(const item of unique.values()){
   const definingSource = sources.get(item.file);
   const escaped = item.name.replace(/[^A-Za-z0-9_$]/g,"\\$&");
-  const re = new RegExp("\\\\b"+escaped+"\\\\b","g");
+  const re = new RegExp("\\b"+escaped+"\\b","g");
   const localMatches = definingSource.match(re)?.length || 0;
 
   let externalReferences = 0;
