@@ -4,4 +4,3 @@ export function safeCloneAuth(value){return value===undefined?undefined:deepClon
 export function freezeAuthObject(value){return deepFreeze(value);}
 export function isBrowserEnvironment(){return typeof window!=="undefined"&&typeof localStorage!=="undefined";}
 export function createUniqueId(prefix="id"){return createSharedUniqueId(prefix);}
-export function createSecureToken(){if(typeof crypto!=="undefined"&&typeof crypto.getRandomValues==="function"){const array=new Uint8Array(32);crypto.getRandomValues(array);return Array.from(array).map(byte=>byte.toString(16).padStart(2,"0")).join("");}return createUniqueId("token");}
