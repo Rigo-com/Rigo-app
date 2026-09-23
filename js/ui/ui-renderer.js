@@ -27,7 +27,6 @@ const UiRenderer = Object.freeze({
 });
 
 export {
-  forceRender,
   UiRenderer
 };
 
