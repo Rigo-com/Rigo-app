@@ -96,11 +96,8 @@ const candidates=[...jsFiles]
   .map(normalize)
   .sort();
 
-console.log(JSON.stringify({
-  scannedJavaScript:jsFiles.size,
-  htmlEntrypoints:htmlFiles.length,
-  entrypoints:[...entrypoints].map(normalize).sort(),
-  deadCodeCandidates:candidates
-},null,2));
+const report={scannedJavaScript:jsFiles.size,htmlEntrypoints:htmlFiles.length,entrypoints:[...entrypoints].map(normalize).sort(),deadCodeCandidates:candidates};
+fs.writeFileSync(path.join(ROOT,"dead-code-report.json"),JSON.stringify(report,null,2)+"\\n");
+console.log(JSON.stringify(report,null,2));
 
 if(candidates.length) process.exitCode=2;
