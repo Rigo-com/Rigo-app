@@ -142,8 +142,10 @@ shutdownRuntimeModules(){
       "function"
     ){
 
+      console.log("ADMIN_SHUTDOWN_MODULE_START",module.id);
       await module
       .shutdown();
+      console.log("ADMIN_SHUTDOWN_MODULE_DONE",module.id);
 
     }
 
