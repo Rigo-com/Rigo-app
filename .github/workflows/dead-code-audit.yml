@@ -15,3 +15,10 @@ jobs:
           node-version: 22
       - name: Audit unreachable JavaScript
         run: node tests/dead-code-audit.mjs
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dead-code-report
+          path: dead-code-report.json
+          if-no-files-found: error
