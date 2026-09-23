@@ -25,38 +25,35 @@ const jsFiles = files.filter(file => /\.(?:js|mjs)$/.test(file));
 const exported = [];
 for(const file of jsFiles){
   const source = sources.get(file);
-  for(const match of source.matchAll(/export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)){
+  for(const match of source.matchAll(/\bexport\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)){
     exported.push({file,name:match[1],kind:"function"});
   }
-  for(const match of source.matchAll(/export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)){
+  for(const match of source.matchAll(/\bexport\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)){
     exported.push({file,name:match[1],kind:"binding"});
+  }
+  for(const match of source.matchAll(/\bexport\s*\{([\s\S]*?)\}(?!\s*from\s*["'])/g)){
+    for(const part of match[1].split(",")){
+      const token = part.trim();
+      if(!token) continue;
+      const local = token.split(/\s+as\s+/)[0].trim();
+      if(/^[A-Za-z_$][\w$]*$/.test(local)){
+        exported.push({file,name:local,kind:"explicit"});
+      }
+    }
   }
 }
 
+const unique = new Map(
+  exported.map(item => [`${item.file}\0${item.name}`,item])
+);
+
 const candidates = [];
 const internalExports = [];
-for(const item of exported){
+
+for(const item of unique.values()){
   const definingSource = sources.get(item.file);
-  const escaped = item.name.replace(/[^A-Za-z0-9_$]/g,"\\const candidates = [];
-for(const item of exported){
-  const otherFiles = files.filter(file => file !== item.file);
-  let references = 0;
-  for(const file of otherFiles){
-    const source = sources.get(file);
-    const escaped = item.name.replace(/[^A-Za-z0-9_$]/g,"\\$&");
-    const re = new RegExp("\\b"+escaped+"\\b","g");
-    references += source.match(re)?.length || 0;
-  }
-  if(references === 0){
-    candidates.push({
-      file:path.relative(ROOT,item.file),
-      name:item.name,
-      kind:item.kind,
-      reason:"exported symbol has no textual references outside its defining file"
-    });
-  }
-}");
-  const re = new RegExp("\\b"+escaped+"\\b","g");
+  const escaped = item.name.replace(/[^A-Za-z0-9_$]/g,"\\$&");
+  const re = new RegExp("\\\\b"+escaped+"\\\\b","g");
   const localMatches = definingSource.match(re)?.length || 0;
 
   let externalReferences = 0;
@@ -65,8 +62,8 @@ for(const item of exported){
     externalReferences += sources.get(file).match(re)?.length || 0;
   }
 
-  // The declaration itself accounts for one local occurrence.
   const internalReferences = Math.max(0, localMatches - 1);
+  const isPublicBarrel = path.basename(item.file) === "index.js" || path.basename(item.file) === "index.mjs";
 
   if(externalReferences === 0 && internalReferences > 0){
     internalExports.push({
@@ -77,7 +74,7 @@ for(const item of exported){
     });
   }
 
-  if(externalReferences === 0 && internalReferences === 0){
+  if(externalReferences === 0 && internalReferences === 0 && !isPublicBarrel){
     candidates.push({
       file:path.relative(ROOT,item.file),
       name:item.name,
@@ -91,7 +88,7 @@ const report = {
   generatedAt:new Date().toISOString(),
   scannedFiles:files.length,
   scannedJavaScript:jsFiles.length,
-  exportedSymbols:exported.length,
+  exportedSymbols:unique.size,
   internalExports,
   candidates
 };
