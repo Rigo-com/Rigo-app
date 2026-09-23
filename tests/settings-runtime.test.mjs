@@ -21,7 +21,7 @@ assert.equal(Settings.setValue("ui.compactMode", false), true);
 assert.equal(Settings.getValue("ui.compactMode"), false);
 assert.equal(Settings.setValue("invalid.path", true), false);
 let current = Settings.getSettings();
-assert.equal(current.ui.compactMode, true);
+assert.equal(current.ui.compactMode, false);
 assert.equal(current.ui.theme, SETTINGS_DEFAULTS.ui.theme);
 assert.equal(current.ui.animations, SETTINGS_DEFAULTS.ui.animations);
 
@@ -35,7 +35,7 @@ assert.equal(current.version, "1.0.0");
 assert.equal(Settings.save(), true);
 Settings.reset();
 assert.equal(Settings.initialize(), true);
-assert.equal(Settings.getSettings().ui.compactMode, true);
+assert.equal(Settings.getSettings().ui.compactMode, false);
 assert.equal(Settings.getSettings().version, "1.0.0");
 assert.equal(Settings.shutdown(), true);
 assert.equal(Settings.snapshot().initialized, false);

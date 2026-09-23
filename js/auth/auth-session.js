@@ -19,15 +19,6 @@ from "./auth-state.js";
 // ACTIVITY
 // =====================================
 
-export function updateLastActivity(){
-
-  authRuntimeState.lastActivityAt =
-  Date.now();
-
-  return true;
-
-}
-
 
 
 // =====================================
@@ -68,14 +59,3 @@ export function registerFailedLogin(){
 
 }
 
-export function clearLoginBlock(){
-
-  authRuntimeState.failedLoginAttempts =
-  0;
-
-  authRuntimeState.loginBlockedUntil =
-  null;
-
-  return true;
-
-}

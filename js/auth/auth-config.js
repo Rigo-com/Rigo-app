@@ -21,5 +21,4 @@ export const AUTH_RUNTIME_CONFIG =
   SESSION_CHECK_INTERVAL:60000
 });
 
-export const AUTH_RUNTIME_EVENTS = Object.freeze({LOGIN:"auth.login",LOGOUT:"auth.logout",REGISTER:"auth.register",SESSION_RESTORED:"auth.session.restored",SESSION_EXPIRED:"auth.session.expired",SESSION_CLEARED:"auth.session.cleared",LOGIN_BLOCKED:"auth.login.blocked",TOKEN_INVALID:"auth.token.invalid",AUTH_ERROR:"auth.error"});
 export const VALID_AUTH_STATE_KEYS = Object.freeze(new Set(["initialized","initializing","authenticated","loading","user","token","sessionExpiresAt","lastActivityAt","error"]));

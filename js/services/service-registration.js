@@ -28,18 +28,18 @@ function syncRegisteredCount(){
   serviceState.diagnostics.registered = RIGOContainer.services().length;
 }
 
-async function registerService(serviceName, factory, options = {}){
+function registerService(serviceName, factory, options = {}){
   const definition = validateServiceRegistration(serviceName, factory, options);
 
-  await RIGOContainer.register({
+  return RIGOContainer.register({
     name:definition.name,
     factory,
     dependencies:definition.dependencies,
     lifecycle:definition.lifecycle
+  }).then(() => {
+    syncRegisteredCount();
+    return true;
   });
-
-  syncRegisteredCount();
-  return true;
 }
 
 function unregisterService(serviceName){

@@ -76,6 +76,8 @@ ChatStreamService.initialize();
 assert.ok(ChatStreamService.start("stream-message"));
 assert.equal(ChatStreamService.pushChunk("a".repeat(CHAT_LIMITS.MAX_STREAM_BUFFER_SIZE)),true);
 assert.equal(ChatStreamService.pushChunk("b"),false);
+assert.equal(ChatStreamService.status().status,"streaming");
+assert.equal(ChatStreamService.fail("CHAT_TEST_FAILURE"),true);
 assert.equal(ChatStreamService.status().status,"failed");
 
 ChatActions.clearChat();
