@@ -89,6 +89,7 @@ function update(updates = {}){
     return true;
   }
   catch(error){
+    console.error("SETTINGS_UPDATE_ERROR",error);
     SettingsState.setHealthy(false);
     emit(SETTINGS_EVENTS.VALIDATION_FAILED, { error:String(error?.message || error) });
     return false;
