@@ -43,6 +43,7 @@ assert.deepEqual(
   ]),
   [true,true,true]
 );
+console.log("BOOT_DEBUG", {state:bootstrapState.state, initialized:bootstrapState.initialized, registered:[...bootstrapState.registeredSystems.keys()], initializedSystems:[...bootstrapState.initializedSystems], failedSystems:[...bootstrapState.failedSystems], lastError:String(bootstrapState.lastError?.message || bootstrapState.lastError || "")});
 assert.equal(bootstrapState.initialized,true);
 assert.deepEqual([...bootstrapState.initializedSystems],["core","ai","ui"]);
 
