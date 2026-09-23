@@ -61,9 +61,6 @@ function registerAISystem(){
   });
 }
 
-function bootChatSystem(){
-  return ChatRuntime.boot();
-}
 
 function registerChatSystem(){
   return registerBootstrapSystem({
@@ -142,7 +139,6 @@ export {
   bootCoreSystem,
   registerCoreSystem,
   registerAISystem,
-  bootChatSystem,
   registerChatSystem,
   loadAdminSystem,
   shouldRegisterAdminSystem,
