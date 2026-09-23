@@ -5,7 +5,6 @@
 
 import {UiState} from "./ui-state.js";
 import {isMobileDevice} from "./ui-utils.js";
-import LanguageRuntime from "./i18n/index.js";
 
 function initializeUi(){
   if(UiState.snapshot().initialized) return true;
@@ -15,13 +14,10 @@ function initializeUi(){
 }
 
 async function initialize(){
-  initializeUi();
-  await LanguageRuntime.initialize();
-  return true;
+  return initializeUi();
 }
 
 async function shutdown(){
-  await LanguageRuntime.reset();
   UiState.reset();
   return true;
 }
@@ -33,8 +29,7 @@ async function reset(){
 
 function snapshot(){
   return Object.freeze({
-    ui:UiState.snapshot(),
-    language:LanguageRuntime.snapshot()
+    ui:UiState.snapshot()
   });
 }
 
@@ -43,8 +38,7 @@ const UiRuntime = Object.freeze({
   shutdown,
   reset,
   snapshot,
-  initializeUi,
-  language:LanguageRuntime
+  initializeUi
 });
 
 export {
