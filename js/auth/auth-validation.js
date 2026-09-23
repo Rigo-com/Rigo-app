@@ -52,9 +52,7 @@ export function validatePassword(
 
 
 
-// =====================================
-// TOKEN
-// =====================================
+
 
 export function validateToken(
   token
