@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "check:ai": "find js/ai -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
-    "check:api": "find js/api api -type f -name '*.js' -print0 | xargs -0 -n1 node --check && node tests/api-runtime.test.mjs && node tests/blob-upload.test.mjs"
+    "check:api": "find js/api api -type f -name '*.js' -print0 | xargs -0 -n1 node --check && node tests/api-runtime.test.mjs && node tests/blob-upload.test.mjs",
+    "audit:dead-code": "node tests/dead-code-audit.mjs",
+    "check:all": "npm run audit:dead-code && npm run check:api && npm run check:ai"
   },
   "dependencies": {
     "@vercel/blob": "^2.6.1",
