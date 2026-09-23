@@ -121,6 +121,11 @@ async function register({ name="", email="", password="", staySignedIn=false } =
     const normalizedName = String(name || "").trim() || normalizedEmail.split("@")[0] || "RIGO User";
     const { response, payload } = await authRequest("register", { method:"POST", body:{ name:normalizedName, email:normalizedEmail, password, staySignedIn:Boolean(staySignedIn) } });
     if(!response.ok) throw new Error(extractError(payload, "REGISTRATION_FAILED"));
+    if(payload?.verificationRequired){
+      clearAuthenticatedState();
+      authRuntimeState.diagnostics.registrations++;
+      return true;
+    }
     if(!await restoreAuthSession()) throw new Error("SESSION_RESTORE_FAILED");
     authRuntimeState.diagnostics.registrations++;
     return true;
