@@ -34,6 +34,10 @@ for(const file of jsFiles){
 }
 
 const candidates = [];
+const internalExports = [];
+for(const item of exported){
+  const definingSource = sources.get(item.file);
+  const escaped = item.name.replace(/[^A-Za-z0-9_$]/g,"\\const candidates = [];
 for(const item of exported){
   const otherFiles = files.filter(file => file !== item.file);
   let references = 0;
@@ -51,6 +55,36 @@ for(const item of exported){
       reason:"exported symbol has no textual references outside its defining file"
     });
   }
+}");
+  const re = new RegExp("\\b"+escaped+"\\b","g");
+  const localMatches = definingSource.match(re)?.length || 0;
+
+  let externalReferences = 0;
+  for(const file of files){
+    if(file === item.file) continue;
+    externalReferences += sources.get(file).match(re)?.length || 0;
+  }
+
+  // The declaration itself accounts for one local occurrence.
+  const internalReferences = Math.max(0, localMatches - 1);
+
+  if(externalReferences === 0 && internalReferences > 0){
+    internalExports.push({
+      file:path.relative(ROOT,item.file),
+      name:item.name,
+      kind:item.kind,
+      reason:"exported symbol is only used inside its defining file"
+    });
+  }
+
+  if(externalReferences === 0 && internalReferences === 0){
+    candidates.push({
+      file:path.relative(ROOT,item.file),
+      name:item.name,
+      kind:item.kind,
+      reason:"exported symbol has no references outside or inside its defining file"
+    });
+  }
 }
 
 const report = {
@@ -58,6 +92,7 @@ const report = {
   scannedFiles:files.length,
   scannedJavaScript:jsFiles.length,
   exportedSymbols:exported.length,
+  internalExports,
   candidates
 };
 
