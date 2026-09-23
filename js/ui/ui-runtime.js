@@ -42,11 +42,6 @@ const UiRuntime = Object.freeze({
 });
 
 export {
-  initialize,
-  shutdown,
-  reset,
-  snapshot,
-  initializeUi,
   UiRuntime
 };
 
