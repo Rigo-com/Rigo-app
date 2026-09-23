@@ -59,14 +59,3 @@ export function registerFailedLogin(){
 
 }
 
-export function clearLoginBlock(){
-
-  authRuntimeState.failedLoginAttempts =
-  0;
-
-  authRuntimeState.loginBlockedUntil =
-  null;
-
-  return true;
-
-}
