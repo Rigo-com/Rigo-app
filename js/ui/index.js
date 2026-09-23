@@ -4,115 +4,24 @@
 // PUBLIC EXPORTS
 // =====================================
 
-
-
-// =====================================
-// CORE UI
-// =====================================
-
 export {
-
   UI_CONFIG,
-
   uiState,
-
-  uiElements,
-
   UiState
-
-}
-from "./ui-state.js";
-
-
+} from "./ui-state.js";
 
 export {
-
-  UiElements
-
-}
-from "./ui-elements.js";
-
-
-
-export {
-
-  UiUtils
-
-}
-from "./ui-utils.js";
-
-
-
-export {
-
-  UiEvents
-
-}
-from "./ui-events.js";
-
-
-
-export {
-
   UiRenderer
-
-}
-from "./ui-renderer.js";
-
-
+} from "./ui-renderer.js";
 
 export {
-
-  UiRuntime
-
-}
-from "./ui-runtime.js";
-
-
-
-// =====================================
-// I18N
-// =====================================
-
-export {
-
   LanguageRuntime
-
-}
-from "./i18n/index.js";
-
-
-
-// =====================================
-// SIDEBAR
-// =====================================
+} from "./i18n/index.js";
 
 export {
-
-  SidebarRuntime,
-
-  SidebarState,
-
-  SidebarElements,
-
-  SidebarActions,
-
-  SidebarRenderer,
-
-  SidebarEvents
-
-}
-from "./sidebar/index.js";
-
-
-
-// =====================================
-// DEFAULT EXPORT
-// =====================================
+  UiRuntime
+} from "./ui-runtime.js";
 
 export {
-
   UiRuntime as default
-
-}
-from "./ui-runtime.js";
+} from "./ui-runtime.js";
