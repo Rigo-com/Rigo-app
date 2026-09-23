@@ -71,33 +71,56 @@ for(const html of htmlFiles){
   edges.set(html,new Set(imports));
 }
 
-const entrypoints=new Set();
-for(const html of htmlFiles) entrypoints.add(html);
+const appEntrypoints=new Set(htmlFiles);
+const testEntrypoints=new Set();
 for(const file of files){
-  if(file.startsWith(path.join(ROOT,"api")+path.sep) ||
-     file.startsWith(path.join(ROOT,"server")+path.sep) ||
-     file.startsWith(path.join(ROOT,"tests")+path.sep)){
-    if(jsFiles.has(file)) entrypoints.add(file);
+  const normalized=normalize(file);
+  if((normalized.startsWith(normalize(path.join(ROOT,"api"))+"/") ||
+      normalized.startsWith(normalize(path.join(ROOT,"server"))+"/")) && jsFiles.has(file)){
+    appEntrypoints.add(file);
+  }
+  if(normalized.startsWith(normalize(path.join(ROOT,"tests"))+"/") && jsFiles.has(file)){
+    testEntrypoints.add(file);
   }
 }
 
-const reachable=new Set();
-const stack=[...entrypoints];
-while(stack.length){
-  const current=stack.pop();
-  if(reachable.has(current)) continue;
-  reachable.add(current);
-  for(const dep of edges.get(current)||[]) stack.push(dep);
+function reachableFrom(entrypoints){
+  const reachable=new Set();
+  const stack=[...entrypoints];
+  while(stack.length){
+    const current=stack.pop();
+    if(reachable.has(current)) continue;
+    reachable.add(current);
+    for(const dep of edges.get(current)||[]) stack.push(dep);
+  }
+  return reachable;
 }
 
-const candidates=[...jsFiles]
+const appReachable=reachableFrom(appEntrypoints);
+const testReachable=reachableFrom(testEntrypoints);
+
+const deadCodeCandidates=[...jsFiles]
   .filter(file=>file.startsWith(JS_ROOT+path.sep))
-  .filter(file=>!reachable.has(file))
+  .filter(file=>!appReachable.has(file) && !testReachable.has(file))
   .map(normalize)
   .sort();
 
-const report={scannedJavaScript:jsFiles.size,htmlEntrypoints:htmlFiles.length,entrypoints:[...entrypoints].map(normalize).sort(),deadCodeCandidates:candidates};
-fs.writeFileSync(path.join(ROOT,"dead-code-report.json"),JSON.stringify(report,null,2)+"\\n");
+const testOnlyCandidates=[...jsFiles]
+  .filter(file=>file.startsWith(JS_ROOT+path.sep))
+  .filter(file=>testReachable.has(file) && !appReachable.has(file))
+  .map(normalize)
+  .sort();
+
+const report={
+  scannedJavaScript:jsFiles.size,
+  htmlEntrypoints:htmlFiles.length,
+  appEntrypoints:[...appEntrypoints].map(normalize).sort(),
+  testEntrypoints:[...testEntrypoints].map(normalize).sort(),
+  deadCodeCandidates,
+  testOnlyCandidates
+};
+
+fs.writeFileSync(path.join(ROOT,"dead-code-report.json"),JSON.stringify(report,null,2)+"\n");
 console.log(JSON.stringify(report,null,2));
 
-if(candidates.length) process.exitCode=2;
+if(deadCodeCandidates.length) process.exitCode=2;
