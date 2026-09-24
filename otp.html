@@ -1,85 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
-
-<head>
-
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
-
-  <title>RIGO AI Verification</title>
-
-  <link
-    rel="stylesheet"
-    href="./css/otp.css">
-
-</head>
-
-<body>
-
-  <div class="otp-screen">
-
-    <div class="otp-content">
-
-      <img
-        class="logo"
-        src="./assets/rigo-logo.PNG"
-        alt="RIGO AI">
-
-      <h1 class="title">
-        Verify Account
-      </h1>
-
-      <p class="subtitle">
-        Enter the verification code we sent to you
-      </p>
-
-      <div class="otp-container">
-
-        <input
-          class="otp-input"
-          maxlength="1">
-
-        <input
-          class="otp-input"
-          maxlength="1">
-
-        <input
-          class="otp-input"
-          maxlength="1">
-
-        <input
-          class="otp-input"
-          maxlength="1">
-
-        <input
-          class="otp-input"
-          maxlength="1">
-
-        <input
-          class="otp-input"
-          maxlength="1">
-
-      </div>
-
-      <button class="verify-button">
-        Verify
-      </button>
-
-      <div class="timer">
-        Resend code in 60s
-      </div>
-
-      <button class="resend-button">
-        Resend Code
-      </button>
-
-    </div>
-
-  </div>
-
-</body>
-
-</html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>RIGO AI Verification</title><link rel="stylesheet" href="./css/otp.css"></head>
+<body><div class="otp-screen"><div class="otp-content">
+<img class="logo" src="./assets/rigo-logo.PNG" alt="RIGO AI"><h1 class="title" id="otp-title">Verify Account</h1>
+<p class="subtitle" id="otp-subtitle">Enter the 6-digit code we sent to your email.</p>
+<div class="otp-container"><input class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="Digit 1"><input class="otp-input" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="Digit 2"><input class="otp-input" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="Digit 3"><input class="otp-input" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="Digit 4"><input class="otp-input" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="Digit 5"><input class="otp-input" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="Digit 6"></div>
+<div id="reset-fields" hidden><input id="new-password" class="otp-input" style="width:100%;box-sizing:border-box;margin:16px 0" type="password" autocomplete="new-password" placeholder="New password" minlength="8"></div>
+<div id="otp-error" role="alert" aria-live="polite" style="min-height:20px;color:#ef4444;text-align:center"></div>
+<button id="verify-button" class="verify-button">Verify</button><div class="timer" id="timer">Resend code in 60s</div><button id="resend-button" class="resend-button" disabled>Resend Code</button>
+</div></div>
+<script type="module">
+const params=new URLSearchParams(location.search),mode=params.get("mode")==="reset"?"reset":"verify",email=(params.get("email")||"").trim().toLowerCase();
+const inputs=[...document.querySelectorAll(".otp-input")].slice(0,6),error=document.getElementById("otp-error"),verify=document.getElementById("verify-button"),resend=document.getElementById("resend-button"),timer=document.getElementById("timer"),resetFields=document.getElementById("reset-fields"),newPassword=document.getElementById("new-password");
+if(!email){error.textContent="Missing email address.";verify.disabled=true;resend.disabled=true}
+if(mode==="reset"){document.getElementById("otp-title").textContent="Reset Password";document.getElementById("otp-subtitle").textContent="Enter the code sent to your email, then choose a new password.";resetFields.hidden=false}
+inputs.forEach((input,i)=>input.addEventListener("input",()=>{input.value=input.value.replace(/\D/g,"").slice(0,1);if(input.value&&inputs[i+1])inputs[i+1].focus()}));
+inputs[0]?.focus();
+let seconds=60;const tick=()=>{timer.textContent=seconds>0?"Resend code in "+seconds+"s":"You can request a new code";resend.disabled=seconds>0};tick();const interval=setInterval(()=>{seconds--;tick();if(seconds<=0)clearInterval(interval)},1000);
+async function request(action,body){const response=await fetch("./api/neon-auth?action="+encodeURIComponent(action),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(body)});const text=await response.text();let payload={};try{payload=text?JSON.parse(text):{}}catch{}return {response,payload}}
+verify.addEventListener("click",async()=>{error.textContent="";const code=inputs.map(x=>x.value).join("");if(!/^\d{6}$/.test(code)){error.textContent="Enter the 6-digit code.";return}if(mode==="reset"&&!/^.{8,}$/.test(newPassword.value)){error.textContent="Password must be at least 8 characters.";return}verify.disabled=true;const result=await request(mode==="reset"?"reset-password":"verify",mode==="reset"?{email,code,password:newPassword.value}:{email,code,staySignedIn:true});if(result.response.ok){location.replace(mode==="reset"?"./login.html":"./home.html");return}error.textContent=result.payload.error||"Verification failed.";verify.disabled=false});
+resend.addEventListener("click",async()=>{if(!email)return;error.textContent="";resend.disabled=true;const result=await request("resend",{email,purpose:mode});if(!result.response.ok)error.textContent=result.payload.error||"Unable to resend code.";seconds=60;tick();});
+</script></body></html>

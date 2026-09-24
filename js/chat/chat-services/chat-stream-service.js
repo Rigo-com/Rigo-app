@@ -4,7 +4,6 @@
 // =====================================
 
 import {
-  CHAT_STREAM_STATUS,
   getStreamStatus,
   getActiveStreamId,
   getActiveMessageId,
@@ -36,6 +35,7 @@ import {
   incrementFlushes,
   incrementDroppedChunks,
   getChatStreamSnapshot,
+  CHAT_STREAM_STATUS,
   resetChatStreamState
 }
 from "../chat-state/chat-stream-state.js";
