@@ -1,3 +1,4 @@
+/* Vercel CJS runtime fix */
 const crypto=require("node:crypto");
 const {neon}=require("@neondatabase/serverless");
 
