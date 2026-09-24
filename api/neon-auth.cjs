@@ -1,5 +1,5 @@
-import crypto from "node:crypto";
-import { neon } from "@neondatabase/serverless";
+const crypto=require("node:crypto");
+const { neon }=require("@neondatabase/serverless");
 
 const COOKIE_NAME="rigo_session";
 const SESSION_AGE=60*60*24*30;
@@ -48,7 +48,7 @@ async function ensureSchema(db){
  await db`CREATE TABLE IF NOT EXISTS rigo_storage (id UUID PRIMARY KEY,user_id UUID NOT NULL REFERENCES rigo_users(id) ON DELETE CASCADE,storage_key TEXT NOT NULL,storage_value JSONB NOT NULL DEFAULT '{}'::jsonb,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(user_id,storage_key))`;
  await db`CREATE INDEX IF NOT EXISTS rigo_storage_user_idx ON rigo_storage(user_id)`;
 }
-export default async function handler(req,res){
+module.exports=async function handler(req,res){
  res.setHeader("Cache-Control","no-store");const body=bodyOf(req);const action=String(req.query?.action||body.action||"");
  try{const db=sql();await ensureSchema(db);
   if(action==="register"){if(req.method!=="POST")return res.status(405).json({ok:false,error:"METHOD_NOT_ALLOWED"});const email=emailOf(body.email),password=String(body.password||""),name=String(body.name||"").trim();if(!email||!email.includes("@"))return res.status(400).json({ok:false,error:"INVALID_EMAIL"});if(!validPassword(password))return res.status(400).json({ok:false,error:"PASSWORD_TOO_SHORT"});const exists=await db`SELECT id FROM rigo_users WHERE email=${email} LIMIT 1`;if(exists.length)return res.status(409).json({ok:false,error:"ACCOUNT_ALREADY_EXISTS"});if(!mailConfig().key||!mailConfig().from)return res.status(503).json({ok:false,error:"EMAIL_PROVIDER_NOT_CONFIGURED"});const id=crypto.randomUUID(),passwordHash=hashPassword(password);const rows=await db`INSERT INTO rigo_users(id,email,name,password_hash,email_verified_at) VALUES(${id},${email},${name},${passwordHash},NULL) RETURNING id,email,name,role`;try{await issueOtp(db,id,email,"verify")}catch(error){await db`DELETE FROM rigo_users WHERE id=${id}`;throw error}return res.status(201).json({ok:true,verificationRequired:true,user:publicUser(rows[0])})}
