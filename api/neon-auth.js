@@ -1,7 +1,5 @@
 import crypto from "node:crypto";
-import {createRequire} from "node:module";
-const require=createRequire(import.meta.url);
-const {neon}=require("@neondatabase/serverless");
+function neon(connectionString){const parsed=new URL(connectionString);const labels=parsed.hostname.split(".");const apiHost=labels[0]?.startsWith("ep-")?`api.${labels.slice(1).join(".")}`:parsed.hostname;const endpoint=`https://${apiHost}/sql`;return async function sql(strings,...values){let query=strings[0]||"";const params=[];for(let i=0;i<values.length;i++){query+=`${i+1}${strings[i+1]||""}`;params.push(values[i])}const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","Neon-Connection-String":connectionString},body:JSON.stringify({query,params})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload?.message||payload?.error||`DATABASE_QUERY_FAILED_${response.status}`);return Array.isArray(payload?.rows)?payload.rows:[]}}
 
 const COOKIE_NAME="rigo_session";
 const SESSION_AGE=60*60*24*30;
