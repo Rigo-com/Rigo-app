@@ -1,6 +1,5 @@
-/* Vercel CJS runtime fix */
-const crypto=require("node:crypto");
-const {neon}=require("@neondatabase/serverless");
+import crypto from "node:crypto";
+import { neon } from "@neondatabase/serverless";
 
 const COOKIE_NAME="rigo_session";
 const SESSION_AGE=60*60*24*30;
@@ -30,7 +29,7 @@ function otpHash(code){return crypto.createHash("sha256").update(`${secret()}:${
 function validPassword(password){return String(password||"").length>=8}
 function mailConfig(){return {key:process.env.RESEND_API_KEY||"",from:process.env.RIGO_FROM_EMAIL||""}}
 async function sendOtpEmail({to,code,purpose}){const cfg=mailConfig();if(!cfg.key||!cfg.from)throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");const subject=purpose==="reset"?"RIGO AI password reset code":"RIGO AI verification code";const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":`Bearer ${cfg.key}`,"Content-Type":"application/json"},body:JSON.stringify({from:cfg.from,to:[to],subject,html:`<div style="font-family:Arial,sans-serif"><h2>RIGO AI</h2><p>Your verification code is:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px">${code}</p><p>This code expires in 10 minutes.</p></div>`})});let payload={};try{payload=await response.json()}catch{}if(!response.ok)throw new Error(payload?.message||payload?.error||"EMAIL_DELIVERY_FAILED");return payload?.id||null}
-async function issueOtp(db,userId,email,purpose){const now=Date.now();const recent=await db`SELECT otp_sent_at FROM rigo_users WHERE id=${userId} LIMIT 1`;const sentAt=recent[0]?.otp_sent_at?new Date(recent[0].otp_sent_at).getTime():0;const elapsed=now-sentAt;if(sentAt&&elapsed<OTP_RESEND_MS){const error=new Error("OTP_COOLDOWN");error.retryAfter=Math.ceil((OTP_RESEND_MS-elapsed)/1000);throw error}const code=otpCode();const emailId=await sendOtpEmail({to:email,code,purpose});await db`UPDATE rigo_users SET otp_hash=${otpHash(code)},otp_expires_at=${new Date(now+OTP_TTL_MS)},otp_purpose=${purpose},otp_sent_at=NOW(),updated_at=NOW() WHERE id=${userId}`;return {sent:true,emailId}
+async function issueOtp(db,userId,email,purpose){const code=otpCode();const now=Date.now();const recent=await db`SELECT otp_expires_at,otp_sent_at FROM rigo_users WHERE id=${userId} LIMIT 1`;const sentAt=recent[0]?.otp_sent_at?new Date(recent[0].otp_sent_at).getTime():0;if(sentAt&&now-sentAt<OTP_RESEND_MS)return false;await db`UPDATE rigo_users SET otp_hash=${otpHash(code)},otp_expires_at=${new Date(now+OTP_TTL_MS)},otp_purpose=${purpose},otp_sent_at=NOW(),updated_at=NOW() WHERE id=${userId}`;await sendOtpEmail({to:email,code,purpose});return true}
 async function ensureSchema(db){
  await db`CREATE TABLE IF NOT EXISTS rigo_users (id UUID PRIMARY KEY,email TEXT NOT NULL UNIQUE,name TEXT NOT NULL DEFAULT '',password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user',email_verified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),otp_hash TEXT,otp_expires_at TIMESTAMPTZ,otp_purpose TEXT,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
  await db`ALTER TABLE rigo_users ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`;
@@ -38,6 +37,7 @@ async function ensureSchema(db){
  await db`ALTER TABLE rigo_users ADD COLUMN IF NOT EXISTS otp_hash TEXT`;
  await db`ALTER TABLE rigo_users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMPTZ`;
  await db`ALTER TABLE rigo_users ADD COLUMN IF NOT EXISTS otp_purpose TEXT`;
+ await db`ALTER TABLE rigo_users ADD COLUMN IF NOT EXISTS otp_sent_at TIMESTAMPTZ`;
  await db`ALTER TABLE rigo_users ADD COLUMN IF NOT EXISTS otp_sent_at TIMESTAMPTZ`;
  await db`UPDATE rigo_users SET email_verified_at=COALESCE(email_verified_at,created_at) WHERE email_verified_at IS NULL`;
  await db`CREATE TABLE IF NOT EXISTS rigo_conversations (id UUID PRIMARY KEY,user_id UUID NOT NULL REFERENCES rigo_users(id) ON DELETE CASCADE,title TEXT NOT NULL DEFAULT '',created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
@@ -49,7 +49,7 @@ async function ensureSchema(db){
  await db`CREATE TABLE IF NOT EXISTS rigo_storage (id UUID PRIMARY KEY,user_id UUID NOT NULL REFERENCES rigo_users(id) ON DELETE CASCADE,storage_key TEXT NOT NULL,storage_value JSONB NOT NULL DEFAULT '{}'::jsonb,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(user_id,storage_key))`;
  await db`CREATE INDEX IF NOT EXISTS rigo_storage_user_idx ON rigo_storage(user_id)`;
 }
-module.exports=async function handler(req,res){
+export default async function handler(req,res){
  res.setHeader("Cache-Control","no-store");const body=bodyOf(req);const action=String(req.query?.action||body.action||"");
  try{const db=sql();await ensureSchema(db);
   if(action==="register"){if(req.method!=="POST")return res.status(405).json({ok:false,error:"METHOD_NOT_ALLOWED"});const email=emailOf(body.email),password=String(body.password||""),name=String(body.name||"").trim();if(!email||!email.includes("@"))return res.status(400).json({ok:false,error:"INVALID_EMAIL"});if(!validPassword(password))return res.status(400).json({ok:false,error:"PASSWORD_TOO_SHORT"});const exists=await db`SELECT id FROM rigo_users WHERE email=${email} LIMIT 1`;if(exists.length)return res.status(409).json({ok:false,error:"ACCOUNT_ALREADY_EXISTS"});if(!mailConfig().key||!mailConfig().from)return res.status(503).json({ok:false,error:"EMAIL_PROVIDER_NOT_CONFIGURED"});const id=crypto.randomUUID(),passwordHash=hashPassword(password);const rows=await db`INSERT INTO rigo_users(id,email,name,password_hash,email_verified_at) VALUES(${id},${email},${name},${passwordHash},NULL) RETURNING id,email,name,role`;try{await issueOtp(db,id,email,"verify")}catch(error){await db`DELETE FROM rigo_users WHERE id=${id}`;throw error}return res.status(201).json({ok:true,verificationRequired:true,user:publicUser(rows[0])})}
